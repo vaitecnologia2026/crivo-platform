@@ -1,10 +1,9 @@
 import { PrismaClient, Role, Plan } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Hash placeholder (F0). Em produção: bcrypt/argon2 no serviço de auth.
-const hash = (s: string) => createHash('sha256').update(s).digest('hex');
+const hash = (s: string) => bcrypt.hashSync(s, 10);
 
 async function main() {
   // 1) Tenant raiz

@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { createHash } from 'node:crypto';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import type { LoginResponse, SessionUser } from '@crivo/types';
 
@@ -11,11 +11,6 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  // F0: SHA-256 (igual ao seed). PRODUÇÃO: trocar por argon2id/bcrypt. TODO(F0->F1).
-  private hash(plain: string): string {
-    return createHash('sha256').update(plain).digest('hex');
-  }
-
   async login(email: string, password: string): Promise<LoginResponse> {
     // Login é cross-tenant por e-mail → usa a conexão owner (bypass RLS).
     // Em produção, o tenant vem do subdomínio/seleção e a busca é escopada.
@@ -23,7 +18,9 @@ export class AuthService {
       where: { email: email.toLowerCase().trim(), active: true },
     });
 
-    if (!user || user.passwordHash !== this.hash(password)) {
+    // bcrypt.compare em tempo constante; mesmo erro p/ usuário inexistente (anti-enumeração).
+    const ok = user ? await bcrypt.compare(password, user.passwordHash) : false;
+    if (!user || !ok) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
