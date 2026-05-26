@@ -1,0 +1,9 @@
+# Publicar APENAS o site estático (LP + Design System + plataforma-demo HTML).
+# Tudo abaixo NÃO vai para a Vercel:
+crivo-platform/
+docs/
+node_modules/
+.git/
+.claude/
+*.log
+.DS_Store
