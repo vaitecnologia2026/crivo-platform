@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRIVO™ · Design System — Decision Intelligence System</title>
+  <meta name="description" content="Design System oficial da CRIVO™ — tokens, identidade da marca O Vértice, tipografia, componentes e diretrizes de voz do Decision Intelligence System." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Poppins:wght@200;300;400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="ds.css" />
+</head>
+<body>
+
+  <!-- ===== SIDEBAR NAV ===== -->
+  <aside class="ds-nav">
+    <a href="#top" class="ds-nav__brand">
+      <svg class="vertice" viewBox="0 0 48 44" fill="none" aria-hidden="true">
+        <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="24" cy="6" r="3.6" fill="#C4894A"/><circle cx="24" cy="6" r="1.6" fill="#F2F0EC"/>
+      </svg>
+      <span><strong>CRIVO</strong><em>Design System</em></span>
+    </a>
+    <nav class="ds-nav__links">
+      <a href="#principios">Princípios</a>
+      <a href="#logo">Logo · O Vértice</a>
+      <a href="#cores">Cores</a>
+      <a href="#tipografia">Tipografia</a>
+      <a href="#botoes">Botões</a>
+      <a href="#componentes">Componentes</a>
+      <a href="#layout">Espaço · Radius · Sombra</a>
+      <a href="#motion">Motion</a>
+      <a href="#voz">Voz & Tom</a>
+    </nav>
+    <div class="ds-nav__foot">
+      <span>v1.0 · Brand System V3.0</span>
+      <span>O2 Legacy &amp; Consulting</span>
+    </div>
+  </aside>
+
+  <main class="ds-main" id="top">
+
+    <!-- ===== HERO ===== -->
+    <header class="ds-hero">
+      <div class="ds-hero__bg"></div>
+      <div class="ds-hero__inner">
+        <span class="ds-eyebrow ds-eyebrow--terra">Decision Intelligence System</span>
+        <h1 class="ds-display">Design System</h1>
+        <p class="ds-hero__sub">A linguagem visual da CRIVO™ — princípios, identidade e componentes que sustentam autoridade, rigor e clareza em cada ponto de contato.</p>
+        <div class="ds-hero__meta">
+          <span><strong>Lora</strong> + <strong>Poppins</strong> + <strong>Cormorant</strong></span>
+          <span class="ds-dot">·</span>
+          <span>Azuis estruturais + Terra + Off-white</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== PRINCÍPIOS ===== -->
+    <section class="ds-section" id="principios">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">01 · Fundamentos</span>
+        <h2 class="ds-h2">Cinco princípios inegociáveis.</h2>
+      </div>
+      <div class="ds-grid ds-grid--3">
+        <div class="ds-principle"><span class="ds-principle__n">01</span><h3>Base aberta</h3><p>O triângulo nunca fecha. O gap central representa um sistema em movimento permanente — recebe inputs, processa e eleva.</p></div>
+        <div class="ds-principle"><span class="ds-principle__n">02</span><h3>Terra é acento</h3><p>A cor terra aparece só no ponto do vértice, CTAs, sublinhados e bordas de citação. Nunca como fundo dominante.</p></div>
+        <div class="ds-principle"><span class="ds-principle__n">03</span><h3>Geometria pura</h3><p>Sem arredondamento excessivo, sem decoração. Rigor, precisão e força — registro de gestão de patrimônio e consultoria de elite.</p></div>
+        <div class="ds-principle"><span class="ds-principle__n">04</span><h3>Contraste serif/sans</h3><p>Lora (serif) nos títulos, Poppins (sans) no corpo. O contraste É a identidade tipográfica — nunca substituir.</p></div>
+        <div class="ds-principle"><span class="ds-principle__n">05</span><h3>Rigor, não bem-estar</h3><p>Tom técnico, mensurável, baseado em evidência. Sem coaching, sem motivacional, sem paleta de bem-estar.</p></div>
+      </div>
+    </section>
+
+    <!-- ===== LOGO ===== -->
+    <section class="ds-section ds-section--alt" id="logo">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">02 · Marca</span>
+        <h2 class="ds-h2">O Vértice.</h2>
+        <p class="ds-lede">Duas linhas ascendentes (clareza + governança) convergindo a um ponto de decisão — o ICD. A base aberta mantém o sistema em movimento.</p>
+      </div>
+
+      <div class="ds-logo-anatomy">
+        <svg viewBox="0 0 240 230" fill="none" class="ds-anatomy-svg" aria-hidden="true">
+          <line x1="34" y1="178" x2="120" y2="32" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="206" y1="178" x2="120" y2="32" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="34" y1="178" x2="88" y2="178" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="152" y1="178" x2="206" y2="178" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="120" cy="32" r="11" fill="#C4894A"/><circle cx="120" cy="32" r="4.8" fill="#F2F0EC"/>
+          <!-- anotações -->
+          <line x1="120" y1="32" x2="200" y2="20" stroke="rgba(196,137,74,0.5)" stroke-width="0.75"/>
+          <text x="204" y="22" fill="#C4894A" font-size="8" font-family="Poppins" letter-spacing="1.5">PONTO TERRA · ICD</text>
+          <line x1="77" y1="105" x2="20" y2="92" stroke="rgba(139,175,212,0.5)" stroke-width="0.75"/>
+          <text x="18" y="90" fill="#8BAFD4" font-size="8" font-family="Poppins" text-anchor="end" letter-spacing="1.5">VETORES ASCENDENTES</text>
+          <line x1="120" y1="178" x2="120" y2="208" stroke="rgba(139,175,212,0.5)" stroke-width="0.75"/>
+          <text x="120" y="222" fill="#8BAFD4" font-size="8" font-family="Poppins" text-anchor="middle" letter-spacing="1.5">BASE ABERTA · MOVIMENTO</text>
+        </svg>
+      </div>
+
+      <h3 class="ds-block-title">Variações de aplicação</h3>
+      <div class="ds-logo-grid">
+        <div class="ds-logo-card ds-bg-dark">
+          <svg viewBox="0 0 110 96" fill="none" class="ds-logo-lockup"><g stroke="#F2F0EC"><line x1="14" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="96" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="70" x2="40" y2="70" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="70" x2="96" y2="70" stroke-width="2" stroke-linecap="round"/></g><circle cx="55" cy="14" r="6" fill="#C4894A"/><circle cx="55" cy="14" r="2.6" fill="#F2F0EC"/><text x="55" y="88" font-family="Cormorant Garamond" font-size="15" fill="#F2F0EC" text-anchor="middle" letter-spacing="4">CRIVO</text></svg>
+          <span class="ds-logo-label">Principal · fundo escuro</span>
+        </div>
+        <div class="ds-logo-card ds-bg-light">
+          <svg viewBox="0 0 110 96" fill="none"><g stroke="#0D1F3C"><line x1="14" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="96" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="70" x2="40" y2="70" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="70" x2="96" y2="70" stroke-width="2" stroke-linecap="round"/></g><circle cx="55" cy="14" r="6" fill="#A8693D"/><circle cx="55" cy="14" r="2.6" fill="#F2F0EC"/><text x="55" y="88" font-family="Cormorant Garamond" font-size="15" fill="#0D1F3C" text-anchor="middle" letter-spacing="4">CRIVO</text></svg>
+          <span class="ds-logo-label">Fundo claro / off-white</span>
+        </div>
+        <div class="ds-logo-card ds-bg-slate">
+          <svg viewBox="0 0 110 96" fill="none"><g stroke="#C8D9ED"><line x1="14" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="96" y1="70" x2="55" y2="14" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="70" x2="40" y2="70" stroke-width="2" stroke-linecap="round"/><line x1="70" y1="70" x2="96" y2="70" stroke-width="2" stroke-linecap="round"/></g><circle cx="55" cy="14" r="6" fill="#C4894A"/><circle cx="55" cy="14" r="2.6" fill="#F2F0EC"/><text x="55" y="88" font-family="Cormorant Garamond" font-size="15" fill="#F2F0EC" text-anchor="middle" letter-spacing="4">CRIVO</text></svg>
+          <span class="ds-logo-label">Institucional · azul médio</span>
+        </div>
+        <div class="ds-logo-card ds-bg-light">
+          <svg viewBox="0 0 90 90" fill="none"><g stroke="#0D1F3C"><line x1="14" y1="64" x2="45" y2="16" stroke-width="2" stroke-linecap="round"/><line x1="76" y1="64" x2="45" y2="16" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="64" x2="33" y2="64" stroke-width="2" stroke-linecap="round"/><line x1="57" y1="64" x2="76" y2="64" stroke-width="2" stroke-linecap="round"/></g><circle cx="45" cy="16" r="5.5" fill="#A8693D"/><circle cx="45" cy="16" r="2.4" fill="#F2F0EC"/></svg>
+          <span class="ds-logo-label">Símbolo · favicon</span>
+        </div>
+      </div>
+
+      <div class="ds-dont">
+        <h3 class="ds-block-title">O que nunca fazer</h3>
+        <ul class="ds-dont-list">
+          <li>Fechar o triângulo (perde o significado de sistema em movimento).</li>
+          <li>Usar terra como fundo de página ou seção.</li>
+          <li>Usar o símbolo sem o ponto terra.</li>
+          <li>Substituir Lora por sans-serif nos títulos.</li>
+          <li>Misturar com paleta de bem-estar (verde claro, amarelo, laranja pastel).</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== CORES ===== -->
+    <section class="ds-section" id="cores">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">03 · Sistema cromático</span>
+        <h2 class="ds-h2">Paleta.</h2>
+      </div>
+
+      <h3 class="ds-block-title">Azuis estruturais — base da identidade</h3>
+      <div class="ds-swatches">
+        <div class="ds-swatch" style="--c:#0D1F3C"><span class="ds-swatch__chip"></span><strong>Azul Profundo</strong><em>#0D1F3C</em></div>
+        <div class="ds-swatch" style="--c:#1B3A6B"><span class="ds-swatch__chip"></span><strong>Azul Médio</strong><em>#1B3A6B</em></div>
+        <div class="ds-swatch" style="--c:#2E4D7A"><span class="ds-swatch__chip"></span><strong>Azul Slate</strong><em>#2E4D7A</em></div>
+        <div class="ds-swatch" style="--c:#4A6FA5"><span class="ds-swatch__chip"></span><strong>Azul Cobalto</strong><em>#4A6FA5</em></div>
+        <div class="ds-swatch" style="--c:#8BAFD4"><span class="ds-swatch__chip"></span><strong>Azul Claro</strong><em>#8BAFD4</em></div>
+        <div class="ds-swatch" style="--c:#C8D9ED"><span class="ds-swatch__chip"></span><strong>Azul Gelo</strong><em>#C8D9ED</em></div>
+      </div>
+
+      <h3 class="ds-block-title">Neutros sofisticados</h3>
+      <div class="ds-swatches">
+        <div class="ds-swatch" style="--c:#0A0B0D"><span class="ds-swatch__chip"></span><strong>Preto Técnico</strong><em>#0A0B0D</em></div>
+        <div class="ds-swatch" style="--c:#3A3A38"><span class="ds-swatch__chip"></span><strong>Cinza Escuro</strong><em>#3A3A38</em></div>
+        <div class="ds-swatch" style="--c:#B8C4D0"><span class="ds-swatch__chip"></span><strong>Prata</strong><em>#B8C4D0</em></div>
+        <div class="ds-swatch" style="--c:#D6D2CC"><span class="ds-swatch__chip"></span><strong>Cinza Quente</strong><em>#D6D2CC</em></div>
+        <div class="ds-swatch" style="--c:#F2F0EC"><span class="ds-swatch__chip ds-swatch__chip--bordered"></span><strong>Off-White</strong><em>#F2F0EC</em></div>
+      </div>
+
+      <h3 class="ds-block-title">Terra — acento · ação · o ponto do vértice</h3>
+      <div class="ds-swatches">
+        <div class="ds-swatch" style="--c:#7B4F2E"><span class="ds-swatch__chip"></span><strong>Terra Escura</strong><em>#7B4F2E</em></div>
+        <div class="ds-swatch" style="--c:#A8693D"><span class="ds-swatch__chip"></span><strong>Terra Principal</strong><em>#A8693D</em></div>
+        <div class="ds-swatch" style="--c:#C4894A"><span class="ds-swatch__chip"></span><strong>Terra Dourado</strong><em>#C4894A</em></div>
+        <div class="ds-swatch" style="--c:#E0B080"><span class="ds-swatch__chip"></span><strong>Terra Claro</strong><em>#E0B080</em></div>
+      </div>
+      <p class="ds-note">⚠ A terra aparece exclusivamente em: ponto do vértice · CTAs · sublinhados de seção · bordas de citação. Nunca como fundo dominante.</p>
+    </section>
+
+    <!-- ===== TIPOGRAFIA ===== -->
+    <section class="ds-section ds-section--alt" id="tipografia">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">04 · Tipografia</span>
+        <h2 class="ds-h2">Hierarquia.</h2>
+      </div>
+      <div class="ds-type-list">
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Display</strong><span>Lora · 500 · clamp 34–62px</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-display);font-size:48px;font-weight:500;line-height:1.05;">Decision Intelligence</p>
+        </div>
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Título de seção</strong><span>Lora · 500 · clamp 27–44px</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-display);font-size:34px;font-weight:500;">Empresas crescem até o limite da sua liderança.</p>
+        </div>
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Citação · voz da marca</strong><span>Lora · italic</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-display);font-style:italic;font-size:24px;color:var(--crivo-azul-slate);">"Clareza. Coerência. Impacto."</p>
+        </div>
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Wordmark</strong><span>Cormorant Garamond · +0.22em</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-word);font-size:34px;font-weight:500;letter-spacing:0.22em;">CRIVO</p>
+        </div>
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Label / navegação</strong><span>Poppins · uppercase · +0.3em</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-body);font-size:13px;text-transform:uppercase;letter-spacing:0.3em;color:var(--crivo-terra);">Diagnóstico · ICD · NR-1</p>
+        </div>
+        <div class="ds-type-row">
+          <div class="ds-type-spec"><strong>Corpo</strong><span>Poppins · 300 · 1.65</span></div>
+          <p class="ds-type-sample" style="font-family:var(--crivo-font-body);font-size:16px;font-weight:300;line-height:1.65;max-width:560px;">O CRIVO™ é o único sistema que quantifica a qualidade decisória de uma organização, com métrica proprietária e resultado mensurável.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BOTÕES ===== -->
+    <section class="ds-section" id="botoes">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">05 · Ações</span>
+        <h2 class="ds-h2">Botões.</h2>
+      </div>
+      <div class="ds-btn-demo">
+        <div class="ds-btn-cell ds-bg-light">
+          <button class="dsb dsb--terra">Solicitar diagnóstico</button>
+          <button class="dsb dsb--outline-dark">Falar com especialista</button>
+          <span class="ds-logo-label">Sobre claro</span>
+        </div>
+        <div class="ds-btn-cell ds-bg-dark">
+          <button class="dsb dsb--terra">Solicitar diagnóstico</button>
+          <button class="dsb dsb--ghost">Falar com especialista</button>
+          <span class="ds-logo-label">Sobre escuro</span>
+        </div>
+      </div>
+      <p class="ds-note">Microcopy em uppercase, tracking +0.08em. Hover: elevação sutil + sombra terra. Raio 3px (sóbrio).</p>
+    </section>
+
+    <!-- ===== COMPONENTES ===== -->
+    <section class="ds-section ds-section--alt" id="componentes">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">06 · Componentes</span>
+        <h2 class="ds-h2">Biblioteca.</h2>
+      </div>
+      <div class="ds-grid ds-grid--2">
+        <div class="ds-comp">
+          <span class="ds-comp__tag">Eyebrow</span>
+          <span class="dsx-eyebrow">Decision Intelligence System</span>
+        </div>
+        <div class="ds-comp">
+          <span class="ds-comp__tag">Pills / Tags</span>
+          <div class="ds-row-gap">
+            <span class="dsx-pill">Em andamento</span>
+            <span class="dsx-pill dsx-pill--terra">Mais procurado</span>
+            <span class="dsx-pill dsx-pill--alert">Pressão</span>
+          </div>
+        </div>
+        <div class="ds-comp">
+          <span class="ds-comp__tag">Score pills (ICD)</span>
+          <div class="ds-row-gap">
+            <span class="dsx-score dsx-score--high">91</span>
+            <span class="dsx-score dsx-score--mid">80</span>
+            <span class="dsx-score dsx-score--low">66</span>
+          </div>
+        </div>
+        <div class="ds-comp">
+          <span class="ds-comp__tag">Input</span>
+          <input class="dsx-input" placeholder="nome@empresa.com.br" />
+        </div>
+        <div class="ds-comp ds-comp--wide">
+          <span class="ds-comp__tag">Card · pilar do método</span>
+          <div class="dsx-card">
+            <span class="dsx-card__letter">C</span>
+            <h4>Consciência</h4>
+            <p>Clareza sobre o contexto, as pessoas e as decisões.</p>
+          </div>
+        </div>
+        <div class="ds-comp ds-comp--wide">
+          <span class="ds-comp__tag">Citação</span>
+          <blockquote class="dsx-quote">A CRIVO conecta liderança, comportamento, cultura e execução em uma estrutura integrada.</blockquote>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LAYOUT ===== -->
+    <section class="ds-section" id="layout">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">07 · Estrutura</span>
+        <h2 class="ds-h2">Espaço, raio e sombra.</h2>
+      </div>
+      <h3 class="ds-block-title">Escala de espaçamento (4pt)</h3>
+      <div class="ds-space-demo">
+        <div class="ds-space"><span style="width:4px"></span><em>4</em></div>
+        <div class="ds-space"><span style="width:8px"></span><em>8</em></div>
+        <div class="ds-space"><span style="width:16px"></span><em>16</em></div>
+        <div class="ds-space"><span style="width:24px"></span><em>24</em></div>
+        <div class="ds-space"><span style="width:32px"></span><em>32</em></div>
+        <div class="ds-space"><span style="width:48px"></span><em>48</em></div>
+        <div class="ds-space"><span style="width:64px"></span><em>64</em></div>
+      </div>
+      <h3 class="ds-block-title">Raio &amp; Sombra</h3>
+      <div class="ds-grid ds-grid--4">
+        <div class="ds-radius" style="border-radius:2px">2px</div>
+        <div class="ds-radius" style="border-radius:4px">4px</div>
+        <div class="ds-radius" style="border-radius:6px">6px</div>
+        <div class="ds-radius" style="border-radius:10px">10px</div>
+      </div>
+      <div class="ds-grid ds-grid--3" style="margin-top:16px">
+        <div class="ds-shadow" style="box-shadow:var(--crivo-shadow-1)">shadow-1</div>
+        <div class="ds-shadow" style="box-shadow:var(--crivo-shadow-2)">shadow-2</div>
+        <div class="ds-shadow" style="box-shadow:var(--crivo-shadow-3)">shadow-3</div>
+      </div>
+    </section>
+
+    <!-- ===== MOTION ===== -->
+    <section class="ds-section ds-section--alt" id="motion">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">08 · Motion</span>
+        <h2 class="ds-h2">Movimento com critério.</h2>
+        <p class="ds-lede">Transições com easeOutExpo <code>cubic-bezier(0.16, 1, 0.3, 1)</code>. O Vértice se desenha no carregamento — clareza e governança convergindo ao ponto de decisão.</p>
+      </div>
+      <div class="ds-motion-demo ds-bg-dark">
+        <svg viewBox="0 0 240 200" fill="none" class="ds-motion-vertice" aria-hidden="true">
+          <line x1="34" y1="158" x2="120" y2="22" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round" class="vx-line"/>
+          <line x1="206" y1="158" x2="120" y2="22" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round" class="vx-line"/>
+          <line x1="34" y1="158" x2="88" y2="158" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round" class="vx-line"/>
+          <line x1="152" y1="158" x2="206" y2="158" stroke="#F2F0EC" stroke-width="2.6" stroke-linecap="round" class="vx-line"/>
+          <circle cx="120" cy="22" r="11" fill="#C4894A" class="vx-dot"/><circle cx="120" cy="22" r="4.8" fill="#F2F0EC" class="vx-dot"/>
+        </svg>
+        <button class="dsb dsb--ghost" id="replayMotion">Reproduzir novamente</button>
+      </div>
+    </section>
+
+    <!-- ===== VOZ ===== -->
+    <section class="ds-section" id="voz">
+      <div class="ds-section__head">
+        <span class="ds-eyebrow">09 · Verbal</span>
+        <h2 class="ds-h2">Voz &amp; Tom.</h2>
+      </div>
+      <div class="ds-voice">
+        <div class="ds-voice__col ds-voice__col--yes">
+          <h3>Fala assim</h3>
+          <ul>
+            <li>Rigoroso · técnico</li>
+            <li>Direto · baseado em evidência</li>
+            <li>Mensurável · estratégico</li>
+            <li>"O ICD revela…"</li>
+            <li>"Dados mostram que…"</li>
+            <li>"Resultado quantificável"</li>
+          </ul>
+        </div>
+        <div class="ds-voice__col ds-voice__col--no">
+          <h3>Não fala assim</h3>
+          <ul>
+            <li>Empático em excesso</li>
+            <li>Genérico · motivacional</li>
+            <li>Coaching / "cuide-se"</li>
+            <li>"Jornada de bem-estar"</li>
+            <li>Tom RH tradicional</li>
+            <li>"Transformação humana" (apelo emocional)</li>
+          </ul>
+        </div>
+      </div>
+      <p class="ds-note">Referências de registro: Itaú Personnalité · Kinea Investimentos · Hospital Albert Einstein.</p>
+    </section>
+
+    <footer class="ds-footer">
+      <div class="ds-footer__brand">
+        <svg class="vertice" viewBox="0 0 48 44" fill="none" aria-hidden="true">
+          <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="24" cy="6" r="3.6" fill="#C4894A"/><circle cx="24" cy="6" r="1.6" fill="#F2F0EC"/>
+        </svg>
+        <span class="ds-footer__word">CRIVO</span>
+      </div>
+      <p>Design System v1.0 · Decision Intelligence System · O2 Legacy &amp; Consulting</p>
+      <p class="ds-footer__links"><a href="CRIVO-LP/index.html">Landing Page →</a> &nbsp; <a href="CRIVO-PLATAFORMA/index.html">Plataforma →</a></p>
+    </footer>
+
+  </main>
+
+  <script src="logger.js"></script>
+  <script>
+    (function () {
+      var log = (window.CRIVO && window.CRIVO.log) ? window.CRIVO.log.create('crivo:ds') : console;
+      var motionLog = log.child ? log.child('motion') : log;   // crivo:ds:motion
+      var navLog = log.child ? log.child('nav') : log;         // crivo:ds:nav
+
+      // Replay do desenho do Vértice
+      var replayBtn = document.getElementById('replayMotion');
+      if (replayBtn) {
+        replayBtn.addEventListener('click', function () {
+          var svg = document.querySelector('.ds-motion-vertice');
+          if (!svg) return;
+          svg.classList.remove('is-playing');
+          void svg.offsetWidth; // reflow para reiniciar a animação
+          svg.classList.add('is-playing');
+          motionLog.debug && motionLog.debug('replay do Vértice acionado');
+        });
+      }
+
+      // Toca o desenho do Vértice ao entrar na viewport
+      var mv = document.querySelector('.ds-motion-vertice');
+      if (mv) {
+        new IntersectionObserver(function (entries) {
+          entries.forEach(function (x) {
+            if (x.isIntersecting) {
+              x.target.classList.add('is-playing');
+              motionLog.debug && motionLog.debug('Vértice entrou na viewport · animando');
+            }
+          });
+        }, { threshold: 0.4 }).observe(mv);
+      }
+
+      // Scrollspy: marca o link da seção visível como ativo (um único observer)
+      var links = Array.prototype.slice.call(document.querySelectorAll('.ds-nav__links a'));
+      var sections = links
+        .map(function (l) { return document.querySelector(l.getAttribute('href')); })
+        .filter(Boolean);
+
+      if (sections.length) {
+        var spy = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            var id = '#' + en.target.id;
+            links.forEach(function (l) {
+              l.classList.toggle('is-active', l.getAttribute('href') === id);
+            });
+            navLog.debug && navLog.debug('seção ativa: ' + id);
+          });
+        }, { rootMargin: '-30% 0px -60% 0px' });
+        sections.forEach(function (s) { spy.observe(s); });
+      } else {
+        navLog.warn && navLog.warn('nenhuma seção encontrada para o scrollspy');
+      }
+
+      log.info && log.info('design system showcase inicializado · ' + sections.length + ' seções');
+    })();
+  </script>
+</body>
+</html>

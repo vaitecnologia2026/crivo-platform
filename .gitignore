@@ -1,0 +1,17 @@
+# os / editor
+.DS_Store
+.claude/
+*.log
+
+# deps & build (cobertos também pelo crivo-platform/.gitignore)
+node_modules/
+dist/
+.next/
+out/
+.turbo/
+.vite/
+
+# env & secrets
+.env
+.env.local
+*.local
