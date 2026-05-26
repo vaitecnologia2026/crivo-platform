@@ -18,6 +18,13 @@ export class IcdController {
     return ICD_QUESTIONS;
   }
 
+  /** Lista os usuários do tenant para escolher o líder a avaliar. */
+  @Get('leaders')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  leaders(@CurrentUser() user: SessionUser) {
+    return this.icd.leaders(user.tenantId);
+  }
+
   /** Submete uma avaliação ICD de um líder. */
   @Post('assessments')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')

@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { LoginResponse } from '@crivo/types';
+import { setToken } from '../../lib/api';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3333';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('ceo@crivo.demo');
   const [password, setPassword] = useState('crivo123');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [session, setSession] = useState<LoginResponse | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,11 +26,10 @@ export default function LoginPage() {
       });
       if (!res.ok) throw new Error('Credenciais inválidas');
       const data: LoginResponse = await res.json();
-      localStorage.setItem('crivo_token', data.token);
-      setSession(data);
+      setToken(data.token);
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no login');
-    } finally {
       setLoading(false);
     }
   }
@@ -48,34 +49,18 @@ export default function LoginPage() {
         <span style={S.eyebrow}>Decision Intelligence System</span>
         <h1 style={S.title}>Acesso à Plataforma</h1>
 
-        {session ? (
-          <div style={S.success}>
-            <strong>Sessão aberta.</strong>
-            <p style={{ marginTop: 6, color: 'var(--prata)' }}>
-              {session.user.name} · {session.user.role}
-              <br />
-              tenant: <code>{session.user.tenantId.slice(0, 8)}…</code>
-            </p>
-            <p style={{ marginTop: 10, fontSize: 13, color: 'var(--azul-claro)' }}>
-              (F0: dashboard chega na fase F1)
-            </p>
-          </div>
-        ) : (
-          <>
-            <label style={S.label}>E-mail corporativo</label>
-            <input style={S.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label style={S.label}>E-mail corporativo</label>
+        <input style={S.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
 
-            <label style={S.label}>Senha</label>
-            <input style={S.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <label style={S.label}>Senha</label>
+        <input style={S.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
 
-            {error && <p style={S.error}>{error}</p>}
+        {error && <p style={S.error}>{error}</p>}
 
-            <button style={S.btn} type="submit" disabled={loading}>
-              {loading ? 'Autenticando…' : 'Entrar'}
-            </button>
-            <p style={S.hint}>Demo seed: ceo@crivo.demo / crivo123</p>
-          </>
-        )}
+        <button style={S.btn} type="submit" disabled={loading}>
+          {loading ? 'Autenticando…' : 'Entrar'}
+        </button>
+        <p style={S.hint}>Demo seed: ceo@crivo.demo / crivo123</p>
       </form>
     </main>
   );

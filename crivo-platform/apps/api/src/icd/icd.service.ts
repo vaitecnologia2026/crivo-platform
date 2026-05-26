@@ -38,6 +38,17 @@ export class IcdService {
     });
   }
 
+  /** Lista usuários do tenant (para escolher o líder avaliado). */
+  async leaders(tenantId: string) {
+    return this.prisma.forTenant(tenantId, (tx) =>
+      tx.user.findMany({
+        where: { active: true },
+        select: { id: true, name: true, role: true },
+        orderBy: { name: 'asc' },
+      }),
+    );
+  }
+
   /** Dashboard executivo do ICD — agregados e ranking de líderes do tenant. */
   async dashboard(tenantId: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {
