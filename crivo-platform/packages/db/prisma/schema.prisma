@@ -31,6 +31,25 @@ enum Plan {
   ADVISORY
 }
 
+enum AssessmentType {
+  ICD
+  NR1
+}
+
+enum CycleStatus {
+  OPEN
+  CLOSED
+}
+
+// Padrão decisório dominante revelado pelo ICD.
+enum DominantPattern {
+  PRESSAO
+  AUTOIMAGEM
+  CONFORMIDADE
+  AMEACA
+  EQUILIBRADO // nenhum driver de risco se destaca (alta coerência)
+}
+
 // =====================================================================
 // TENANCY — Organization é o tenant raiz (holding). Todo registro de
 // negócio carrega tenantId = organizationId e é protegido por RLS.
@@ -47,6 +66,10 @@ model Organization {
   units     Unit[]
   teams     Team[]
   users     User[]
+  cycles    AssessmentCycle[]
+  assessments Assessment[]
+  responses Response[]
+  icdScores IcdScore[]
 
   @@map("organizations")
 }
@@ -115,6 +138,8 @@ model User {
   updatedAt    DateTime     @updatedAt
 
   memberships TeamMember[]
+  assessments Assessment[] @relation("LeaderAssessments")
+  icdScores   IcdScore[]   @relation("LeaderScores")
 
   // E-mail único POR tenant (mesmo e-mail pode existir em orgs diferentes)
   @@unique([tenantId, email])
@@ -134,4 +159,72 @@ model TeamMember {
   @@id([teamId, userId])
   @@index([tenantId])
   @@map("team_members")
+}
+
+// =====================================================================
+// AVALIAÇÕES & ICD (Fase F1)
+// =====================================================================
+
+model AssessmentCycle {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  status    CycleStatus  @default(OPEN)
+  createdAt DateTime     @default(now())
+
+  assessments Assessment[]
+
+  @@index([tenantId])
+  @@map("assessment_cycles")
+}
+
+model Assessment {
+  id        String          @id @default(uuid()) @db.Uuid
+  tenantId  String          @db.Uuid
+  org       Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId   String?         @db.Uuid
+  cycle     AssessmentCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  leaderId  String          @db.Uuid
+  leader    User            @relation("LeaderAssessments", fields: [leaderId], references: [id], onDelete: Cascade)
+  type      AssessmentType  @default(ICD)
+  createdAt DateTime        @default(now())
+
+  response Response?
+  score    IcdScore?
+
+  @@index([tenantId])
+  @@index([leaderId])
+  @@map("assessments")
+}
+
+model Response {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @db.Uuid
+  org          Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessmentId String     @unique @db.Uuid
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers      Json       // [{ questionId, value }]
+  submittedAt  DateTime   @default(now())
+
+  @@index([tenantId])
+  @@map("responses")
+}
+
+model IcdScore {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @db.Uuid
+  org             Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessmentId    String          @unique @db.Uuid
+  assessment      Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  leaderId        String          @db.Uuid
+  leader          User            @relation("LeaderScores", fields: [leaderId], references: [id], onDelete: Cascade)
+  score           Int             // 0–100
+  dimensions      Json            // { clareza, pressao, confianca, influencia, risco } (0–100, normalizado p/ coerência)
+  dominantPattern DominantPattern
+  computedAt      DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([leaderId])
+  @@map("icd_scores")
 }

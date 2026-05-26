@@ -1,0 +1,34 @@
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { IcdService } from './icd.service';
+import { SubmitIcdDto } from './dto';
+import { AuthGuard } from '../iam/guards/auth.guard';
+import { RolesGuard } from '../iam/guards/roles.guard';
+import { Roles } from '../iam/roles.decorator';
+import { CurrentUser } from '../iam/current-user.decorator';
+import { ICD_QUESTIONS, type SessionUser } from '@crivo/types';
+
+@Controller('icd')
+@UseGuards(AuthGuard, RolesGuard)
+export class IcdController {
+  constructor(private readonly icd: IcdService) {}
+
+  /** Catálogo de perguntas (para renderizar o questionário no front). */
+  @Get('questions')
+  questions() {
+    return ICD_QUESTIONS;
+  }
+
+  /** Submete uma avaliação ICD de um líder. */
+  @Post('assessments')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  submit(@CurrentUser() user: SessionUser, @Body() dto: SubmitIcdDto) {
+    return this.icd.submit(user.tenantId, dto);
+  }
+
+  /** Dashboard executivo do ICD do tenant. */
+  @Get('dashboard')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  dashboard(@CurrentUser() user: SessionUser) {
+    return this.icd.dashboard(user.tenantId);
+  }
+}
