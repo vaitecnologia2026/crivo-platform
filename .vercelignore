@@ -2,6 +2,7 @@
 # Tudo abaixo NÃO vai para a Vercel:
 crivo-platform/
 docs/
+vai logo/
 node_modules/
 .git/
 .claude/

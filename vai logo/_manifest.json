@@ -1,0 +1,107 @@
+[
+  {
+    "n": "01",
+    "name": "dashboard",
+    "href": "/dashboard",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/01-dashboard.png"
+  },
+  {
+    "n": "02",
+    "name": "conversas",
+    "href": "/inbox",
+    "finalUrl": "https://app.vaicrm.com.br/inbox",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/02-conversas.png"
+  },
+  {
+    "n": "03",
+    "name": "contatos",
+    "href": "/contacts",
+    "finalUrl": "https://app.vaicrm.com.br/contacts",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/03-contatos.png"
+  },
+  {
+    "n": "04",
+    "name": "kanban-crm",
+    "href": "/kanban",
+    "finalUrl": "https://app.vaicrm.com.br/kanban",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/04-kanban-crm.png"
+  },
+  {
+    "n": "05",
+    "name": "agendamentos",
+    "href": "/scheduled",
+    "finalUrl": "https://app.vaicrm.com.br/scheduled",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/05-agendamentos.png"
+  },
+  {
+    "n": "06",
+    "name": "canais",
+    "href": "/channel",
+    "finalUrl": "https://app.vaicrm.com.br/channel",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/06-canais.png"
+  },
+  {
+    "n": "07",
+    "name": "logs-auditoria",
+    "href": "/audit-logs",
+    "finalUrl": "https://app.vaicrm.com.br/audit-logs",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/07-logs-auditoria.png"
+  },
+  {
+    "n": "08",
+    "name": "rel-atendimento",
+    "href": "/dashboard/attendance",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/attendance",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/08-rel-atendimento.png"
+  },
+  {
+    "n": "09",
+    "name": "rel-csat",
+    "href": "/dashboard/csat",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/csat",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/09-rel-csat.png"
+  },
+  {
+    "n": "10",
+    "name": "rel-vendas",
+    "href": "/dashboard/sales",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/sales",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/10-rel-vendas.png"
+  },
+  {
+    "n": "11",
+    "name": "rel-campanhas",
+    "href": "/dashboard/campaigns",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/campaigns",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/11-rel-campanhas.png"
+  },
+  {
+    "n": "12",
+    "name": "rel-ligacoes",
+    "href": "/dashboard/call-records",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/call-records",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/12-rel-ligacoes.png"
+  },
+  {
+    "n": "13",
+    "name": "rel-automacao",
+    "href": "/dashboard/automation",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/automation",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/13-rel-automacao.png"
+  },
+  {
+    "n": "14",
+    "name": "rel-agendadas",
+    "href": "/dashboard/scheduled",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/scheduled",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/14-rel-agendadas.png"
+  },
+  {
+    "n": "15",
+    "name": "rel-historico",
+    "href": "/dashboard/lookup",
+    "finalUrl": "https://app.vaicrm.com.br/dashboard/lookup",
+    "file": "/Users/elisonperini/Desktop/sistema/vai/15-rel-historico.png"
+  }
+]

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>try{if(sessionStorage.getItem('vai_access')!=='granted')location.replace('/')}catch(e){}</script>
   <title>CRIVO™ — Decision Intelligence System</title>
   <meta name="description" content="A CRIVO é o único sistema que quantifica a qualidade decisória da liderança. ICD — Índice de Coerência Decisória, conformidade NR-1 e transformação organizacional através da liderança." />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
@@ -37,9 +38,11 @@
         <a href="#icd">ICD</a>
         <a href="#solucoes">Soluções</a>
         <a href="#nr1">NR-1</a>
-        <a href="../CRIVO-PLATAFORMA/index.html" class="link-platform">Plataforma →</a>
       </nav>
-      <a href="#diagnostico" class="btn btn--terra btn--sm">Solicitar diagnóstico</a>
+      <div class="nav__actions">
+        <a href="/design-system.html" class="btn btn--ghost btn--sm">Manual de marca</a>
+        <a href="/CRIVO-PLATAFORMA/" class="btn btn--terra btn--sm">Acessar sistema</a>
+      </div>
     </div>
   </header>
 
