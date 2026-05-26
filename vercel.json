@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/CRIVO-LP/index.html" },
+    { "source": "/styles.css", "destination": "/CRIVO-LP/styles.css" },
+    { "source": "/script.js", "destination": "/CRIVO-LP/script.js" }
+  ]
+}
