@@ -1,0 +1,29 @@
+/* Tokens essenciais da CRIVO (subset). Story 0.4 substitui por @crivo/ui (Tailwind + shadcn). */
+:root {
+  --azul-profundo: #0D1F3C;
+  --azul-abismo: #091628;
+  --azul-medio: #1B3A6B;
+  --azul-claro: #8BAFD4;
+  --off-white: #F2F0EC;
+  --prata: #B8C4D0;
+  --terra: #A8693D;
+  --terra-dourado: #C4894A;
+  --line-dark: rgba(139, 175, 212, 0.14);
+  --font-display: "Lora", Georgia, serif;
+  --font-body: "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--off-white);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(74, 111, 165, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--azul-profundo), var(--azul-abismo));
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--terra-dourado); text-decoration: none; }

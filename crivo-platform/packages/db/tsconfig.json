@@ -1,0 +1,7 @@
+{
+  "extends": "@crivo/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "prisma"]
+}

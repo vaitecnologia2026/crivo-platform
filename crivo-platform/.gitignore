@@ -1,0 +1,23 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build
+dist/
+.next/
+out/
+.turbo/
+
+# env & secrets
+.env
+.env.local
+*.local
+
+# prisma
+packages/db/prisma/*.db
+
+# os / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
