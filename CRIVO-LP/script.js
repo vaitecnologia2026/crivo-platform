@@ -93,7 +93,8 @@ var log = (window.CRIVO && window.CRIVO.log) ? window.CRIVO.log.create('crivo:lp
   var revealSel = [
     '.pain-card', '.metodo-card', '.product-card', '.deliver-card', '.icd-step',
     '.frente', '.ladder__step', '.nr1-col', '.feature', '.faq details',
-    '.compare', '.trilha', '.data-wall'
+    '.compare', '.trilha', '.data-wall',
+    '.mvv-card', '.journey-step', '.portal-feature', '.dash-card', '.app-feature', '.diag-card'
   ].join(',');
 
   if (!reduce) {
@@ -116,7 +117,7 @@ var log = (window.CRIVO && window.CRIVO.log) ? window.CRIVO.log.create('crivo:lp
     });
 
     // Stagger: aplica delay incremental a irmãos diretos dentro de um grid
-    document.querySelectorAll('.pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid').forEach(function (grid) {
+    document.querySelectorAll('.pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare').forEach(function (grid) {
       Array.prototype.slice.call(grid.children).forEach(function (child, i) {
         if (child.classList.contains('reveal')) {
           child.style.transitionDelay = (i * 0.08) + 's';

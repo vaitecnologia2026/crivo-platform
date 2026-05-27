@@ -763,3 +763,123 @@ th.compare__crivo { color: var(--terra) !important; }
   .vertice-hero line, .vertice-hero circle, .vertice-final circle:first-of-type { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* =========================================================
+   AJUSTES CLIENTE (v1.2) — MVV, Jornada, Portal, Dashboard,
+   App CRIVO, diferenciação de diagnóstico, mensagem principal
+   ========================================================= */
+
+/* ----- Missão · Visão · Valores (seção escura) ----- */
+.mvv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 56px; }
+@media (max-width: 760px) { .mvv { grid-template-columns: 1fr; } }
+.mvv-card {
+  background: rgba(74, 111, 165, 0.06);
+  border: 1px solid var(--line-dark);
+  border-top: 2px solid var(--terra);
+  border-radius: 0 0 var(--r) var(--r);
+  padding: 28px;
+}
+.mvv-card__tag {
+  display: block;
+  font-family: var(--font-display); font-size: 19px; font-weight: 500;
+  color: var(--terra-dourado); margin-bottom: 12px;
+}
+.mvv-card p { font-size: 15px; font-weight: 300; color: var(--text-light-sec); line-height: 1.6; }
+
+/* ----- Jornada completa (seção clara) ----- */
+.journey {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  counter-reset: none;
+}
+@media (max-width: 880px) { .journey { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .journey { grid-template-columns: 1fr; } }
+.journey-step {
+  position: relative;
+  background: #fff; border: 1px solid var(--line);
+  border-left: 3px solid var(--azul-claro);
+  border-radius: var(--r); padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.journey-step:hover { transform: translateY(-3px); box-shadow: var(--shadow-1); }
+.journey-step--hl { border-left-color: var(--terra); background: rgba(168, 105, 61, 0.04); }
+.journey-step__num {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.1em; color: var(--terra);
+}
+.journey-step strong { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--azul-profundo); }
+.journey-step span { font-size: 13px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.5; }
+
+/* ----- Portal Executivo / App CRIVO (features em seção escura) ----- */
+.portal-features, .app-features { display: flex; flex-direction: column; }
+.portal-feature {
+  display: grid; grid-template-columns: 24px 1fr; gap: 14px; align-items: start;
+  padding: 16px 0; border-bottom: 1px solid var(--line-dark);
+  font-size: 15px; font-weight: 300; color: var(--text-light-sec); line-height: 1.5;
+}
+.portal-feature:last-child { border-bottom: none; }
+.portal-feature span { color: var(--terra-dourado); font-size: 13px; }
+.app-feature {
+  padding: 18px 0; border-bottom: 1px solid var(--line-dark);
+}
+.app-feature:last-child { border-bottom: none; }
+.app-feature strong {
+  display: block; font-family: var(--font-display); font-size: 18px; font-weight: 500;
+  color: var(--off-white); margin-bottom: 3px;
+}
+.app-feature span { font-size: 14px; font-weight: 300; color: var(--text-light-sec); line-height: 1.5; }
+
+/* Nota LGPD / integração (seção escura) */
+.lgpd-note {
+  margin-top: 26px; padding: 18px 22px;
+  background: rgba(74, 111, 165, 0.08);
+  border-left: 2px solid var(--terra);
+  border-radius: 0 var(--r) var(--r) 0;
+  font-size: 14px; font-weight: 300; color: var(--text-light-sec); line-height: 1.6;
+}
+.lgpd-note strong { color: var(--off-white); font-weight: 500; }
+
+/* ----- Dashboard (seção clara) ----- */
+.dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@media (max-width: 760px) { .dash-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 460px) { .dash-grid { grid-template-columns: 1fr; } }
+.dash-card {
+  background: #fff; padding: 28px 26px;
+  display: flex; flex-direction: column; gap: 5px;
+  transition: background .25s ease;
+}
+.dash-card:hover { background: var(--bg-light); }
+.dash-card strong { font-family: var(--font-display); font-size: 18px; font-weight: 500; color: var(--azul-profundo); }
+.dash-card span { font-size: 13px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.5; }
+
+/* ----- Diferenciação diagnóstico inicial × completo (seção accent) ----- */
+.diag-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 28px 0 8px; }
+@media (max-width: 560px) { .diag-compare { grid-template-columns: 1fr; } }
+.diag-card {
+  background: rgba(74, 111, 165, 0.07);
+  border: 1px solid var(--line-dark);
+  border-top: 2px solid var(--azul-claro);
+  border-radius: 0 0 var(--r) var(--r);
+  padding: 22px;
+}
+.diag-card--free { border-top-color: var(--terra); }
+.diag-card__tag {
+  display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--azul-claro); font-weight: 500; margin-bottom: 10px;
+}
+.diag-card__tag--free { color: var(--terra-dourado); }
+.diag-card p { font-size: 14px; font-weight: 300; color: var(--text-light-sec); line-height: 1.6; }
+.diag-card p strong { color: var(--off-white); font-weight: 500; }
+
+/* ----- E-book em fundo escuro (variantes) ----- */
+.ebook__lede--light { color: var(--text-light-sec); }
+.ebook__list--light li { color: var(--off-white); }
+.ebook__list--light li span { color: var(--terra-dourado); }
+
+/* ----- Mensagem principal no CTA final ----- */
+.final__message {
+  font-family: var(--font-display); font-style: italic;
+  font-size: clamp(17px, 1.8vw, 21px); font-weight: 400;
+  color: var(--azul-claro); max-width: 760px; line-height: 1.55;
+  margin-bottom: 6px;
+}
