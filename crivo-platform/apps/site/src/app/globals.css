@@ -1,15 +1,22 @@
 @import "tailwindcss";
 
-/* Tema CRIVO™ (tokens oficiais) — fonte única de verdade em @crivo/ui.
-   Story 0.4 concluída: @crivo/ui substitui o subset local de tokens. */
+/* Tema CRIVO™ (tokens oficiais) — fonte única de verdade em @crivo/ui */
 @import "@crivo/ui/theme.css";
 
 /* Tailwind v4 precisa enxergar as classes usadas dentro do pacote @crivo/ui */
-@source "../../../packages/ui/src";
+@source "../../../../packages/ui/src";
 
 /* Mapeia as variáveis das fontes (next/font) para os tokens do tema */
 @theme inline {
   --font-lora: var(--font-lora);
   --font-poppins: var(--font-poppins);
   --font-cormorant: var(--font-cormorant);
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--color-text);
+  background: var(--color-off-white);
+  -webkit-font-smoothing: antialiased;
 }

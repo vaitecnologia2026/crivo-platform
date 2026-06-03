@@ -11,7 +11,11 @@
 
 ---
 
+> ⚛️ **Migrado para React.** Desde 06/2026, o desenvolvimento acontece em **React (Next.js 16 + Tailwind v4 + `@crivo/ui`)** no monorepo **`crivo-platform/`**. Todo ajuste/melhoria deve seguir esse padrão — veja **[`CLAUDE.md`](CLAUDE.md)**. Os arquivos estáticos descritos abaixo são **legado** que ainda serve a produção até o cutover do domínio.
+
 ## 1. Visão geral
+
+> _Histórico — versão estática original, em processo de aposentadoria:_
 
 Repositório estático (HTML + CSS + JS, sem build) que reúne três entregáveis coesos sob a mesma identidade de marca:
 

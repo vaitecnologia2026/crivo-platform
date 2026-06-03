@@ -24,3 +24,4 @@ packages/db/prisma/*.db
 
 # typescript build info
 *.tsbuildinfo
+.vercel

@@ -1,0 +1,156 @@
+/* ==========================================================================
+   CRIVO™ — Decision Intelligence System
+   TEMA TAILWIND v4 · fonte única de verdade (porte de tokens.css)
+   --------------------------------------------------------------------------
+   Cores e tipografia OFICIAIS (Brand Identity System V3.0).
+   Importado por cada app: `@import "@crivo/ui/theme.css";`
+   ========================================================================== */
+
+@theme {
+  /* ---------- AZUIS ESTRUTURAIS ---------- */
+  --color-azul-profundo: #0d1f3c;
+  --color-azul-medio: #1b3a6b;
+  --color-azul-slate: #2e4d7a;
+  --color-azul-cobalto: #4a6fa5;
+  --color-azul-claro: #8bafd4;
+  --color-azul-gelo: #c8d9ed;
+  --color-azul-abismo: #091628;
+
+  /* ---------- NEUTROS SOFISTICADOS ---------- */
+  --color-preto-tecnico: #0a0b0d;
+  --color-cinza-escuro: #3a3a38;
+  --color-prata: #b8c4d0;
+  --color-cinza-quente: #d6d2cc;
+  --color-off-white: #f2f0ec;
+  --color-paper-dim: #e9e6df;
+  --color-line: #dcd7ce;
+
+  /* ---------- TERRA (acento · ação · ponto do vértice) ---------- */
+  --color-terra-escura: #7b4f2e;
+  --color-terra: #a8693d;
+  --color-terra-dourado: #c4894a;
+  --color-terra-claro: #e0b080;
+
+  /* ---------- TEXTO ---------- */
+  --color-text: #0d1f3c;
+  --color-text-sec: #5c6470;
+  --color-text-on-dark: #f2f0ec;
+  --color-text-on-dark-sec: #b8c4d0;
+
+  /* ---------- PLATAFORMA (aliases legados mapeados) ---------- */
+  --color-ink-900: #0d1f3c;
+  --color-ink-800: #102a52;
+  --color-ink-700: #1b3a6b;
+  --color-ink-600: #2e4d7a;
+  --color-gold: #a8693d;
+  --color-gold-deep: #7b4f2e;
+  --color-gold-soft: #c4894a;
+
+  /* ---------- TIPOGRAFIA ---------- */
+  --font-display: var(--font-lora), Georgia, serif;
+  --font-body: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-word: var(--font-cormorant), Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Escala tipográfica fluida (clamp) */
+  --text-display: clamp(34px, 5vw, 62px);
+  --text-h1: clamp(30px, 4vw, 46px);
+  --text-h2: clamp(27px, 3.4vw, 44px);
+  --text-h3: 22px;
+  --text-lede: 18px;
+  --text-eyebrow: 11px;
+
+  --tracking-eyebrow: 0.3em;
+  --tracking-word: 0.22em;
+
+  /* ---------- RADIUS (registro sóbrio) ---------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* ---------- SOMBRAS ---------- */
+  --shadow-1: 0 2px 16px rgba(13, 31, 60, 0.05);
+  --shadow-2: 0 14px 44px rgba(13, 31, 60, 0.11);
+  --shadow-3: 0 24px 64px rgba(13, 31, 60, 0.16);
+  --shadow-terra: 0 10px 30px rgba(168, 105, 61, 0.3);
+
+  /* ---------- MOTION ---------- */
+  --ease-crivo: cubic-bezier(0.16, 1, 0.3, 1); /* easeOutExpo */
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   Tokens canônicos --crivo-* (espelho de tokens.css) — consumidos por CSS
+   legado portado (ds.css, lp.css) e por estilos inline da showcase.
+   ========================================================================== */
+:root {
+  /* Azuis */
+  --crivo-azul-profundo: #0d1f3c;
+  --crivo-azul-medio: #1b3a6b;
+  --crivo-azul-slate: #2e4d7a;
+  --crivo-azul-cobalto: #4a6fa5;
+  --crivo-azul-claro: #8bafd4;
+  --crivo-azul-gelo: #c8d9ed;
+  --crivo-azul-abismo: #091628;
+
+  /* Neutros */
+  --crivo-preto-tecnico: #0a0b0d;
+  --crivo-cinza-escuro: #3a3a38;
+  --crivo-prata: #b8c4d0;
+  --crivo-cinza-quente: #d6d2cc;
+  --crivo-off-white: #f2f0ec;
+  --crivo-paper-dim: #e9e6df;
+  --crivo-line: #dcd7ce;
+
+  /* Terra */
+  --crivo-terra-escura: #7b4f2e;
+  --crivo-terra: #a8693d;
+  --crivo-terra-dourado: #c4894a;
+  --crivo-terra-claro: #e0b080;
+
+  /* Texto */
+  --crivo-text: #0d1f3c;
+  --crivo-text-sec: #5c6470;
+  --crivo-text-on-dark: #f2f0ec;
+  --crivo-text-on-dark-sec: #b8c4d0;
+
+  /* Tipografia (mapeada para next/font) */
+  --crivo-font-display: var(--font-lora), "Lora", Georgia, serif;
+  --crivo-font-body: var(--font-poppins), "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --crivo-font-word: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --crivo-font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  /* Escala tipográfica fluida */
+  --crivo-fs-display: clamp(34px, 5vw, 62px);
+  --crivo-fs-h1: clamp(30px, 4vw, 46px);
+  --crivo-fs-h2: clamp(27px, 3.4vw, 44px);
+  --crivo-fs-h3: 22px;
+  --crivo-fs-lede: 18px;
+  --crivo-fs-body: 16px;
+  --crivo-fs-sm: 14px;
+  --crivo-fs-xs: 12px;
+  --crivo-fs-eyebrow: 11px;
+  --crivo-tracking-eyebrow: 0.3em;
+  --crivo-tracking-word: 0.22em;
+
+  /* Radius */
+  --crivo-radius-xs: 2px;
+  --crivo-radius-sm: 4px;
+  --crivo-radius-md: 6px;
+  --crivo-radius-lg: 10px;
+
+  /* Sombras */
+  --crivo-shadow-1: 0 2px 16px rgba(13, 31, 60, 0.05);
+  --crivo-shadow-2: 0 14px 44px rgba(13, 31, 60, 0.11);
+  --crivo-shadow-3: 0 24px 64px rgba(13, 31, 60, 0.16);
+  --crivo-shadow-terra: 0 10px 30px rgba(168, 105, 61, 0.3);
+
+  /* Motion */
+  --crivo-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --crivo-ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --crivo-dur-fast: 0.18s;
+  --crivo-dur: 0.3s;
+  --crivo-dur-slow: 0.6s;
+  --crivo-dur-draw: 1.4s;
+}
