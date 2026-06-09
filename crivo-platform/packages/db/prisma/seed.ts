@@ -28,6 +28,7 @@ const LEADERS: Array<{
 async function main() {
   // Seed de DEMONSTRAÇÃO: reseta os dados para ser determinístico em re-runs.
   // NÃO rodar em produção com dados reais.
+  await prisma.auditLog.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.superAdmin.deleteMany();
   await prisma.lead.deleteMany();

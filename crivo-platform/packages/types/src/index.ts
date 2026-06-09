@@ -22,6 +22,9 @@ export interface SessionUser {
 export interface LoginRequest {
   email: string;
   password: string;
+  /** Empresa (slug do tenant) para desambiguar quando o e-mail existe em mais de
+   *  uma organização. Opcional: com 1 só correspondência, o login dispensa. */
+  tenantSlug?: string;
 }
 
 export interface LoginResponse {

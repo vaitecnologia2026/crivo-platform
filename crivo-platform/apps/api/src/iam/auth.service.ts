@@ -11,12 +11,33 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  async login(email: string, password: string): Promise<LoginResponse> {
+  async login(email: string, password: string, tenantSlug?: string): Promise<LoginResponse> {
+    const normalizedEmail = email.toLowerCase().trim();
     // Login é cross-tenant por e-mail → usa a conexão owner (bypass RLS).
-    // Em produção, o tenant vem do subdomínio/seleção e a busca é escopada.
-    const user = await this.prisma.admin.user.findFirst({
-      where: { email: email.toLowerCase().trim(), active: true },
-    });
+    // R2 (F2): o e-mail pode existir em vários tenants (@@unique([tenantId,email])).
+    // - Com tenantSlug: escopa a busca à organização daquele slug.
+    // - Sem slug: só prossegue se houver EXATAMENTE 1 correspondência; havendo
+    //   mais de uma, exige a empresa (em vez de logar contra um tenant arbitrário).
+    let user: Awaited<ReturnType<typeof this.prisma.admin.user.findFirst>> = null;
+    if (tenantSlug) {
+      const tenant = await this.prisma.admin.tenant.findUnique({
+        where: { slug: tenantSlug.trim() },
+      });
+      if (tenant) {
+        user = await this.prisma.admin.user.findFirst({
+          where: { tenantId: tenant.organizationId, email: normalizedEmail, active: true },
+        });
+      }
+    } else {
+      const matches = await this.prisma.admin.user.findMany({
+        where: { email: normalizedEmail, active: true },
+        take: 2,
+      });
+      if (matches.length > 1) {
+        throw new UnauthorizedException('Informe a empresa para entrar.');
+      }
+      user = matches[0] ?? null;
+    }
 
     // bcrypt.compare em tempo constante; mesmo erro p/ usuário inexistente (anti-enumeração).
     const ok = user ? await bcrypt.compare(password, user.passwordHash) : false;

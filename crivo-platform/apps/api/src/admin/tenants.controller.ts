@@ -12,7 +12,9 @@ import {
 import { TenantsService } from './tenants.service';
 import { ProvisioningService } from './provisioning.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
+import { CurrentAdmin } from './platform-admin.decorator';
 import { CreateTenantDto } from './dto';
+import type { PlatformAdmin } from '@crivo/types';
 
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
 @Controller('admin/tenants')
@@ -36,25 +38,25 @@ export class TenantsController {
 
   /** Provisiona uma nova empresa (org + tenant + admin inicial). */
   @Post()
-  create(@Body() dto: CreateTenantDto) {
-    return this.provisioning.provision(dto);
+  create(@CurrentAdmin() admin: PlatformAdmin, @Body() dto: CreateTenantDto) {
+    return this.provisioning.provision(dto, { id: admin.id, email: admin.email });
   }
 
   /** Bloqueia a empresa (usuários deixam de conseguir logar). */
   @Patch(':id/suspend')
-  suspend(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tenants.setStatus(id, 'SUSPENDED');
+  suspend(@CurrentAdmin() admin: PlatformAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.tenants.setStatus(id, 'SUSPENDED', { id: admin.id, email: admin.email });
   }
 
   /** Reativa uma empresa bloqueada. */
   @Patch(':id/activate')
-  activate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tenants.setStatus(id, 'ACTIVE');
+  activate(@CurrentAdmin() admin: PlatformAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.tenants.setStatus(id, 'ACTIVE', { id: admin.id, email: admin.email });
   }
 
   /** Exclusão lógica (reversível). */
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.tenants.softDelete(id);
+  remove(@CurrentAdmin() admin: PlatformAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.tenants.softDelete(id, { id: admin.id, email: admin.email });
   }
 }

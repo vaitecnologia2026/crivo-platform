@@ -466,7 +466,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 |---|---|---|---|---|
 | **F0** ✅ | Fundação tenancy + IAM + RLS | *Já existe* | — | feito |
 | **F1** ✅ | **Control Plane + Super Admin** (FASE 1) | `SuperAdmin`+`Tenant`+`TenantStatus`, RLS de control plane (revoga `crivo_app`), API `/admin/auth` + `/admin/tenants` (listar/provisionar/suspender/reativar/excluir), provisionador atômico (org+tenant+admin), gating de login por status. **Backend entregue — ver Apêndice B** | F0 | feito |
-| **F2** | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | Fix login cross-tenant, lint anti-`admin`, testes de isolamento, `tenantId` em logs, AuditLog | F1 | 1–2 sem |
+| **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
 | **F3** | **RBAC dinâmico** (FASE 3) | `RoleDef`/`Permission`/`UserRole`, `PermissionGuard`, migração do enum→seed, UI de papéis | F1 | 2–3 sem |
 | **F4** | **Planos + módulos** (FASE 1 cont.) | `PlanDef`, `ModuleCatalog`, `TenantModule`, gate por plano, metering básico (`UsageCounter`) | F1, F3 | 2 sem |
 | **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
@@ -678,6 +678,42 @@ no futuro sem mudança de contrato.
 
 ### Pendente nesta fase (follow-ups)
 
-- **MFA/TOTP** do super admin (campo `totpSecret` já existe; fluxo entra na F2).
-- **AuditLog** das ações de provisionamento/suspensão (modelo previsto; implementar na F2).
-- **Lint/CI anti-`prisma.admin`** fora de IAM/Admin (R1) — entra na F2 (hardening).
+- **MFA/TOTP** do super admin → F2 (em curso, ver Apêndice C).
+
+---
+
+## Apêndice C — F2 entregue (Hardening, parte 1)
+
+**Status:** 🟦 itens críticos implementados e validados localmente (jun/2026); MFA/TOTP pendente.
+
+### O que foi construído
+
+- **R2 — fix do login cross-tenant** (`iam/auth.service.ts`): o e-mail pode existir em
+  vários tenants. Com `tenantSlug` (novo campo opcional em `LoginRequest`) a busca é escopada
+  àquela organização; sem slug, só prossegue se houver **exatamente 1** correspondência —
+  havendo mais, retorna *"Informe a empresa para entrar."* (em vez de logar contra tenant arbitrário).
+- **R1 — gate anti-bypass de RLS** (`apps/api/scripts/check-no-admin-bypass.mjs`,
+  `pnpm --filter @crivo/api check:rls-bypass`): falha o build se `prisma.admin` (conexão owner,
+  bypass RLS) for usado fora de IAM/Admin. Queries de negócio devem usar `forTenant()`.
+- **Teste automatizado de isolamento** (`packages/db/prisma/test-isolation.ts`,
+  `pnpm --filter @crivo/db test:isolation`): cria 2 tenants e verifica contra o banco real:
+  tenant A só vê o próprio dado; sem `app.tenant` → 0 linhas; insert cross-tenant bloqueado
+  (WITH CHECK); `crivo_app` sem acesso a `tenants`/`super_admins`/`audit_log`.
+- **AuditLog** (modelo control-plane owner-only, migration `audit_log`): trilha das ações de
+  plataforma. `AuditService` (best-effort) grava `admin.login`, `tenant.provision`,
+  `tenant.suspend/activate/delete` com ator, alvo e meta.
+
+### Verificação
+
+- `check:rls-bypass` → ✓ sem usos indevidos.
+- `test:isolation` → ✓ 6/6.
+- Smoke E2E (R2 + audit): login ambíguo barrado, slug correto autentica o tenant certo, senha de
+  outro tenant rejeitada, login single-tenant intacto, `audit_log` populado.
+
+### Pendente da F2
+
+- **MFA/TOTP** do super admin (campo `totpSecret` pronto; falta dependência + enrollment + verify).
+- **`tenantId` em logs/observabilidade** estruturada.
+- **Campo "empresa" no login da plataforma** (UI): hoje, e-mail duplicado entre tenants retorna a
+  mensagem mas o form ainda não tem o campo de slug — resolve-se naturalmente com a resolução por
+  subdomínio da F5/F6.

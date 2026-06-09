@@ -12,6 +12,7 @@
     "studio": "prisma studio",
     "rls": "psql \"${DATABASE_URL%%\\?*}\" -f prisma/sql/rls.sql",
     "seed": "tsx prisma/seed.ts",
+    "test:isolation": "tsx prisma/test-isolation.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

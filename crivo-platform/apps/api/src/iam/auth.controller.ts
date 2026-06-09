@@ -13,7 +13,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('login')
   login(@Body() body: LoginRequest) {
-    return this.auth.login(body.email, body.password);
+    return this.auth.login(body.email, body.password, body.tenantSlug);
   }
 
   @Get('me')

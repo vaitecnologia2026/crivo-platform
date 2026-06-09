@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService, type AuditActor } from './audit.service';
 import { toTenantSummary } from './tenant.mapper';
 import type { CreateTenantDto } from './dto';
 import type { ProvisionResult } from '@crivo/types';
@@ -26,7 +27,10 @@ function generatePassword(): string {
 
 @Injectable()
 export class ProvisioningService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   /**
    * Provisiona uma empresa-cliente completa, de forma atômica:
@@ -38,7 +42,7 @@ export class ProvisioningService {
    * está criando o próprio tenant. Único lugar — além do login — onde o uso do
    * owner é legítimo (ver PrismaService).
    */
-  async provision(dto: CreateTenantDto): Promise<ProvisionResult> {
+  async provision(dto: CreateTenantDto, actor?: AuditActor): Promise<ProvisionResult> {
     const db = this.prisma.admin;
     const slug = slugify(dto.slug?.trim() || dto.name);
     if (!slug) throw new ConflictException('Não foi possível derivar um slug do nome');
@@ -76,6 +80,14 @@ export class ProvisioningService {
       });
 
       return created;
+    });
+
+    await this.audit.record({
+      action: 'tenant.provision',
+      actor,
+      target: tenant.slug,
+      tenantId: tenant.organizationId,
+      meta: { plan: tenant.plan, adminEmail },
     });
 
     return {

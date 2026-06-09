@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from './audit.service';
 import type { PlatformAdmin, PlatformLoginResponse } from '@crivo/types';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class AdminAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   async login(email: string, password: string): Promise<PlatformLoginResponse> {
@@ -32,6 +34,11 @@ export class AdminAuthService {
       scope: 'platform',
       email: admin.email,
       name: admin.name,
+    });
+
+    await this.audit.record({
+      action: 'admin.login',
+      actor: { id: admin.id, email: admin.email },
     });
 
     return { token, admin: session };
