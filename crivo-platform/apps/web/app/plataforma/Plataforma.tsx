@@ -8,6 +8,7 @@ import { apiFetch, setToken, clearToken } from "@/lib/api";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
+import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
@@ -72,6 +73,7 @@ export function Plataforma() {
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
       if (name === "crm") mountIsland("crm-root", <CrmScreen />);
+      if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
       if (meta) {
         if (bcPath) bcPath.textContent = meta.path;
