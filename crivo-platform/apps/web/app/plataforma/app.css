@@ -219,6 +219,22 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .login__error.is-visible { display: block; }
 
+/* ===== Dashboard (ilha React) — estados e elementos próprios ===== */
+.dash-state {
+  margin: 24px 0; padding: 24px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line);
+  color: var(--text-sec); font-size: 14px; text-align: center;
+}
+.dash-state--error { color: #ffb4b4; border-color: rgba(220, 80, 80, 0.35); }
+.dash-state .btn { margin-left: 8px; }
+.dash-dist { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; }
+.dash-dist__item { font-size: 12px; color: var(--text-sec); }
+.dash-dist__item strong { color: var(--text); }
+.dash-score { font-variant-numeric: tabular-nums; }
+.dash-score.is-high { color: #5fbf8f; }
+.dash-score.is-mid { color: var(--gold); }
+.dash-score.is-low { color: #e0875f; }
+
 .login__footer {
   text-align: center;
   margin-top: 32px;
