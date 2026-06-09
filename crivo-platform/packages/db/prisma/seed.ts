@@ -28,6 +28,8 @@ const LEADERS: Array<{
 async function main() {
   // Seed de DEMONSTRAÇÃO: reseta os dados para ser determinístico em re-runs.
   // NÃO rodar em produção com dados reais.
+  await prisma.tenant.deleteMany();
+  await prisma.superAdmin.deleteMany();
   await prisma.lead.deleteMany();
   await prisma.icdScore.deleteMany();
   await prisma.response.deleteMany();
@@ -40,9 +42,28 @@ async function main() {
   await prisma.company.deleteMany();
   await prisma.organization.deleteMany();
 
+  // 0) Super Admin global (control plane). Acesso ao painel de plataforma.
+  await prisma.superAdmin.create({
+    data: {
+      email: 'super@crivo.platform',
+      name: 'Super Admin CRIVO',
+      passwordHash: hash('crivo-super-123'),
+    },
+  });
+
   // 1) Tenant raiz + empresa
   const org = await prisma.organization.create({
     data: { name: 'CRIVO Demo — O2 Legacy', plan: Plan.ENTERPRISE },
+  });
+  // Registro no control plane (espelha a org; liga por organizationId).
+  await prisma.tenant.create({
+    data: {
+      organizationId: org.id,
+      slug: 'o2legacy',
+      name: org.name,
+      plan: Plan.ENTERPRISE,
+      status: 'ACTIVE',
+    },
   });
   await prisma.company.create({ data: { tenantId: org.id, name: 'O2 Legacy & Consulting' } });
 
@@ -97,7 +118,9 @@ async function main() {
 
   const media = Math.round(LEADERS.reduce((s, l) => s + l.score, 0) / LEADERS.length);
   console.log(
-    `Seed concluído. Org ${org.id} · ${LEADERS.length} líderes · ICD médio ${media} · login: ceo@crivo.demo / crivo123`,
+    `Seed concluído. Org ${org.id} · ${LEADERS.length} líderes · ICD médio ${media}\n` +
+      `  • login tenant:      ceo@crivo.demo / crivo123\n` +
+      `  • login super admin: super@crivo.platform / crivo-super-123 (POST /api/admin/auth/login)`,
   );
 }
 

@@ -60,6 +60,52 @@ enum LeadStage {
   PERDIDO
 }
 
+// Estado de uma empresa-cliente no control plane.
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED // bloqueada: usuários não conseguem logar
+  DELETED // exclusão lógica (reversível); purge físico é operação separada
+}
+
+// =====================================================================
+// CONTROL PLANE (F1) — registro GLOBAL de empresas-cliente e super admins.
+// NÃO é escopado por tenant: estas tabelas ficam FORA da RLS por tenant.
+// Acesso EXCLUSIVO via conexão owner (prisma.admin) pelo módulo Admin —
+// o papel crivo_app tem o acesso REVOGADO (ver prisma/sql/rls.sql).
+// Ver docs/SAAS-TRANSFORMATION.md §3 (Control Plane × Data Plane).
+// =====================================================================
+
+// Nível 1 — Super Administrador global. Principal SEPARADO do RBAC de tenant
+// (não é um User com papel; vive no control plane, sem tenantId).
+model SuperAdmin {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String
+  passwordHash String
+  active       Boolean  @default(true)
+  totpSecret   String? // reservado p/ MFA (F2) — ainda não exigido no fluxo
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("super_admins")
+}
+
+// Registro mestre de cada empresa-cliente (espelha Organization no data plane).
+// Liga ao Organization por organizationId SEM relation Prisma, para manter o
+// control plane desacoplado do modelo RLS — relação 1:1 lógica.
+model Tenant {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @unique @db.Uuid // → organizations.id (data plane)
+  slug           String       @unique // subdomínio: <slug>.crivolegacy.com.br
+  name           String
+  plan           Plan         @default(BASE)
+  status         TenantStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("tenants")
+}
+
 // =====================================================================
 // TENANCY — Organization é o tenant raiz (holding). Todo registro de
 // negócio carrega tenantId = organizationId e é protegido por RLS.

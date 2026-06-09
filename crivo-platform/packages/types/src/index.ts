@@ -29,6 +29,54 @@ export interface LoginResponse {
   user: SessionUser;
 }
 
+// ── Control Plane / Super Admin (F1) ──
+
+export const TENANT_STATUSES = ['ACTIVE', 'SUSPENDED', 'DELETED'] as const;
+export type TenantStatus = (typeof TENANT_STATUSES)[number];
+
+export const PLANS = ['BASE', 'EVOLUCAO', 'ENTERPRISE', 'ADVISORY'] as const;
+export type Plan = (typeof PLANS)[number];
+
+/** Sessão de um Super Admin (control plane) — sem tenantId, escopo 'platform'. */
+export interface PlatformAdmin {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface PlatformLoginResponse {
+  token: string;
+  admin: PlatformAdmin;
+}
+
+/** Resumo de uma empresa-cliente para o painel super-admin. */
+export interface TenantSummary {
+  id: string;
+  organizationId: string;
+  slug: string;
+  name: string;
+  plan: Plan;
+  status: TenantStatus;
+  createdAt: string;
+}
+
+export interface CreateTenantRequest {
+  name: string;
+  slug?: string; // derivado do nome quando ausente
+  plan?: Plan;
+  adminName: string;
+  adminEmail: string;
+  adminPassword?: string; // gerado quando ausente (retornado uma única vez)
+}
+
+/** Resultado do provisionamento de um novo tenant. */
+export interface ProvisionResult {
+  tenant: TenantSummary;
+  adminEmail: string;
+  /** Senha temporária do admin — só retornada quando gerada pelo sistema. */
+  tempPassword?: string;
+}
+
 /** As 5 dimensões do ICD. */
 export const ICD_DIMENSIONS = ['clareza', 'pressao', 'confianca', 'influencia', 'risco'] as const;
 export type IcdDimension = (typeof ICD_DIMENSIONS)[number];

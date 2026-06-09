@@ -15,6 +15,9 @@ export class AuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwt.verifyAsync(auth.slice(7));
+      // Token de super admin (scope 'platform') não vale como sessão de tenant —
+      // ele não tem tenantId e não pode acessar dados de empresa.
+      if (payload.scope === 'platform') throw new Error('escopo de plataforma');
       req.user = {
         id: payload.sub,
         tenantId: payload.tenantId,

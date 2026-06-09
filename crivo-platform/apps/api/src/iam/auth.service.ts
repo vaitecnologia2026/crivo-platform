@@ -24,6 +24,16 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
+    // Gating por status do tenant (control plane): empresa SUSPENDED/DELETED não
+    // autentica ninguém. Tenant ausente = org legada sem registro → permite
+    // (compat até backfill). Ver docs/SAAS-TRANSFORMATION.md (F1).
+    const tenant = await this.prisma.admin.tenant.findUnique({
+      where: { organizationId: user.tenantId },
+    });
+    if (tenant && tenant.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Empresa indisponível. Contate o suporte.');
+    }
+
     const session: SessionUser = {
       id: user.id,
       tenantId: user.tenantId,

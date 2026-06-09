@@ -57,6 +57,23 @@ BEGIN
 END
 $$;
 
+-- 4) CONTROL PLANE (F1): super_admins e tenants são GLOBAIS (sem RLS por
+--    tenant). Habilitamos RLS SEM policy e SEM FORCE: o owner (conexão admin,
+--    BYPASSRLS) acessa normalmente, mas crivo_app (não-owner, sujeito à RLS)
+--    fica BLOQUEADO por não haver policy. O REVOKE é defesa adicional.
+--    Resultado: apenas o módulo Admin (prisma.admin/owner) toca essas tabelas.
+DO $$
+DECLARE
+  c text;
+  ctrl_tables text[] := ARRAY['super_admins','tenants'];
+BEGIN
+  FOREACH c IN ARRAY ctrl_tables LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
+    EXECUTE format('REVOKE ALL ON %I FROM crivo_app;', c);
+  END LOOP;
+END
+$$;
+
 -- =====================================================================
 -- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):
 --     A conexão de LOGIN/admin (DATABASE_URL, usada em auth.service para
