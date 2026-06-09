@@ -235,6 +235,16 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .dash-score.is-mid { color: var(--gold); }
 .dash-score.is-low { color: #e0875f; }
 
+/* Breakdown de dimensões do ICD (IcdScreen) */
+.icd-dims { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
+.icd-dim__top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.icd-dim__top strong { font-variant-numeric: tabular-nums; }
+.icd-dim__bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.icd-dim__fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; background: var(--gold); }
+.icd-dim__fill.is-high { background: #5fbf8f; }
+.icd-dim__fill.is-mid { background: var(--gold); }
+.icd-dim__fill.is-low { background: #e0875f; }
+
 .login__footer {
   text-align: center;
   margin-top: 32px;

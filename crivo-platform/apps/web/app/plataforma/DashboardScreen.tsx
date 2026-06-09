@@ -1,31 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
-
-// Shape real retornado por GET /api/icd/dashboard (verificado contra a API).
-interface RankingRow {
-  leaderId: string;
-  nome: string;
-  score: number;
-  padraoDominante: string;
-  dimensoes: Record<string, number>;
-}
-interface DashboardData {
-  icdMedio: number | null;
-  totalAvaliacoes: number;
-  totalLideres?: number;
-  ranking: RankingRow[];
-  distribuicaoPadrao: Record<string, number>;
-}
-
-const PATTERN_LABEL: Record<string, string> = {
-  EQUILIBRADO: "Equilibrado",
-  PRESSAO: "Pressão",
-  AUTOIMAGEM: "Autoimagem",
-  CONFORMIDADE: "Conformidade",
-  AMEACA: "Ameaça",
-};
+import { useIcdDashboard, PATTERN_LABEL } from "./useIcdDashboard";
 
 function scoreClass(score: number): string {
   if (score >= 80) return "is-high";
@@ -34,39 +9,7 @@ function scoreClass(score: number): string {
 }
 
 export function DashboardScreen() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
-
-  // Refetch acionado por botão (Atualizar / Tentar novamente).
-  async function refresh() {
-    setStatus("loading");
-    try {
-      const d = await apiFetch<DashboardData>("/icd/dashboard");
-      setData(d);
-      setStatus("ok");
-    } catch {
-      setStatus("error");
-    }
-  }
-
-  // Fetch inicial: estado só muda APÓS o await (sem setState síncrono no effect).
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const d = await apiFetch<DashboardData>("/icd/dashboard");
-        if (alive) {
-          setData(d);
-          setStatus("ok");
-        }
-      } catch {
-        if (alive) setStatus("error");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const { data, status, refresh } = useIcdDashboard();
 
   return (
     <>

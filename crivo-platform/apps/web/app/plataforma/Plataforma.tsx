@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
 import { apiFetch, setToken, clearToken } from "@/lib/api";
 import { DashboardScreen } from "./DashboardScreen";
+import { IcdScreen } from "./IcdScreen";
 import { PLATFORM_MARKUP } from "./markup";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
@@ -68,6 +69,7 @@ export function Plataforma() {
     function setRoute(name: string) {
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
+      if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
       const meta = routeMeta[name];
       if (meta) {
         if (bcPath) bcPath.textContent = meta.path;
@@ -80,20 +82,22 @@ export function Plataforma() {
       animateBars();
     }
 
-    // ---------- ILHA REACT: Dashboard (dados reais da API) ----------
-    // O Dashboard é um componente React real, montado no #dash-root (dentro do
-    // shell legado). Primeira tela migrada de markup estático para React+API.
-    let dashRoot: Root | null = null;
-    function mountDashboard() {
-      const host = document.getElementById("dash-root");
-      if (!host || dashRoot) return;
-      dashRoot = createRoot(host);
-      dashRoot.render(<DashboardScreen />);
+    // ---------- ILHAS REACT (telas migradas para React + API) ----------
+    // Cada tela migrada é um componente React montado num mount-point do shell
+    // legado (#dash-root, #icd-root, …). Padrão de migração progressiva.
+    const islands: Record<string, Root> = {};
+    function mountIsland(id: string, node: ReactElement) {
+      const host = document.getElementById(id);
+      if (!host || islands[id]) return; // já montada
+      islands[id] = createRoot(host);
+      islands[id].render(node);
     }
     cleanups.push(() => {
-      const r = dashRoot;
-      dashRoot = null;
-      if (r) setTimeout(() => r.unmount(), 0); // unmount diferido (evita warning em StrictMode)
+      for (const id of Object.keys(islands)) {
+        const r = islands[id];
+        delete islands[id];
+        setTimeout(() => r.unmount(), 0); // unmount diferido (evita warning em StrictMode)
+      }
     });
 
     // ---------- LOGIN FLOW (autenticação real via API) ----------
@@ -125,7 +129,7 @@ export function Plataforma() {
         login.classList.remove("is-active");
         app.classList.add("is-active");
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
-        mountDashboard(); // monta a ilha React do Dashboard com dados reais
+        mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
         animateBars();
       } catch (err) {
         clearToken();
