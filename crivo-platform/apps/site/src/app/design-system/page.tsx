@@ -9,8 +9,10 @@ export const metadata: Metadata = {
     "Design System oficial da CRIVO™ — tokens, identidade da marca O Vértice, tipografia, componentes e diretrizes de voz do Decision Intelligence System.",
 };
 
-// Plataforma React (apps/web). TODO: trocar pelo subdomínio próprio (ex.: app.vai-sistema.com).
-const PLATAFORMA_URL = "https://crivo-web.vercel.app/";
+// Plataforma React (apps/web). Configurável por NEXT_PUBLIC_PLATAFORMA_URL
+// (ex.: https://app.crivolegacy.com.br). Fallback: preview atual da Vercel.
+const PLATAFORMA_URL =
+  process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://crivo-web.vercel.app/";
 
 function swatchStyle(c: string): CSSProperties {
   return { ["--c" as string]: c } as CSSProperties;

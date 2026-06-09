@@ -7,10 +7,23 @@ import { RolesGuard } from './guards/roles.guard';
 
 @Module({
   imports: [
-    JwtModule.register({
+    // registerAsync + factory: o secret é lido em runtime (após ConfigModule) e
+    // VALIDADO. Sem AUTH_SECRET forte, o boot falha em vez de cair para um
+    // segredo público (que permitiria forjar tokens admin).
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.AUTH_SECRET ?? 'dev-secret-change-me',
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' },
+      useFactory: () => {
+        const secret = process.env.AUTH_SECRET;
+        if (!secret || secret.length < 32) {
+          throw new Error(
+            'AUTH_SECRET ausente ou fraco (mínimo 32 caracteres). Configure-o no ambiente.',
+          );
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

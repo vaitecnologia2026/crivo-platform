@@ -11,9 +11,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     // Runtime conecta como crivo_app (não-owner) para que a RLS seja aplicada.
-    super({
-      datasourceUrl: process.env.DATABASE_URL_APP ?? process.env.DATABASE_URL,
-    });
+    // NUNCA cair para DATABASE_URL (owner) — isso desligaria a RLS e vazaria
+    // dados entre tenants. Se a URL de app não existir, o boot DEVE falhar.
+    const appUrl = process.env.DATABASE_URL_APP;
+    if (!appUrl) {
+      throw new Error(
+        'DATABASE_URL_APP ausente: sem o usuário de aplicação a RLS não seria aplicada (vazamento cross-tenant). Configure-o antes de subir.',
+      );
+    }
+    super({ datasourceUrl: appUrl });
     this.admin = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
   }
 

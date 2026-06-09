@@ -39,10 +39,13 @@ BEGIN
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
     tenant_col := CASE WHEN t = 'organizations' THEN 'id' ELSE 'tenantId' END;
 
-    -- ENABLE (sem FORCE): o owner (crivo) faz bypass — usado por migrate/seed/
-    -- provisioning de tenant. O runtime conecta como crivo_app (não-owner) e
-    -- por isso é submetido às policies abaixo.
+    -- ENABLE + FORCE: FORCE aplica as policies MESMO ao owner da tabela (crivo).
+    -- Sem FORCE, se o runtime conectasse como owner por engano (ex.:
+    -- DATABASE_URL_APP ausente), a RLS seria silenciosamente ignorada e haveria
+    -- vazamento cross-tenant. Para operações administrativas legítimas
+    -- (migrate/seed/provisioning) use um papel com BYPASSRLS ou sete app.tenant.
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY;', t);
     EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I;', t);
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I
@@ -53,5 +56,17 @@ BEGIN
   END LOOP;
 END
 $$;
+
+-- =====================================================================
+-- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):
+--     A conexão de LOGIN/admin (DATABASE_URL, usada em auth.service para
+--     buscar o usuário por e-mail ANTES de conhecer o tenant) precisa de um
+--     papel que IGNORE a RLS — caso contrário current_tenant() é NULL e o
+--     login não encontra ninguém. Garanta UMA das opções:
+--       • o papel da DATABASE_URL é superuser (padrão do Postgres local), ou
+--       • conceda BYPASSRLS explicitamente:   ALTER ROLE <owner> BYPASSRLS;
+--     O papel crivo_app (DATABASE_URL_APP) NÃO deve ter BYPASSRLS — é ele que
+--     fica sujeito às policies nas queries de negócio.
+-- =====================================================================
 
 -- Nota: audit_log (fase F2) recebe policy somente-INSERT (append-only).

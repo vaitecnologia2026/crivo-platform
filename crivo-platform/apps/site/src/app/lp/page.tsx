@@ -8,8 +8,11 @@ export const metadata: Metadata = {
     "A CRIVO quantifica a qualidade decisória da liderança com metodologia proprietária. ICD — Índice de Coerência Decisória, apoio à conformidade NR-1 e transformação organizacional através da liderança.",
 };
 
-// Plataforma React (apps/web). TODO: trocar pelo subdomínio próprio (ex.: app.vai-sistema.com).
-const PLATAFORMA_URL = "https://crivo-web.vercel.app/";
+// Plataforma React (apps/web). Configurável por env: defina
+// NEXT_PUBLIC_PLATAFORMA_URL=https://app.crivolegacy.com.br quando o subdomínio
+// estiver no ar. Fallback: preview atual da Vercel.
+const PLATAFORMA_URL =
+  process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://crivo-web.vercel.app/";
 const DESIGN_SYSTEM_URL = "/design-system";
 
 function VerticeMark({ className }: { className?: string }) {
@@ -77,7 +80,12 @@ export default function LandingPage() {
               <a href="#diagnostico" className="btn btn--terra">
                 Solicitar diagnóstico
               </a>
-              <a href="#diagnostico" className="btn btn--ghost">
+              <a
+                href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
+                target="_blank"
+                rel="noopener"
+                className="btn btn--ghost"
+              >
                 Falar com especialista
               </a>
             </div>
@@ -806,18 +814,21 @@ export default function LandingPage() {
             </div>
             <div className="field">
               <label htmlFor="eb-nome">Nome</label>
-              <input type="text" id="eb-nome" placeholder="Seu nome" required />
+              <input type="text" id="eb-nome" name="nome" placeholder="Seu nome" required />
             </div>
             <div className="field">
               <label htmlFor="eb-email">E-mail corporativo</label>
-              <input type="email" id="eb-email" placeholder="nome@empresa.com.br" required />
+              <input type="email" id="eb-email" name="email" placeholder="nome@empresa.com.br" required />
             </div>
             <button type="submit" className="btn btn--terra btn--block">
               Receber e-book gratuito →
             </button>
             <p className="form__lgpd">Sem custo · Sem spam · Dados protegidos pela LGPD</p>
-            <p className="form__success" id="ebookSuccess">
+            <p className="form__success" id="ebookSuccess" role="status" aria-live="polite">
               Pronto! Enviamos o guia para o seu e-mail corporativo.
+            </p>
+            <p className="form__error" id="ebookError" role="alert" aria-live="assertive">
+              Não foi possível enviar agora. Tente novamente em instantes.
             </p>
           </form>
         </div>
@@ -930,8 +941,11 @@ export default function LandingPage() {
               Solicitar diagnóstico inicial →
             </button>
             <p className="form__lgpd">Dados protegidos pela LGPD · Confidencial · Sem spam</p>
-            <p className="form__success" id="formSuccess">
+            <p className="form__success" id="formSuccess" role="status" aria-live="polite">
               Solicitação recebida. Um especialista CRIVO entra em contato em até 24h úteis.
+            </p>
+            <p className="form__error" id="formError" role="alert" aria-live="assertive">
+              Não foi possível enviar agora. Verifique sua conexão e tente novamente.
             </p>
           </form>
         </div>
@@ -1028,7 +1042,12 @@ export default function LandingPage() {
             <a href="#diagnostico" className="btn btn--terra">
               Solicitar diagnóstico
             </a>
-            <a href="#diagnostico" className="btn btn--ghost">
+            <a
+              href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
+              target="_blank"
+              rel="noopener"
+              className="btn btn--ghost"
+            >
               Falar com especialista
             </a>
           </div>
@@ -1091,7 +1110,18 @@ export default function LandingPage() {
             <ul>
               <li>Rodrigo Oliveira · Cofundador</li>
               <li>Viviani Ostan · Cofundadora</li>
-              <li>contato@crivo.com.br</li>
+              <li>
+                <a href="mailto:contato@crivolegacy.com.br">contato@crivolegacy.com.br</a>
+              </li>
+              <li>
+                <a
+                  href="https://wa.me/5511918531796?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20CRIVO"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  WhatsApp · (11) 91853-1796
+                </a>
+              </li>
             </ul>
           </div>
         </div>

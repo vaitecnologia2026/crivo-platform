@@ -1,35 +1,43 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createLogger } from "@crivo/ui/logger";
 import styles from "./gate.module.css";
 
-// ⚙️ Token de acesso do portal VAI. Barreira leve client-side (não é segurança forte).
-//    Proteção real → Vercel Password Protection / proxy (follow-up).
-const ACCESS_TOKEN = "VAI2026";
+// 🔒 O token é validado no SERVIDOR (POST /api/gate), que devolve um cookie
+//    httpOnly assinado. O middleware (src/middleware.ts) protege /lp e
+//    /design-system. Nada de token no bundle nem validação client-side.
 const DESTINO = "/lp";
 
 const log = createLogger("crivo:portal");
 
 export default function GatePage() {
-  const router = useRouter();
   const cardRef = useRef<HTMLElement>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const input = e.currentTarget.elements.namedItem("token") as HTMLInputElement;
-    if (input.value.trim() === ACCESS_TOKEN) {
-      try {
-        sessionStorage.setItem("vai_access", "granted");
-      } catch {
-        /* sessionStorage indisponível */
+    const token = input.value.trim();
+    if (!token) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/gate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) {
+        log.info("acesso concedido");
+        window.location.assign(DESTINO); // navegação completa garante o envio do cookie
+        return;
       }
-      setError("");
-      log.info("acesso concedido");
-      router.push(DESTINO);
-    } else {
+      throw new Error("invalid");
+    } catch {
+      setLoading(false);
       setError("Token inválido. Verifique e tente novamente.");
       log.warn("token inválido");
       const card = cardRef.current;
@@ -66,9 +74,11 @@ export default function GatePage() {
               autoFocus
             />
           </div>
-          <div className={styles.error}>{error}</div>
-          <button className={styles.button} type="submit">
-            Entrar
+          <div className={styles.error} role="alert" aria-live="assertive">
+            {error}
+          </div>
+          <button className={styles.button} type="submit" disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 

@@ -7,16 +7,7 @@ import { createLogger } from "@crivo/ui/logger";
 // animação ao entrar na viewport e scrollspy da navegação lateral.
 export function DsEffects() {
   useEffect(() => {
-    // Guard de acesso (paridade com o estático).
-    try {
-      if (sessionStorage.getItem("vai_access") !== "granted") {
-        location.replace("/");
-        return;
-      }
-    } catch {
-      /* sessionStorage indisponível */
-    }
-
+    // Acesso é protegido no servidor pelo middleware (cookie httpOnly assinado).
     const log = createLogger("crivo:ds");
     const motionLog = log.child("motion");
     const navLog = log.child("nav");

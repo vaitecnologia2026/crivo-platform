@@ -7,16 +7,7 @@ import { createLogger } from "@crivo/ui/logger";
 // formulários (stub), nav no scroll e reveal-on-scroll com stagger.
 export function LpEffects() {
   useEffect(() => {
-    // Guard de acesso: sem token concedido, volta ao gate (paridade com o estático).
-    try {
-      if (sessionStorage.getItem("vai_access") !== "granted") {
-        location.replace("/");
-        return;
-      }
-    } catch {
-      /* sessionStorage indisponível */
-    }
-
+    // Acesso é protegido no servidor pelo middleware (cookie httpOnly assinado).
     const log = createLogger("crivo:lp");
     const flog = log.child("form");
     const navlog = log.child("nav");
@@ -61,27 +52,43 @@ export function LpEffects() {
     // ---------- Lead form (diagnóstico) ----------
     const form = document.getElementById("leadForm") as HTMLFormElement | null;
     const success = document.getElementById("formSuccess");
+    const formError = document.getElementById("formError");
     if (form) {
-      const onSubmit = (e: Event) => {
+      const onSubmit = async (e: Event) => {
         e.preventDefault();
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
         const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
         const original = btn.textContent;
+        formError?.classList.remove("is-visible");
+        success?.classList.remove("is-visible");
         btn.textContent = "Enviando seu pré-diagnóstico...";
         btn.disabled = true;
-        flog.info("pré-diagnóstico submetido", {
-          empresa: (form.querySelector("#empresa") as HTMLInputElement | null)?.value,
-        });
-        // Stub — substituir por POST real para CRM/Endpoint
-        setTimeout(() => {
+        const data = Object.fromEntries(new FormData(form).entries());
+        flog.info("pré-diagnóstico submetido", { empresa: data.empresa });
+        try {
+          const res = await fetch("/api/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...data, origem: "lp-diagnostico" }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!res.ok) throw new Error(`status ${res.status}`);
           form.reset();
-          btn.textContent = original;
-          btn.disabled = false;
           if (success) {
             success.classList.add("is-visible");
             success.scrollIntoView({ behavior: "smooth", block: "center" });
           }
-          flog.info("lead registrado (stub) · pronto para POST ao CRM");
-        }, 1200);
+          flog.info("lead enviado ao endpoint /api/lead");
+        } catch (err) {
+          flog.error("falha ao enviar lead", err);
+          formError?.classList.add("is-visible");
+        } finally {
+          btn.textContent = original;
+          btn.disabled = false;
+        }
       };
       form.addEventListener("submit", onSubmit);
       cleanups.push(() => form.removeEventListener("submit", onSubmit));
@@ -90,21 +97,40 @@ export function LpEffects() {
     // ---------- E-book lead magnet ----------
     const ebookForm = document.getElementById("ebookForm") as HTMLFormElement | null;
     const ebookOk = document.getElementById("ebookSuccess");
+    const ebookError = document.getElementById("ebookError");
     if (ebookForm) {
       const elog = log.child("ebook");
-      const onSubmit = (e: Event) => {
+      const onSubmit = async (e: Event) => {
         e.preventDefault();
+        if (!ebookForm.checkValidity()) {
+          ebookForm.reportValidity();
+          return;
+        }
         const btn = ebookForm.querySelector('button[type="submit"]') as HTMLButtonElement;
         const original = btn.textContent;
+        ebookError?.classList.remove("is-visible");
+        ebookOk?.classList.remove("is-visible");
         btn.textContent = "Enviando...";
         btn.disabled = true;
-        elog.info("lead de e-book capturado (stub)");
-        setTimeout(() => {
+        const data = Object.fromEntries(new FormData(ebookForm).entries());
+        try {
+          const res = await fetch("/api/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...data, origem: "lp-ebook-nr1" }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!res.ok) throw new Error(`status ${res.status}`);
           ebookForm.reset();
+          ebookOk?.classList.add("is-visible");
+          elog.info("lead de e-book enviado ao endpoint /api/lead");
+        } catch (err) {
+          elog.error("falha ao enviar lead de e-book", err);
+          ebookError?.classList.add("is-visible");
+        } finally {
           btn.textContent = original;
           btn.disabled = false;
-          if (ebookOk) ebookOk.classList.add("is-visible");
-        }, 1000);
+        }
       };
       ebookForm.addEventListener("submit", onSubmit);
       cleanups.push(() => ebookForm.removeEventListener("submit", onSubmit));
