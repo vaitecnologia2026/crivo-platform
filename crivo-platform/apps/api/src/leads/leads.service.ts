@@ -1,10 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateLeadDto, UpdateLeadDto } from './dto';
 
 @Injectable()
 export class LeadsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Intake público (da LP): cria um lead no tenant configurado, validando um
+   * segredo compartilhado. Opt-in — só funciona com LEAD_INTAKE_SECRET e
+   * LEAD_INTAKE_TENANT definidos no ambiente. Fecha o loop captação → pipeline.
+   */
+  intake(secret: string | undefined, dto: CreateLeadDto) {
+    const expected = process.env.LEAD_INTAKE_SECRET;
+    const tenantId = process.env.LEAD_INTAKE_TENANT;
+    if (!expected || !tenantId) {
+      throw new ServiceUnavailableException('Intake de leads não configurado');
+    }
+    if (!secret || secret !== expected) {
+      throw new UnauthorizedException('Segredo de intake inválido');
+    }
+    return this.prisma.forTenant(tenantId, (tx) =>
+      tx.lead.create({ data: { tenantId, ...dto, origin: dto.origin ?? 'lp' } }),
+    );
+  }
 
   /** Lista os leads do tenant (mais recentes primeiro). */
   list(tenantId: string) {
