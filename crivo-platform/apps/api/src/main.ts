@@ -8,9 +8,11 @@ import { applyAppConfig } from './setup';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   applyAppConfig(app);
-  const port = Number(process.env.API_PORT ?? 3333);
-  await app.listen(port);
-  Logger.log(`CRIVO API em http://localhost:${port}/api`, 'Bootstrap');
+  // PORT é injetada por hosts de processo (Railway/Render/Fly); API_PORT é o
+  // default local. Bind em 0.0.0.0 para funcionar dentro de containers.
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3333);
+  await app.listen(port, '0.0.0.0');
+  Logger.log(`CRIVO API ouvindo na porta ${port} (prefixo /api)`, 'Bootstrap');
 }
 
 bootstrap();
