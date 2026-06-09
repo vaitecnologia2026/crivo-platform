@@ -10,7 +10,7 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
-    "rls": "psql \"$DATABASE_URL\" -f prisma/sql/rls.sql",
+    "rls": "psql \"${DATABASE_URL%%\\?*}\" -f prisma/sql/rls.sql",
     "seed": "tsx prisma/seed.ts",
     "typecheck": "tsc --noEmit"
   },
