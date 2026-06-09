@@ -9,7 +9,12 @@ const nextConfig = {
   transpilePackages: ["@crivo/types", "@crivo/ui"],
   turbopack: { root: monorepoRoot },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.API_URL ?? "http://localhost:3333",
+    // Em produção NÃO embute localhost: se API_URL não estiver setada no build,
+    // o cliente falha de forma clara (ver lib/api.ts) em vez de bater na máquina
+    // do usuário. Em dev, mantém o fallback local.
+    NEXT_PUBLIC_API_URL:
+      process.env.API_URL ??
+      (process.env.NODE_ENV === "production" ? "" : "http://localhost:3333"),
   },
 };
 

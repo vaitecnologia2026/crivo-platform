@@ -23,18 +23,19 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <form class="login__form" id="loginForm">
         <div class="field">
-          <label>E-mail corporativo</label>
-          <input type="email" placeholder="voce@empresa.com.br" required value="diretor@empresa.com.br" />
+          <label for="loginEmail">E-mail corporativo</label>
+          <input type="email" id="loginEmail" name="email" placeholder="voce@empresa.com.br" required autocomplete="username" />
         </div>
         <div class="field">
-          <label>Senha</label>
-          <input type="password" placeholder="••••••••" required value="demo" />
+          <label for="loginPassword">Senha</label>
+          <input type="password" id="loginPassword" name="password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
         <div class="login__row">
           <label class="check"><input type="checkbox" checked /> Manter conectado</label>
           <a href="#" class="link-gold">Esqueci minha senha</a>
         </div>
         <button type="submit" class="btn btn--gold btn--block">Entrar na plataforma →</button>
+        <p class="login__error" id="loginError" role="alert" aria-live="assertive"></p>
       </form>
 
       <div class="login__footer">

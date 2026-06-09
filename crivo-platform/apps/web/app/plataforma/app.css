@@ -206,6 +206,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .check input { accent-color: var(--gold); }
 
+.login__error {
+  display: none;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(220, 80, 80, 0.12);
+  border: 1px solid rgba(220, 80, 80, 0.35);
+  border-radius: 10px;
+  color: #ffb4b4;
+  font-size: 13px;
+  text-align: center;
+}
+.login__error.is-visible { display: block; }
+
 .login__footer {
   text-align: center;
   margin-top: 32px;

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { createLogger } from "@crivo/ui/logger";
+import type { LoginResponse } from "@crivo/types";
+import { apiFetch, setToken, clearToken } from "@/lib/api";
 import { PLATFORM_MARKUP } from "./markup";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
@@ -76,25 +78,56 @@ export function Plataforma() {
       animateBars();
     }
 
-    // ---------- LOGIN FLOW ----------
-    on(loginForm, "submit", (e) => {
+    // ---------- LOGIN FLOW (autenticação real via API) ----------
+    const loginError = document.getElementById("loginError");
+    on(loginForm, "submit", async (e) => {
       e.preventDefault();
+      if (!loginForm.checkValidity()) {
+        loginForm.reportValidity();
+        return;
+      }
       const btn = loginForm.querySelector('button[type="submit"]') as HTMLButtonElement;
       const original = btn.textContent;
+      const email = (loginForm.querySelector('input[name="email"]') as HTMLInputElement | null)?.value.trim() ?? "";
+      const password = (loginForm.querySelector('input[name="password"]') as HTMLInputElement | null)?.value ?? "";
+      if (loginError) {
+        loginError.textContent = "";
+        loginError.classList.remove("is-visible");
+      }
       btn.textContent = "Autenticando...";
       btn.disabled = true;
-      authLog.info("autenticação iniciada (stub)");
-      setTimeout(() => {
+      authLog.info("autenticação iniciada");
+      try {
+        const r = await apiFetch<LoginResponse>(
+          "/auth/login",
+          { method: "POST", body: JSON.stringify({ email, password }) },
+          { redirectOn401: false }, // 401 aqui = credenciais inválidas, não sessão expirada
+        );
+        setToken(r.token);
         login.classList.remove("is-active");
         app.classList.add("is-active");
+        authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
+        animateBars();
+      } catch (err) {
+        clearToken();
+        authLog.warn("falha no login", err);
+        if (loginError) {
+          loginError.textContent =
+            err instanceof Error && /credenc/i.test(err.message)
+              ? "E-mail ou senha inválidos."
+              : err instanceof Error
+                ? err.message
+                : "Não foi possível entrar agora. Tente novamente.";
+          loginError.classList.add("is-visible");
+        }
+      } finally {
         btn.textContent = original;
         btn.disabled = false;
-        authLog.info("sessão aberta · rota inicial=dashboard");
-        animateBars();
-      }, 700);
+      }
     });
 
     on(logoutBtn, "click", () => {
+      clearToken();
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
