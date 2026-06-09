@@ -467,7 +467,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F0** ✅ | Fundação tenancy + IAM + RLS | *Já existe* | — | feito |
 | **F1** ✅ | **Control Plane + Super Admin** (FASE 1) | `SuperAdmin`+`Tenant`+`TenantStatus`, RLS de control plane (revoga `crivo_app`), API `/admin/auth` + `/admin/tenants` (listar/provisionar/suspender/reativar/excluir), provisionador atômico (org+tenant+admin), gating de login por status. **Backend entregue — ver Apêndice B** | F0 | feito |
 | **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
-| **F3** | **RBAC dinâmico** (FASE 3) | `RoleDef`/`Permission`/`UserRole`, `PermissionGuard`, migração do enum→seed, UI de papéis | F1 | 2–3 sem |
+| **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** | **Planos + módulos** (FASE 1 cont.) | `PlanDef`, `ModuleCatalog`, `TenantModule`, gate por plano, metering básico (`UsageCounter`) | F1, F3 | 2 sem |
 | **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
 | **F6** | **Nav + telas data-driven** (FASE 5 cont.) | Menu gerado de `TenantModule`+permissões; migrar shell `markup.ts` → React config-driven | F3, F4 | 2–3 sem |
@@ -717,3 +717,36 @@ no futuro sem mudança de contrato.
 - **Campo "empresa" no login da plataforma** (UI): hoje, e-mail duplicado entre tenants retorna a
   mensagem mas o form ainda não tem o campo de slug — resolve-se naturalmente com a resolução por
   subdomínio da F5/F6.
+
+---
+
+## Apêndice D — F3 entregue (RBAC dinâmico, fatia 1)
+
+**Status:** 🟦 motor de permissões implementado e validado E2E; papéis customizados por empresa + UI pendentes.
+
+### O que foi construído
+
+- **Catálogo RBAC global** (`Permission`, `RoleDef`, `RolePermission`; migration `rbac_dynamic`):
+  tabelas **sem RLS por tenant** (catálogo compartilhado) e **somente-leitura** para o app
+  (`REVOKE INSERT/UPDATE/DELETE` de `crivo_app` no `rls.sql`). Permissões no formato `modulo:acao`.
+- **Fonte única** em `@crivo/types` (`PERMISSIONS`, `ROLE_PERMISSIONS`, `ROLE_LABELS`), consumida
+  pelo seed (popula o banco) — espelha o RBAC estático atual (compat total).
+- **Motor de autorização** (`apps/api/src/iam`): `PermissionService.effectiveForRole()` (com cache
+  em memória para papéis de sistema), `PermissionGuard` e `@RequirePermission('modulo:acao')`.
+- **Piloto migrado**: `LeadsController` deixou `@Roles(...)` e passou a `@RequirePermission`
+  (`leads:view`/`create`/`edit`). ICD permanece em `@Roles` (migra na próxima fatia, sem pressa).
+
+### Verificação (E2E)
+
+- `/leads`: CEO 200, GESTOR 200, **LIDER 403** (sem `leads:*`), CEO POST 201, LIDER POST 403.
+- ICD intacto: CEO 200, LIDER 403 (comportamento idêntico ao anterior).
+- Catálogo: 5 permissões · 7 papéis · 22 vínculos. `crivo_app` lê mas **não escreve** o catálogo.
+- `check:rls-bypass` ✓ · `test:isolation` 6/6 ✓.
+
+### Pendente da F3 (próxima fatia)
+
+- **Papéis customizados por empresa**: `RoleDef` ganha `tenantId` (nullable) + policy RLS
+  `tenantId = current_tenant() OR tenantId IS NULL` (system visível a todos) e `UserRole` (atribuição
+  multi-papel, tenant-scoped). Cache passa a ser por tenant+usuário, com invalidação na edição.
+- **UI**: tela do admin da empresa para montar papéis e permissões.
+- **Migrar ICD** (e demais módulos) de `@Roles` para `@RequirePermission`.

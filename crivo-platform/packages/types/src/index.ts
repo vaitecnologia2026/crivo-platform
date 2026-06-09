@@ -19,6 +19,39 @@ export interface SessionUser {
   role: Role;
 }
 
+// ── RBAC dinâmico (F3) — catálogo de permissões módulo:ação ──
+// Fonte única consumida pelo seed (popula o banco) e pela API (códigos).
+
+export const PERMISSIONS = [
+  { code: "leads:view", module: "leads", action: "view", label: "Ver leads" },
+  { code: "leads:create", module: "leads", action: "create", label: "Criar leads" },
+  { code: "leads:edit", module: "leads", action: "edit", label: "Editar leads" },
+  { code: "icd:view", module: "icd", action: "view", label: "Ver indicadores ICD" },
+  { code: "icd:submit", module: "icd", action: "submit", label: "Aplicar avaliação ICD" },
+] as const;
+export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
+
+/** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
+export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  LIDER: ["icd:view"],
+  JURIDICO: ["icd:view"],
+  COLABORADOR: [],
+};
+
+export const ROLE_LABELS: Record<Role, string> = {
+  ADMIN: "Administrador",
+  CEO: "CEO",
+  GESTOR: "Gestor",
+  RH: "RH",
+  LIDER: "Líder",
+  JURIDICO: "Jurídico",
+  COLABORADOR: "Colaborador",
+};
+
 export interface LoginRequest {
   email: string;
   password: string;

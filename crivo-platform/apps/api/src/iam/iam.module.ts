@@ -4,6 +4,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { PermissionGuard } from './guards/permission.guard';
+import { PermissionService } from './permission.service';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { RolesGuard } from './guards/roles.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, RolesGuard],
-  exports: [AuthService, AuthGuard, RolesGuard],
+  providers: [AuthService, AuthGuard, RolesGuard, PermissionGuard, PermissionService],
+  exports: [AuthService, AuthGuard, RolesGuard, PermissionGuard, PermissionService],
 })
 export class IamModule {}

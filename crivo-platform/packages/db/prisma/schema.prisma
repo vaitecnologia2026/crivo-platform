@@ -125,6 +125,45 @@ model AuditLog {
 }
 
 // =====================================================================
+// RBAC DINÂMICO (F3) — catálogo GLOBAL de permissões (módulo:ação) e papéis
+// de sistema. Sem RLS por tenant (catálogo compartilhado entre todas as
+// empresas); SOMENTE-LEITURA para o app — escrita só via seed/owner (rls.sql).
+// Papéis customizados POR empresa e atribuição multi-papel (UserRole) entram
+// na próxima fatia. Ver docs/SAAS-TRANSFORMATION.md §6.
+// =====================================================================
+
+model Permission {
+  id     String           @id @default(uuid()) @db.Uuid
+  code   String           @unique // "leads:view"
+  module String // leads
+  action String // view | create | edit | delete | export | submit
+  label  String
+  roles  RolePermission[]
+
+  @@map("permissions")
+}
+
+model RoleDef {
+  id       String           @id @default(uuid()) @db.Uuid
+  code     String           @unique // espelha o enum Role: ADMIN, CEO, GESTOR, RH, LIDER, JURIDICO, COLABORADOR
+  name     String
+  isSystem Boolean          @default(true)
+  perms    RolePermission[]
+
+  @@map("role_defs")
+}
+
+model RolePermission {
+  roleId String     @db.Uuid
+  permId String     @db.Uuid
+  role   RoleDef    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  perm   Permission @relation(fields: [permId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permId])
+  @@map("role_permissions")
+}
+
+// =====================================================================
 // TENANCY — Organization é o tenant raiz (holding). Todo registro de
 // negócio carrega tenantId = organizationId e é protegido por RLS.
 // =====================================================================

@@ -74,6 +74,20 @@ BEGIN
 END
 $$;
 
+-- 5) RBAC dinâmico (F3): permissions / role_defs / role_permissions são um
+--    CATÁLOGO GLOBAL (sem RLS por tenant — legível por todas as empresas), mas
+--    SOMENTE-LEITURA para o app. A escrita acontece só via seed/owner.
+DO $$
+DECLARE
+  c text;
+  rbac_tables text[] := ARRAY['permissions','role_defs','role_permissions'];
+BEGIN
+  FOREACH c IN ARRAY rbac_tables LOOP
+    EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON %I FROM crivo_app;', c);
+  END LOOP;
+END
+$$;
+
 -- =====================================================================
 -- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):
 --     A conexão de LOGIN/admin (DATABASE_URL, usada em auth.service para

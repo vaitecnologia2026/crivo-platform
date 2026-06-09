@@ -1,4 +1,5 @@
 import { PrismaClient, Role, Plan, DominantPattern, LeadStage } from '@prisma/client';
+import { PERMISSIONS, ROLE_PERMISSIONS, ROLE_LABELS } from '@crivo/types';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -29,6 +30,9 @@ async function main() {
   // Seed de DEMONSTRAÇÃO: reseta os dados para ser determinístico em re-runs.
   // NÃO rodar em produção com dados reais.
   await prisma.auditLog.deleteMany();
+  await prisma.rolePermission.deleteMany();
+  await prisma.permission.deleteMany();
+  await prisma.roleDef.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.superAdmin.deleteMany();
   await prisma.lead.deleteMany();
@@ -51,6 +55,23 @@ async function main() {
       passwordHash: hash('crivo-super-123'),
     },
   });
+
+  // 0.1) Catálogo RBAC global (F3): permissões + papéis de sistema + vínculos.
+  const permId = new Map<string, string>();
+  for (const p of PERMISSIONS) {
+    const created = await prisma.permission.create({
+      data: { code: p.code, module: p.module, action: p.action, label: p.label },
+    });
+    permId.set(p.code, created.id);
+  }
+  for (const [roleCode, perms] of Object.entries(ROLE_PERMISSIONS) as [Role, readonly string[]][]) {
+    const role = await prisma.roleDef.create({
+      data: { code: roleCode, name: ROLE_LABELS[roleCode], isSystem: true },
+    });
+    for (const code of perms) {
+      await prisma.rolePermission.create({ data: { roleId: role.id, permId: permId.get(code)! } });
+    }
+  }
 
   // 1) Tenant raiz + empresa
   const org = await prisma.organization.create({
