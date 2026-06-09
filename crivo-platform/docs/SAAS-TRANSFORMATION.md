@@ -666,10 +666,18 @@ login super admin · `/me` · listar tenants · provisionar nova empresa · logi
 suspender → login bloqueado · reativar → login OK · token de tenant barrado em `/admin` (401) ·
 token de plataforma barrado em `/leads` (401) · `crivo_app` sem acesso às tabelas de control plane.
 
+### Front do super admin — ✅ entregue
+
+Rota `/superadm` em `apps/web` (Tailwind + `@crivo/ui`, sessão isolada por
+`crivo_admin_token`, `noindex`): login de super admin, tabela de empresas com
+badges de status e ações (bloquear/reativar/excluir), e provisionamento de nova
+empresa com exibição única da senha temporária. Client em `lib/admin-api.ts`
+(redirect para `/superadm` em 401). Typecheck + lint + `next build` ok.
+Pode ser extraída para um app/subdomínio dedicado (`superadm.crivolegacy.com.br`)
+no futuro sem mudança de contrato.
+
 ### Pendente nesta fase (follow-ups)
 
-- **UI do super admin** (`superadm.crivolegacy.com.br` / app dedicado): telas de login e gestão de
-  empresas consumindo `/api/admin/*`. (Backend pronto; falta o front.)
 - **MFA/TOTP** do super admin (campo `totpSecret` já existe; fluxo entra na F2).
 - **AuditLog** das ações de provisionamento/suspensão (modelo previsto; implementar na F2).
 - **Lint/CI anti-`prisma.admin`** fora de IAM/Admin (R1) — entra na F2 (hardening).
