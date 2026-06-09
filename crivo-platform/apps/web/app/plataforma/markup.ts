@@ -487,50 +487,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <!-- ============ CRM · PIPELINE ============ -->
       <section class="route" data-route="crm">
-        <div class="route__head">
-          <div>
-            <h1 class="page-title">Pipeline Comercial</h1>
-            <p class="page-sub">Da captação via NR-1 ao fechamento — leads, follow-up e conversão.</p>
-          </div>
-          <div class="route__actions">
-            <div class="select-pill"><span>Origem</span><strong>Todas ▾</strong></div>
-            <button class="btn btn--gold btn--sm">+ Novo lead</button>
-          </div>
-        </div>
-
-        <div class="kpi-grid">
-          <div class="kpi"><span class="kpi__label">Leads no mês</span><strong class="kpi__value">128</strong><span class="kpi__delta kpi__delta--up">▲ 34% via NR-1</span><div class="kpi__bar"><div style="width: 72%"></div></div></div>
-          <div class="kpi"><span class="kpi__label">Reuniões agendadas</span><strong class="kpi__value">41</strong><span class="kpi__delta kpi__delta--up">▲ 12 esta semana</span><div class="kpi__bar"><div style="width: 58%"></div></div></div>
-          <div class="kpi"><span class="kpi__label">Taxa de conversão</span><strong class="kpi__value">23<small>%</small></strong><span class="kpi__delta kpi__delta--up">▲ 4 pts</span><div class="kpi__bar"><div style="width: 23%"></div></div></div>
-          <div class="kpi"><span class="kpi__label">Pré-diagnósticos</span><strong class="kpi__value">86</strong><span class="kpi__delta kpi__delta--up">▲ pré-qualificados</span><div class="kpi__bar"><div style="width: 67%"></div></div></div>
-        </div>
-
-        <div class="kanban">
-          <div class="kb-col">
-            <div class="kb-col__head"><span>Novo lead</span><em>5</em></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--nr1">NR-1</span><strong>Metalúrgica Andrade</strong><span class="kb-meta">420 colab · 18 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 61</span><span class="kb-wpp">WhatsApp</span></div></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--ebook">E-book</span><strong>Rede Saúde Vita</strong><span class="kb-meta">900 colab · 35 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD —</span><span class="kb-wpp">WhatsApp</span></div></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--ads">Anúncio</span><strong>TransLog S.A.</strong><span class="kb-meta">220 colab · 9 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 54</span><span class="kb-wpp">WhatsApp</span></div></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col__head"><span>Pré-diagnóstico</span><em>4</em></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--nr1">NR-1</span><strong>Construtora Belmonte</strong><span class="kb-meta">650 colab · 27 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 58</span><span class="kb-wpp">WhatsApp</span></div></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--nr1">NR-1</span><strong>Banco Cordilheira</strong><span class="kb-meta">1.200 colab · 64 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 66</span><span class="kb-wpp">WhatsApp</span></div></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col__head"><span>Reunião agendada</span><em>3</em></div>
-            <div class="kb-card kb-card--hot"><span class="kb-tag kb-tag--nr1">NR-1</span><strong>Grupo Aurora</strong><span class="kb-meta">2.400 colab · 110 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 52</span><span class="kb-due">Qui 14h</span></div></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--ebook">E-book</span><strong>Indústria Sphera</strong><span class="kb-meta">480 colab · 22 líderes</span><div class="kb-foot"><span class="kb-score">Pré-ICD 60</span><span class="kb-due">Sex 10h</span></div></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col__head"><span>Proposta</span><em>2</em></div>
-            <div class="kb-card"><span class="kb-tag kb-tag--ads">Anúncio</span><strong>Holding Nórdica</strong><span class="kb-meta">3.100 colab · 140 líderes</span><div class="kb-foot"><span class="kb-score">Enterprise</span><span class="kb-due">R$ proposta</span></div></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col__head"><span>Fechado</span><em>9</em></div>
-            <div class="kb-card kb-card--won"><span class="kb-tag kb-tag--won">Ganho</span><strong>Empresa Exemplo S.A.</strong><span class="kb-meta">CRIVO Enterprise · 12m</span><div class="kb-foot"><span class="kb-score">Onboarding</span><span class="kb-due">Ativo</span></div></div>
-          </div>
-        </div>
+        <div id="crm-root"></div>
       </section>
 
       <!-- ============ CAMPANHAS NR-1 ============ -->

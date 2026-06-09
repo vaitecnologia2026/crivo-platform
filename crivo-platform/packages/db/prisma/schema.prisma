@@ -50,6 +50,16 @@ enum DominantPattern {
   EQUILIBRADO // nenhum driver de risco se destaca (alta coerência)
 }
 
+// Estágio do lead no pipeline comercial.
+enum LeadStage {
+  NOVO
+  CONTATO
+  QUALIFICADO
+  PROPOSTA
+  GANHO
+  PERDIDO
+}
+
 // =====================================================================
 // TENANCY — Organization é o tenant raiz (holding). Todo registro de
 // negócio carrega tenantId = organizationId e é protegido por RLS.
@@ -70,6 +80,7 @@ model Organization {
   assessments Assessment[]
   responses Response[]
   icdScores IcdScore[]
+  leads     Lead[]
 
   @@map("organizations")
 }
@@ -209,6 +220,30 @@ model Response {
 
   @@index([tenantId])
   @@map("responses")
+}
+
+// =====================================================================
+// COMERCIAL — Pipeline de leads (alimentado pela LP e por cadastro manual)
+// =====================================================================
+
+model Lead {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  email     String?
+  whatsapp  String?
+  segment   String?
+  origin    String? // lp-diagnostico, lp-ebook-nr1, manual…
+  stage     LeadStage    @default(NOVO)
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, stage])
+  @@map("leads")
 }
 
 model IcdScore {

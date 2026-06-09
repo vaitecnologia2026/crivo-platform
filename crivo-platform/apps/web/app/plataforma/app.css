@@ -245,6 +245,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .icd-dim__fill.is-mid { background: var(--gold); }
 .icd-dim__fill.is-low { background: #e0875f; }
 
+/* Select de estágio nos cards do CRM (CrmScreen) */
+.kb-stage {
+  font-size: 11px; padding: 3px 6px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05); color: var(--text-sec);
+  border: 1px solid var(--line); cursor: pointer;
+}
+.kb-wpp { cursor: pointer; }
+
 .login__footer {
   text-align: center;
   margin-top: 32px;

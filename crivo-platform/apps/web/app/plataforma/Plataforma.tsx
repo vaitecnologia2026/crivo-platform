@@ -7,6 +7,7 @@ import type { LoginResponse } from "@crivo/types";
 import { apiFetch, setToken, clearToken } from "@/lib/api";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
+import { CrmScreen } from "./CrmScreen";
 import { PLATFORM_MARKUP } from "./markup";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
@@ -70,6 +71,7 @@ export function Plataforma() {
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
+      if (name === "crm") mountIsland("crm-root", <CrmScreen />);
       const meta = routeMeta[name];
       if (meta) {
         if (bcPath) bcPath.textContent = meta.path;

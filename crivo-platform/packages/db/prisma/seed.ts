@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Plan, DominantPattern } from '@prisma/client';
+import { PrismaClient, Role, Plan, DominantPattern, LeadStage } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -28,6 +28,7 @@ const LEADERS: Array<{
 async function main() {
   // Seed de DEMONSTRAÇÃO: reseta os dados para ser determinístico em re-runs.
   // NÃO rodar em produção com dados reais.
+  await prisma.lead.deleteMany();
   await prisma.icdScore.deleteMany();
   await prisma.response.deleteMany();
   await prisma.assessment.deleteMany();
@@ -78,6 +79,20 @@ async function main() {
         score: l.score, dimensions: l.dimensions, dominantPattern: l.pattern,
       },
     });
+  }
+
+  // 5) Pipeline comercial de demonstração
+  const LEADS = [
+    { name: 'Patrícia Gomes', company: 'Indústrias Verana', email: 'patricia@verana.com.br', whatsapp: '(11) 98888-1010', segment: 'Indústria', origin: 'lp-diagnostico', stage: LeadStage.NOVO },
+    { name: 'Marcos Tavares', company: 'Rede Sollar Varejo', email: 'marcos@sollar.com.br', whatsapp: '(21) 97777-2020', segment: 'Varejo', origin: 'lp-diagnostico', stage: LeadStage.CONTATO },
+    { name: 'Beatriz Nunes', company: 'Clínica Vitalis', email: 'bia@vitalis.com.br', whatsapp: '(31) 96666-3030', segment: 'Saúde', origin: 'lp-ebook-nr1', stage: LeadStage.QUALIFICADO },
+    { name: 'Henrique Sá', company: 'Banco Meridiano', email: 'henrique@meridiano.com.br', whatsapp: '(11) 95555-4040', segment: 'Serviços financeiros', origin: 'manual', stage: LeadStage.PROPOSTA },
+    { name: 'Luiza Prado', company: 'TecNova Sistemas', email: 'luiza@tecnova.com.br', whatsapp: '(48) 94444-5050', segment: 'Tecnologia', origin: 'lp-diagnostico', stage: LeadStage.GANHO },
+    { name: 'Roberto Dias', company: 'Construtora Âncora', email: 'roberto@ancora.com.br', whatsapp: '(81) 93333-6060', segment: 'Construção / Engenharia', origin: 'lp-ebook-nr1', stage: LeadStage.PERDIDO },
+    { name: 'Camila Reis', company: 'Logística Brasil Sul', email: 'camila@lbsul.com.br', whatsapp: '(51) 92222-7070', segment: 'Logística e transporte', origin: 'lp-diagnostico', stage: LeadStage.NOVO },
+  ];
+  for (const ld of LEADS) {
+    await prisma.lead.create({ data: { tenantId: org.id, ...ld } });
   }
 
   const media = Math.round(LEADERS.reduce((s, l) => s + l.score, 0) / LEADERS.length);

@@ -33,7 +33,7 @@ DECLARE
   t text;
   tenant_col text;
   tables text[] := ARRAY['organizations','companies','units','teams','users','team_members',
-                         'assessment_cycles','assessments','responses','icd_scores'];
+                         'assessment_cycles','assessments','responses','icd_scores','leads'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
