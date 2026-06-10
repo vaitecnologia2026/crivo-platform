@@ -61,3 +61,8 @@ export async function apiFetch<T>(
   }
   return res.json() as Promise<T>;
 }
+
+/** Códigos dos módulos ativos da empresa do usuário logado (nav data-driven). */
+export function getMyModules(): Promise<string[]> {
+  return apiFetch<string[]>('/me/modules');
+}

@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getMyModules, setToken, clearToken } from "@/lib/api";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
@@ -24,6 +24,21 @@ const routeMeta: Record<string, { path: string; current: string }> = {
   lider: { path: "Desenvolvimento", current: "Área do Líder" },
   biblioteca: { path: "Desenvolvimento", current: "Biblioteca & Formação" },
   relatorios: { path: "Documentos", current: "Relatórios & Comunicações" },
+};
+
+// Nav data-driven (F6): cada rota da nav mapeia a um módulo do catálogo (F4).
+// "questionario" faz parte do módulo "icd" (aplicação NR-1). O menu esconde o
+// que a empresa não tem ativo — a autorização real continua nos guards da API.
+const routeModule: Record<string, string> = {
+  crm: "crm",
+  dashboard: "dashboard",
+  icd: "icd",
+  questionario: "icd",
+  campanhas: "campanhas",
+  parecer: "parecer",
+  lider: "lider",
+  biblioteca: "biblioteca",
+  relatorios: "relatorios",
 };
 
 export function Plataforma() {
@@ -68,7 +83,47 @@ export function Plataforma() {
     const bcPath = document.getElementById("bcPath");
     const bcCurrent = document.getElementById("bcCurrent");
 
+    // ---------- MÓDULOS DO TENANT (nav data-driven, F6) ----------
+    // null = ainda não carregado → mostra tudo (a API ainda gateia o acesso).
+    let enabledModules: Set<string> | null = null;
+    const moduleEnabled = (route: string) => {
+      const code = routeModule[route] ?? route;
+      return !enabledModules || enabledModules.has(code);
+    };
+
+    function hideEmptyGroups() {
+      const nav = document.querySelector(".sidebar__nav");
+      if (!nav) return;
+      const children = Array.from(nav.children) as HTMLElement[];
+      for (let i = 0; i < children.length; i++) {
+        if (!children[i].classList.contains("sidebar__group")) continue;
+        let anyVisible = false;
+        let hasRouteItem = false;
+        for (let j = i + 1; j < children.length; j++) {
+          const sib = children[j];
+          if (sib.classList.contains("sidebar__group")) break;
+          if (!sib.classList.contains("nav-item")) continue;
+          if (sib.dataset.route) {
+            hasRouteItem = true;
+            if (sib.style.display !== "none") anyVisible = true;
+          } else {
+            anyVisible = true; // item sem rota (ex.: Configurações) — sempre mantém o grupo
+          }
+        }
+        children[i].style.display = hasRouteItem && !anyVisible ? "none" : "";
+      }
+    }
+
+    function applyModuleVisibility() {
+      navItems.forEach((n) => {
+        const r = n.dataset.route;
+        if (r) n.style.display = moduleEnabled(r) ? "" : "none";
+      });
+      hideEmptyGroups();
+    }
+
     function setRoute(name: string) {
+      if (!moduleEnabled(name)) name = "dashboard"; // rota de módulo inativo → painel
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
@@ -133,6 +188,15 @@ export function Plataforma() {
         login.classList.remove("is-active");
         app.classList.add("is-active");
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
+        // Nav data-driven: oculta os módulos que a empresa não tem ativos.
+        // Falha-aberto (mostra tudo) se a busca falhar — a API ainda gateia.
+        try {
+          enabledModules = new Set(await getMyModules());
+          applyModuleVisibility();
+          routerLog.info(`módulos ativos: ${[...enabledModules].join(", ") || "(nenhum)"}`);
+        } catch (err) {
+          routerLog.warn("não foi possível carregar módulos do tenant", err);
+        }
         mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
         animateBars();
       } catch (err) {

@@ -470,7 +470,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
 | **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
-| **F6** | **Nav + telas data-driven** (FASE 5 cont.) | Menu gerado de `TenantModule`+permissões; migrar shell `markup.ts` → React config-driven | F3, F4 | 2–3 sem |
+| **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` (`GET /me/modules` + shell oculta módulos inativos, falha-aberto). Resta: filtrar também por permissão (RBAC), migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
 | **F8** | **Formulários/avaliações dinâmicos** (FASE 7) | `FormDefinition`/`FormSubmission`, engine de scoring, ICD migrado p/ template, builder de formulário | F3 | 3 sem |
 | **F9** | **Escala + segurança + deploy** (FASES 8,9,10) | Particionamento, pooler, read-replica p/ relatórios, `tenant_shard`, pen-test de isolamento, observabilidade, go-live | todas | 2–3 sem |
@@ -814,3 +814,31 @@ no futuro sem mudança de contrato.
 - **Metering de `api_calls`/`active_users`**: hoje só `leads` é contado/limitado; estender quando houver
   endpoint de criação de usuário pelo tenant (enforcement de `maxUsers`).
 - **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.
+
+---
+
+## Apêndice F — F6 entregue (Nav data-driven, fatia 1)
+
+**Status:** 🟦 menu da plataforma filtrado pelos módulos ativos da empresa; migração do shell p/ React e filtro por permissão pendentes.
+
+### O que foi construído
+
+- **`GET /me/modules`** (`apps/api/src/iam/me.controller.ts`, autenticado): devolve os códigos de módulos
+  ativos da empresa do usuário, via `ModuleService.enabledFor(tenantId)` (sob RLS).
+- **Shell filtra a nav** (`apps/web/app/plataforma/Plataforma.tsx`): no login, busca `getMyModules()` e
+  oculta os `.nav-item[data-route]` cujo módulo não está ativo (mapa `routeModule`; `questionario`→`icd`),
+  além de esconder grupos da sidebar que ficaram vazios. `setRoute` cai para `dashboard` se a rota for de
+  módulo inativo. **Falha-aberto**: se a busca falhar, mostra tudo — a autorização real continua nos
+  guards da API (`@RequireModule`/`@RequirePermission`), o menu é só UX.
+
+### Verificação
+
+- E2E: CEO `/me/modules` lista os 7 módulos do plano ENTERPRISE; super admin desativa `relatorios` →
+  some da lista; reativa → volta; sem token → **401**.
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+
+### Pendente da F6 (próxima fatia)
+
+- **Filtrar a nav também por permissão** (RBAC): cruzar módulos ativos × permissões do papel.
+- **Migrar o shell `markup.ts` → React config-driven**: nav e telas geradas de uma config (em vez de HTML
+  estático), removendo a manipulação de DOM. Habilita F7 (dashboards dinâmicos).
