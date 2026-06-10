@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getMyModules, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getMyModules, getMyPermissions, setToken, clearToken } from "@/lib/api";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
@@ -26,19 +26,21 @@ const routeMeta: Record<string, { path: string; current: string }> = {
   relatorios: { path: "Documentos", current: "Relatórios & Comunicações" },
 };
 
-// Nav data-driven (F6): cada rota da nav mapeia a um módulo do catálogo (F4).
-// "questionario" faz parte do módulo "icd" (aplicação NR-1). O menu esconde o
-// que a empresa não tem ativo — a autorização real continua nos guards da API.
-const routeModule: Record<string, string> = {
-  crm: "crm",
-  dashboard: "dashboard",
-  icd: "icd",
-  questionario: "icd",
-  campanhas: "campanhas",
-  parecer: "parecer",
-  lider: "lider",
-  biblioteca: "biblioteca",
-  relatorios: "relatorios",
+// Nav data-driven (F6): cada rota mapeia a um módulo do catálogo (F4) e,
+// quando existe, à permissão de "ver" daquela área (RBAC, F3). O menu esconde
+// o que a empresa não tem no plano (módulo) E o que o papel não pode ver
+// (permissão). A autorização real continua nos guards da API — menu é só UX.
+// Obs.: o módulo "crm" usa permissões "leads:*"; "questionario" é aplicar ICD.
+const routeAccess: Record<string, { module: string; perm?: string }> = {
+  crm: { module: "crm", perm: "leads:view" },
+  dashboard: { module: "dashboard" },
+  icd: { module: "icd", perm: "icd:view" },
+  questionario: { module: "icd", perm: "icd:submit" },
+  campanhas: { module: "campanhas" },
+  parecer: { module: "parecer" },
+  lider: { module: "lider" },
+  biblioteca: { module: "biblioteca" },
+  relatorios: { module: "relatorios" },
 };
 
 export function Plataforma() {
@@ -83,12 +85,16 @@ export function Plataforma() {
     const bcPath = document.getElementById("bcPath");
     const bcCurrent = document.getElementById("bcCurrent");
 
-    // ---------- MÓDULOS DO TENANT (nav data-driven, F6) ----------
+    // ---------- ACESSO DO TENANT/PAPEL (nav data-driven, F6) ----------
     // null = ainda não carregado → mostra tudo (a API ainda gateia o acesso).
     let enabledModules: Set<string> | null = null;
-    const moduleEnabled = (route: string) => {
-      const code = routeModule[route] ?? route;
-      return !enabledModules || enabledModules.has(code);
+    let permissions: Set<string> | null = null;
+    const routeVisible = (route: string) => {
+      const access = routeAccess[route];
+      if (!access) return true; // rota sem mapeamento (ex.: links soltos)
+      if (enabledModules && !enabledModules.has(access.module)) return false; // módulo/plano
+      if (access.perm && permissions && !permissions.has(access.perm)) return false; // papel/RBAC
+      return true;
     };
 
     function hideEmptyGroups() {
@@ -117,13 +123,13 @@ export function Plataforma() {
     function applyModuleVisibility() {
       navItems.forEach((n) => {
         const r = n.dataset.route;
-        if (r) n.style.display = moduleEnabled(r) ? "" : "none";
+        if (r) n.style.display = routeVisible(r) ? "" : "none";
       });
       hideEmptyGroups();
     }
 
     function setRoute(name: string) {
-      if (!moduleEnabled(name)) name = "dashboard"; // rota de módulo inativo → painel
+      if (!routeVisible(name)) name = "dashboard"; // rota sem acesso → painel
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
@@ -188,14 +194,17 @@ export function Plataforma() {
         login.classList.remove("is-active");
         app.classList.add("is-active");
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
-        // Nav data-driven: oculta os módulos que a empresa não tem ativos.
-        // Falha-aberto (mostra tudo) se a busca falhar — a API ainda gateia.
+        // Nav data-driven: oculta o que a empresa não tem no plano (módulo) e o
+        // que o papel não pode ver (permissão). Falha-aberto se a busca falhar —
+        // a API ainda gateia o acesso.
         try {
-          enabledModules = new Set(await getMyModules());
+          const [mods, perms] = await Promise.all([getMyModules(), getMyPermissions()]);
+          enabledModules = new Set(mods);
+          permissions = new Set(perms);
           applyModuleVisibility();
-          routerLog.info(`módulos ativos: ${[...enabledModules].join(", ") || "(nenhum)"}`);
+          routerLog.info(`módulos: ${mods.join(", ") || "—"} · permissões: ${perms.join(", ") || "—"}`);
         } catch (err) {
-          routerLog.warn("não foi possível carregar módulos do tenant", err);
+          routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
         }
         mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
         animateBars();

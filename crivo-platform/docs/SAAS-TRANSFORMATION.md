@@ -470,7 +470,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
 | **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
-| **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` (`GET /me/modules` + shell oculta módulos inativos, falha-aberto). Resta: filtrar também por permissão (RBAC), migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
+| **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` × permissão do papel (`GET /me/modules` + `/me/permissions`; shell oculta módulos inativos e o que o papel não vê, falha-aberto). Resta: migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
 | **F8** | **Formulários/avaliações dinâmicos** (FASE 7) | `FormDefinition`/`FormSubmission`, engine de scoring, ICD migrado p/ template, builder de formulário | F3 | 3 sem |
 | **F9** | **Escala + segurança + deploy** (FASES 8,9,10) | Particionamento, pooler, read-replica p/ relatórios, `tenant_shard`, pen-test de isolamento, observabilidade, go-live | todas | 2–3 sem |
@@ -837,8 +837,18 @@ no futuro sem mudança de contrato.
   some da lista; reativa → volta; sem token → **401**.
 - Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
 
+### Fatia 2 — Nav por módulo × permissão (ENTREGUE)
+
+- **`GET /me/permissions`** (`me.controller.ts`): permissões efetivas do papel
+  (`PermissionService.effectiveForRole`).
+- **Shell cruza módulo × permissão** (`Plataforma.tsx`): `routeAccess` mapeia cada rota a um módulo (F4)
+  e, quando existe, à permissão de "ver" (RBAC, F3) — `crm`→`leads:view`, `icd`→`icd:view`,
+  `questionario`→`icd:submit`. `routeVisible` esconde o que a empresa não tem no plano **e** o que o papel
+  não pode ver. Busca módulos + permissões em paralelo no login (falha-aberto).
+- E2E: CEO (5 permissões) vê CRM + Questionário; LÍDER (só `icd:view`) tem CRM e Questionário ocultos,
+  ICD visível. Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+
 ### Pendente da F6 (próxima fatia)
 
-- **Filtrar a nav também por permissão** (RBAC): cruzar módulos ativos × permissões do papel.
 - **Migrar o shell `markup.ts` → React config-driven**: nav e telas geradas de uma config (em vez de HTML
   estático), removendo a manipulação de DOM. Habilita F7 (dashboards dinâmicos).

@@ -66,3 +66,8 @@ export async function apiFetch<T>(
 export function getMyModules(): Promise<string[]> {
   return apiFetch<string[]>('/me/modules');
 }
+
+/** Permissões efetivas (modulo:acao) do papel do usuário logado. */
+export function getMyPermissions(): Promise<string[]> {
+  return apiFetch<string[]>('/me/permissions');
+}
