@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Plan } from '@crivo/db';
 
 export class PlatformLoginDto {
@@ -38,4 +38,9 @@ export class CreateTenantDto {
   @MinLength(8)
   @MaxLength(200)
   adminPassword?: string;
+}
+
+export class SetModuleDto {
+  @IsBoolean()
+  enabled!: boolean;
 }

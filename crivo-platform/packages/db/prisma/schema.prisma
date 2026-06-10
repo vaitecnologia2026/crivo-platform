@@ -164,6 +164,42 @@ model RolePermission {
 }
 
 // =====================================================================
+// PLANOS + MÓDULOS (F4) — catálogo GLOBAL de módulos da plataforma e a
+// ativação por empresa. ModuleCatalog é compartilhado (sem RLS por tenant,
+// SOMENTE-LEITURA p/ o app, como o catálogo RBAC). TenantModule é DATA PLANE
+// (RLS por tenant): o app lê os módulos da própria empresa via forTenant; a
+// ESCRITA é owner-only (super admin), para uma empresa não auto-habilitar
+// módulos que não contratou. Ver docs/SAAS-TRANSFORMATION.md §4.
+// =====================================================================
+
+model ModuleCatalog {
+  id       String   @id @default(uuid()) @db.Uuid
+  code     String   @unique // dashboard | icd | crm | relatorios | ...
+  name     String
+  category String
+  minPlan  Plan     @default(BASE) // plano mínimo p/ habilitar
+  createdAt DateTime @default(now())
+
+  @@map("module_catalog")
+}
+
+// Quais módulos a empresa ativou. PK composta (tenant + módulo). tenantId =
+// organizationId (data plane). config reservado p/ parametrização por módulo.
+model TenantModule {
+  tenantId   String       @db.Uuid
+  org        Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleCode String
+  enabled    Boolean      @default(true)
+  config     Json?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@id([tenantId, moduleCode])
+  @@index([tenantId])
+  @@map("tenant_modules")
+}
+
+// =====================================================================
 // TENANCY — Organization é o tenant raiz (holding). Todo registro de
 // negócio carrega tenantId = organizationId e é protegido por RLS.
 // =====================================================================
@@ -184,6 +220,7 @@ model Organization {
   responses Response[]
   icdScores IcdScore[]
   leads     Lead[]
+  modules   TenantModule[]
 
   @@map("organizations")
 }

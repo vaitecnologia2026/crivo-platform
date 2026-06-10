@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, type AuditActor } from './audit.service';
 import { toTenantSummary } from './tenant.mapper';
 import type { CreateTenantDto } from './dto';
-import type { ProvisionResult } from '@crivo/types';
+import { modulesForPlan, type Plan, type ProvisionResult } from '@crivo/types';
 
 /** Normaliza um texto em slug DNS-safe (a-z, 0-9, hífen). */
 function slugify(input: string): string {
@@ -53,10 +53,11 @@ export class ProvisioningService {
     const generated = !dto.adminPassword;
     const password = dto.adminPassword ?? generatePassword();
     const adminEmail = dto.adminEmail.toLowerCase().trim();
+    const plan: Plan = dto.plan ?? 'BASE';
 
     const tenant = await db.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: { name: dto.name, plan: dto.plan ?? 'BASE' },
+        data: { name: dto.name, plan },
       });
 
       const created = await tx.tenant.create({
@@ -64,7 +65,7 @@ export class ProvisioningService {
           organizationId: org.id,
           slug,
           name: dto.name,
-          plan: dto.plan ?? 'BASE',
+          plan,
           status: 'ACTIVE',
         },
       });
@@ -77,6 +78,11 @@ export class ProvisioningService {
           role: 'ADMIN',
           passwordHash: bcrypt.hashSync(password, 10),
         },
+      });
+
+      // Ativa os módulos liberados pelo plano contratado (F4).
+      await tx.tenantModule.createMany({
+        data: modulesForPlan(plan).map((moduleCode) => ({ tenantId: org.id, moduleCode })),
       });
 
       return created;

@@ -468,7 +468,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F1** ✅ | **Control Plane + Super Admin** (FASE 1) | `SuperAdmin`+`Tenant`+`TenantStatus`, RLS de control plane (revoga `crivo_app`), API `/admin/auth` + `/admin/tenants` (listar/provisionar/suspender/reativar/excluir), provisionador atômico (org+tenant+admin), gating de login por status. **Backend entregue — ver Apêndice B** | F0 | feito |
 | **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
-| **F4** | **Planos + módulos** (FASE 1 cont.) | `PlanDef`, `ModuleCatalog`, `TenantModule`, gate por plano, metering básico (`UsageCounter`) | F1, F3 | 2 sem |
+| **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
 | **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
 | **F6** | **Nav + telas data-driven** (FASE 5 cont.) | Menu gerado de `TenantModule`+permissões; migrar shell `markup.ts` → React config-driven | F3, F4 | 2–3 sem |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
@@ -750,3 +750,43 @@ no futuro sem mudança de contrato.
   multi-papel, tenant-scoped). Cache passa a ser por tenant+usuário, com invalidação na edição.
 - **UI**: tela do admin da empresa para montar papéis e permissões.
 - **Migrar ICD** (e demais módulos) de `@Roles` para `@RequirePermission`.
+
+---
+
+## Apêndice E — F4 entregue (Planos + módulos, fatia 1)
+
+**Status:** 🟦 catálogo de módulos + gate por plano implementados e validados E2E; metering e UI pendentes.
+
+### O que foi construído
+
+- **Fonte única em `@crivo/types`** (F4): `MODULES` (catálogo: `code`/`name`/`category`/`minPlan`),
+  `PLAN_RANK`, `PLAN_LIMITS` (maxUsers/maxLeads por plano), `PLAN_LABELS`, e helpers
+  `modulesForPlan(plan)` / `planAllowsModule(plan, code)`. Mantém o enum `Plan` (sem tabela `PlanDef`
+  nesta fatia). 8 módulos espelham as telas da plataforma (alimenta a nav data-driven da F6).
+- **Schema** (migration `f4_modules`): `ModuleCatalog` (catálogo GLOBAL, somente-leitura p/ app, como o
+  catálogo RBAC) e `TenantModule` (data plane, **RLS por tenant**: o app lê só os módulos da própria
+  empresa via `forTenant`; a **escrita é owner-only** — `REVOKE INSERT/UPDATE/DELETE` no `rls.sql` —
+  para uma empresa não auto-habilitar módulo que não contratou).
+- **Gate de módulo** (`apps/api/src/iam`): `ModuleService.enabledFor(tenantId)` (sob RLS),
+  `@RequireModule('crm')` + `ModuleGuard`. Ortogonal ao RBAC: o módulo gateia por **plano/contratação**,
+  a permissão por **papel**. **Piloto**: `LeadsController` ganhou `@RequireModule('crm')` (além do
+  `@RequirePermission` da F3).
+- **API de módulos no control plane** (super admin): `GET /admin/tenants/:id/modules` (catálogo + ativo +
+  disponível-no-plano) e `PATCH /admin/tenants/:id/modules/:code` (ativar exige que o plano permita;
+  audita `tenant.module.enable`/`disable`). **Provisioning** ativa os módulos do plano contratado na
+  transação atômica.
+
+### Verificação (E2E)
+
+- DB: `crivo_app` lê os 7 módulos ativos do tenant ENTERPRISE (sob `app.tenant`), **INSERT negado**
+  (escrita owner-only), `module_catalog` global legível.
+- HTTP: CEO `GET /leads` **200** (CRM ativo) → super admin desativa CRM → CEO `GET /leads` **403**
+  ("Módulo crm não está ativo") → reativa → **200**. Ativar `parecer` (ADVISORY) em plano ENTERPRISE → **422**.
+- Gates: `typecheck` 8/8 ✓ · `lint` 3/3 ✓ · `build` 5/5 ✓ · `check:rls-bypass` ✓ · `test:isolation` 6/6 ✓.
+
+### Pendente da F4 (próxima fatia)
+
+- **Metering** (`UsageCounter`): contadores por tenant/métrica/período (`api_calls`, `active_users`,
+  `leads`) + enforcement dos `PLAN_LIMITS` (ex.: bloquear criação de usuário/lead acima do limite do plano).
+- **UI no `/superadm`**: painel de módulos por empresa (toggles) e troca de plano.
+- **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.

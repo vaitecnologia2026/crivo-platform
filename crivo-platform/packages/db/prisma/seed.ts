@@ -1,5 +1,5 @@
 import { PrismaClient, Role, Plan, DominantPattern, LeadStage } from '@prisma/client';
-import { PERMISSIONS, ROLE_PERMISSIONS, ROLE_LABELS } from '@crivo/types';
+import { PERMISSIONS, ROLE_PERMISSIONS, ROLE_LABELS, MODULES, modulesForPlan } from '@crivo/types';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -33,6 +33,8 @@ async function main() {
   await prisma.rolePermission.deleteMany();
   await prisma.permission.deleteMany();
   await prisma.roleDef.deleteMany();
+  await prisma.tenantModule.deleteMany();
+  await prisma.moduleCatalog.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.superAdmin.deleteMany();
   await prisma.lead.deleteMany();
@@ -73,6 +75,13 @@ async function main() {
     }
   }
 
+  // 0.2) Catálogo GLOBAL de módulos (F4). Fonte única em @crivo/types.
+  for (const m of MODULES) {
+    await prisma.moduleCatalog.create({
+      data: { code: m.code, name: m.name, category: m.category, minPlan: m.minPlan as Plan },
+    });
+  }
+
   // 1) Tenant raiz + empresa
   const org = await prisma.organization.create({
     data: { name: 'CRIVO Demo — O2 Legacy', plan: Plan.ENTERPRISE },
@@ -88,6 +97,11 @@ async function main() {
     },
   });
   await prisma.company.create({ data: { tenantId: org.id, name: 'O2 Legacy & Consulting' } });
+
+  // 1.1) Módulos ativos da empresa, conforme o plano (ENTERPRISE → tudo até enterprise).
+  for (const code of modulesForPlan('ENTERPRISE')) {
+    await prisma.tenantModule.create({ data: { tenantId: org.id, moduleCode: code, enabled: true } });
+  }
 
   // 2) CEO (login de acesso ao painel executivo)
   await prisma.user.create({

@@ -33,7 +33,8 @@ DECLARE
   t text;
   tenant_col text;
   tables text[] := ARRAY['organizations','companies','units','teams','users','team_members',
-                         'assessment_cycles','assessments','responses','icd_scores','leads'];
+                         'assessment_cycles','assessments','responses','icd_scores','leads',
+                         'tenant_modules'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
@@ -74,19 +75,28 @@ BEGIN
 END
 $$;
 
--- 5) RBAC dinâmico (F3): permissions / role_defs / role_permissions são um
---    CATÁLOGO GLOBAL (sem RLS por tenant — legível por todas as empresas), mas
---    SOMENTE-LEITURA para o app. A escrita acontece só via seed/owner.
+-- 5) CATÁLOGOS GLOBAIS somente-leitura para o app:
+--    RBAC (F3): permissions / role_defs / role_permissions
+--    Módulos (F4): module_catalog
+--    São compartilhados entre todas as empresas (sem RLS por tenant), mas a
+--    escrita acontece só via seed/owner.
 DO $$
 DECLARE
   c text;
-  rbac_tables text[] := ARRAY['permissions','role_defs','role_permissions'];
+  catalog_tables text[] := ARRAY['permissions','role_defs','role_permissions','module_catalog'];
 BEGIN
-  FOREACH c IN ARRAY rbac_tables LOOP
+  FOREACH c IN ARRAY catalog_tables LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON %I FROM crivo_app;', c);
   END LOOP;
 END
 $$;
+
+-- 6) Módulos por empresa (F4): tenant_modules tem RLS por tenant (item 3, p/ a
+--    plataforma LER só os módulos da própria empresa via forTenant), mas a
+--    ESCRITA é owner-only — quem (des)ativa módulo é o super admin (control
+--    plane, conexão owner). Assim uma empresa não se auto-habilita um módulo
+--    que não contratou, mesmo que um bug exponha um caminho de escrita.
+REVOKE INSERT, UPDATE, DELETE ON tenant_modules FROM crivo_app;
 
 -- =====================================================================
 -- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):

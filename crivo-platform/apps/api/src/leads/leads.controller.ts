@@ -3,14 +3,19 @@ import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
+import { ModuleGuard } from '../iam/guards/module.guard';
 import { RequirePermission } from '../iam/require-permission.decorator';
+import { RequireModule } from '../iam/require-module.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
 // Piloto do RBAC dinâmico (F3): autorização por permissão (modulo:acao) em vez
 // de lista de papéis hard-coded. As permissões vêm do catálogo (PermissionGuard).
+// Piloto do gate de módulo (F4): @RequireModule('crm') exige que a empresa
+// tenha o módulo CRM ativo no plano — independente do papel do usuário.
 @Controller('leads')
-@UseGuards(AuthGuard, PermissionGuard)
+@UseGuards(AuthGuard, PermissionGuard, ModuleGuard)
+@RequireModule('crm')
 export class LeadsController {
   constructor(private readonly leads: LeadsService) {}
 

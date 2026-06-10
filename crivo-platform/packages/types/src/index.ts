@@ -73,6 +73,77 @@ export type TenantStatus = (typeof TENANT_STATUSES)[number];
 export const PLANS = ['BASE', 'EVOLUCAO', 'ENTERPRISE', 'ADVISORY'] as const;
 export type Plan = (typeof PLANS)[number];
 
+// ── Planos + módulos (F4) ──
+// Fonte única de planos e do catálogo de módulos: o seed popula o banco e a API
+// lê estes códigos. Mantém o enum Plan como hoje (sem tabela PlanDef nesta fatia).
+
+/** Ordem crescente dos planos. Plano X "contém" todo módulo cujo minPlan ≤ X. */
+export const PLAN_RANK: Record<Plan, number> = {
+  BASE: 0,
+  EVOLUCAO: 1,
+  ENTERPRISE: 2,
+  ADVISORY: 3,
+};
+
+export interface PlanLimits {
+  /** null = ilimitado. */
+  maxUsers: number | null;
+  maxLeads: number | null;
+}
+
+/** Limites por plano (aplicados no metering — fatia 2 da F4). */
+export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
+  BASE: { maxUsers: 10, maxLeads: 200 },
+  EVOLUCAO: { maxUsers: 50, maxLeads: 2_000 },
+  ENTERPRISE: { maxUsers: null, maxLeads: null },
+  ADVISORY: { maxUsers: null, maxLeads: null },
+};
+
+export const PLAN_LABELS: Record<Plan, string> = {
+  BASE: 'Base',
+  EVOLUCAO: 'Evolução',
+  ENTERPRISE: 'Enterprise',
+  ADVISORY: 'Advisory',
+};
+
+/** Catálogo GLOBAL de módulos da plataforma. minPlan = plano mínimo p/ habilitar.
+ *  Espelha as telas da plataforma (alimenta a nav data-driven na F6). */
+export const MODULES = [
+  { code: 'dashboard', name: 'Dashboard', category: 'core', minPlan: 'BASE' },
+  { code: 'icd', name: 'Indicadores ICD', category: 'core', minPlan: 'BASE' },
+  { code: 'lider', name: 'Líderes', category: 'core', minPlan: 'BASE' },
+  { code: 'crm', name: 'CRM / Pipeline', category: 'comercial', minPlan: 'EVOLUCAO' },
+  { code: 'biblioteca', name: 'Biblioteca', category: 'conteudo', minPlan: 'EVOLUCAO' },
+  { code: 'relatorios', name: 'Relatórios', category: 'analytics', minPlan: 'ENTERPRISE' },
+  { code: 'campanhas', name: 'Campanhas', category: 'comercial', minPlan: 'ENTERPRISE' },
+  { code: 'parecer', name: 'Parecer', category: 'advisory', minPlan: 'ADVISORY' },
+] as const;
+export type ModuleCode = (typeof MODULES)[number]['code'];
+
+/** Códigos dos módulos liberados por um plano (minPlan ≤ plano). */
+export function modulesForPlan(plan: Plan): ModuleCode[] {
+  const rank = PLAN_RANK[plan];
+  return MODULES.filter((m) => PLAN_RANK[m.minPlan as Plan] <= rank).map((m) => m.code);
+}
+
+/** true se o plano alcança o minPlan do módulo (pode habilitá-lo). */
+export function planAllowsModule(plan: Plan, moduleCode: ModuleCode): boolean {
+  const mod = MODULES.find((m) => m.code === moduleCode);
+  if (!mod) return false;
+  return PLAN_RANK[plan] >= PLAN_RANK[mod.minPlan as Plan];
+}
+
+/** Entrada do catálogo + se a empresa tem o módulo ativo (painel super-admin). */
+export interface TenantModuleSummary {
+  code: ModuleCode;
+  name: string;
+  category: string;
+  minPlan: Plan;
+  /** false quando o plano da empresa não alcança o minPlan. */
+  availableForPlan: boolean;
+  enabled: boolean;
+}
+
 /** Sessão de um Super Admin (control plane) — sem tenantId, escopo 'platform'. */
 export interface PlatformAdmin {
   id: string;

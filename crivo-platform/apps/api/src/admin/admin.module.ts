@@ -4,6 +4,7 @@ import { AdminAuthService } from './admin-auth.service';
 import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
 import { ProvisioningService } from './provisioning.service';
+import { TenantModulesService } from './tenant-modules.service';
 import { AuditService } from './audit.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 
@@ -14,6 +15,13 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
  */
 @Module({
   controllers: [AdminAuthController, TenantsController],
-  providers: [AdminAuthService, TenantsService, ProvisioningService, AuditService, SuperAdminGuard],
+  providers: [
+    AdminAuthService,
+    TenantsService,
+    ProvisioningService,
+    TenantModulesService,
+    AuditService,
+    SuperAdminGuard,
+  ],
 })
 export class AdminModule {}
