@@ -133,6 +133,17 @@ export function planAllowsModule(plan: Plan, moduleCode: ModuleCode): boolean {
   return PLAN_RANK[plan] >= PLAN_RANK[mod.minPlan as Plan];
 }
 
+/** Uso corrente de uma empresa vs. limites do plano (painel super-admin). */
+export interface UsageSummary {
+  plan: Plan;
+  period: string; // YYYY-MM
+  metrics: Array<{
+    metric: string; // leads | api_calls | ...
+    value: number;
+    limit: number | null; // null = ilimitado
+  }>;
+}
+
 /** Entrada do catálogo + se a empresa tem o módulo ativo (painel super-admin). */
 export interface TenantModuleSummary {
   code: ModuleCode;

@@ -791,9 +791,26 @@ no futuro sem mudança de contrato.
   ação "Módulos" por empresa no `TenantsManager`; coluna de plano usa `PLAN_LABELS`.
 - Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
 
-### Pendente da F4 (próxima fatia)
+### Fatia 3 — Metering + troca de plano (ENTREGUE)
 
-- **Metering** (`UsageCounter`): contadores por tenant/métrica/período (`api_calls`, `active_users`,
-  `leads`) + enforcement dos `PLAN_LIMITS` (ex.: bloquear criação de usuário/lead acima do limite do plano).
-- **Troca de plano** pelo super admin (`PATCH /admin/tenants/:id/plan`, re-sincronizando módulos).
+- **Schema** (migration `f4_usage_counter`): `UsageCounter` (data plane, RLS por tenant; o app
+  incrementa sob `forTenant`). `usage_counters` entrou na lista de RLS do `rls.sql`.
+- **`MeteringService`** (`apps/api/src/metering`): `assertLeadQuota(tx, tenantId)` (lê o plano, barra com
+  422 se a contagem de leads atingiu `PLAN_LIMITS[plan].maxLeads`) e `increment(tx, tenantId, metric)`
+  (upsert no período `YYYY-MM`). `LeadsService.create`/`intake` checam a quota e incrementam o contador
+  `leads` na mesma transação (sem corrida).
+- **Troca de plano** (super admin): `PATCH /admin/tenants/:id/plan` atualiza Tenant + Organization e
+  **re-sincroniza os módulos para o baseline do plano** (permitidos = on, resto = off; igual ao
+  provisioning); audita `tenant.plan.change`.
+- **Uso**: `GET /admin/tenants/:id/usage` (contadores do período + limites do plano).
+- **UI** (`/superadm`): `ModulesModal` ganhou seletor de plano (troca + re-sync na hora) e linha de uso
+  (`leads value/limit`); client `setTenantPlan`/`getTenantUsage`; lista reflete o novo plano.
+- E2E: usage ENTERPRISE (ilimitado) → BASE (limite 200); downgrade desliga crm/biblioteca/relatorios/
+  campanhas, upgrade religa; intake **422** com 200 leads, **201** ao voltar a ENTERPRISE.
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
+
+### Pendente da F4 (follow-ups menores)
+
+- **Metering de `api_calls`/`active_users`**: hoje só `leads` é contado/limitado; estender quando houver
+  endpoint de criação de usuário pelo tenant (enforcement de `maxUsers`).
 - **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.

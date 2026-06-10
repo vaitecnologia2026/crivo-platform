@@ -62,5 +62,10 @@ export function useTenants() {
     [],
   );
 
-  return { tenants, status, refresh, provision, setStatusOf };
+  /** Reflete na lista uma empresa atualizada por fora (ex.: troca de plano). */
+  const applyTenant = useCallback((updated: TenantSummary) => {
+    setTenants((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  }, []);
+
+  return { tenants, status, refresh, provision, setStatusOf, applyTenant };
 }

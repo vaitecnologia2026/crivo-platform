@@ -44,3 +44,8 @@ export class SetModuleDto {
   @IsBoolean()
   enabled!: boolean;
 }
+
+export class SetPlanDto {
+  @IsEnum(Plan)
+  plan!: Plan;
+}

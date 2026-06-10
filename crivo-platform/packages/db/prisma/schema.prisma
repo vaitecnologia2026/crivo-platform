@@ -183,6 +183,23 @@ model ModuleCatalog {
   @@map("module_catalog")
 }
 
+// Metering (F4): contadores de uso por empresa/métrica/período (YYYY-MM).
+// Data plane (RLS por tenant): o app incrementa sob forTenant. Base p/ billing
+// e enforcement de limites de plano (PLAN_LIMITS).
+model UsageCounter {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  metric    String // leads | api_calls | active_users
+  period    String // YYYY-MM
+  value     BigInt       @default(0)
+  updatedAt DateTime     @updatedAt
+
+  @@unique([tenantId, metric, period])
+  @@index([tenantId])
+  @@map("usage_counters")
+}
+
 // Quais módulos a empresa ativou. PK composta (tenant + módulo). tenantId =
 // organizationId (data plane). config reservado p/ parametrização por módulo.
 model TenantModule {
@@ -221,6 +238,7 @@ model Organization {
   icdScores IcdScore[]
   leads     Lead[]
   modules   TenantModule[]
+  usage     UsageCounter[]
 
   @@map("organizations")
 }

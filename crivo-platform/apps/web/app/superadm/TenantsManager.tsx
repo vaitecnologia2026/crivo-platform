@@ -32,7 +32,7 @@ export function TenantsManager({
   admin: PlatformAdmin;
   onLogout: () => void;
 }) {
-  const { tenants, status, refresh, provision, setStatusOf } = useTenants();
+  const { tenants, status, refresh, provision, setStatusOf, applyTenant } = useTenants();
   const [showForm, setShowForm] = useState(false);
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -170,7 +170,16 @@ export function TenantsManager({
         )}
       </div>
 
-      {modulesOf && <ModulesModal tenant={modulesOf} onClose={() => setModulesOf(null)} />}
+      {modulesOf && (
+        <ModulesModal
+          tenant={modulesOf}
+          onClose={() => setModulesOf(null)}
+          onTenantUpdated={(t) => {
+            applyTenant(t);
+            setModulesOf(t);
+          }}
+        />
+      )}
     </main>
   );
 }

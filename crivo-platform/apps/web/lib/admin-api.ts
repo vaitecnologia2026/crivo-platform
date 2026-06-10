@@ -3,10 +3,12 @@
 // as duas sessões (plataforma vs. painel global) nunca se misturem.
 import type {
   CreateTenantRequest,
+  Plan,
   PlatformLoginResponse,
   ProvisionResult,
   TenantModuleSummary,
   TenantSummary,
+  UsageSummary,
 } from "@crivo/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -120,4 +122,16 @@ export function setTenantModule(
     method: "PATCH",
     body: JSON.stringify({ enabled }),
   });
+}
+
+/** Troca o plano da empresa (a API re-sincroniza os módulos). */
+export function setTenantPlan(id: string, plan: Plan): Promise<TenantSummary> {
+  return adminFetch<TenantSummary>(`/admin/tenants/${id}/plan`, {
+    method: "PATCH",
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export function getTenantUsage(id: string): Promise<UsageSummary> {
+  return adminFetch<UsageSummary>(`/admin/tenants/${id}/usage`);
 }

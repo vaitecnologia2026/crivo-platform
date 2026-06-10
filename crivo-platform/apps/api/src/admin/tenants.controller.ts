@@ -14,7 +14,7 @@ import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { CreateTenantDto, SetModuleDto } from './dto';
+import { CreateTenantDto, SetModuleDto, SetPlanDto } from './dto';
 import type { PlatformAdmin } from '@crivo/types';
 
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
@@ -60,6 +60,22 @@ export class TenantsController {
   @Delete(':id')
   remove(@CurrentAdmin() admin: PlatformAdmin, @Param('id', ParseUUIDPipe) id: string) {
     return this.tenants.softDelete(id, { id: admin.id, email: admin.email });
+  }
+
+  /** Troca o plano da empresa (re-sincroniza os módulos). */
+  @Patch(':id/plan')
+  setPlan(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetPlanDto,
+  ) {
+    return this.tenants.setPlan(id, dto.plan, { id: admin.id, email: admin.email });
+  }
+
+  /** Uso corrente da empresa vs. limites do plano. */
+  @Get(':id/usage')
+  usage(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tenants.usage(id);
   }
 
   // ── Módulos (F4) ──
