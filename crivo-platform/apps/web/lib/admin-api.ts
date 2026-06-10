@@ -5,6 +5,7 @@ import type {
   CreateTenantRequest,
   PlatformLoginResponse,
   ProvisionResult,
+  TenantModuleSummary,
   TenantSummary,
 } from "@crivo/types";
 
@@ -101,4 +102,22 @@ export function activateTenant(id: string): Promise<TenantSummary> {
 
 export function deleteTenant(id: string): Promise<TenantSummary> {
   return adminFetch<TenantSummary>(`/admin/tenants/${id}`, { method: "DELETE" });
+}
+
+// ── Módulos por empresa (F4) ──
+
+export function listTenantModules(id: string): Promise<TenantModuleSummary[]> {
+  return adminFetch<TenantModuleSummary[]>(`/admin/tenants/${id}/modules`);
+}
+
+/** (Des)ativa um módulo; a API valida o plano e devolve o catálogo atualizado. */
+export function setTenantModule(
+  id: string,
+  code: string,
+  enabled: boolean,
+): Promise<TenantModuleSummary[]> {
+  return adminFetch<TenantModuleSummary[]>(`/admin/tenants/${id}/modules/${code}`, {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
 }

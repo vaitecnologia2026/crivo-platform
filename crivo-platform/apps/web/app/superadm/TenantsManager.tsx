@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import { Button } from "@crivo/ui";
-import { PLANS, type Plan, type PlatformAdmin, type ProvisionResult, type TenantStatus } from "@crivo/types";
+import {
+  PLANS,
+  PLAN_LABELS,
+  type Plan,
+  type PlatformAdmin,
+  type ProvisionResult,
+  type TenantStatus,
+  type TenantSummary,
+} from "@crivo/types";
 import { useTenants } from "./useTenants";
+import { ModulesModal } from "./ModulesModal";
 
 const STATUS_STYLE: Record<TenantStatus, string> = {
   ACTIVE: "bg-[rgba(46,120,80,0.14)] text-[#2e7850] border-[rgba(46,120,80,0.3)]",
@@ -27,6 +36,7 @@ export function TenantsManager({
   const [showForm, setShowForm] = useState(false);
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -113,7 +123,7 @@ export function TenantsManager({
                   <tr key={t.id} className="border-b border-line last:border-0">
                     <td className="px-4 py-3 font-medium text-azul-profundo">{t.name}</td>
                     <td className="px-4 py-3 text-text-sec">{t.slug}</td>
-                    <td className="px-4 py-3 text-text-sec">{t.plan}</td>
+                    <td className="px-4 py-3 text-text-sec">{PLAN_LABELS[t.plan]}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] ${STATUS_STYLE[t.status]}`}
@@ -126,6 +136,9 @@ export function TenantsManager({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-3 text-[12px]">
+                        {t.status !== "DELETED" && (
+                          <ActionLink onClick={() => setModulesOf(t)}>Módulos</ActionLink>
+                        )}
                         {t.status === "ACTIVE" ? (
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
                             Bloquear
@@ -156,6 +169,8 @@ export function TenantsManager({
           </div>
         )}
       </div>
+
+      {modulesOf && <ModulesModal tenant={modulesOf} onClose={() => setModulesOf(null)} />}
     </main>
   );
 }

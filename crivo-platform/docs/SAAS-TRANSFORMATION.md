@@ -784,9 +784,16 @@ no futuro sem mudança de contrato.
   ("Módulo crm não está ativo") → reativa → **200**. Ativar `parecer` (ADVISORY) em plano ENTERPRISE → **422**.
 - Gates: `typecheck` 8/8 ✓ · `lint` 3/3 ✓ · `build` 5/5 ✓ · `check:rls-bypass` ✓ · `test:isolation` 6/6 ✓.
 
+### Fatia 2 — UI de módulos no `/superadm` (ENTREGUE)
+
+- Client `apps/web/lib/admin-api.ts`: `listTenantModules` / `setTenantModule`.
+- `ModulesModal.tsx` (toggle por módulo; trava o que o plano não permite, com dica do plano mínimo) +
+  ação "Módulos" por empresa no `TenantsManager`; coluna de plano usa `PLAN_LABELS`.
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+
 ### Pendente da F4 (próxima fatia)
 
 - **Metering** (`UsageCounter`): contadores por tenant/métrica/período (`api_calls`, `active_users`,
   `leads`) + enforcement dos `PLAN_LIMITS` (ex.: bloquear criação de usuário/lead acima do limite do plano).
-- **UI no `/superadm`**: painel de módulos por empresa (toggles) e troca de plano.
+- **Troca de plano** pelo super admin (`PATCH /admin/tenants/:id/plan`, re-sincronizando módulos).
 - **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.
