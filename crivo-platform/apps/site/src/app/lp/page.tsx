@@ -132,8 +132,8 @@ export default function LandingPage() {
           <span className="eyebrow">O Problema</span>
           <h2 className="h2">Empresas crescem até o limite da sua liderança.</h2>
           <p className="lede">
-            A maioria das empresas investe em estratégia, processos e tecnologia. Poucas investem no mecanismo que
-            transforma intenção em resultado: a qualidade da decisão.
+            A maioria das empresas investe em estratégia, processos e tecnologia. Poucas desenvolvem a liderança que
+            sustenta decisões, comportamentos e execução sob pressão.
           </p>
 
           <div className="pain-grid">
@@ -141,8 +141,8 @@ export default function LandingPage() {
               <span className="pain-card__num">01</span>
               <h3>Decisões reativas sob pressão</h3>
               <p>
-                Líderes decidem no modo automático — guiados por medo, urgência, ego ou culpa — e colhem retrabalho,
-                conflito e inconsistência.
+                Sob pressão e urgência, líderes decidem no modo automático — e colhem retrabalho, conflito e
+                inconsistência.
               </p>
             </article>
             <article className="pain-card">
@@ -156,8 +156,7 @@ export default function LandingPage() {
             <article className="pain-card">
               <span className="pain-card__num">03</span>
               <h3>Riscos invisíveis que viram passivo</h3>
-              <p>Clima tóxico, burnout, turnover e adoecimento custam entre 5% e 10% dos custos operacionais anuais.</p>
-              <span className="pain-card__source">Fonte: McKinsey</span>
+              <p>Clima tóxico, burnout, turnover e adoecimento corroem produtividade, cultura e resultado — e raramente são monitorados.</p>
             </article>
             <article className="pain-card">
               <span className="pain-card__num">04</span>
@@ -183,8 +182,9 @@ export default function LandingPage() {
             A NR-1 tornou obrigatório um problema que já impactava cultura, liderança e resultado.
           </h2>
           <p className="lede lede--light">
-            Obrigatória a partir de <strong>26 de maio de 2026</strong>. Mas o risco não é só o compliance — é a forma
-            como a liderança decide. A NR-1 é a porta de entrada, não o centro da marca.
+            A atualização da NR-1 ampliou a atenção das empresas sobre fatores psicossociais relacionados ao trabalho.
+            Mas o desafio vai além da conformidade: envolve a forma como a organização lidera, decide, cobra, comunica e
+            sustenta a rotina. A porta de entrada pode ser a NR-1 — a transformação acontece na liderança.
           </p>
 
           <div className="nr1-split">
@@ -193,7 +193,7 @@ export default function LandingPage() {
               <ul className="nr1-list nr1-list--risk">
                 <li>Compliance legal e passivo trabalhista</li>
                 <li>Riscos psicossociais sistêmicos</li>
-                <li>Liderança como fator de risco</li>
+                <li>Liderança sob pressão e baixa sustentação da rotina</li>
                 <li>Ambiente organizacional deteriorado</li>
                 <li>Custos invisíveis não monitorados</li>
               </ul>
@@ -202,7 +202,7 @@ export default function LandingPage() {
               <h4>Como a CRIVO apoia</h4>
               <ul className="nr1-list nr1-list--deliver">
                 <li>
-                  <strong>ICD</strong> — diagnóstico de inteligência organizacional
+                  <strong>CRIVO Diagnóstico™</strong> — diagnóstico organizacional estruturado
                 </li>
                 <li>
                   <strong>Pesquisa estruturada</strong> — mapeamento de ambiente e liderança
@@ -412,10 +412,11 @@ export default function LandingPage() {
       <section className="section section--light" id="jornada">
         <div className="container">
           <span className="eyebrow">A jornada CRIVO</span>
-          <h2 className="h2">Do primeiro contato à evolução contínua da liderança.</h2>
+          <h2 className="h2">Do diagnóstico à sustentação da mudança.</h2>
           <p className="lede">
-            Uma jornada digital e comercial clara: capturamos o lead, entregamos a leitura inicial e conduzimos a empresa
-            até a transformação sustentada — no Portal Executivo e no app CRIVO.
+            Uma jornada de transformação clara: leitura inicial, diagnóstico, dashboard, plano de ação, desenvolvimento
+            da liderança e evolução contínua — no Portal Executivo e no app CRIVO. O diagnóstico mostra onde atuar; a
+            liderança sustenta a mudança na rotina.
           </p>
 
           <ol className="journey">
