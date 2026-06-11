@@ -30,6 +30,46 @@ export class TenantsService {
     return rows.map(toTenantSummary);
   }
 
+  /** Visão geral da plataforma (KPIs do control plane). */
+  async overview() {
+    const tenants = await this.prisma.admin.tenant.findMany({ orderBy: { createdAt: 'desc' } });
+    const byStatus: Record<string, number> = { ACTIVE: 0, SUSPENDED: 0, DELETED: 0 };
+    const byPlan: Record<string, number> = { BASE: 0, EVOLUCAO: 0, ENTERPRISE: 0, ADVISORY: 0 };
+    for (const t of tenants) {
+      byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
+      byPlan[t.plan] = (byPlan[t.plan] ?? 0) + 1;
+    }
+    const [totalUsers, activeUsers, totalLeads] = await Promise.all([
+      this.prisma.admin.user.count(),
+      this.prisma.admin.user.count({ where: { active: true } }),
+      this.prisma.admin.lead.count(),
+    ]);
+    return {
+      totalTenants: tenants.length,
+      byStatus,
+      byPlan,
+      totalUsers,
+      activeUsers,
+      totalLeads,
+      recentTenants: tenants.slice(0, 5).map(toTenantSummary),
+    };
+  }
+
+  /** Trilha de auditoria das ações de plataforma (mais recentes primeiro). */
+  async recentAudit(limit = 30) {
+    const rows = await this.prisma.admin.auditLog.findMany({
+      orderBy: { at: 'desc' },
+      take: Math.min(Math.max(limit, 1), 100),
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      actorEmail: r.actorEmail,
+      target: r.target,
+      at: r.at.toISOString(),
+    }));
+  }
+
   async get(id: string): Promise<TenantSummary> {
     const t = await this.prisma.admin.tenant.findUnique({ where: { id } });
     if (!t) throw new NotFoundException('Empresa não encontrada');

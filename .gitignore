@@ -16,3 +16,6 @@ out/
 .env.local
 *.local
 .vercel
+
+# dev-only (atalho de login com token — não versionar)
+crivo-platform/apps/web/public/dev-login.html

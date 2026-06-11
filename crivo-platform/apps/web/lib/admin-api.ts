@@ -143,6 +143,34 @@ export function getTenantUsage(id: string): Promise<UsageSummary> {
   return adminFetch<UsageSummary>(`/admin/tenants/${id}/usage`);
 }
 
+// ── Visão geral + auditoria (control plane) ──
+
+export interface AdminOverview {
+  totalTenants: number;
+  byStatus: Record<string, number>;
+  byPlan: Record<string, number>;
+  totalUsers: number;
+  activeUsers: number;
+  totalLeads: number;
+  recentTenants: TenantSummary[];
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actorEmail: string | null;
+  target: string | null;
+  at: string;
+}
+
+export function getOverview(): Promise<AdminOverview> {
+  return adminFetch<AdminOverview>("/admin/overview");
+}
+
+export function getAuditLog(): Promise<AuditEntry[]> {
+  return adminFetch<AuditEntry[]>("/admin/audit");
+}
+
 // ── White-label: branding + domínios (F5) ──
 
 export function getTenantBranding(id: string): Promise<TenantBrandingData> {

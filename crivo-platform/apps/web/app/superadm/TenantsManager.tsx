@@ -29,9 +29,11 @@ const STATUS_LABEL: Record<TenantStatus, string> = {
 export function TenantsManager({
   admin,
   onLogout,
+  embedded = false,
 }: {
   admin: PlatformAdmin;
   onLogout: () => void;
+  embedded?: boolean;
 }) {
   const { tenants, status, refresh, provision, setStatusOf, applyTenant } = useTenants();
   const [showForm, setShowForm] = useState(false);
@@ -53,24 +55,25 @@ export function TenantsManager({
   }
 
   return (
-    <main className="min-h-screen bg-off-white font-body text-text">
-      {/* Topo */}
-      <header className="flex items-center justify-between border-b border-line bg-azul-profundo px-6 py-4 text-off-white">
-        <div>
-          <span className="font-display text-lg tracking-[0.04em]">CRIVO™</span>
-          <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-terra-dourado">
-            Painel da Plataforma
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-[12px]">
-          <span className="text-text-on-dark-sec">{admin.name}</span>
-          <button onClick={onLogout} className="text-off-white underline-offset-4 hover:underline">
-            Sair
-          </button>
-        </div>
-      </header>
+    <div className={embedded ? "font-body text-text" : "min-h-screen bg-off-white font-body text-text"}>
+      {!embedded && (
+        <header className="flex items-center justify-between border-b border-line bg-azul-profundo px-6 py-4 text-off-white">
+          <div>
+            <span className="font-display text-lg tracking-[0.04em]">CRIVO™</span>
+            <span className="ml-3 text-[11px] uppercase tracking-[0.16em] text-terra-dourado">
+              Painel da Plataforma
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-[12px]">
+            <span className="text-text-on-dark-sec">{admin.name}</span>
+            <button onClick={onLogout} className="text-off-white underline-offset-4 hover:underline">
+              Sair
+            </button>
+          </div>
+        </header>
+      )}
 
-      <div className="mx-auto max-w-[1040px] px-6 py-8">
+      <div className={embedded ? "" : "mx-auto max-w-[1040px] px-6 py-8"}>
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl text-azul-profundo">Empresas-cliente</h1>
@@ -187,7 +190,7 @@ export function TenantsManager({
       )}
 
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
-    </main>
+    </div>
   );
 }
 

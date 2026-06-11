@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@crivo/ui";
 import { adminLogin, clearAdminToken, getAdminToken, setAdminToken } from "@/lib/admin-api";
 import type { PlatformAdmin } from "@crivo/types";
-import { TenantsManager } from "./TenantsManager";
+import { AdminShell } from "./AdminShell";
 
 /**
  * Painel do Super Admin (control plane). Sessão separada da plataforma de tenant
@@ -46,7 +46,7 @@ export function SuperAdmin() {
 
   if (!admin) return <LoginScreen onAuthenticated={setAdmin} />;
 
-  return <TenantsManager admin={admin} onLogout={onLogout} />;
+  return <AdminShell admin={admin} onLogout={onLogout} />;
 }
 
 function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) => void }) {
@@ -82,8 +82,16 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
   return (
     <main className="min-h-screen grid place-items-center bg-azul-abismo px-6 font-body text-off-white">
       <div className="w-full max-w-[380px]">
-        <div className="mb-8 text-center">
-          <p className="font-display text-2xl tracking-[0.04em] text-off-white">CRIVO™</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <svg viewBox="0 0 48 44" fill="none" aria-hidden="true" className="mb-3 h-10 w-10 text-off-white">
+            <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+            <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
+            <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
+          </svg>
+          <p className="font-display text-2xl tracking-[0.06em] text-off-white">CRIVO</p>
           <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-terra-dourado">
             Painel da Plataforma
           </p>
