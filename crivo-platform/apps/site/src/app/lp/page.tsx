@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LpEffects } from "./LpEffects";
+import { HeroBanners } from "./HeroBanners";
 import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
 import "./lp.css";
 
@@ -67,32 +68,7 @@ export default function LandingPage() {
       <section id="hero" className="hero">
         <div className="hero__bg"></div>
         <div className="container hero__inner">
-          <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">Inteligência Organizacional e Liderança</span>
-            <h1 className="display">
-              Transformação organizacional começa pelo{" "}
-              <span className="terra-text">comportamento e pelas decisões</span> da liderança.
-            </h1>
-            <p className="hero__sub">
-              A CRIVO™ ajuda empresas a identificar riscos humanos e organizacionais, custos invisíveis e padrões de
-              liderança que afetam cultura, execução e resultados — transformando diagnóstico em plano de ação,
-              desenvolvimento e evolução sustentável.
-            </p>
-            <div className="hero__ctas">
-              <a href="#diagnostico" className="btn btn--terra">
-                Fazer diagnóstico inicial
-              </a>
-              <a
-                href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
-                target="_blank"
-                rel="noopener"
-                className="btn btn--ghost"
-              >
-                Falar com especialista
-              </a>
-            </div>
-            <p className="hero__micro">Diagnosticar é o começo. Sustentar a mudança exige liderança preparada.</p>
-          </div>
+          <HeroBanners />
 
           <div className="hero__visual">
             <svg className="vertice-hero" viewBox="0 0 240 220" fill="none" aria-hidden="true">
@@ -672,42 +648,65 @@ export default function LandingPage() {
             de IA e performance.
           </p>
 
-          <div className="ladder">
+          <div className="ladder ladder--7">
             <div className="ladder__step ladder__step--free">
               <span className="ladder__tag ladder__tag--free">Grátis</span>
-              <strong>Pré-diagnóstico + E-book</strong>
-              <span>Entrada · conheça seu risco</span>
+              <strong>Diagnóstico Inicial</strong>
+              <span>Entrada · leitura preliminar</span>
             </div>
             <div className="ladder__step ladder__step--s1">
               <span className="ladder__tag">01</span>
-              <strong>CRIVO Base</strong>
-              <span>Formação coletiva</span>
+              <strong>CRIVO Diagnóstico™</strong>
+              <span>Diagnóstico organizacional</span>
             </div>
             <div className="ladder__step ladder__step--s2">
               <span className="ladder__tag">02</span>
+              <strong>CRIVO Liderança</strong>
+              <span>Jornada · app · mentorias</span>
+            </div>
+            <div className="ladder__step ladder__step--s2">
+              <span className="ladder__tag">03</span>
               <strong>CRIVO Evolução</strong>
               <span>Mentoria &amp; governança</span>
             </div>
             <div className="ladder__step ladder__step--s3">
-              <span className="ladder__tag">03</span>
+              <span className="ladder__tag">04</span>
               <strong>CRIVO Enterprise</strong>
               <span>Transformação</span>
             </div>
             <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">04</span>
+              <span className="ladder__tag">05</span>
               <strong>CRIVO Advisory</strong>
               <span>Conselho C-Level</span>
             </div>
+            <div className="ladder__step ladder__step--s4">
+              <span className="ladder__tag">+</span>
+              <strong>Soluções Estratégicas</strong>
+              <span>Cultura · IA · governança</span>
+            </div>
           </div>
 
-          <div className="product-grid product-grid--4">
+          <div className="product-grid product-grid--auto">
             <article className="product-card">
               <span className="product-card__level">01</span>
-              <h3>CRIVO Base</h3>
-              <span className="product-card__tag">Formação Coletiva</span>
+              <h3>CRIVO Diagnóstico™</h3>
+              <span className="product-card__tag">Diagnóstico Organizacional</span>
               <p>
-                Turmas de até 50 líderes. Formação contínua: liderança prática, cultura, gestão emocional, fatores
-                psicossociais aplicados e CRIVO Pocket. Radar da Decisão inicial incluído.
+                Diagnóstico oficial estruturado: fatores psicossociais, liderança, cultura, dashboard, plano de ação e
+                evidências. Aplicado e gerido no Portal Executivo.
+              </p>
+              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
+                Conhecer
+              </a>
+            </article>
+
+            <article className="product-card">
+              <span className="product-card__level">02</span>
+              <h3>CRIVO Liderança</h3>
+              <span className="product-card__tag">Jornada de Liderança</span>
+              <p>
+                Jornada aplicada à rotina: trilhas, mentorias, app (Radar da Decisão, Academia CRIVO) e desenvolvimento
+                contínuo. Turmas de até 50 líderes.
               </p>
               <a href="#diagnostico" className="btn btn--outline-dark btn--block">
                 Conhecer
@@ -716,12 +715,12 @@ export default function LandingPage() {
 
             <article className="product-card product-card--featured">
               <span className="badge-featured">Mais procurado</span>
-              <span className="product-card__level">02</span>
+              <span className="product-card__level">03</span>
               <h3>CRIVO Evolução</h3>
               <span className="product-card__tag">Mentoria &amp; Governança</span>
               <p>
-                Mentoria em grupo, governança comportamental, liderança sob pressão, ICD evolutivo e devolutivas
-                estruturadas. Aprofundamento contínuo.
+                Mentoria em grupo, governança comportamental, liderança sob pressão, Radar da Decisão evolutivo e
+                devolutivas estruturadas. Aprofundamento contínuo.
               </p>
               <a href="#diagnostico" className="btn btn--terra btn--block">
                 Conhecer
@@ -729,7 +728,7 @@ export default function LandingPage() {
             </article>
 
             <article className="product-card">
-              <span className="product-card__level">03</span>
+              <span className="product-card__level">04</span>
               <h3>CRIVO Enterprise</h3>
               <span className="product-card__tag">Transformação Organizacional</span>
               <p>
@@ -742,7 +741,7 @@ export default function LandingPage() {
             </article>
 
             <article className="product-card">
-              <span className="product-card__level">04</span>
+              <span className="product-card__level">05</span>
               <h3>CRIVO Advisory</h3>
               <span className="product-card__tag">Conselho Estratégico</span>
               <p>

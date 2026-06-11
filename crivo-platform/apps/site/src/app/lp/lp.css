@@ -956,3 +956,21 @@ th.compare__crivo { color: var(--terra) !important; }
   .eco-grid { grid-template-columns: 1fr; }
   .eco-list { grid-template-columns: 1fr; }
 }
+
+/* ===================== HERO ROTATIVO ===================== */
+.hero__dots { display: flex; gap: 10px; margin-top: 28px; }
+.hero__dot {
+  width: 32px; height: 4px; border: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(242, 240, 236, 0.25); transition: background .2s ease;
+}
+.hero__dot:hover { background: rgba(242, 240, 236, 0.45); }
+.hero__dot.is-active { background: var(--terra-dourado); }
+.hero__copy .display, .hero__copy .hero__sub { animation: heroFade .5s ease; }
+@keyframes heroFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ===================== SOLUÇÕES · ESCADA 7 NÍVEIS ===================== */
+.ladder--7 { grid-template-columns: repeat(7, 1fr); }
+@media (max-width: 900px) { .ladder--7 { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); } }
+.product-grid--auto {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+}
