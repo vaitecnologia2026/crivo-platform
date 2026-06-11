@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LpEffects } from "./LpEffects";
+import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
 import "./lp.css";
 
 export const metadata: Metadata = {
@@ -866,11 +867,23 @@ export default function LandingPage() {
 
       {/* ===================== DIAGNÓSTICO ===================== */}
       <section className="section section--accent" id="diagnostico">
+        <div className="container">
+          <span className="eyebrow eyebrow--terra">Diagnóstico inicial · gratuito</span>
+          <h2 className="h2 h2--light h2--center">
+            Faça uma leitura preliminar dos riscos invisíveis que afetam liderança, cultura e resultados.
+          </h2>
+          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 24px" }}>
+            Em poucos minutos, identifique sinais iniciais de pressão organizacional, riscos psicossociais e
+            fragilidades de liderança — com devolutiva por e-mail. Não substitui o CRIVO Diagnóstico™ completo.
+          </p>
+          <DiagnosticoInicialQuiz />
+        </div>
+
         <div className="container split split--form">
           <div className="split__left">
-            <span className="eyebrow eyebrow--terra">Diagnóstico inicial · gratuito</span>
+            <span className="eyebrow eyebrow--terra">Quer a devolutiva e o próximo passo?</span>
             <h2 className="h2 h2--light">
-              Comece pela leitura preliminar da coerência decisória da sua liderança.
+              Receba o Relatório Preliminar CRIVO e fale com um especialista.
             </h2>
 
             <div className="diag-compare">
@@ -892,24 +905,21 @@ export default function LandingPage() {
 
             <ul className="benefit-list">
               <li>
-                <span>▴</span> Leitura inicial dos riscos psicossociais e da pressão decisória
+                <span>▴</span> Leitura inicial da maturidade em 5 dimensões (pressão, liderança, cultura, fatores psicossociais e governança)
               </li>
               <li>
-                <span>▴</span> Indicação do padrão dominante que governa as decisões
+                <span>▴</span> Principal ponto de atenção da sua organização
               </li>
               <li>
                 <span>▴</span> Recomendação de nível de serviço adequado ao seu momento
               </li>
               <li>
-                <span>▴</span> Argumentação técnica para conformidade NR-1
-              </li>
-              <li>
-                <span>▴</span> Conversa estratégica com um especialista CRIVO
+                <span>▴</span> Próximo passo sugerido e conversa estratégica com um especialista CRIVO
               </li>
             </ul>
             <p className="objection">
-              &ldquo;Não é mais um cadastro de plataforma. É uma leitura técnica preliminar do estado decisório da sua
-              organização.&rdquo;
+              &ldquo;Não é só um formulário. É uma primeira leitura sobre riscos invisíveis, liderança e pontos de
+              atenção que podem afetar cultura, execução e resultados.&rdquo;
             </p>
           </div>
 
