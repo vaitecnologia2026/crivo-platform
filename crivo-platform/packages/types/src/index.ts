@@ -323,6 +323,101 @@ export interface SubmitIcdRequest {
   answers: IcdAnswer[];
 }
 
+// ── Diagnóstico Inicial (pré-diagnóstico público — porta de entrada / QR Code) ──
+// É DISTINTO do ICD: lê a MATURIDADE organizacional em 5 dimensões (escala 1–5),
+// não a coerência decisória de um líder. Não substitui o CRIVO Diagnóstico™.
+
+export const PRE_DIAGNOSTIC_SCALE = [
+  { value: 1, label: 'Muito baixo / inexistente' },
+  { value: 2, label: 'Baixo' },
+  { value: 3, label: 'Parcial' },
+  { value: 4, label: 'Bom' },
+  { value: 5, label: 'Muito bom / estruturado' },
+] as const;
+
+export const PRE_DIAGNOSTIC_DIMENSIONS = [
+  'pressao_rotina',
+  'lideranca_sustentacao',
+  'cultura_comunicacao',
+  'fatores_psicossociais',
+  'governanca_plano',
+] as const;
+export type PreDiagnosticDimension = (typeof PRE_DIAGNOSTIC_DIMENSIONS)[number];
+
+export const PRE_DIAGNOSTIC_DIMENSION_LABEL: Record<PreDiagnosticDimension, string> = {
+  pressao_rotina: 'Pressão Organizacional e Rotina',
+  lideranca_sustentacao: 'Liderança e Sustentação',
+  cultura_comunicacao: 'Cultura, Comunicação e Segurança Psicológica',
+  fatores_psicossociais: 'Fatores Psicossociais e NR-1',
+  governanca_plano: 'Governança, Evidências e Plano de Ação',
+};
+
+export interface PreDiagnosticQuestion {
+  id: number;
+  dimension: PreDiagnosticDimension;
+  text: string;
+}
+
+/** 10 perguntas (2 por dimensão), escala 1–5. Maior = mais maduro/estruturado. */
+export const PRE_DIAGNOSTIC_QUESTIONS: PreDiagnosticQuestion[] = [
+  { id: 1, dimension: 'pressao_rotina', text: 'A rotina da empresa permite que líderes e equipes atuem com clareza de prioridades, sem depender apenas de urgências e improvisos?' },
+  { id: 2, dimension: 'pressao_rotina', text: 'A empresa consegue identificar quando pressão, sobrecarga ou mudanças constantes começam a afetar a execução, o clima e a qualidade das decisões?' },
+  { id: 3, dimension: 'lideranca_sustentacao', text: 'Os líderes estão preparados para sustentar conversas difíceis, cobranças e decisões sem ampliar conflitos, ruídos ou insegurança?' },
+  { id: 4, dimension: 'lideranca_sustentacao', text: 'A liderança possui rituais claros para acompanhar pessoas, prioridades, riscos e execução?' },
+  { id: 5, dimension: 'cultura_comunicacao', text: 'As pessoas conseguem falar sobre problemas, riscos e dificuldades antes que eles se transformem em crise?' },
+  { id: 6, dimension: 'cultura_comunicacao', text: 'A comunicação entre áreas favorece alinhamento, cooperação e tomada de decisão com clareza?' },
+  { id: 7, dimension: 'fatores_psicossociais', text: 'A empresa já monitora sinais como afastamentos, turnover, conflitos, clima, queda de produtividade ou adoecimento relacionado ao trabalho?' },
+  { id: 8, dimension: 'fatores_psicossociais', text: 'Existem ações estruturadas para identificar, registrar e tratar fatores psicossociais relacionados ao trabalho?' },
+  { id: 9, dimension: 'governanca_plano', text: 'A empresa possui responsáveis, prazos, evidências e acompanhamento para tratar riscos humanos, culturais e organizacionais?' },
+  { id: 10, dimension: 'governanca_plano', text: 'Os temas de liderança, cultura, riscos psicossociais e resultados são acompanhados de forma contínua pela gestão?' },
+];
+
+export const MATURITY_LEVELS = ['INICIAL', 'EM_ESTRUTURACAO', 'ESTRUTURADO', 'AVANCADO'] as const;
+export type MaturityLevel = (typeof MATURITY_LEVELS)[number];
+
+export const MATURITY_LABEL: Record<MaturityLevel, string> = {
+  INICIAL: 'Inicial',
+  EM_ESTRUTURACAO: 'Em estruturação',
+  ESTRUTURADO: 'Estruturado',
+  AVANCADO: 'Avançado',
+};
+
+export interface PreDiagnosticResult {
+  score: number; // 0–100 (maturidade geral)
+  level: MaturityLevel;
+  byDimension: Record<PreDiagnosticDimension, number>; // 0–100 por dimensão
+  topAttention: PreDiagnosticDimension; // dimensão de menor maturidade
+}
+
+/** Calcula o resultado do Diagnóstico Inicial. Pura — usável no front e no back. */
+export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult {
+  const byId = new Map(answers.map((a) => [a.questionId, a.value]));
+  const raw: Record<PreDiagnosticDimension, number[]> = {
+    pressao_rotina: [], lideranca_sustentacao: [], cultura_comunicacao: [],
+    fatores_psicossociais: [], governanca_plano: [],
+  };
+  for (const q of PRE_DIAGNOSTIC_QUESTIONS) {
+    const v = byId.get(q.id);
+    if (v == null || !Number.isFinite(v) || v < 1 || v > 5) {
+      throw new Error(`Resposta inválida ou ausente para a questão ${q.id}`);
+    }
+    raw[q.dimension].push(((v - 1) / 4) * 100);
+  }
+  const byDimension = {} as Record<PreDiagnosticDimension, number>;
+  for (const d of PRE_DIAGNOSTIC_DIMENSIONS) {
+    byDimension[d] = Math.round(raw[d].reduce((s, x) => s + x, 0) / raw[d].length);
+  }
+  const score = Math.round(
+    PRE_DIAGNOSTIC_DIMENSIONS.reduce((s, d) => s + byDimension[d], 0) / PRE_DIAGNOSTIC_DIMENSIONS.length,
+  );
+  const topAttention = PRE_DIAGNOSTIC_DIMENSIONS.reduce((min, d) =>
+    byDimension[d] < byDimension[min] ? d : min,
+  );
+  const level: MaturityLevel =
+    score >= 80 ? 'AVANCADO' : score >= 60 ? 'ESTRUTURADO' : score >= 40 ? 'EM_ESTRUTURACAO' : 'INICIAL';
+  return { score, level, byDimension, topAttention };
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;
