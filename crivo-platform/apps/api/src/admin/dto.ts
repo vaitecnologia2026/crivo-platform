@@ -18,6 +18,18 @@ export class PlatformLoginDto {
   @IsString()
   @MaxLength(200)
   password!: string;
+
+  // Código TOTP (6 dígitos) — exigido quando o super admin tem MFA ativo.
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  totp?: string;
+}
+
+export class MfaCodeDto {
+  @IsString()
+  @MaxLength(10)
+  code!: string;
 }
 
 export class ChangeAdminPasswordDto {

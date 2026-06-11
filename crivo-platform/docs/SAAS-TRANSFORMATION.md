@@ -492,7 +492,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | R6 | Migração do enum `Role` quebra autorização existente | 🟠 Alto | Seed dos 7 papéis como template; manter `User.role` 1 release em paralelo; feature flag |
 | R7 | TLS/certificado de domínio próprio por cliente | 🟡 Médio | Vercel Domains API (wildcard + custom) automatizando emissão |
 | R8 | Crescimento de tabelas grandes (responses, leads, audit) | 🟡 Médio | Particionar por `tenantId`/data; arquivamento; índices compostos tenant-first (já é o padrão) |
-| R9 | Super Admin comprometido = acesso total | 🔴 Crítico | MFA/TOTP obrigatório, IP allowlist, auditoria de toda ação, princípio de break-glass |
+| R9 | Super Admin comprometido = acesso total | 🟠 Alto (mitigado) | ✅ MFA/TOTP disponível (ativar no go-live), ✅ auditoria de toda ação (`audit_log`), ✅ troca de senha. Resta: IP allowlist, break-glass |
 | R10 | Custo de reescrever frontend estático em config-driven | 🟢 Resolvido | **9/9 telas migradas para ilhas React** — nenhum conteúdo mock servido pelo shell. 7 com dado real (Dashboard, ICD, CRM, Questionário, Campanhas, Líder, Biblioteca); Relatórios e Parecer são placeholders honestos (backend de relatório/parecer ainda não existe) |
 
 ---
@@ -714,7 +714,10 @@ no futuro sem mudança de contrato.
 
 - ✅ **Troca de senha do super admin** — `PATCH /api/admin/auth/password` (exige a senha atual, nova ≥12,
   audita `admin.password.change`). E2E: atual errada 401, nova curta 400, troca ok, login antiga 401/nova ok.
-- **MFA/TOTP** do super admin (campo `totpSecret` pronto; falta dependência + enrollment + verify).
+- ✅ **MFA/TOTP do super admin** (otplib v12): `POST /admin/auth/mfa/setup` (gera segredo+otpauth URI),
+  `/mfa/enable` e `/mfa/disable` (validam código), e o login passa a exigir `totp` quando ativo. Campo
+  "Código (MFA)" no login do `/superadm` (aparece quando exigido). Audita `admin.mfa.enable/disable`.
+  E2E com códigos reais: setup→enable, login sem código 401, com código 201, errado 401, disable volta.
 - **`tenantId` em logs/observabilidade** estruturada.
 - **Campo "empresa" no login da plataforma** (UI): hoje, e-mail duplicado entre tenants retorna a
   mensagem mas o form ainda não tem o campo de slug — resolve-se naturalmente com a resolução por

@@ -77,11 +77,15 @@ async function adminFetch<T>(
 
 // ── Endpoints do control plane ──
 
-export function adminLogin(email: string, password: string): Promise<PlatformLoginResponse> {
-  // 401 aqui = credenciais inválidas (não sessão expirada) → não redireciona.
+export function adminLogin(
+  email: string,
+  password: string,
+  totp?: string,
+): Promise<PlatformLoginResponse> {
+  // 401 aqui = credenciais inválidas / MFA (não sessão expirada) → não redireciona.
   return adminFetch<PlatformLoginResponse>(
     "/admin/auth/login",
-    { method: "POST", body: JSON.stringify({ email, password }) },
+    { method: "POST", body: JSON.stringify({ email, password, totp: totp || undefined }) },
     { redirectOn401: false },
   );
 }

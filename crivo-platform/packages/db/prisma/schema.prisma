@@ -83,7 +83,8 @@ model SuperAdmin {
   name         String
   passwordHash String
   active       Boolean  @default(true)
-  totpSecret   String? // reservado p/ MFA (F2) — ainda não exigido no fluxo
+  totpSecret   String? // segredo TOTP (definido no setup; pode existir "pendente")
+  totpEnabled  Boolean  @default(false) // MFA ativo? exige código no login
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

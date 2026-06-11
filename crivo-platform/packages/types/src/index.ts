@@ -233,6 +233,12 @@ export interface PlatformLoginResponse {
   admin: PlatformAdmin;
 }
 
+/** Resultado do setup de MFA — exibir o QR/segredo no app autenticador. */
+export interface MfaSetupResponse {
+  secret: string;
+  otpauthUrl: string;
+}
+
 /** Resumo de uma empresa-cliente para o painel super-admin. */
 export interface TenantSummary {
   id: string;

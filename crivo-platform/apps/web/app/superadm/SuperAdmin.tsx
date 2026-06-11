@@ -52,6 +52,8 @@ export function SuperAdmin() {
 function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,11 +62,18 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
     setError(null);
     setLoading(true);
     try {
-      const { token, admin } = await adminLogin(email.trim(), password);
+      const { token, admin } = await adminLogin(email.trim(), password, totp.trim());
       setAdminToken(token);
       onAuthenticated(admin);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha no login");
+      const msg = err instanceof Error ? err.message : "Falha no login";
+      // Quando o MFA é exigido, revela o campo de código e instrui o usuário.
+      if (/mfa/i.test(msg)) {
+        setMfaRequired(true);
+        setError(totp ? "Código MFA inválido." : "Informe o código do seu autenticador.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -99,6 +108,17 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
             onChange={setPassword}
             autoComplete="current-password"
           />
+
+          {mfaRequired && (
+            <Field
+              label="Código (MFA)"
+              type="text"
+              value={totp}
+              onChange={setTotp}
+              autoComplete="one-time-code"
+              autoFocus
+            />
+          )}
 
           {error && (
             <p className="mt-1 mb-3 text-[12px] text-terra-claro" role="alert">

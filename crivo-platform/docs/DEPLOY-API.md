@@ -256,10 +256,10 @@ crivo123` deve abrir o app; senha errada deve mostrar "E-mail ou senha inválido
 - [ ] **Trocar as senhas demo** `ceo@crivo.demo` e `super@crivo.platform` (ou provisionar reais e limpar o demo)
       — super admin: `PATCH /api/admin/auth/password` (`{currentPassword,newPassword}`, nova ≥12)
 
-> ⚠️ **Segurança pendente (follow-ups conhecidos):** o super admin já troca a própria
-> senha (`PATCH /api/admin/auth/password`), mas **ainda não há MFA/TOTP** (F2) nem troca
-> de senha self-service para usuários de tenant. Após o deploy, troque a senha do super
-> admin demo por esse endpoint e restrinja o acesso ao `/superadm`.
+> 🔒 **Segurança do super admin:** já há **troca de senha** (`PATCH /api/admin/auth/password`)
+> e **MFA/TOTP** (`/admin/auth/mfa/setup|enable|disable`; o login passa a exigir `totp`). Após o
+> deploy: troque a senha demo e **ative o MFA** no `/superadm`. Pendente: troca de senha
+> self-service para usuários de tenant (hoje só admin via API de usuários / reset manual).
 
 ---
 
