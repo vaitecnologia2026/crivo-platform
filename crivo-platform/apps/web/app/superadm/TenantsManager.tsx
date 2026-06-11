@@ -13,6 +13,7 @@ import {
 } from "@crivo/types";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
+import { BrandingModal } from "./BrandingModal";
 
 const STATUS_STYLE: Record<TenantStatus, string> = {
   ACTIVE: "bg-[rgba(46,120,80,0.14)] text-[#2e7850] border-[rgba(46,120,80,0.3)]",
@@ -37,6 +38,7 @@ export function TenantsManager({
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
+  const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -139,6 +141,9 @@ export function TenantsManager({
                         {t.status !== "DELETED" && (
                           <ActionLink onClick={() => setModulesOf(t)}>Módulos</ActionLink>
                         )}
+                        {t.status !== "DELETED" && (
+                          <ActionLink onClick={() => setBrandingOf(t)}>Marca</ActionLink>
+                        )}
                         {t.status === "ACTIVE" ? (
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
                             Bloquear
@@ -180,6 +185,8 @@ export function TenantsManager({
           }}
         />
       )}
+
+      {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
     </main>
   );
 }

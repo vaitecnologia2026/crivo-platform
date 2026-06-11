@@ -6,8 +6,11 @@ import type {
   Plan,
   PlatformLoginResponse,
   ProvisionResult,
+  TenantBrandingData,
+  TenantDomainData,
   TenantModuleSummary,
   TenantSummary,
+  UpdateBrandingRequest,
   UsageSummary,
 } from "@crivo/types";
 
@@ -134,4 +137,43 @@ export function setTenantPlan(id: string, plan: Plan): Promise<TenantSummary> {
 
 export function getTenantUsage(id: string): Promise<UsageSummary> {
   return adminFetch<UsageSummary>(`/admin/tenants/${id}/usage`);
+}
+
+// ── White-label: branding + domínios (F5) ──
+
+export function getTenantBranding(id: string): Promise<TenantBrandingData> {
+  return adminFetch<TenantBrandingData>(`/admin/tenants/${id}/branding`);
+}
+
+export function updateTenantBranding(
+  id: string,
+  dto: UpdateBrandingRequest,
+): Promise<TenantBrandingData> {
+  return adminFetch<TenantBrandingData>(`/admin/tenants/${id}/branding`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}
+
+export function listTenantDomains(id: string): Promise<TenantDomainData[]> {
+  return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains`);
+}
+
+export function addTenantDomain(id: string, domain: string): Promise<TenantDomainData[]> {
+  return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains`, {
+    method: "POST",
+    body: JSON.stringify({ domain }),
+  });
+}
+
+export function setPrimaryTenantDomain(id: string, domainId: string): Promise<TenantDomainData[]> {
+  return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains/${domainId}/primary`, {
+    method: "PATCH",
+  });
+}
+
+export function removeTenantDomain(id: string, domainId: string): Promise<TenantDomainData[]> {
+  return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains/${domainId}`, {
+    method: "DELETE",
+  });
 }

@@ -950,3 +950,11 @@ no futuro sem mudança de contrato.
 - **Visual (browser)** — passos: subir API (porta 3334) + `pnpm --filter @crivo/web dev`, logar
   `ceo@crivo.demo`/`crivo123`; no `/superadm` trocar `accentColor`/`primaryColor` da empresa e relogar
   na plataforma → as cores da UI acompanham. (Verificação visual a cargo do operador.)
+
+### UI no `/superadm` (ENTREGUE)
+
+- `BrandingModal.tsx` (ação **"Marca"** por empresa): form de identidade (cores com color-picker, logo,
+  favicon, e-mail, whatsapp, rodapé) + gestão de **domínios** (listar, adicionar, tornar canônico,
+  remover). Client em `admin-api.ts` (`getTenantBranding`/`updateTenantBranding` + CRUD de domínios).
+  Consome os endpoints já testados em E2E (fatias 1/2). Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+  Agora o white-label é operável fim-a-fim pelo super admin (sem chamadas de API à mão).
