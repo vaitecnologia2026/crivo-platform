@@ -493,7 +493,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | R7 | TLS/certificado de domínio próprio por cliente | 🟡 Médio | Vercel Domains API (wildcard + custom) automatizando emissão |
 | R8 | Crescimento de tabelas grandes (responses, leads, audit) | 🟡 Médio | Particionar por `tenantId`/data; arquivamento; índices compostos tenant-first (já é o padrão) |
 | R9 | Super Admin comprometido = acesso total | 🔴 Crítico | MFA/TOTP obrigatório, IP allowlist, auditoria de toda ação, princípio de break-glass |
-| R10 | Custo de reescrever frontend estático em config-driven | 🟡 Médio | Migração incremental (em curso: 6/9 telas viraram ilhas React+API — Dashboard, ICD, CRM, Questionário, Campanhas, Líder. Faltam: Relatórios, Parecer, Biblioteca — exigem backend novo) |
+| R10 | Custo de reescrever frontend estático em config-driven | 🟢 Resolvido | **9/9 telas migradas para ilhas React** — nenhum conteúdo mock servido pelo shell. 7 com dado real (Dashboard, ICD, CRM, Questionário, Campanhas, Líder, Biblioteca); Relatórios e Parecer são placeholders honestos (backend de relatório/parecer ainda não existe) |
 
 ---
 

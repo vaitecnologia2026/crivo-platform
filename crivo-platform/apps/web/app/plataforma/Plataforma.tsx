@@ -11,6 +11,8 @@ import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
+import { BibliotecaScreen } from "./BibliotecaScreen";
+import { SoonScreen } from "./SoonScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
@@ -118,6 +120,25 @@ export function Plataforma() {
       if (name === "crm") mountIsland("crm-root", <CrmScreen />);
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);
+      if (name === "biblioteca") mountIsland("biblioteca-root", <BibliotecaScreen />);
+      if (name === "relatorios")
+        mountIsland(
+          "relatorios-root",
+          <SoonScreen
+            title="Relatórios & Comunicações"
+            sub="Exportações executivas, históricos e avisos da CRIVO."
+            message="A geração de relatórios executivos entra em uma próxima entrega."
+          />,
+        );
+      if (name === "parecer")
+        mountIsland(
+          "parecer-root",
+          <SoonScreen
+            title="Parecer Consultivo CRIVO"
+            sub="A leitura final é de um especialista — não de um algoritmo."
+            message="O fluxo de parecer consultivo entra em uma próxima entrega."
+          />,
+        );
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
       if (meta) {

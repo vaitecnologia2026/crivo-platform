@@ -32,18 +32,20 @@ export const PERMISSIONS = [
   { code: "users:view", module: "users", action: "view", label: "Ver usuários" },
   { code: "users:create", module: "users", action: "create", label: "Criar usuários" },
   { code: "users:edit", module: "users", action: "edit", label: "Editar usuários" },
+  { code: "library:view", module: "library", action: "view", label: "Ver biblioteca" },
+  { code: "library:manage", module: "library", action: "manage", label: "Gerir biblioteca" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit"],
-  LIDER: ["icd:view"],
-  JURIDICO: ["icd:view"],
-  COLABORADOR: [],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
+  LIDER: ["icd:view", "library:view"],
+  JURIDICO: ["icd:view", "library:view"],
+  COLABORADOR: ["library:view"],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -308,6 +310,27 @@ export interface SubmitIcdRequest {
   leaderId: string;
   cycleId?: string;
   answers: IcdAnswer[];
+}
+
+// ── Biblioteca & Formação (conteúdo do tenant) ──
+
+export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;
+export type LibraryKind = (typeof LIBRARY_KINDS)[number];
+
+export interface LibraryItemData {
+  id: string;
+  title: string;
+  description: string | null;
+  kind: LibraryKind;
+  url: string | null;
+  createdAt: string;
+}
+
+export interface CreateLibraryItemRequest {
+  title: string;
+  description?: string;
+  kind: LibraryKind;
+  url?: string;
 }
 
 /** ICD pessoal do líder logado (Área do Líder), com posição no ranking. */

@@ -7,6 +7,7 @@ import { IamModule } from './iam/iam.module';
 import { IcdModule } from './icd/icd.module';
 import { LeadsModule } from './leads/leads.module';
 import { UsersModule } from './users/users.module';
+import { LibraryModule } from './library/library.module';
 import { MeteringModule } from './metering/metering.module';
 import { MeteringInterceptor } from './metering/metering.interceptor';
 import { AdminModule } from './admin/admin.module';
@@ -22,6 +23,7 @@ import { HealthController } from './health/health.controller';
     IcdModule,
     LeadsModule,
     UsersModule,
+    LibraryModule,
     MeteringModule,
     AdminModule,
   ],

@@ -33,6 +33,7 @@ async function main() {
   await prisma.rolePermission.deleteMany();
   await prisma.permission.deleteMany();
   await prisma.roleDef.deleteMany();
+  await prisma.libraryItem.deleteMany();
   await prisma.tenantDomain.deleteMany();
   await prisma.tenantBranding.deleteMany();
   await prisma.tenantModule.deleteMany();
@@ -119,6 +120,16 @@ async function main() {
   // 1.3) Domínio próprio de exemplo (F5) — alimenta a resolução pública por host.
   await prisma.tenantDomain.create({
     data: { organizationId: org.id, domain: 'o2legacy.crivolegacy.com.br', verified: true, primary: true },
+  });
+
+  // 1.4) Biblioteca de exemplo (conteúdo do tenant).
+  await prisma.libraryItem.createMany({
+    data: [
+      { tenantId: org.id, title: 'Decisão sob pressão: o guia CRIVO', kind: 'artigo', description: 'Como manter coerência quando o relógio aperta.', url: 'https://crivolegacy.com.br/artigos/decisao-sob-pressao' },
+      { tenantId: org.id, title: 'Podcast · Liderança e segunda opinião', kind: 'podcast', description: 'Conversa sobre o papel do copiloto decisório.', url: 'https://crivolegacy.com.br/podcast/01' },
+      { tenantId: org.id, title: 'E-book · NR-1 na prática', kind: 'ebook', description: 'Riscos psicossociais e o que a norma exige.', url: 'https://crivolegacy.com.br/ebooks/nr1' },
+      { tenantId: org.id, title: 'Framework de feedback em 3 atos', kind: 'framework', description: 'Estrutura para conversas difíceis.', url: null },
+    ],
   });
 
   // 2) CEO (login de acesso ao painel executivo)

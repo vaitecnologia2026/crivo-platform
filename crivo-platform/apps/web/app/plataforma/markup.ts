@@ -130,110 +130,8 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <!-- ============ RELATÓRIOS ============ -->
       <section class="route" data-route="relatorios">
-        <div class="route__head">
-          <div>
-            <h1 class="page-title">Relatórios & Comunicações</h1>
-            <p class="page-sub">Exportações executivas, históricos e avisos da CRIVO.</p>
-          </div>
-          <div class="route__actions">
-            <button class="btn btn--gold btn--sm">Gerar novo relatório</button>
-          </div>
-        </div>
-
-        <div class="grid grid--2">
-          <div class="card">
-            <div class="card__head">
-              <div>
-                <h3>Relatórios disponíveis</h3>
-                <span class="card__sub">Documentos prontos para diretoria e auditoria</span>
-              </div>
-            </div>
-            <ul class="reports">
-              <li class="report">
-                <span class="report__ic">📄</span>
-                <div class="report__info">
-                  <strong>Diagnóstico NR1 — Ciclo 2026.Q2</strong>
-                  <span>Conformidade · 142 páginas · Atualizado 12/05/2026</span>
-                </div>
-                <button class="btn btn--ghost-dark btn--sm">Baixar PDF</button>
-              </li>
-              <li class="report">
-                <span class="report__ic">📊</span>
-                <div class="report__info">
-                  <strong>Relatório Executivo — Liderança</strong>
-                  <span>Para diretoria · 28 páginas · Atualizado 10/05/2026</span>
-                </div>
-                <button class="btn btn--ghost-dark btn--sm">Baixar PDF</button>
-              </li>
-              <li class="report">
-                <span class="report__ic">📈</span>
-                <div class="report__info">
-                  <strong>Evolução do ICD — 6 meses</strong>
-                  <span>Comparativo · 18 páginas · Atualizado 08/05/2026</span>
-                </div>
-                <button class="btn btn--ghost-dark btn--sm">Baixar PDF</button>
-              </li>
-              <li class="report">
-                <span class="report__ic">📋</span>
-                <div class="report__info">
-                  <strong>Plano de Ação 2026</strong>
-                  <span>Tático · 56 páginas · Atualizado 05/05/2026</span>
-                </div>
-                <button class="btn btn--ghost-dark btn--sm">Baixar PDF</button>
-              </li>
-              <li class="report">
-                <span class="report__ic">🔎</span>
-                <div class="report__info">
-                  <strong>Auditoria NR1 — Documentação rastreável</strong>
-                  <span>Para fiscalização · 84 páginas · Atualizado 01/05/2026</span>
-                </div>
-                <button class="btn btn--ghost-dark btn--sm">Baixar PDF</button>
-              </li>
-            </ul>
-          </div>
-
-          <div class="card">
-            <div class="card__head">
-              <div>
-                <h3>Avisos em vídeo da CRIVO</h3>
-                <span class="card__sub">Comunicações estratégicas para sua liderança</span>
-              </div>
-              <span class="pill pill--gold">2 novos</span>
-            </div>
-            <ul class="videos">
-              <li class="video">
-                <div class="video__thumb">▶</div>
-                <div class="video__info">
-                  <strong>Atualização NR1 — Maio/2026</strong>
-                  <span>5min · Patricia Lemos · Nova</span>
-                </div>
-              </li>
-              <li class="video">
-                <div class="video__thumb">▶</div>
-                <div class="video__info">
-                  <strong>Como interpretar seu ICD trimestral</strong>
-                  <span>8min · Time CRIVO · Nova</span>
-                </div>
-              </li>
-              <li class="video">
-                <div class="video__thumb">▶</div>
-                <div class="video__info">
-                  <strong>Caso real — Indústria 800 colaboradores</strong>
-                  <span>12min · Estudo de caso</span>
-                </div>
-              </li>
-              <li class="video">
-                <div class="video__thumb">▶</div>
-                <div class="video__info">
-                  <strong>Preparando sua diretoria para a auditoria</strong>
-                  <span>15min · Workshop em vídeo</span>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <div id="relatorios-root"></div>
       </section>
-
 
       <!-- ============ CRM · PIPELINE ============ -->
       <section class="route" data-route="crm">
@@ -247,89 +145,12 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <!-- ============ PARECER CRIVO ============ -->
       <section class="route" data-route="parecer">
-        <div class="route__head">
-          <div>
-            <h1 class="page-title">Parecer Consultivo CRIVO</h1>
-            <p class="page-sub">Os dados são automáticos. A leitura final é de um especialista — não de um algoritmo.</p>
-          </div>
-          <div class="route__actions">
-            <span class="pill pill--gold">Ciclo 2026.Q2</span>
-          </div>
-        </div>
-
-        <div class="parecer-timeline">
-          <div class="pt-step is-done"><span class="pt-dot">✓</span><strong>Dados consolidados</strong><span>847 respostas processadas · indicadores gerados</span></div>
-          <div class="pt-step is-current"><span class="pt-dot">●</span><strong>Análise do consultor</strong><span>Patricia Lemos · especialista CRIVO</span></div>
-          <div class="pt-step"><span class="pt-dot">3</span><strong>Parecer entregue</strong><span>Previsto para 24/05</span></div>
-        </div>
-
-        <div class="grid grid--icd">
-          <div class="card">
-            <div class="card__head"><div><h3>Indicadores automáticos</h3><span class="card__sub">Gerados pela plataforma — base para o parecer humano</span></div></div>
-            <div class="kpi-grid kpi-grid--inset">
-              <div class="kpi"><span class="kpi__label">ICD médio</span><strong class="kpi__value">80</strong><div class="kpi__bar"><div style="width:80%"></div></div></div>
-              <div class="kpi"><span class="kpi__label">Conformidade NR-1</span><strong class="kpi__value">92<small>%</small></strong><div class="kpi__bar"><div style="width:92%"></div></div></div>
-              <div class="kpi"><span class="kpi__label">Padrão dominante</span><strong class="kpi__value pattern-mini">Pressão</strong></div>
-              <div class="kpi"><span class="kpi__label">Setores críticos</span><strong class="kpi__value">2</strong></div>
-            </div>
-          </div>
-
-          <div class="card card--parecer">
-            <span class="card__eyebrow">PARECER DO ESPECIALISTA</span>
-            <p class="parecer-text">"Os dados indicam coerência decisória acima do benchmark, mas com <strong>concentração de risco na operação</strong>, governada por pressão. A recomendação não é treinar a equipe — é trabalhar a camada de liderança do Turno B, onde a pressão se converte em decisão reativa. Sugiro iniciar pela mentoria de governança comportamental antes do próximo ciclo."</p>
-            <div class="parecer-sign">
-              <div class="parecer-sign__avatar">PL</div>
-              <div><strong>Patricia Lemos</strong><span>Consultora sênior · CRIVO</span></div>
-            </div>
-            <div class="parecer-actions">
-              <button class="btn btn--gold btn--sm">Baixar parecer (PDF)</button>
-              <button class="btn btn--outline-dark btn--sm">Agendar devolutiva</button>
-            </div>
-          </div>
-        </div>
+        <div id="parecer-root"></div>
       </section>
 
       <!-- ============ BIBLIOTECA & CURSOS ============ -->
       <section class="route" data-route="biblioteca">
-        <div class="route__head">
-          <div>
-            <h1 class="page-title">Biblioteca & Formação</h1>
-            <p class="page-sub">Cursos, materiais e frameworks para sustentar a liderança no dia a dia.</p>
-          </div>
-          <div class="route__actions">
-            <div class="select-pill"><span>Trilha</span><strong>Liderança ▾</strong></div>
-          </div>
-        </div>
-
-        <h3 class="block-title">Cursos</h3>
-        <div class="course-grid">
-          <article class="course-card"><div class="course-card__cover">★</div><div class="course-card__body"><strong>Liderança sob pressão</strong><span>8 aulas · 2h10</span><div class="course-prog"><div style="width:75%"></div></div><em>75% concluído</em></div></article>
-          <article class="course-card"><div class="course-card__cover">◈</div><div class="course-card__body"><strong>Tomada de decisão & ICD</strong><span>6 aulas · 1h40</span><div class="course-prog"><div style="width:40%"></div></div><em>40% concluído</em></div></article>
-          <article class="course-card"><div class="course-card__cover">◇</div><div class="course-card__body"><strong>Comunicação de liderança</strong><span>10 aulas · 3h00</span><div class="course-prog"><div style="width:100%"></div></div><em>Concluído</em></div></article>
-          <article class="course-card"><div class="course-card__cover">▲</div><div class="course-card__body"><strong>Governança emocional</strong><span>7 aulas · 2h25</span><div class="course-prog"><div style="width:0%"></div></div><em>Não iniciado</em></div></article>
-          <article class="course-card"><div class="course-card__cover">❖</div><div class="course-card__body"><strong>Cultura & coerência</strong><span>5 aulas · 1h30</span><div class="course-prog"><div style="width:20%"></div></div><em>20% concluído</em></div></article>
-          <article class="course-card"><div class="course-card__cover">◭</div><div class="course-card__body"><strong>NR-1 aplicada à liderança</strong><span>4 aulas · 1h05</span><div class="course-prog"><div style="width:100%"></div></div><em>Concluído</em></div></article>
-        </div>
-
-        <div class="grid grid--2" style="margin-top:24px">
-          <div class="card">
-            <div class="card__head"><div><h3>Biblioteca</h3><span class="card__sub">Materiais, frameworks e e-books</span></div></div>
-            <ul class="lib-list">
-              <li class="lib-row"><span class="lib-ic">▤</span><div><strong>Framework de Decisão sob Pressão</strong><span>PDF · 12 páginas</span></div><button class="btn btn--ghost-dark btn--sm">Abrir</button></li>
-              <li class="lib-row"><span class="lib-ic">▤</span><div><strong>Guia NR-1 para Lideranças</strong><span>E-book · 38 páginas</span></div><button class="btn btn--ghost-dark btn--sm">Abrir</button></li>
-              <li class="lib-row"><span class="lib-ic">▤</span><div><strong>Mapa do ICD — 5 dimensões</strong><span>Framework · 1 página</span></div><button class="btn btn--ghost-dark btn--sm">Abrir</button></li>
-              <li class="lib-row"><span class="lib-ic">▤</span><div><strong>Roteiro de Conversa Difícil em 3 Atos</strong><span>Template · 4 páginas</span></div><button class="btn btn--ghost-dark btn--sm">Abrir</button></li>
-            </ul>
-          </div>
-          <div class="card">
-            <div class="card__head"><div><h3>Conteúdo contínuo</h3><span class="card__sub">Novidades da CRIVO esta semana</span></div><span class="pill pill--gold">3 novos</span></div>
-            <ul class="lib-list">
-              <li class="lib-row"><span class="lib-ic">▶</span><div><strong>Aula ao vivo · Liderança em M&A</strong><span>Gravação · 52 min</span></div><button class="btn btn--ghost-dark btn--sm">Assistir</button></li>
-              <li class="lib-row"><span class="lib-ic">▶</span><div><strong>Podcast · Decidir com critério</strong><span>Episódio 14 · 33 min</span></div><button class="btn btn--ghost-dark btn--sm">Ouvir</button></li>
-              <li class="lib-row"><span class="lib-ic">▤</span><div><strong>Artigo · Custos invisíveis da pressão</strong><span>Leitura · 6 min</span></div><button class="btn btn--ghost-dark btn--sm">Ler</button></li>
-            </ul>
-          </div>
-        </div>
+        <div id="biblioteca-root"></div>
       </section>
 
     </main>

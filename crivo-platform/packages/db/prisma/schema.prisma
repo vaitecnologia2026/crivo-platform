@@ -218,6 +218,23 @@ model TenantBranding {
   @@map("tenant_branding")
 }
 
+// Biblioteca & Formação: conteúdo (materiais/cursos) por empresa. Data plane
+// (RLS por tenant): a empresa vê/gere o próprio acervo. Escrita gateada por
+// `library:manage` na API; leitura por `library:view`.
+model LibraryItem {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  kind        String // artigo | podcast | ebook | curso | framework
+  url         String?
+  createdAt   DateTime     @default(now())
+
+  @@index([tenantId])
+  @@map("library_items")
+}
+
 // Metering (F4): contadores de uso por empresa/métrica/período (YYYY-MM).
 // Data plane (RLS por tenant): o app incrementa sob forTenant. Base p/ billing
 // e enforcement de limites de plano (PLAN_LIMITS).
@@ -275,6 +292,7 @@ model Organization {
   modules   TenantModule[]
   usage     UsageCounter[]
   branding  TenantBranding?
+  library   LibraryItem[]
 
   @@map("organizations")
 }
