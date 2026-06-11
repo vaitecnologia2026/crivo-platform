@@ -60,18 +60,19 @@ export function useIcdDashboard() {
   return { data, status, refresh };
 }
 
+// Tensão dominante (4 Rs). Substitui o antigo "padrão dominante".
 export const PATTERN_LABEL: Record<string, string> = {
   EQUILIBRADO: "Equilibrado",
-  PRESSAO: "Pressão",
-  AUTOIMAGEM: "Autoimagem",
-  CONFORMIDADE: "Conformidade",
-  AMEACA: "Ameaça",
+  REATIVIDADE: "Reatividade",
+  RIGIDEZ: "Rigidez",
+  REPERCUSSAO: "Repercussão",
+  RISCO: "Risco",
 };
 
+// As 4 dimensões do ICD — os 4 Rs.
 export const DIMENSION_LABEL: Record<string, string> = {
-  clareza: "Clareza",
-  pressao: "Pressão",
-  confianca: "Confiança",
-  influencia: "Influência",
-  risco: "Risco/Ação",
+  reatividade: "Reatividade",
+  rigidez: "Rigidez",
+  repercussao: "Repercussão",
+  risco: "Risco",
 };

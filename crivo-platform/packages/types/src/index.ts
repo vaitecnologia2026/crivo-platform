@@ -148,9 +148,9 @@ export const MODULES = [
   { code: 'icd', name: 'Indicadores ICD', category: 'core', minPlan: 'BASE' },
   { code: 'lider', name: 'Líderes', category: 'core', minPlan: 'BASE' },
   { code: 'crm', name: 'CRM / Pipeline', category: 'comercial', minPlan: 'EVOLUCAO' },
-  { code: 'biblioteca', name: 'Biblioteca', category: 'conteudo', minPlan: 'EVOLUCAO' },
-  { code: 'relatorios', name: 'Relatórios', category: 'analytics', minPlan: 'ENTERPRISE' },
-  { code: 'campanhas', name: 'Campanhas', category: 'comercial', minPlan: 'ENTERPRISE' },
+  { code: 'biblioteca', name: 'Academia CRIVO', category: 'conteudo', minPlan: 'EVOLUCAO' },
+  { code: 'relatorios', name: 'Relatórios & Evidências', category: 'analytics', minPlan: 'ENTERPRISE' },
+  { code: 'campanhas', name: 'Campanhas de Diagnóstico', category: 'diagnostico', minPlan: 'ENTERPRISE' },
   { code: 'parecer', name: 'Parecer', category: 'advisory', minPlan: 'ADVISORY' },
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];
@@ -267,36 +267,40 @@ export interface ProvisionResult {
   tempPassword?: string;
 }
 
-/** As 5 dimensões do ICD. */
-export const ICD_DIMENSIONS = ['clareza', 'pressao', 'confianca', 'influencia', 'risco'] as const;
+/** As 4 dimensões do ICD — os "4 Rs" da coerência decisória sob pressão. */
+export const ICD_DIMENSIONS = ['reatividade', 'rigidez', 'repercussao', 'risco'] as const;
 export type IcdDimension = (typeof ICD_DIMENSIONS)[number];
 
-export const DOMINANT_PATTERNS = ['PRESSAO', 'AUTOIMAGEM', 'CONFORMIDADE', 'AMEACA', 'EQUILIBRADO'] as const;
+/** Tensão dominante = o "R" com maior tensão (menor coerência), ou EQUILIBRADO.
+ *  Substitui o antigo "padrão dominante". Os valores espelham os 4 Rs. */
+export const DOMINANT_PATTERNS = ['REATIVIDADE', 'RIGIDEZ', 'REPERCUSSAO', 'RISCO', 'EQUILIBRADO'] as const;
+/** @deprecated nome legado; é a "tensão dominante". */
 export type DominantPattern = (typeof DOMINANT_PATTERNS)[number];
+export type DominantTension = DominantPattern;
 
 export interface IcdQuestion {
   id: number;
   dimension: IcdDimension;
   text: string;
-  /** true = valor alto na escala indica MENOR coerência (será invertido no cálculo). */
+  /** true = valor alto na escala indica MAIOR tensão (menor coerência). */
   inverse: boolean;
 }
 
 /**
- * Catálogo oficial: 10 perguntas, 2 por dimensão, aplicadas a uma decisão real.
- * Escala Likert 1–5. pressao e risco são inversas (quanto maior, pior a coerência).
+ * Catálogo oficial do ICD: 8 perguntas, 2 por dimensão (4 Rs), aplicadas a uma
+ * decisão real e recente. Escala Likert 1–5. Todas inversas: quanto maior o
+ * valor, maior a tensão (menor a coerência decisória). Não mede personalidade
+ * nem saúde mental — lê a coerência da decisão sob pressão.
  */
 export const ICD_QUESTIONS: IcdQuestion[] = [
-  { id: 1, dimension: 'clareza', text: 'Eu tinha clareza sobre o objetivo ao tomar a decisão.', inverse: false },
-  { id: 2, dimension: 'clareza', text: 'As informações disponíveis eram suficientes para decidir.', inverse: false },
-  { id: 3, dimension: 'pressao', text: 'Senti pressão de tempo ou cobrança ao decidir.', inverse: true },
-  { id: 4, dimension: 'pressao', text: 'A decisão foi tomada sob estresse ou urgência.', inverse: true },
-  { id: 5, dimension: 'confianca', text: 'Eu confiava na minha capacidade de tomar essa decisão.', inverse: false },
-  { id: 6, dimension: 'confianca', text: 'Assumi a responsabilidade pela decisão sem hesitar.', inverse: false },
-  { id: 7, dimension: 'influencia', text: 'Dependi da aprovação de outros para decidir.', inverse: true },
-  { id: 8, dimension: 'influencia', text: 'Evitei contrariar expectativas alheias ao decidir.', inverse: true },
-  { id: 9, dimension: 'risco', text: 'Senti medo das consequências negativas da decisão.', inverse: true },
-  { id: 10, dimension: 'risco', text: 'Decidi mais para evitar uma ameaça do que para buscar um ganho.', inverse: true },
+  { id: 1, dimension: 'reatividade', text: 'Sob pressão, decidi no impulso antes de avaliar bem o cenário.', inverse: true },
+  { id: 2, dimension: 'reatividade', text: 'Quando o clima esquentou, reagi na hora em vez de pausar.', inverse: true },
+  { id: 3, dimension: 'rigidez', text: 'Tive dificuldade de rever a decisão mesmo diante de novos dados.', inverse: true },
+  { id: 4, dimension: 'rigidez', text: 'Mantive minha posição mesmo quando a equipe trouxe outra leitura.', inverse: true },
+  { id: 5, dimension: 'repercussao', text: 'Decidi pensando primeiro em como eu seria visto pelos outros.', inverse: true },
+  { id: 6, dimension: 'repercussao', text: 'Evitei uma decisão necessária para não gerar repercussão negativa.', inverse: true },
+  { id: 7, dimension: 'risco', text: 'Decidi mais para evitar uma ameaça do que para buscar um ganho.', inverse: true },
+  { id: 8, dimension: 'risco', text: 'O medo das consequências pesou mais do que o mérito da decisão.', inverse: true },
 ];
 
 export interface IcdAnswer {
@@ -304,12 +308,13 @@ export interface IcdAnswer {
   value: number; // 1–5
 }
 
-export type IcdDimensions = Record<IcdDimension, number>; // 0–100 (normalizado p/ coerência)
+export type IcdDimensions = Record<IcdDimension, number>; // 0–100 (coerência por R; maior = melhor)
 
 export interface IcdResult {
-  score: number; // 0–100
+  score: number; // 0–100 (coerência geral)
   dimensions: IcdDimensions;
-  dominantPattern: DominantPattern;
+  /** Tensão dominante (4 Rs ou EQUILIBRADO). Campo mantém o nome legado. */
+  dominantPattern: DominantTension;
 }
 
 export interface SubmitIcdRequest {

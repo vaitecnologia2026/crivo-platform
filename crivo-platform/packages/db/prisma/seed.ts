@@ -6,24 +6,25 @@ const prisma = new PrismaClient();
 
 const hash = (s: string) => bcrypt.hashSync(s, 10);
 
-// Dimensões do ICD (0–100). dominantPattern = maior sinal de risco entre os drivers.
-const dims = (clareza: number, pressao: number, confianca: number, influencia: number, risco: number) =>
-  ({ clareza, pressao, confianca, influencia, risco });
+// Dimensões do ICD — os 4 Rs (0–100, coerência: maior = melhor). A tensão
+// dominante é o R de menor coerência (ou EQUILIBRADO).
+const dims = (reatividade: number, rigidez: number, repercussao: number, risco: number) =>
+  ({ reatividade, rigidez, repercussao, risco });
 
 // Respostas representativas (não recalculadas pelo dashboard; ilustram o payload).
-const sampleAnswers = Array.from({ length: 10 }, (_, i) => ({ questionId: i + 1, value: 3 }));
+const sampleAnswers = Array.from({ length: 8 }, (_, i) => ({ questionId: i + 1, value: 3 }));
 
-// Líderes de demonstração com scores variados e padrões distintos.
+// Líderes de demonstração com scores variados e tensões dominantes distintas.
 const LEADERS: Array<{
   name: string; email: string; role: Role; score: number;
   pattern: DominantPattern; dimensions: ReturnType<typeof dims>;
 }> = [
-  { name: 'Ana Beatriz Carvalho', email: 'ana.carvalho@crivo.demo', role: Role.GESTOR, score: 91, pattern: DominantPattern.EQUILIBRADO, dimensions: dims(94, 90, 92, 88, 91) },
-  { name: 'Marina Souza',         email: 'marina.souza@crivo.demo',  role: Role.GESTOR, score: 86, pattern: DominantPattern.EQUILIBRADO, dimensions: dims(90, 84, 88, 82, 86) },
-  { name: 'Rafael Moreira',       email: 'rafael.moreira@crivo.demo', role: Role.LIDER,  score: 73, pattern: DominantPattern.PRESSAO,     dimensions: dims(82, 54, 80, 76, 73) },
-  { name: 'Carla Mendes',         email: 'carla.mendes@crivo.demo',   role: Role.LIDER,  score: 65, pattern: DominantPattern.CONFORMIDADE, dimensions: dims(70, 72, 74, 49, 60) },
-  { name: 'João Pedro Lima',      email: 'joao.lima@crivo.demo',      role: Role.LIDER,  score: 58, pattern: DominantPattern.AUTOIMAGEM,   dimensions: dims(64, 66, 44, 60, 56) },
-  { name: 'Eduardo Ramos',        email: 'eduardo.ramos@crivo.demo',  role: Role.LIDER,  score: 49, pattern: DominantPattern.AMEACA,       dimensions: dims(56, 58, 52, 50, 38) },
+  { name: 'Ana Beatriz Carvalho', email: 'ana.carvalho@crivo.demo', role: Role.GESTOR, score: 91, pattern: DominantPattern.EQUILIBRADO, dimensions: dims(94, 90, 92, 88) },
+  { name: 'Marina Souza',         email: 'marina.souza@crivo.demo',  role: Role.GESTOR, score: 86, pattern: DominantPattern.EQUILIBRADO, dimensions: dims(90, 84, 88, 82) },
+  { name: 'Rafael Moreira',       email: 'rafael.moreira@crivo.demo', role: Role.LIDER,  score: 73, pattern: DominantPattern.REATIVIDADE, dimensions: dims(54, 80, 82, 76) },
+  { name: 'Carla Mendes',         email: 'carla.mendes@crivo.demo',   role: Role.LIDER,  score: 65, pattern: DominantPattern.RIGIDEZ,     dimensions: dims(72, 49, 70, 69) },
+  { name: 'João Pedro Lima',      email: 'joao.lima@crivo.demo',      role: Role.LIDER,  score: 58, pattern: DominantPattern.REPERCUSSAO, dimensions: dims(64, 60, 44, 64) },
+  { name: 'Eduardo Ramos',        email: 'eduardo.ramos@crivo.demo',  role: Role.LIDER,  score: 49, pattern: DominantPattern.RISCO,       dimensions: dims(56, 52, 50, 38) },
 ];
 
 async function main() {

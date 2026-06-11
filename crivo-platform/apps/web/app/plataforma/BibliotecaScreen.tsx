@@ -51,8 +51,8 @@ export function BibliotecaScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Biblioteca & Formação</h1>
-          <p className="page-sub">Materiais, frameworks e cursos da sua empresa.</p>
+          <h1 className="page-title">Academia CRIVO</h1>
+          <p className="page-sub">Cursos, trilhas, materiais e frameworks de liderança e cultura.</p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={load} disabled={status === "loading"}>

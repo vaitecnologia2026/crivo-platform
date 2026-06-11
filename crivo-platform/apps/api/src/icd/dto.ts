@@ -20,7 +20,7 @@ export class SubmitIcdDto {
   cycleId?: string;
 
   @IsArray()
-  @ArrayMinSize(10)
+  @ArrayMinSize(8) // ICD = 8 perguntas (4 Rs)
   @ValidateNested({ each: true })
   @Type(() => IcdAnswerDto)
   answers!: IcdAnswerDto[];

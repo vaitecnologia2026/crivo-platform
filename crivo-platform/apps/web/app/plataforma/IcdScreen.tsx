@@ -2,7 +2,7 @@
 
 import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
 
-const DIMENSIONS = ["clareza", "pressao", "confianca", "influencia", "risco"] as const;
+const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
 function barClass(v: number): string {
   if (v >= 80) return "is-high";
@@ -39,7 +39,7 @@ export function IcdScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Índice de Coerência Decisória</h1>
-          <p className="page-sub">A qualidade do estado decisório da liderança — em cinco dimensões.</p>
+          <p className="page-sub">A coerência decisória da liderança sob pressão — nos 4 Rs.</p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>
@@ -69,7 +69,7 @@ export function IcdScreen() {
             <div className="card__head">
               <div>
                 <h3>Coerência por dimensão</h3>
-                <span className="card__sub">Média da liderança nas cinco dimensões do ICD</span>
+                <span className="card__sub">Média da liderança nos 4 Rs do ICD</span>
               </div>
             </div>
             <div className="icd-dims">
@@ -103,7 +103,7 @@ export function IcdScreen() {
             </div>
 
             <div className="card card--pattern">
-              <span className="card__eyebrow">PADRÃO DOMINANTE</span>
+              <span className="card__eyebrow">TENSÃO DOMINANTE</span>
               <strong className="pattern-label">{pattern ? (PATTERN_LABEL[pattern] ?? pattern) : "—"}</strong>
               <span className="card__hint">O driver que mais governa as decisões da liderança hoje.</span>
             </div>

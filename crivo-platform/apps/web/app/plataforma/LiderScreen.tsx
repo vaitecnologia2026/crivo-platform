@@ -7,7 +7,7 @@ import { DIMENSION_LABEL, PATTERN_LABEL } from "./useIcdDashboard";
 
 type LoadStatus = "loading" | "error" | "ok";
 
-const DIMENSIONS = ["clareza", "pressao", "confianca", "influencia", "risco"] as const;
+const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
 function barClass(v: number): string {
   if (v >= 80) return "bar__fill--low"; // low risk = good (verde) — segue o app.css

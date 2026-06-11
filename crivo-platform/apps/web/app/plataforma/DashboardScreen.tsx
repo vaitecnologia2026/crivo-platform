@@ -67,7 +67,7 @@ export function DashboardScreen() {
               <span className="kpi__delta">respostas computadas</span>
             </div>
             <div className="kpi">
-              <span className="kpi__label">Padrões dominantes</span>
+              <span className="kpi__label">Tensões dominantes</span>
               <div className="dash-dist">
                 {Object.entries(data.distribuicaoPadrao).map(([p, n]) => (
                   <span key={p} className="dash-dist__item">
@@ -90,11 +90,10 @@ export function DashboardScreen() {
                 <tr>
                   <th>Líder</th>
                   <th>ICD</th>
-                  <th>Padrão dominante</th>
-                  <th>Clareza</th>
-                  <th>Pressão</th>
-                  <th>Confiança</th>
-                  <th>Influência</th>
+                  <th>Tensão dominante</th>
+                  <th>Reatividade</th>
+                  <th>Rigidez</th>
+                  <th>Repercussão</th>
                   <th>Risco</th>
                 </tr>
               </thead>
@@ -106,10 +105,9 @@ export function DashboardScreen() {
                       <strong className={`dash-score ${scoreClass(r.score)}`}>{r.score}</strong>
                     </td>
                     <td>{PATTERN_LABEL[r.padraoDominante] ?? r.padraoDominante}</td>
-                    <td>{r.dimensoes?.clareza ?? "—"}</td>
-                    <td>{r.dimensoes?.pressao ?? "—"}</td>
-                    <td>{r.dimensoes?.confianca ?? "—"}</td>
-                    <td>{r.dimensoes?.influencia ?? "—"}</td>
+                    <td>{r.dimensoes?.reatividade ?? "—"}</td>
+                    <td>{r.dimensoes?.rigidez ?? "—"}</td>
+                    <td>{r.dimensoes?.repercussao ?? "—"}</td>
                     <td>{r.dimensoes?.risco ?? "—"}</td>
                   </tr>
                 ))}

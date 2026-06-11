@@ -64,10 +64,10 @@ export const NAV: NavGroup[] = [
     items: [
       {
         route: 'campanhas',
-        label: 'Campanhas NR-1',
+        label: 'Campanhas de Diagnóstico',
         icon: '◭',
         module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Campanhas NR-1' },
+        breadcrumb: { path: 'Diagnóstico', current: 'Campanhas de Diagnóstico' },
       },
       {
         route: 'parecer',
@@ -78,11 +78,11 @@ export const NAV: NavGroup[] = [
       },
       {
         route: 'questionario',
-        label: 'Questionário NR-1',
+        label: 'Instrumentos Diagnósticos',
         icon: '✎',
         module: 'icd',
         perm: 'icd:submit',
-        breadcrumb: { path: 'Aplicação', current: 'Questionário NR-1' },
+        breadcrumb: { path: 'Aplicação', current: 'Instrumentos Diagnósticos' },
       },
     ],
   },
@@ -98,17 +98,17 @@ export const NAV: NavGroup[] = [
       },
       {
         route: 'biblioteca',
-        label: 'Biblioteca & Cursos',
+        label: 'Academia CRIVO',
         icon: '▦',
         module: 'biblioteca',
         breadcrumb: { path: 'Desenvolvimento', current: 'Biblioteca & Formação' },
       },
       {
         route: 'relatorios',
-        label: 'Relatórios & Comunicações',
+        label: 'Relatórios, Evidências & Comunicações',
         icon: '▤',
         module: 'relatorios',
-        breadcrumb: { path: 'Documentos', current: 'Relatórios & Comunicações' },
+        breadcrumb: { path: 'Documentos', current: 'Relatórios, Evidências & Comunicações' },
       },
     ],
   },

@@ -55,7 +55,7 @@ export function CampanhasScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Campanhas de Diagnóstico NR-1</h1>
+          <h1 className="page-title">Campanhas de Diagnóstico</h1>
           <p className="page-sub">Ciclos de avaliação do tenant — respondentes, adesão e ICD médio.</p>
         </div>
         <div className="route__actions">

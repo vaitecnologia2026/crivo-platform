@@ -41,13 +41,14 @@ enum CycleStatus {
   CLOSED
 }
 
-// Padrão decisório dominante revelado pelo ICD.
+// Tensão decisória dominante revelada pelo ICD (modelo dos 4 Rs). Substitui o
+// antigo "padrão dominante". O nome do enum é mantido por compatibilidade.
 enum DominantPattern {
-  PRESSAO
-  AUTOIMAGEM
-  CONFORMIDADE
-  AMEACA
-  EQUILIBRADO // nenhum driver de risco se destaca (alta coerência)
+  REATIVIDADE
+  RIGIDEZ
+  REPERCUSSAO
+  RISCO
+  EQUILIBRADO // nenhum R se destaca (alta coerência)
 }
 
 // Estágio do lead no pipeline comercial.

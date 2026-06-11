@@ -104,7 +104,7 @@ export function QuestionarioScreen() {
           <small>/100</small>
         </strong>
         <span className="card__hint">
-          Padrão dominante: <strong>{PATTERN_LABEL[result.dominantPattern] ?? result.dominantPattern}</strong>
+          Tensão dominante: <strong>{PATTERN_LABEL[result.dominantPattern] ?? result.dominantPattern}</strong>
         </span>
         <div className="q-result__dims">
           {Object.entries(result.dimensions).map(([k, v]) => (
@@ -126,7 +126,7 @@ export function QuestionarioScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Aplicação do ICD</h1>
-          <p className="page-sub">Avalie o estado decisório de um líder · {answeredCount}/{questions.length} respondidas.</p>
+          <p className="page-sub">Leia a coerência decisória de um líder sob pressão · {answeredCount}/{questions.length} respondidas.</p>
         </div>
         <div className="route__actions">
           <select

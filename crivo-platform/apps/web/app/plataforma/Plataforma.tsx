@@ -125,9 +125,9 @@ export function Plataforma() {
         mountIsland(
           "relatorios-root",
           <SoonScreen
-            title="Relatórios & Comunicações"
-            sub="Exportações executivas, históricos e avisos da CRIVO."
-            message="A geração de relatórios executivos entra em uma próxima entrega."
+            title="Relatórios, Evidências & Comunicações"
+            sub="Relatórios executivos, parecer, plano de ação, evidências e comunicações da CRIVO."
+            message="A geração de relatórios e o parecer consultivo entram em uma próxima entrega."
           />,
         );
       if (name === "parecer")

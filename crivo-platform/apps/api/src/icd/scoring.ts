@@ -4,23 +4,31 @@ import {
   type IcdAnswer,
   type IcdResult,
   type IcdDimension,
-  type DominantPattern,
+  type DominantTension,
 } from '@crivo/types';
 
 /**
- * Cálculo do ICD (heurística v0 — a calibrar com dados reais na fase de analytics).
+ * Cálculo do ICD (heurística v0 — a calibrar com dados reais). Modelo dos 4 Rs:
+ * Reatividade, Rigidez, Repercussão, Risco. 8 perguntas (2 por R), escala 1–5,
+ * todas inversas: quanto MAIOR o valor, MAIOR a tensão (menor a coerência).
  *
- * Cada questão é normalizada para "coerência" 0–100:
- *  - questões positivas: (valor-1)/4
- *  - questões inversas (pressao, risco, influencia-dependência): (5-valor)/4
- * A dimensão é a média das suas questões; o ICD é a média das 5 dimensões.
- * O padrão dominante é o maior sinal de risco (menor coerência) entre os drivers.
+ * Coerência por questão (0–100) = (5 - valor) / 4 * 100. A dimensão é a média
+ * das suas questões; o ICD é a média dos 4 Rs. A TENSÃO DOMINANTE é o R com
+ * maior tensão (menor coerência) — ou EQUILIBRADO se nenhum se destaca.
+ * Não há "padrão mental"; é leitura da coerência decisória sob pressão.
  */
+const TENSION_OF: Record<IcdDimension, Exclude<DominantTension, 'EQUILIBRADO'>> = {
+  reatividade: 'REATIVIDADE',
+  rigidez: 'RIGIDEZ',
+  repercussao: 'REPERCUSSAO',
+  risco: 'RISCO',
+};
+
 export function computeIcd(answers: IcdAnswer[]): IcdResult {
   const byId = new Map(answers.map((a) => [a.questionId, a.value]));
 
   const raw: Record<IcdDimension, number[]> = {
-    clareza: [], pressao: [], confianca: [], influencia: [], risco: [],
+    reatividade: [], rigidez: [], repercussao: [], risco: [],
   };
 
   for (const q of ICD_QUESTIONS) {
@@ -42,20 +50,13 @@ export function computeIcd(answers: IcdAnswer[]): IcdResult {
     ICD_DIMENSIONS.reduce((s, d) => s + dimensions[d], 0) / ICD_DIMENSIONS.length,
   );
 
-  // Sinal de risco por driver (quanto MAIOR, pior).
-  const signals = {
-    PRESSAO: 100 - dimensions.pressao,
-    AUTOIMAGEM: 100 - dimensions.confianca,
-    CONFORMIDADE: 100 - dimensions.influencia,
-    AMEACA: 100 - dimensions.risco,
-  };
-
-  // Sem driver relevante (alta coerência) → EQUILIBRADO; senão o maior sinal.
-  const PATTERN_THRESHOLD = 25;
-  const drivers = Object.keys(signals) as Exclude<DominantPattern, 'EQUILIBRADO'>[];
-  const top = drivers.reduce((best, p) => (signals[p] > signals[best] ? p : best));
-  const dominantPattern: DominantPattern =
-    signals[top] <= PATTERN_THRESHOLD ? 'EQUILIBRADO' : top;
+  // Tensão por R (quanto MAIOR, pior). EQUILIBRADO se nenhum passa o limiar.
+  const TENSION_THRESHOLD = 25;
+  const topR = ICD_DIMENSIONS.reduce((best, d) =>
+    100 - dimensions[d] > 100 - dimensions[best] ? d : best,
+  );
+  const dominantPattern: DominantTension =
+    100 - dimensions[topR] <= TENSION_THRESHOLD ? 'EQUILIBRADO' : TENSION_OF[topR];
 
   return { score, dimensions, dominantPattern };
 }
