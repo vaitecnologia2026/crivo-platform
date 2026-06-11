@@ -7,9 +7,10 @@
 ## Cadeia de dependência (ordem obrigatória)
 
 ```
-1. Provisionar Postgres  →  2. Migrations + RLS + Seed  →  3. Deploy da API
-        →  4. Apontar o crivo-web para a API  →  5. (depois) de-mock das telas
+1. Provisionar Postgres  →  2. Migrations + Seed + RLS  →  3. Deploy da API
+   →  4. Apontar o crivo-web para a API  →  4.1 Site de marketing  →  5. Smoke test
 ```
+> O de-mock das 9 telas já está concluído (ver "Estado do produto" no fim).
 
 ⚠️ **Não deploye o `crivo-web` com o login real antes da Etapa 4.** Sem API no ar,
 a plataforma fica sem login.
@@ -70,9 +71,15 @@ export DATABASE_URL="postgresql://postgres:<senha>@<host>:5432/postgres?sslmode=
 pnpm --filter @crivo/db generate
 pnpm --filter @crivo/db migrate:deploy
 
-# 3) SEED primeiro (cria org demo + 1º usuário) — antes da RLS
+# 3) SEED primeiro — antes da RLS (o seed escreve catálogos que a RLS deixa
+#    somente-leitura: permissões, papéis, módulos). Cria org demo + usuários +
+#    super admin + catálogo de módulos/permissões + branding/domínio/biblioteca demo.
 pnpm --filter @crivo/db seed
-#   → login criado: ceo@crivo.demo / crivo123  (troque depois!)
+#   → login plataforma:  ceo@crivo.demo / crivo123        (troque depois!)
+#   → login super admin: super@crivo.platform / crivo-super-123  (troque depois!)
+#   ⚠️ Em produção real, prefira NÃO rodar o seed de demonstração (ele apaga e
+#      recria dados). Para um tenant real, provisione via /superadm. O seed é
+#      ideal para validar o ambiente; depois limpe os dados demo.
 
 # 4) Agora aplica a RLS (cria o papel crivo_app + policies + FORCE)
 pnpm --filter @crivo/db rls
@@ -117,10 +124,24 @@ DATABASE_URL_APP=postgresql://crivo_app:<senha>@<host>:5432/postgres?sslmode=req
 AUTH_SECRET=<gere com: openssl rand -base64 48>
 JWT_EXPIRES_IN=7d
 WEB_URL=https://app.crivolegacy.com.br
+# Loop captação → CRM (opcional, mas necessário p/ a LP criar leads no pipeline):
+LEAD_INTAKE_SECRET=<gere um segredo forte; o MESMO valor vai no crivo-site>
+LEAD_INTAKE_TENANT=<organizationId do tenant que recebe os leads da LP>
 # PORT é injetada pelo host automaticamente (o main.ts já respeita)
 ```
 > A API **não sobe** sem `AUTH_SECRET` (≥32) nem `DATABASE_URL_APP` — isso é
 > proposital (evita segredo público e RLS desligada).
+>
+> **`WEB_URL` aceita vários domínios** separados por vírgula (CORS). A plataforma e o
+> painel `/superadm` ficam no mesmo origin (`app.crivolegacy.com.br`). O site de
+> marketing chama a API pelo servidor (não pelo browser), então **não** precisa
+> entrar no CORS.
+>
+> **`LEAD_INTAKE_TENANT`** é o `organizationId` do tenant que vai receber os leads da
+> landing page. Você só o tem **depois** de provisionar ao menos uma empresa (Etapa 5
+> ou via `/superadm`): pegue em `GET /api/admin/tenants` (campo `organizationId`) ou
+> no banco (`SELECT id FROM organizations`). Sem `LEAD_INTAKE_SECRET`+`LEAD_INTAKE_TENANT`,
+> o intake fica desligado (a LP cai no fallback de e-mail/log).
 
 Após o deploy, a API fica em algo como `https://crivo-api.up.railway.app`, e os
 endpoints em `https://crivo-api.up.railway.app/api/...` (prefixo global `/api`).
@@ -155,6 +176,34 @@ E garanta o CORS: `WEB_URL` da API deve listar o domínio do front
 
 ---
 
+## Etapa 4.1 — Site de marketing (`crivo-site`)
+
+Projeto Vercel **`crivo-site`** (Root `apps/site`) → Environment Variables:
+
+```
+# Gate de acesso (token VAI) — a comparação é server-side
+SITE_ACCESS_TOKEN=<token de acesso ao site; default de dev é VAI2026>
+GATE_SECRET=<segredo forte p/ assinar o cookie do gate — openssl rand -base64 32>
+
+# Captação de leads (escolha 1+; se nenhum, o lead vai só pro log):
+#  a) loop direto no CRM (recomendado) — MESMO segredo da API:
+PLATFORM_API_URL=https://<seu-host-da-api>/api
+LEAD_INTAKE_SECRET=<igual ao da API>
+#  b) e-mail (Resend):
+RESEND_API_KEY=<chave Resend>
+LEAD_FROM_EMAIL=contato@crivolegacy.com.br
+LEAD_TO_EMAIL=contato@crivolegacy.com.br
+#  c) webhook genérico (opcional):
+LEAD_WEBHOOK_URL=<url>
+```
+> A LP (`/api/lead`) tenta o intake no CRM (a), depois e-mail (b), depois webhook (c).
+> O loop (a) exige que a API esteja no ar e que `LEAD_INTAKE_TENANT` esteja setado nela.
+
+Deploy: `cd crivo-platform && vercel deploy --prod` (projeto `crivo-site`). O cutover
+de DNS de `crivolegacy.com.br` para este projeto já está concluído (ver CLAUDE.md).
+
+---
+
 ## Etapa 5 — Smoke test (valide antes de anunciar)
 
 ```bash
@@ -174,6 +223,16 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST $API/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"ceo@crivo.demo","password":"errada"}'
 #   → 401
+
+# 4) Super admin (control plane) — login + listar empresas
+ADMIN=$(curl -s -X POST $API/admin/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"super@crivo.platform","password":"crivo-super-123"}' \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+curl -s $API/admin/tenants -H "Authorization: Bearer $ADMIN"   # → lista de empresas
+
+# 5) Sessão de tenant: módulos ativos da empresa
+TOKEN=<token do passo 2>
+curl -s $API/me/modules -H "Authorization: Bearer $TOKEN"      # → ["dashboard","icd",...]
 ```
 
 Depois, na plataforma (`app.crivolegacy.com.br`): logar com `ceo@crivo.demo /
@@ -183,17 +242,32 @@ crivo123` deve abrir o app; senha errada deve mostrar "E-mail ou senha inválido
 
 ## ✅ Checklist final
 - [ ] Banco provisionado; owner com BYPASSRLS; `crivo_app` criado e com senha forte
-- [ ] `migrate:deploy` → `seed` → `rls` rodados **nessa ordem**, sem erro
+- [ ] `migrate:deploy` → `seed` → `rls` rodados **nessa ordem**, sem erro (12 migrations)
+- [ ] `rls.sql` reaplicado (cobre control plane + catálogos RBAC/módulos + `tenant_branding`/
+      `tenant_domains`/`usage_counters`/`library_items`); é idempotente — rode de novo se mudar
 - [ ] API no ar; `GET /api/health` responde `ok`
 - [ ] API não sobe sem `AUTH_SECRET`/`DATABASE_URL_APP` (testado)
-- [ ] Login correto retorna token; login errado retorna 401
-- [ ] Isolamento: usuário do tenant A não vê dados do tenant B (testar com 2 orgs)
-- [ ] `crivo-web` com `API_URL=.../api` e CORS liberado; login funciona pela UI
-- [ ] Trocar a senha do usuário demo `ceo@crivo.demo` (ou criar usuários reais)
+- [ ] Login plataforma retorna token; login errado 401
+- [ ] Super admin loga (`/api/admin/auth/login`) e lista empresas (`/api/admin/tenants`)
+- [ ] Isolamento: usuário do tenant A não vê dados do tenant B (rode `pnpm --filter @crivo/db test:isolation`)
+- [ ] `crivo-web` com `API_URL=.../api` e CORS liberado (`WEB_URL`); login funciona pela UI
+- [ ] `crivo-site` com gate (`SITE_ACCESS_TOKEN`/`GATE_SECRET`) e captação (`PLATFORM_API_URL`+`LEAD_INTAKE_SECRET`)
+- [ ] `LEAD_INTAKE_TENANT` setado na API com o `organizationId` real; lead da LP cai no pipeline
+- [ ] **Trocar as senhas demo** `ceo@crivo.demo` e `super@crivo.platform` (ou provisionar reais e limpar o demo)
+
+> ⚠️ **Segurança pendente (follow-ups conhecidos):** não há endpoint de troca de senha
+> do super admin nem MFA/TOTP (F2). Troque a senha demo direto no banco
+> (`UPDATE super_admins SET ...`) e restrinja o acesso ao `/superadm` por enquanto.
 
 ---
 
-## Depois disto → Fase seguinte (de-mock)
-Com a API no ar e dados reais, substituímos as 9 telas estáticas (`markup.ts`)
-por componentes que buscam dados via `apiFetch` (Dashboard/ICD primeiro), com
-estados de loading/erro/vazio. É a virada final de "maquete" para "produto".
+## Estado do produto (jun/2026)
+- **Telas:** 9/9 migradas para React+API (de-mock concluído). 7 com dado real
+  (Dashboard, ICD, CRM, Questionário, Campanhas, Líder, Biblioteca); Relatórios e
+  Parecer são placeholders honestos até terem backend próprio.
+- **Backend multi-tenant completo:** RLS, RBAC dinâmico, Control Plane + Super Admin,
+  planos+módulos com gate, metering (leads/usuários/api_calls) com limites, white-label
+  (branding+domínios+self-service), gestão de time. Ver `SAAS-TRANSFORMATION.md`.
+- **Falta para o go-live:** apenas a **infra desta runbook** (banco + API + env/DNS na
+  Vercel). Refinamentos opcionais: theming da tela de login por host, automação de
+  domínio na Vercel, backends de Relatórios/Parecer, MFA do super admin.
