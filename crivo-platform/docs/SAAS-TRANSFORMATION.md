@@ -811,9 +811,38 @@ no futuro sem mudança de contrato.
 
 ### Pendente da F4 (follow-ups menores)
 
-- **Metering de `api_calls`/`active_users`**: hoje só `leads` é contado/limitado; estender quando houver
-  endpoint de criação de usuário pelo tenant (enforcement de `maxUsers`).
+- ✅ **`maxUsers` enforced** — ver "Gestão de usuários" abaixo. Resta metering de `api_calls`.
 - **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.
+
+---
+
+## Apêndice J — Gestão de usuários da empresa (time) + enforcement de `maxUsers`
+
+**Status:** 🟢 backend entregue (CRUD do time por tenant, gateado por RBAC, limite de plano aplicado).
+Fecha o follow-up `maxUsers` da F4 e dá ao admin da empresa a gestão do próprio time.
+
+### O que foi construído
+
+- **RBAC**: permissões `users:view`/`users:create`/`users:edit` (catálogo `@crivo/types`). Concedidas:
+  `ADMIN`/`CEO`/`RH` (todas), `GESTOR` (só `view`).
+- **Módulo Users** (`apps/api/src/users/`): `UsersController` (`/users`, `AuthGuard`+`PermissionGuard`)
+  e `UsersService` — `list`/`create`/`update`, tudo sob `forTenant` (RLS: a empresa só vê/edita os
+  próprios usuários). Senha gerada e retornada 1× quando ausente; nunca expõe `passwordHash`; e-mail
+  duplicado no tenant → 409.
+- **Limite de plano**: `MeteringService.assertUserQuota` barra (422) ao atingir
+  `PLAN_LIMITS[plan].maxUsers` (conta usuários **ativos**); reativar um usuário também respeita a quota.
+- **Usage**: `GET /admin/tenants/:id/usage` passou a reportar `active_users` por **contagem real** de
+  usuários ativos (não mais contador zerado).
+
+### Verificação (E2E)
+
+- CEO lista (7) e cria (201, com senha temp); LÍDER `GET /users` **403** (sem `users:view`); e-mail
+  duplicado **409**; em plano BASE (`maxUsers=10`) a criação vai a 201 até 10 ativos e **422** no 11º.
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
+
+### Pendente
+
+- **UI de time** dentro da plataforma (tela "Usuários", hoje placeholder na nav) consumindo `/users`.
 
 ---
 

@@ -36,6 +36,18 @@ export class MeteringService {
     }
   }
 
+  /** Barra (422) se criar mais um usuário ativo estouraria o limite do plano. */
+  async assertUserQuota(tx: PrismaClient, tenantId: string): Promise<void> {
+    const max = PLAN_LIMITS[await this.planOf(tx, tenantId)].maxUsers;
+    if (max === null) return; // ilimitado
+    const count = await tx.user.count({ where: { active: true } });
+    if (count >= max) {
+      throw new UnprocessableEntityException(
+        `Limite do plano atingido: ${max} usuários ativos. Faça upgrade para adicionar mais.`,
+      );
+    }
+  }
+
   /** Incrementa um contador de uso no período corrente (idempotente por upsert). */
   async increment(tx: PrismaClient, tenantId: string, metric: string, by = 1): Promise<void> {
     const period = currentPeriod();

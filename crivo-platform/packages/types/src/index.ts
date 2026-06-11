@@ -29,15 +29,18 @@ export const PERMISSIONS = [
   { code: "icd:view", module: "icd", action: "view", label: "Ver indicadores ICD" },
   { code: "icd:submit", module: "icd", action: "submit", label: "Aplicar avaliação ICD" },
   { code: "branding:edit", module: "branding", action: "edit", label: "Editar identidade visual" },
+  { code: "users:view", module: "users", action: "view", label: "Ver usuários" },
+  { code: "users:create", module: "users", action: "create", label: "Criar usuários" },
+  { code: "users:edit", module: "users", action: "edit", label: "Editar usuários" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit"],
   LIDER: ["icd:view"],
   JURIDICO: ["icd:view"],
   COLABORADOR: [],
@@ -52,6 +55,35 @@ export const ROLE_LABELS: Record<Role, string> = {
   JURIDICO: "Jurídico",
   COLABORADOR: "Colaborador",
 };
+
+// ── Gestão de usuários da empresa (time) ──
+
+export interface UserSummary {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  role: Role;
+  password?: string; // gerado quando ausente (retornado uma única vez)
+}
+
+export interface UpdateUserRequest {
+  role?: Role;
+  active?: boolean;
+}
+
+export interface CreateUserResult {
+  user: UserSummary;
+  /** Senha temporária — só quando gerada pelo sistema. */
+  tempPassword?: string;
+}
 
 export interface LoginRequest {
   email: string;

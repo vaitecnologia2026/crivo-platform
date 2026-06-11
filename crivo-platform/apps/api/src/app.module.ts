@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { IamModule } from './iam/iam.module';
 import { IcdModule } from './icd/icd.module';
 import { LeadsModule } from './leads/leads.module';
+import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health/health.controller';
 
@@ -18,6 +19,7 @@ import { HealthController } from './health/health.controller';
     IamModule,
     IcdModule,
     LeadsModule,
+    UsersModule,
     AdminModule,
   ],
   controllers: [HealthController],

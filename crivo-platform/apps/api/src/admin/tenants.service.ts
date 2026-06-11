@@ -105,20 +105,19 @@ export class TenantsService {
     const period = currentPeriod();
     const limits = PLAN_LIMITS[plan];
 
-    const counters = await this.prisma.admin.usageCounter.findMany({
-      where: { tenantId: tenant.organizationId, period },
-    });
-    const value = (metric: string) =>
-      Number(counters.find((c) => c.metric === metric)?.value ?? 0n);
-    // leads é contado direto da tabela (fonte de verdade do limite), não do contador.
+    // leads e usuários ativos são contados direto da tabela (fonte de verdade
+    // dos limites), não de contadores acumulados.
     const leadCount = await this.prisma.admin.lead.count({ where: { tenantId: tenant.organizationId } });
+    const activeUsers = await this.prisma.admin.user.count({
+      where: { tenantId: tenant.organizationId, active: true },
+    });
 
     return {
       plan,
       period,
       metrics: [
         { metric: 'leads', value: leadCount, limit: limits.maxLeads },
-        { metric: 'active_users', value: value('active_users'), limit: limits.maxUsers },
+        { metric: 'active_users', value: activeUsers, limit: limits.maxUsers },
       ],
     };
   }
