@@ -258,8 +258,9 @@ crivo123` deve abrir o app; senha errada deve mostrar "E-mail ou senha inválido
 
 > 🔒 **Segurança do super admin:** já há **troca de senha** (`PATCH /api/admin/auth/password`)
 > e **MFA/TOTP** (`/admin/auth/mfa/setup|enable|disable`; o login passa a exigir `totp`). Após o
-> deploy: troque a senha demo e **ative o MFA** no `/superadm`. Pendente: troca de senha
-> self-service para usuários de tenant (hoje só admin via API de usuários / reset manual).
+> deploy: troque a senha demo e **ative o MFA** no `/superadm`. Usuários de tenant também
+> trocam a própria senha (`PATCH /api/auth/password`). Pendente: fluxo de "esqueci a senha"
+> (reset por e-mail) e MFA para usuários de tenant.
 
 ---
 

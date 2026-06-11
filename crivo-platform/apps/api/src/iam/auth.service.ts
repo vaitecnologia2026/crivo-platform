@@ -73,4 +73,25 @@ export class AuthService {
 
     return { token, user: session };
   }
+
+  /** Usuário troca a própria senha (sob RLS — só o próprio registro do tenant). */
+  async changeOwnPassword(
+    tenantId: string,
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ ok: true }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const u = await tx.user.findFirst({ where: { id: userId } });
+      if (!u) throw new UnauthorizedException('Sessão inválida');
+      if (!bcrypt.compareSync(currentPassword, u.passwordHash)) {
+        throw new UnauthorizedException('Senha atual incorreta');
+      }
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash: bcrypt.hashSync(newPassword, 10) },
+      });
+      return { ok: true as const };
+    });
+  }
 }
