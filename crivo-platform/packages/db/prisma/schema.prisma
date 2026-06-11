@@ -68,6 +68,25 @@ enum TenantStatus {
   DELETED // exclusão lógica (reversível); purge físico é operação separada
 }
 
+// Estado de um Produto no catálogo comercial (control plane).
+enum ProductStatus {
+  DRAFT // em construção, não vendável
+  ACTIVE // publicado, pode ser contratado
+  INACTIVE // arquivado
+}
+
+// Estágio do lead no funil comercial da CRIVO (CRM do Super Admin). Espelha o
+// Kanban do Portal PDF (Print 2): NOVO → PRÉ-DIAGNÓSTICO → REUNIÃO → PROPOSTA →
+// FECHADO (+ PERDIDO). Distinto de LeadStage (pipeline interno do tenant).
+enum PlatformLeadStage {
+  NOVO
+  PRE_DIAGNOSTICO
+  REUNIAO
+  PROPOSTA
+  FECHADO
+  PERDIDO
+}
+
 // =====================================================================
 // CONTROL PLANE (F1) — registro GLOBAL de empresas-cliente e super admins.
 // NÃO é escopado por tenant: estas tabelas ficam FORA da RLS por tenant.
@@ -127,6 +146,85 @@ model AuditLog {
 }
 
 // =====================================================================
+// PRODUTOS (núcleo product-driven) — TUDO nasce de um Produto. Um produto
+// define preço, limites, módulos liberados, o INSTRUMENTO de diagnóstico
+// (perguntas editáveis) e a configuração de IA dos líderes. Ao converter um
+// lead em cliente, a empresa é provisionada A PARTIR do produto contratado.
+// Control plane (owner-only): catálogo global, fora da RLS por tenant.
+// Ver diretriz estrutural 2026-06 (Super Admin product-driven).
+// =====================================================================
+model Product {
+  id          String        @id @default(uuid()) @db.Uuid
+  slug        String        @unique // pre-diagnostico-crivo, crivo-enterprise…
+  name        String
+  description String?
+  status      ProductStatus @default(DRAFT)
+  plan        Plan? // plano-base herdado pela empresa (opcional)
+
+  // Dados gerais / comercial
+  monthlyPriceCents Int     @default(0) // valor mensal (centavos)
+  setupPriceCents   Int     @default(0) // valor de implantação (centavos)
+  maxUsers          Int     @default(0) // 0 = ilimitado
+  maxLeaders        Int     @default(0) // 0 = ilimitado
+  companyType       String? // tipo de empresa atendida
+
+  // Módulos liberados: códigos do ModuleCatalog habilitados por este produto.
+  modules Json @default("[]") // string[] de moduleCode
+
+  // Instrumento de diagnóstico EDITÁVEL (não fixo): blocos, categorias,
+  // dimensões, escalas de resposta, pesos e perguntas. Cada produto tem o seu.
+  // { dimensions:[{key,label}], scales:[{key,label,options:[{value,label}]}],
+  //   blocks:[{key,label}], questions:[{id,text,block,dimension,scale,weight,inverse}] }
+  diagnostic Json?
+
+  // Configuração da IA dos líderes (por produto).
+  // { prompt, knowledgeBase, rules, limitations, objective, documents:[] }
+  aiConfig Json?
+
+  // Produto de captura (pré-diagnóstico): só LP/formulário/lead — SEM portal,
+  // SEM app, SEM IA. Usado pelo funil comercial da CRIVO.
+  isLeadCapture Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
+}
+
+// =====================================================================
+// CRM DO SUPER ADMIN — funil comercial da CRIVO. O lead nasce do Diagnóstico
+// Inicial da Landing Page (ou cadastro manual) e pertence ao SUPER ADMIN, não
+// a uma empresa. Control plane (owner-only). Ao fechar a venda, é convertido
+// em Tenant (convertedTenantId) provisionando a empresa pelo produto.
+// =====================================================================
+model PlatformLead {
+  id             String  @id @default(uuid()) @db.Uuid
+  name           String
+  company        String?
+  email          String?
+  phone          String?
+  segment        String?
+  employeesCount String? // faixa ("51-200") ou número informado
+  origin         String? // lp-diagnostico | qrcode | indicacao | anuncio…
+  productId      String? @db.Uuid // produto de origem (ex.: pré-diagnóstico)
+
+  // Resultado do pré-diagnóstico (leitura preliminar — não é ICD oficial).
+  diagnosticScore  Int? // 0–100 (score geral)
+  diagnosticResult Json? // { score, level, byDimension, topConcern, recommendation }
+
+  stage             PlatformLeadStage @default(NOVO)
+  notes             String?
+  convertedTenantId String?           @db.Uuid // tenant criado na conversão (FASE 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage])
+  @@index([createdAt])
+  @@map("platform_leads")
+}
+
+// =====================================================================
 // RBAC DINÂMICO (F3) — catálogo GLOBAL de permissões (módulo:ação) e papéis
 // de sistema. Sem RLS por tenant (catálogo compartilhado entre todas as
 // empresas); SOMENTE-LEITURA para o app — escrita só via seed/owner (rls.sql).
@@ -175,11 +273,11 @@ model RolePermission {
 // =====================================================================
 
 model ModuleCatalog {
-  id       String   @id @default(uuid()) @db.Uuid
-  code     String   @unique // dashboard | icd | crm | relatorios | ...
-  name     String
-  category String
-  minPlan  Plan     @default(BASE) // plano mínimo p/ habilitar
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique // dashboard | icd | crm | relatorios | ...
+  name      String
+  category  String
+  minPlan   Plan     @default(BASE) // plano mínimo p/ habilitar
   createdAt DateTime @default(now())
 
   @@map("module_catalog")
@@ -282,30 +380,30 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  companies Company[]
-  units     Unit[]
-  teams     Team[]
-  users     User[]
-  cycles    AssessmentCycle[]
+  companies   Company[]
+  units       Unit[]
+  teams       Team[]
+  users       User[]
+  cycles      AssessmentCycle[]
   assessments Assessment[]
-  responses Response[]
-  icdScores IcdScore[]
-  leads     Lead[]
-  modules   TenantModule[]
-  usage     UsageCounter[]
-  branding  TenantBranding?
-  library   LibraryItem[]
+  responses   Response[]
+  icdScores   IcdScore[]
+  leads       Lead[]
+  modules     TenantModule[]
+  usage       UsageCounter[]
+  branding    TenantBranding?
+  library     LibraryItem[]
 
   @@map("organizations")
 }
 
 model Company {
-  id             String       @id @default(uuid()) @db.Uuid
-  tenantId       String       @db.Uuid
-  organization   Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name           String
-  cnpj           String?
-  createdAt      DateTime     @default(now())
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @db.Uuid
+  organization Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  cnpj         String?
+  createdAt    DateTime     @default(now())
 
   units Unit[]
 
@@ -405,15 +503,15 @@ model AssessmentCycle {
 }
 
 model Assessment {
-  id        String          @id @default(uuid()) @db.Uuid
-  tenantId  String          @db.Uuid
-  org       Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  cycleId   String?         @db.Uuid
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @db.Uuid
+  org       Organization     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId   String?          @db.Uuid
   cycle     AssessmentCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
-  leaderId  String          @db.Uuid
-  leader    User            @relation("LeaderAssessments", fields: [leaderId], references: [id], onDelete: Cascade)
-  type      AssessmentType  @default(ICD)
-  createdAt DateTime        @default(now())
+  leaderId  String           @db.Uuid
+  leader    User             @relation("LeaderAssessments", fields: [leaderId], references: [id], onDelete: Cascade)
+  type      AssessmentType   @default(ICD)
+  createdAt DateTime         @default(now())
 
   response Response?
   score    IcdScore?
@@ -424,13 +522,13 @@ model Assessment {
 }
 
 model Response {
-  id           String     @id @default(uuid()) @db.Uuid
-  tenantId     String     @db.Uuid
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @db.Uuid
   org          Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  assessmentId String     @unique @db.Uuid
-  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  answers      Json       // [{ questionId, value }]
-  submittedAt  DateTime   @default(now())
+  assessmentId String       @unique @db.Uuid
+  assessment   Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers      Json // [{ questionId, value }]
+  submittedAt  DateTime     @default(now())
 
   @@index([tenantId])
   @@map("responses")
@@ -468,8 +566,8 @@ model IcdScore {
   assessment      Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   leaderId        String          @db.Uuid
   leader          User            @relation("LeaderScores", fields: [leaderId], references: [id], onDelete: Cascade)
-  score           Int             // 0–100
-  dimensions      Json            // { clareza, pressao, confianca, influencia, risco } (0–100, normalizado p/ coerência)
+  score           Int // 0–100
+  dimensions      Json // { clareza, pressao, confianca, influencia, risco } (0–100, normalizado p/ coerência)
   dominantPattern DominantPattern
   computedAt      DateTime        @default(now())
 

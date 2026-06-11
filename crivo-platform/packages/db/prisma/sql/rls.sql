@@ -68,7 +68,9 @@ DECLARE
   c text;
   -- tenant_domains (F5): resolução por domínio é pré-login (sem tenant no
   -- contexto) → acesso só via owner, como o restante do control plane.
-  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains'];
+  -- products + platform_leads: catálogo de produtos e CRM do super admin são
+  -- globais (funil comercial da CRIVO) → owner-only, como o resto do control plane.
+  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
