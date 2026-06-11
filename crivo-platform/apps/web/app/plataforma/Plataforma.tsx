@@ -12,6 +12,7 @@ import { CrmScreen } from "./CrmScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
 import { BibliotecaScreen } from "./BibliotecaScreen";
+import { ParecerScreen } from "./ParecerScreen";
 import { SoonScreen } from "./SoonScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
@@ -130,15 +131,7 @@ export function Plataforma() {
             message="A geração de relatórios e o parecer consultivo entram em uma próxima entrega."
           />,
         );
-      if (name === "parecer")
-        mountIsland(
-          "parecer-root",
-          <SoonScreen
-            title="Parecer Consultivo CRIVO"
-            sub="A leitura final é de um especialista — não de um algoritmo."
-            message="O fluxo de parecer consultivo entra em uma próxima entrega."
-          />,
-        );
+      if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
       if (meta) {
