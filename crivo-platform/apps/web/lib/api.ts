@@ -1,5 +1,7 @@
 // Base da API. Em produção vem de NEXT_PUBLIC_API_URL (injetada no build).
 // Sem ela, falha de forma clara em vez de bater silenciosamente em localhost.
+import type { TenantBrandingData } from '@crivo/types';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 function apiBase(): string {
@@ -70,4 +72,9 @@ export function getMyModules(): Promise<string[]> {
 /** Permissões efetivas (modulo:acao) do papel do usuário logado. */
 export function getMyPermissions(): Promise<string[]> {
   return apiFetch<string[]>('/me/permissions');
+}
+
+/** Identidade visual (white-label) da empresa do usuário logado. */
+export function getMyBranding(): Promise<TenantBrandingData> {
+  return apiFetch<TenantBrandingData>('/me/branding');
 }

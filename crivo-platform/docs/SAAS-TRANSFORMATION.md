@@ -469,7 +469,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
-| **F5** 🟦 | **White-label** (FASE 5) | ✅ `TenantBranding` + API branding; ✅ `TenantDomain` (control plane) + CRUD super admin + **resolução pública por host** (`GET /public/tenant?domain=`, só ACTIVE). Resta: injeção dos tokens `--crivo-*` na plataforma (visual), middleware Next de resolução, automação Vercel, self-service. **Ver Apêndices G/H** | F1 | em curso |
+| **F5** 🟦 | **White-label** (FASE 5) | ✅ `TenantBranding` + API; ✅ `TenantDomain` + resolução pública por host; ✅ injeção dos tokens `--crivo-*` na plataforma pós-login (de `/me/branding`). Resta: theming da tela de login por host (middleware Next), automação Vercel, self-service. **Ver Apêndices G/H/I** | F1 | em curso |
 | **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` × permissão do papel (`GET /me/modules` + `/me/permissions`; shell oculta módulos inativos e o que o papel não vê, falha-aberto). Resta: migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
 | **F8** | **Formulários/avaliações dinâmicos** (FASE 7) | `FormDefinition`/`FormSubmission`, engine de scoring, ICD migrado p/ template, builder de formulário | F3 | 3 sem |
@@ -922,8 +922,31 @@ no futuro sem mudança de contrato.
 - DB: `crivo_app` **sem acesso** a `tenant_domains` (control plane). Gates: typecheck 8/8 · lint 3/3 ·
   build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
 
-### Pendente da F5 (fatia 3 — visual/edge)
+### Pendente da F5 (após a fatia 3)
 
-- **Middleware Next** (apps/site/web): lê o host, chama `/public/tenant`, injeta tokens `--crivo-*`
-  (primary→azul-profundo, accent→terra) + logo/favicon/rodapé. **Verificar no browser.**
+- **Theming da tela de LOGIN por host** (pré-auth): middleware/efeito que chama `/public/tenant?domain=`
+  e injeta tokens + logo antes do login. **Verificar no browser.**
+- **Logo/favicon/rodapé** dinâmicos (hoje só as cores são injetadas).
 - **Automação de domínio na Vercel** (Domains API) ao adicionar/verificar um `TenantDomain`.
+
+---
+
+## Apêndice I — F5 fatia 3 entregue (Injeção visual do branding · pós-login)
+
+**Status:** 🟦 cores da empresa aplicadas na plataforma após o login; theming da tela de login (por host) e logo/rodapé pendentes.
+
+### O que foi construído
+
+- **`apps/web/lib/branding.ts`**: `brandingCssVars(branding)` (PURA) mapeia `primaryColor`→
+  `--crivo-azul-profundo` e `accentColor`→`--crivo-terra`/`--crivo-terra-dourado` (pula nulos);
+  `applyBranding(b)` faz `setProperty` no `:root` e devolve um cleanup (`removeProperty`).
+- **Client** `getMyBranding()`; **`Plataforma.tsx`** busca branding junto de módulos/permissões no login
+  e aplica os tokens; remove no logout/unmount (volta ao tema CRIVO padrão).
+
+### Verificação
+
+- Mapper (node): branding completo → 3 overrides; só `primaryColor` → 1; `null` → nenhum.
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+- **Visual (browser)** — passos: subir API (porta 3334) + `pnpm --filter @crivo/web dev`, logar
+  `ceo@crivo.demo`/`crivo123`; no `/superadm` trocar `accentColor`/`primaryColor` da empresa e relogar
+  na plataforma → as cores da UI acompanham. (Verificação visual a cargo do operador.)

@@ -4,7 +4,8 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getMyModules, getMyPermissions, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getMyModules, getMyPermissions, getMyBranding, setToken, clearToken } from "@/lib/api";
+import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
@@ -66,6 +67,8 @@ export function Plataforma() {
     // null = ainda não carregado → mostra tudo (a API ainda gateia o acesso).
     let enabledModules: Set<string> | null = null;
     let permissions: Set<string> | null = null;
+    let removeBranding: (() => void) | null = null; // desfaz os overrides de tema (F5)
+    cleanups.push(() => removeBranding?.());
     const routeVisible = (route: string) => {
       const access = routeAccess[route];
       if (!access) return true; // rota sem mapeamento (ex.: links soltos)
@@ -175,10 +178,16 @@ export function Plataforma() {
         // que o papel não pode ver (permissão). Falha-aberto se a busca falhar —
         // a API ainda gateia o acesso.
         try {
-          const [mods, perms] = await Promise.all([getMyModules(), getMyPermissions()]);
+          const [mods, perms, branding] = await Promise.all([
+            getMyModules(),
+            getMyPermissions(),
+            getMyBranding(),
+          ]);
           enabledModules = new Set(mods);
           permissions = new Set(perms);
           applyModuleVisibility();
+          removeBranding?.();
+          removeBranding = applyBranding(branding); // white-label: tokens --crivo-* por empresa
           routerLog.info(`módulos: ${mods.join(", ") || "—"} · permissões: ${perms.join(", ") || "—"}`);
         } catch (err) {
           routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
@@ -208,6 +217,8 @@ export function Plataforma() {
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
+      removeBranding?.(); // volta ao tema CRIVO padrão
+      removeBranding = null;
       setRoute(DEFAULT_ROUTE);
     });
 
