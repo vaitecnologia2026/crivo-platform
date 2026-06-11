@@ -712,6 +712,8 @@ no futuro sem mudança de contrato.
 
 ### Pendente da F2
 
+- ✅ **Troca de senha do super admin** — `PATCH /api/admin/auth/password` (exige a senha atual, nova ≥12,
+  audita `admin.password.change`). E2E: atual errada 401, nova curta 400, troca ok, login antiga 401/nova ok.
 - **MFA/TOTP** do super admin (campo `totpSecret` pronto; falta dependência + enrollment + verify).
 - **`tenantId` em logs/observabilidade** estruturada.
 - **Campo "empresa" no login da plataforma** (UI): hoje, e-mail duplicado entre tenants retorna a

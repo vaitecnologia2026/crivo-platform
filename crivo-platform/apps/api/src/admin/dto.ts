@@ -20,6 +20,17 @@ export class PlatformLoginDto {
   password!: string;
 }
 
+export class ChangeAdminPasswordDto {
+  @IsString()
+  @MaxLength(200)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(12)
+  @MaxLength(200)
+  newPassword!: string;
+}
+
 export class CreateTenantDto {
   @IsString()
   @MaxLength(160)

@@ -43,4 +43,27 @@ export class AdminAuthService {
 
     return { token, admin: session };
   }
+
+  /** Troca a própria senha do super admin (exige a senha atual). */
+  async changePassword(
+    adminId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ ok: true }> {
+    const admin = await this.prisma.admin.superAdmin.findUnique({ where: { id: adminId } });
+    if (!admin || !admin.active) throw new UnauthorizedException('Sessão inválida');
+
+    const ok = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!ok) throw new UnauthorizedException('Senha atual incorreta');
+
+    await this.prisma.admin.superAdmin.update({
+      where: { id: adminId },
+      data: { passwordHash: bcrypt.hashSync(newPassword, 10) },
+    });
+    await this.audit.record({
+      action: 'admin.password.change',
+      actor: { id: admin.id, email: admin.email },
+    });
+    return { ok: true };
+  }
 }
