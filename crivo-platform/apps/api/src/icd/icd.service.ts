@@ -49,6 +49,39 @@ export class IcdService {
     );
   }
 
+  /** Campanhas de diagnóstico (ciclos) com estatísticas: respondentes, adesão e ICD médio. */
+  async campaigns(tenantId: string) {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const totalParticipantes = await tx.user.count({ where: { active: true } });
+      const cycles = await tx.assessmentCycle.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { assessments: { include: { score: { select: { score: true } } } } },
+      });
+      return cycles.map((c) => {
+        const respondentes = c.assessments.length;
+        const scores = c.assessments
+          .map((a) => a.score?.score)
+          .filter((n): n is number => typeof n === 'number');
+        const icdMedio = scores.length
+          ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
+          : null;
+        const adesao = totalParticipantes
+          ? Math.round((respondentes / totalParticipantes) * 100)
+          : 0;
+        return {
+          id: c.id,
+          name: c.name,
+          status: c.status,
+          createdAt: c.createdAt.toISOString(),
+          respondentes,
+          totalParticipantes,
+          adesao,
+          icdMedio,
+        };
+      });
+    });
+  }
+
   /** Dashboard executivo do ICD — agregados e ranking de líderes do tenant. */
   async dashboard(tenantId: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {

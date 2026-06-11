@@ -9,6 +9,7 @@ import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
+import { CampanhasScreen } from "./CampanhasScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
@@ -114,6 +115,7 @@ export function Plataforma() {
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
       if (name === "crm") mountIsland("crm-root", <CrmScreen />);
+      if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
       if (meta) {

@@ -309,3 +309,15 @@ export interface SubmitIcdRequest {
   cycleId?: string;
   answers: IcdAnswer[];
 }
+
+/** Campanha de diagnóstico (ciclo de avaliação) com estatísticas agregadas. */
+export interface CampaignSummary {
+  id: string;
+  name: string;
+  status: 'OPEN' | 'CLOSED';
+  createdAt: string;
+  respondentes: number;
+  totalParticipantes: number;
+  adesao: number; // 0–100 (%)
+  icdMedio: number | null;
+}

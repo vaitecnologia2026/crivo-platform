@@ -38,4 +38,11 @@ export class IcdController {
   dashboard(@CurrentUser() user: SessionUser) {
     return this.icd.dashboard(user.tenantId);
   }
+
+  /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas. */
+  @Get('campaigns')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  campaigns(@CurrentUser() user: SessionUser) {
+    return this.icd.campaigns(user.tenantId);
+  }
 }

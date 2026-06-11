@@ -374,60 +374,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <!-- ============ CAMPANHAS NR-1 ============ -->
       <section class="route" data-route="campanhas">
-        <div class="route__head">
-          <div>
-            <h1 class="page-title">Campanhas de Diagnóstico NR-1</h1>
-            <p class="page-sub">Crie a campanha, gere os links e acompanhe as respostas em tempo real.</p>
-          </div>
-          <div class="route__actions">
-            <button class="btn btn--gold btn--sm">+ Nova campanha</button>
-          </div>
-        </div>
-
-        <div class="grid grid--2">
-          <div class="card">
-            <div class="card__head">
-              <div><h3>Campanha ativa · 2026.Q2</h3><span class="card__sub">Encerra em 26/05/2026 · NR-1 + Riscos psicossociais</span></div>
-              <span class="pill pill--gold">Em andamento</span>
-            </div>
-            <div class="camp-progress">
-              <div class="camp-progress__top"><strong>68%</strong><span>847 de 1.240 colaboradores responderam</span></div>
-              <div class="kpi__bar"><div style="width: 68%"></div></div>
-            </div>
-            <ul class="camp-sectors">
-              <li><span>Operações</span><div class="bar"><div class="bar__fill bar__fill--low" style="width: 82%"></div></div><em>82%</em></li>
-              <li><span>Comercial</span><div class="bar"><div class="bar__fill bar__fill--low" style="width: 74%"></div></div><em>74%</em></li>
-              <li><span>Financeiro</span><div class="bar"><div class="bar__fill bar__fill--mid" style="width: 55%"></div></div><em>55%</em></li>
-              <li><span>Tecnologia</span><div class="bar"><div class="bar__fill bar__fill--mid" style="width: 48%"></div></div><em>48%</em></li>
-              <li><span>Marketing</span><div class="bar"><div class="bar__fill bar__fill--high" style="width: 31%"></div></div><em>31%</em></li>
-            </ul>
-          </div>
-
-          <div class="card">
-            <div class="card__head">
-              <div><h3>Distribuição de links</h3><span class="card__sub">Geração e envio por canal — anônimo e rastreável por setor</span></div>
-            </div>
-            <ul class="links-list">
-              <li class="link-row"><span class="link-row__ic">◭</span><div><strong>Operações · 320 colaboradores</strong><span>crivo.app/d/op-2q26 · enviado via WhatsApp</span></div><button class="btn btn--ghost-dark btn--sm">Copiar link</button></li>
-              <li class="link-row"><span class="link-row__ic">◭</span><div><strong>Comercial · 210 colaboradores</strong><span>crivo.app/d/cm-2q26 · enviado via e-mail</span></div><button class="btn btn--ghost-dark btn--sm">Copiar link</button></li>
-              <li class="link-row"><span class="link-row__ic">◭</span><div><strong>Financeiro · 140 colaboradores</strong><span>crivo.app/d/fn-2q26 · reenvio agendado</span></div><button class="btn btn--ghost-dark btn--sm">Copiar link</button></li>
-              <li class="link-row"><span class="link-row__ic">◭</span><div><strong>Tecnologia · 180 colaboradores</strong><span>crivo.app/d/tc-2q26 · WhatsApp</span></div><button class="btn btn--ghost-dark btn--sm">Copiar link</button></li>
-            </ul>
-            <button class="btn btn--outline-dark btn--block" style="margin-top:16px">Disparar lembrete para pendentes</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card__head"><div><h3>Histórico de campanhas</h3><span class="card__sub">Baseline e evolução por ciclo</span></div></div>
-          <table class="data-table">
-            <thead><tr><th>Campanha</th><th>Período</th><th>Respondentes</th><th>Adesão</th><th>ICD médio</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td><strong>NR-1 · 2026.Q2</strong></td><td>Mai/2026</td><td>847 / 1.240</td><td>68%</td><td><span class="score-pill score-pill--mid">80</span></td><td><span class="pattern-tag">Ativa</span></td></tr>
-              <tr><td><strong>NR-1 · 2026.Q1</strong></td><td>Fev/2026</td><td>1.190 / 1.240</td><td>96%</td><td><span class="score-pill score-pill--mid">76</span></td><td><span class="pattern-tag">Encerrada</span></td></tr>
-              <tr><td><strong>Baseline inicial</strong></td><td>Nov/2025</td><td>1.205 / 1.240</td><td>97%</td><td><span class="score-pill score-pill--low">71</span></td><td><span class="pattern-tag">Encerrada</span></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <div id="campanhas-root"></div>
       </section>
 
       <!-- ============ PARECER CRIVO ============ -->
