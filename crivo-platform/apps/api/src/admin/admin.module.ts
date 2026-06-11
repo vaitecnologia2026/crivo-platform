@@ -9,6 +9,11 @@ import { TenantBrandingService } from './tenant-branding.service';
 import { DomainsService } from './domains.service';
 import { PublicResolutionController } from './public-resolution.controller';
 import { AdminOverviewController } from './admin-overview.controller';
+import { ProductsController } from './products.controller';
+import { ProductsService } from './products.service';
+import { PlatformLeadsController } from './platform-leads.controller';
+import { PlatformLeadsService } from './platform-leads.service';
+import { PublicDiagnosticController } from './public-diagnostic.controller';
 import { AuditService } from './audit.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 
@@ -18,7 +23,15 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
  * PrismaService. Rotas sob /admin/* (após o prefixo /api).
  */
 @Module({
-  controllers: [AdminAuthController, TenantsController, PublicResolutionController, AdminOverviewController],
+  controllers: [
+    AdminAuthController,
+    TenantsController,
+    PublicResolutionController,
+    AdminOverviewController,
+    ProductsController,
+    PlatformLeadsController,
+    PublicDiagnosticController,
+  ],
   providers: [
     AdminAuthService,
     TenantsService,
@@ -26,6 +39,8 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     TenantModulesService,
     TenantBrandingService,
     DomainsService,
+    ProductsService,
+    PlatformLeadsService,
     AuditService,
     SuperAdminGuard,
   ],

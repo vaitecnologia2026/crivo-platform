@@ -1,5 +1,9 @@
 import { PrismaClient, Role, Plan, DominantPattern, LeadStage } from '@prisma/client';
-import { PERMISSIONS, ROLE_PERMISSIONS, ROLE_LABELS, MODULES, modulesForPlan } from '@crivo/types';
+import {
+  PERMISSIONS, ROLE_PERMISSIONS, ROLE_LABELS, MODULES, modulesForPlan,
+  PRE_DIAGNOSTIC_QUESTIONS, PRE_DIAGNOSTIC_DIMENSIONS, PRE_DIAGNOSTIC_DIMENSION_LABEL,
+  PRE_DIAGNOSTIC_SCALE, computePreDiagnostic,
+} from '@crivo/types';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -30,6 +34,8 @@ const LEADERS: Array<{
 async function main() {
   // Seed de DEMONSTRAÇÃO: reseta os dados para ser determinístico em re-runs.
   // NÃO rodar em produção com dados reais.
+  await prisma.platformLead.deleteMany();
+  await prisma.product.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.rolePermission.deleteMany();
   await prisma.permission.deleteMany();
@@ -83,6 +89,97 @@ async function main() {
   for (const m of MODULES) {
     await prisma.moduleCatalog.create({
       data: { code: m.code, name: m.name, category: m.category, minPlan: m.minPlan as Plan },
+    });
+  }
+
+  // 0.3) CATÁLOGO DE PRODUTOS (núcleo product-driven). Tudo nasce de um produto.
+  //      O instrumento de diagnóstico do PRÉ-DIAGNÓSTICO reusa as 10 perguntas
+  //      do Diagnóstico Inicial (porta de entrada da LP) — perguntas editáveis.
+  const preDiagnosticInstrument = {
+    dimensions: PRE_DIAGNOSTIC_DIMENSIONS.map((d) => ({ key: d, label: PRE_DIAGNOSTIC_DIMENSION_LABEL[d] })),
+    scales: [
+      { key: 'maturidade', label: 'Maturidade (1–5)', options: PRE_DIAGNOSTIC_SCALE.map((s) => ({ value: s.value, label: s.label })) },
+    ],
+    blocks: PRE_DIAGNOSTIC_DIMENSIONS.map((d) => ({ key: d, label: PRE_DIAGNOSTIC_DIMENSION_LABEL[d] })),
+    questions: PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({
+      id: q.id, text: q.text, block: q.dimension, dimension: q.dimension, scale: 'maturidade', weight: 1, inverse: false,
+    })),
+  };
+
+  // Produto OBRIGATÓRIO de captura: só LP/formulário/diagnóstico/CRM — sem
+  // portal, sem app, sem IA (modules vazio).
+  await prisma.product.create({
+    data: {
+      slug: 'pre-diagnostico-crivo',
+      name: 'PRÉ-DIAGNÓSTICO CRIVO',
+      description: 'Captura de leads da Landing Page via Diagnóstico Inicial. Sem acesso ao portal, app ou IA — gera leitura preliminar e oportunidade comercial no CRM.',
+      status: 'ACTIVE',
+      plan: null,
+      monthlyPriceCents: 0,
+      setupPriceCents: 0,
+      maxUsers: 0,
+      maxLeaders: 0,
+      companyType: 'Todas',
+      modules: [],
+      diagnostic: preDiagnosticInstrument,
+      aiConfig: undefined,
+      isLeadCapture: true,
+    },
+  });
+
+  // Produtos de venda de exemplo (catálogo comercial). Módulos derivados do plano.
+  const SALES_PRODUCTS: Array<{
+    slug: string; name: string; plan: Plan; monthly: number; setup: number;
+    maxUsers: number; maxLeaders: number; description: string;
+  }> = [
+    { slug: 'crivo-lite', name: 'CRIVO Lite', plan: Plan.BASE, monthly: 99000, setup: 150000, maxUsers: 30, maxLeaders: 5, description: 'Diagnóstico e dashboard executivo para times enxutos.' },
+    { slug: 'crivo-professional', name: 'CRIVO Professional', plan: Plan.EVOLUCAO, monthly: 249000, setup: 350000, maxUsers: 120, maxLeaders: 20, description: 'Diagnóstico, ICD/Radar da Decisão, plano de ação e Academia.' },
+    { slug: 'crivo-enterprise', name: 'CRIVO Enterprise', plan: Plan.ENTERPRISE, monthly: 590000, setup: 900000, maxUsers: 0, maxLeaders: 0, description: 'Ecossistema completo: diagnóstico, ICD, IA dos líderes, parecer consultivo e governança.' },
+  ];
+  for (const p of SALES_PRODUCTS) {
+    await prisma.product.create({
+      data: {
+        slug: p.slug,
+        name: p.name,
+        description: p.description,
+        status: 'ACTIVE',
+        plan: p.plan,
+        monthlyPriceCents: p.monthly,
+        setupPriceCents: p.setup,
+        maxUsers: p.maxUsers,
+        maxLeaders: p.maxLeaders,
+        companyType: 'Empresas de médio e grande porte',
+        modules: modulesForPlan(p.plan as unknown as Parameters<typeof modulesForPlan>[0]),
+        diagnostic: preDiagnosticInstrument,
+        isLeadCapture: false,
+      },
+    });
+  }
+
+  // 0.4) CRM DO SUPER ADMIN — leads de demonstração do funil comercial da CRIVO.
+  const captureProduct = await prisma.product.findFirst({ where: { isLeadCapture: true } });
+  const answersFor = (vals: number[]) => PRE_DIAGNOSTIC_QUESTIONS.map((q, i) => ({ questionId: q.id, value: vals[i] ?? 3 }));
+  const PLATFORM_LEADS: Array<{
+    name: string; company: string; email: string; phone: string; segment: string;
+    employees: string; stage: 'NOVO' | 'PRE_DIAGNOSTICO' | 'REUNIAO' | 'PROPOSTA' | 'FECHADO';
+    vals: number[];
+  }> = [
+    { name: 'Patrícia Gomes', company: 'Indústrias Verana', email: 'patricia@verana.com.br', phone: '(11) 98888-1010', segment: 'Indústria', employees: '201-500', stage: 'NOVO', vals: [2,2,3,2,2,3,2,1,2,2] },
+    { name: 'Marcos Tavares', company: 'Rede Sollar Varejo', email: 'marcos@sollar.com.br', phone: '(21) 97777-2020', segment: 'Varejo', employees: '51-200', stage: 'PRE_DIAGNOSTICO', vals: [3,3,3,2,3,3,3,2,3,3] },
+    { name: 'Beatriz Nunes', company: 'Clínica Vitalis', email: 'bia@vitalis.com.br', phone: '(31) 96666-3030', segment: 'Saúde', employees: '11-50', stage: 'REUNIAO', vals: [4,3,4,3,4,4,3,3,4,3] },
+    { name: 'Henrique Sá', company: 'Banco Meridiano', email: 'henrique@meridiano.com.br', phone: '(11) 95555-4040', segment: 'Serviços financeiros', employees: '500+', stage: 'PROPOSTA', vals: [4,4,4,4,5,4,4,4,4,5] },
+    { name: 'Luiza Prado', company: 'TecNova Sistemas', email: 'luiza@tecnova.com.br', phone: '(48) 94444-5050', segment: 'Tecnologia', employees: '51-200', stage: 'FECHADO', vals: [5,5,4,5,5,5,4,5,5,4] },
+  ];
+  for (const ld of PLATFORM_LEADS) {
+    const result = computePreDiagnostic(answersFor(ld.vals));
+    await prisma.platformLead.create({
+      data: {
+        name: ld.name, company: ld.company, email: ld.email, phone: ld.phone,
+        segment: ld.segment, employeesCount: ld.employees, origin: 'lp-diagnostico',
+        productId: captureProduct?.id ?? null,
+        diagnosticScore: result.score, diagnosticResult: result as unknown as object,
+        stage: ld.stage,
+      },
     });
   }
 

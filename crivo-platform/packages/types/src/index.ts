@@ -418,6 +418,143 @@ export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult 
   return { score, level, byDimension, topAttention };
 }
 
+// ── Produtos (núcleo product-driven — Super Admin) ──
+// Tudo nasce de um Produto: preço, limites, módulos, instrumento de diagnóstico
+// (perguntas editáveis) e IA por produto. Espelha o model Product (control plane).
+
+export const PRODUCT_STATUSES = ['DRAFT', 'ACTIVE', 'INACTIVE'] as const;
+export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
+
+export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
+  DRAFT: 'Rascunho',
+  ACTIVE: 'Ativo',
+  INACTIVE: 'Arquivado',
+};
+
+/** Config da IA dos líderes, por produto. */
+export interface ProductAiConfig {
+  prompt?: string;
+  knowledgeBase?: string;
+  rules?: string;
+  limitations?: string;
+  objective?: string;
+  documents?: string[];
+}
+
+/** Instrumento de diagnóstico EDITÁVEL do produto (perguntas não-fixas). */
+export interface ProductDiagnostic {
+  dimensions?: { key: string; label: string }[];
+  scales?: { key: string; label: string; options: { value: number; label: string }[] }[];
+  blocks?: { key: string; label: string }[];
+  questions?: {
+    id: number;
+    text: string;
+    block?: string;
+    dimension?: string;
+    scale?: string;
+    weight?: number;
+    inverse?: boolean;
+  }[];
+}
+
+export interface ProductSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  status: ProductStatus;
+  plan: Plan | null;
+  monthlyPriceCents: number;
+  setupPriceCents: number;
+  maxUsers: number;
+  maxLeaders: number;
+  companyType: string | null;
+  modules: string[];
+  isLeadCapture: boolean;
+  questionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductDetail extends ProductSummary {
+  diagnostic: ProductDiagnostic | null;
+  aiConfig: ProductAiConfig | null;
+}
+
+export interface UpsertProductRequest {
+  slug?: string;
+  name: string;
+  description?: string | null;
+  status?: ProductStatus;
+  plan?: Plan | null;
+  monthlyPriceCents?: number;
+  setupPriceCents?: number;
+  maxUsers?: number;
+  maxLeaders?: number;
+  companyType?: string | null;
+  modules?: string[];
+  diagnostic?: ProductDiagnostic | null;
+  aiConfig?: ProductAiConfig | null;
+  isLeadCapture?: boolean;
+}
+
+// ── CRM do Super Admin (funil comercial da CRIVO) ──
+
+export const PLATFORM_LEAD_STAGES = [
+  'NOVO',
+  'PRE_DIAGNOSTICO',
+  'REUNIAO',
+  'PROPOSTA',
+  'FECHADO',
+  'PERDIDO',
+] as const;
+export type PlatformLeadStage = (typeof PLATFORM_LEAD_STAGES)[number];
+
+export const PLATFORM_LEAD_STAGE_LABEL: Record<PlatformLeadStage, string> = {
+  NOVO: 'Novo lead',
+  PRE_DIAGNOSTICO: 'Pré-diagnóstico',
+  REUNIAO: 'Reunião agendada',
+  PROPOSTA: 'Proposta',
+  FECHADO: 'Fechado',
+  PERDIDO: 'Perdido',
+};
+
+export interface PlatformLeadSummary {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  segment: string | null;
+  employeesCount: string | null;
+  origin: string | null;
+  productId: string | null;
+  diagnosticScore: number | null;
+  diagnosticResult: PreDiagnosticResult | null;
+  stage: PlatformLeadStage;
+  notes: string | null;
+  convertedTenantId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload público do Diagnóstico Inicial da LP (form + respostas). */
+export interface CreateDiagnosticLeadRequest {
+  name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  segment?: string;
+  employeesCount?: string;
+  origin?: string;
+  answers: IcdAnswer[];
+}
+
+export interface CreateDiagnosticLeadResponse {
+  ok: true;
+  result: PreDiagnosticResult;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;
