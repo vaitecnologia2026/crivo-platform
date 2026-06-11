@@ -574,8 +574,8 @@ export default function LandingPage() {
             <span className="eyebrow eyebrow--terra">App CRIVO</span>
             <h2 className="h2 h2--light">A transformação que acontece na rotina do líder.</h2>
             <p className="body--light">
-              Enquanto o Portal organiza a visão executiva da empresa, o app sustenta a evolução no dia a dia da
-              liderança — conectado ao mesmo ICD e ao mesmo plano de ação.
+              O Portal mostra onde a organização precisa atuar. O app ajuda a liderança a sustentar a mudança todos os
+              dias — conectado à jornada CRIVO, aos planos de ação e aos indicadores agregados.
             </p>
             <p className="lgpd-note">
               <strong>Portal ↔ App.</strong> Uma jornada integrada: o que o líder desenvolve no app reflete na leitura
@@ -585,24 +585,32 @@ export default function LandingPage() {
           <div className="split__right">
             <div className="app-features">
               <div className="app-feature">
-                <strong>Check-in</strong>
-                <span>Registro do estado decisório no dia a dia.</span>
+                <strong>Meu Estado</strong>
+                <span>Check-in da coerência decisória no dia a dia.</span>
               </div>
               <div className="app-feature">
                 <strong>CRIVO Pocket</strong>
                 <span>Microaprendizados aplicados à liderança.</span>
               </div>
               <div className="app-feature">
-                <strong>ICD</strong>
-                <span>Medição contínua da coerência decisória.</span>
+                <strong>Radar da Decisão · ICD™</strong>
+                <span>Leitura contínua da coerência decisória sob pressão.</span>
               </div>
               <div className="app-feature">
-                <strong>Chat CRIVO IA</strong>
-                <span>Apoio inteligente à decisão, sob demanda.</span>
+                <strong>Simulador de Decisão</strong>
+                <span>Ensaie decisões difíceis antes de agir.</span>
               </div>
               <div className="app-feature">
-                <strong>Acompanhamento</strong>
-                <span>Evolução visível ao longo da jornada.</span>
+                <strong>Mentor Operacional · Mentor CRIVO</strong>
+                <span>Apoio reflexivo e operacional à decisão.</span>
+              </div>
+              <div className="app-feature">
+                <strong>Academia CRIVO</strong>
+                <span>Cursos, trilhas, vídeos e materiais aplicados.</span>
+              </div>
+              <div className="app-feature">
+                <strong>Dashboard do Líder</strong>
+                <span>Evolução e plano de desenvolvimento do líder.</span>
               </div>
             </div>
           </div>
@@ -614,7 +622,11 @@ export default function LandingPage() {
         <div className="container">
           <span className="eyebrow">Soluções &amp; Serviços</span>
           <h2 className="h2">Para cada momento da organização, um nível de atuação.</h2>
-          <p className="lede">Desenvolvemos líderes para sustentar cultura, reduzir riscos e fortalecer a performance.</p>
+          <p className="lede">
+            A CRIVO combina diagnóstico, plano de ação, desenvolvimento da liderança, app, dados e acompanhamento para
+            cada momento da organização — da entrada (NR-1 e diagnóstico inicial) à transformação cultural, governança
+            de IA e performance.
+          </p>
 
           <div className="ladder">
             <div className="ladder__step ladder__step--free">
@@ -650,8 +662,8 @@ export default function LandingPage() {
               <h3>CRIVO Base</h3>
               <span className="product-card__tag">Formação Coletiva</span>
               <p>
-                Turmas de até 50 líderes. Formação contínua: liderança prática, cultura, gestão emocional, NR-1 aplicada
-                e CRIVO Pocket. ICD inicial incluído.
+                Turmas de até 50 líderes. Formação contínua: liderança prática, cultura, gestão emocional, fatores
+                psicossociais aplicados e CRIVO Pocket. Radar da Decisão inicial incluído.
               </p>
               <a href="#diagnostico" className="btn btn--outline-dark btn--block">
                 Conhecer
@@ -737,8 +749,8 @@ export default function LandingPage() {
               <thead>
                 <tr>
                   <th>Capacidade</th>
-                  <th>Plataformas NR-1</th>
-                  <th>Consultorias tradicionais</th>
+                  <th>Soluções focadas em NR-1</th>
+                  <th>Consultorias pontuais</th>
                   <th className="compare__crivo">CRIVO</th>
                 </tr>
               </thead>
@@ -790,7 +802,7 @@ export default function LandingPage() {
           </div>
 
           <p className="transition-quote transition-quote--light">
-            &ldquo;Não atuamos apenas no problema. Atuamos na sustentação humana da organização.&rdquo;
+            &ldquo;Não tratamos apenas o risco. Atuamos na liderança que sustenta cultura, decisões e resultados.&rdquo;
           </p>
         </div>
       </section>
@@ -800,20 +812,20 @@ export default function LandingPage() {
         <div className="container ebook">
           <div className="ebook__copy">
             <span className="eyebrow">Material gratuito</span>
-            <h2 className="h2">Guia NR-1 para Lideranças: o que muda em 26/05/2026.</h2>
+            <h2 className="h2">NR-1, riscos psicossociais e liderança: o que enxergar além da conformidade.</h2>
             <p className="ebook__lede">
-              Um material técnico e direto sobre a obrigatoriedade da NR-1, os riscos psicossociais e o papel da
-              liderança na conformidade — sem juridiquês.
+              Um material direto para entender como fatores psicossociais impactam cultura, liderança, execução e
+              resultados — e como transformar a exigência da NR-1 em diagnóstico, evidências e plano de ação.
             </p>
             <ul className="ebook__list">
               <li>
-                <span>▴</span> O que a fiscalização passa a exigir na prática
+                <span>▴</span> O que a NR-1 exige na prática sobre fatores psicossociais
               </li>
               <li>
-                <span>▴</span> Como a liderança vira fator de risco — ou de proteção
+                <span>▴</span> Como a liderança pode ampliar ou reduzir riscos na rotina
               </li>
               <li>
-                <span>▴</span> Checklist de conformidade para começar hoje
+                <span>▴</span> Como organizar diagnóstico, evidências e plano de ação
               </li>
             </ul>
           </div>
