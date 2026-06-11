@@ -476,8 +476,8 @@ export default function LandingPage() {
             <span className="eyebrow eyebrow--terra">Portal Executivo CRIVO</span>
             <h2 className="h2 h2--light">A visão executiva da sua organização, em um ambiente logado e seguro.</h2>
             <p className="body--light">
-              Empresas contratantes recebem acesso com <strong>login e senha</strong>. No Portal Executivo, a empresa
-              organiza todo o diagnóstico e acompanha a transformação em um só lugar.
+              Empresas contratantes acessam um <strong>ambiente seguro</strong> para organizar diagnósticos, acompanhar
+              dashboards, gerir planos de ação e monitorar a evolução da jornada CRIVO.
             </p>
             <blockquote className="pull-quote">
               &ldquo;O Portal organiza a visão executiva da empresa. O app sustenta a transformação na rotina dos
@@ -500,7 +500,7 @@ export default function LandingPage() {
                 <span>▴</span> Acompanhar a adesão em tempo real
               </div>
               <div className="portal-feature">
-                <span>▴</span> Visualizar dashboards e o ICD organizacional
+                <span>▴</span> Visualizar dashboards do diagnóstico e indicadores agregados de liderança
               </div>
               <div className="portal-feature">
                 <span>▴</span> Acessar o mapa de riscos psicossociais
@@ -528,8 +528,8 @@ export default function LandingPage() {
 
           <div className="dash-grid">
             <div className="dash-card">
-              <strong>ICD médio</strong>
-              <span>Coerência decisória da organização</span>
+              <strong>Índice Geral CRIVO</strong>
+              <span>Síntese dos fatores humanos, culturais e organizacionais</span>
             </div>
             <div className="dash-card">
               <strong>Evolução dos indicadores</strong>
@@ -544,12 +544,12 @@ export default function LandingPage() {
               <span>Prioridades de atuação</span>
             </div>
             <div className="dash-card">
-              <strong>Riscos psicossociais</strong>
-              <span>Mapeamento NR-1 aplicado</span>
+              <strong>Fatores psicossociais</strong>
+              <span>Leitura estruturada dos riscos relacionados ao trabalho</span>
             </div>
             <div className="dash-card">
-              <strong>Custos invisíveis</strong>
-              <span>Passivo estimado e monitorado</span>
+              <strong>Liderança e cultura</strong>
+              <span>Padrões de liderança, segurança psicológica e coerência</span>
             </div>
             <div className="dash-card">
               <strong>Plano de ação</strong>
@@ -557,7 +557,7 @@ export default function LandingPage() {
             </div>
             <div className="dash-card">
               <strong>Evidências</strong>
-              <span>Documentação para conformidade</span>
+              <span>Documentação e acompanhamento da jornada</span>
             </div>
             <div className="dash-card">
               <strong>Relatório executivo</strong>
@@ -989,30 +989,60 @@ export default function LandingPage() {
 
           <div className="faq">
             <details>
-              <summary>O que é o ICD e por que ele é diferente?</summary>
+              <summary>O que a CRIVO faz na prática?</summary>
               <p>
-                O ICD — Índice de Coerência Decisória — é a métrica proprietária da CRIVO que mede a qualidade do estado
-                decisório do líder: não o resultado da decisão, mas as condições em que ela foi tomada. São 10 perguntas
-                sobre uma decisão real, 5 dimensões avaliadas (Clareza, Pressão, Confiança, Influência, Risco/Ação) e um
-                score de 0 a 100, com o padrão dominante que governa as decisões.
+                A CRIVO é uma plataforma de inteligência organizacional e desenvolvimento da liderança. Ajuda a empresa a
+                identificar riscos humanos, custos invisíveis e padrões de liderança que afetam cultura, execução e
+                resultados — transformando diagnóstico em plano de ação, desenvolvimento da liderança e evolução
+                acompanhada (Portal, app, indicadores e parecer consultivo).
+              </p>
+            </details>
+            <details>
+              <summary>A CRIVO é uma solução apenas para NR-1?</summary>
+              <p>
+                Não. A NR-1 é uma porta de entrada e uma urgência de mercado, não o centro da marca. A CRIVO atua em
+                liderança, cultura, fatores psicossociais, transformação cultural, governança de IA e performance.
               </p>
             </details>
             <details>
               <summary>A CRIVO resolve a obrigação da NR-1?</summary>
               <p>
-                A CRIVO apoia a empresa na conformidade: diagnóstico, leitura técnica, plano de ação, evidências e
-                acompanhamento — integrando os riscos psicossociais à liderança, à decisão e à execução. Mais do que
-                cumprir a obrigação, tratamos a causa: a forma como a liderança decide, cobra e se comporta. A NR-1 é
-                obrigatória desde 26/05/2026.
+                A CRIVO apoia a empresa com diagnóstico, leitura técnica, plano de ação, evidências e acompanhamento —
+                integrando fatores psicossociais à liderança, à decisão e à execução. Não prometemos conformidade
+                automática: tratamos a causa — a forma como a liderança decide, cobra, comunica e sustenta a rotina.
+              </p>
+            </details>
+            <details>
+              <summary>O que é o ICD™ e por que ele é diferente?</summary>
+              <p>
+                O ICD™ — Índice de Coerência Decisória — é uma metodologia proprietária da CRIVO para apoiar líderes na
+                leitura da coerência decisória sob pressão. Não julga a decisão nem mede personalidade ou saúde mental.
+                São 8 perguntas sobre uma decisão real, 4 dimensões — os 4 Rs (Reatividade, Rigidez, Repercussão, Risco)
+                — score de 0 a 100 com zonas de leitura, e a tensão dominante.
               </p>
             </details>
             <details>
               <summary>Como funciona o Portal Executivo e o que vejo no dashboard?</summary>
               <p>
-                Empresas contratantes recebem acesso logado (login e senha). No Portal, a empresa cadastra áreas, cria
-                campanhas, dispara links de pesquisa, acompanha a adesão e gere o plano de ação. O dashboard reúne ICD
-                médio, evolução dos indicadores, taxa de adesão, áreas críticas, riscos psicossociais, custos invisíveis,
-                plano de ação, evidências e relatório executivo — sempre com dados agregados e protegidos pela LGPD.
+                Empresas contratantes acessam um ambiente seguro. No Portal, a empresa cadastra áreas, cria campanhas de
+                diagnóstico, acompanha a adesão e gere o plano de ação. O dashboard reúne o Índice Geral CRIVO, fatores
+                psicossociais, liderança e cultura, áreas críticas, plano de ação, evidências e relatório executivo —
+                sempre com dados agregados, por grupos elegíveis e protegidos pela LGPD.
+              </p>
+            </details>
+            <details>
+              <summary>A empresa verá respostas individuais?</summary>
+              <p>
+                Não. A empresa visualiza apenas dados agregados e por grupos elegíveis, respeitando um volume mínimo de
+                respondentes. Os dados individuais do líder pertencem ao líder; o ICD não é usado para ranking ou
+                avaliação individual pela empresa.
+              </p>
+            </details>
+            <details>
+              <summary>Pequenas empresas podem usar a CRIVO?</summary>
+              <p>
+                Sim. O diagnóstico inicial gratuito é uma porta de entrada acessível a empresas de qualquer porte, e os
+                níveis de serviço se ajustam ao momento e ao tamanho da organização.
               </p>
             </details>
             <details>
@@ -1061,8 +1091,8 @@ export default function LandingPage() {
             <circle cx="60" cy="16" r="2.6" fill="#F2F0EC" />
           </svg>
           <p className="final__message">
-            A CRIVO identifica riscos e padrões decisórios, organiza o diagnóstico no Portal Executivo, desenvolve
-            líderes e transforma dados em plano de ação, governança, execução e evolução mensurável.
+            A CRIVO identifica riscos psicossociais, custos invisíveis e padrões de liderança, organiza o diagnóstico no
+            Portal Executivo e sustenta a evolução por meio de planos de ação, desenvolvimento e acompanhamento contínuo.
           </p>
           <h2 className="display final__title">
             Decisão com critério é <span className="terra-text">infraestrutura</span> de qualidade e resultado.
@@ -1070,7 +1100,7 @@ export default function LandingPage() {
           <p className="final__sub">Lideranças sustentam cultura. Cultura sustenta organizações.</p>
           <div className="hero__ctas">
             <a href="#diagnostico" className="btn btn--terra">
-              Solicitar diagnóstico
+              Fazer diagnóstico inicial
             </a>
             <a
               href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
