@@ -109,46 +109,57 @@ export class IcdService {
     });
   }
 
-  /** Dashboard executivo do ICD — agregados e ranking de líderes do tenant. */
+  /**
+   * Dashboard executivo do ICD — leitura AGREGADA da liderança (confidencialidade,
+   * Portal §3/§4). NÃO expõe ranking nem dados individuais de líderes: só médias,
+   * distribuição de tensões e contagem. O líder vê o próprio resultado em /icd/me.
+   */
   async dashboard(tenantId: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const scores = await tx.icdScore.findMany({
         orderBy: { computedAt: 'desc' },
-        include: { leader: { select: { id: true, name: true, email: true } } },
       });
 
-      if (scores.length === 0) {
-        return { icdMedio: null, totalAvaliacoes: 0, ranking: [], distribuicaoPadrao: {} };
-      }
+      const empty = {
+        icdMedio: null,
+        totalAvaliacoes: 0,
+        totalLideres: 0,
+        distribuicaoPadrao: {},
+        dimensionAverages: { reatividade: 0, rigidez: 0, repercussao: 0, risco: 0 },
+      };
+      if (scores.length === 0) return empty;
 
-      // Último score por líder (já ordenado desc por computedAt)
+      // Último score por líder (já ordenado desc por computedAt) — sem nomes.
       const latestByLeader = new Map<string, (typeof scores)[number]>();
       for (const s of scores) if (!latestByLeader.has(s.leaderId)) latestByLeader.set(s.leaderId, s);
+      const latest = [...latestByLeader.values()];
 
-      const ranking = [...latestByLeader.values()]
-        .map((s) => ({
-          leaderId: s.leaderId,
-          nome: s.leader.name,
-          score: s.score,
-          padraoDominante: s.dominantPattern,
-          dimensoes: s.dimensions,
-        }))
-        .sort((a, b) => b.score - a.score);
-
-      const icdMedio = Math.round(ranking.reduce((sum, r) => sum + r.score, 0) / ranking.length);
+      const icdMedio = Math.round(latest.reduce((sum, s) => sum + s.score, 0) / latest.length);
 
       const distribuicaoPadrao: Record<string, number> = {};
-      for (const r of ranking) {
-        const p = r.padraoDominante as DominantPattern;
+      for (const s of latest) {
+        const p = s.dominantPattern as DominantPattern;
         distribuicaoPadrao[p] = (distribuicaoPadrao[p] ?? 0) + 1;
+      }
+
+      // Média por dimensão (4 Rs) — agregada, sem identificar ninguém.
+      const dims = ['reatividade', 'rigidez', 'repercussao', 'risco'] as const;
+      const dimensionAverages = {} as Record<(typeof dims)[number], number>;
+      for (const d of dims) {
+        const vals = latest
+          .map((s) => (s.dimensions as Record<string, number>)?.[d])
+          .filter((v): v is number => typeof v === 'number');
+        dimensionAverages[d] = vals.length
+          ? Math.round(vals.reduce((sum, v) => sum + v, 0) / vals.length)
+          : 0;
       }
 
       return {
         icdMedio,
         totalAvaliacoes: scores.length,
-        totalLideres: ranking.length,
-        ranking,
+        totalLideres: latest.length,
         distribuicaoPadrao,
+        dimensionAverages,
       };
     });
   }

@@ -1,6 +1,10 @@
 "use client";
 
-import { useIcdDashboard, PATTERN_LABEL } from "./useIcdDashboard";
+import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
+
+// Confidencialidade (Portal §5): cortes só com volume mínimo de respondentes.
+const MIN_RESPONDENTES = 5;
+const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
 function scoreClass(score: number): string {
   if (score >= 80) return "is-high";
@@ -38,14 +42,14 @@ export function DashboardScreen() {
         </div>
       )}
 
-      {status === "ok" && data && (data.icdMedio === null || data.ranking.length === 0) && (
+      {status === "ok" && data && (data.icdMedio === null || data.totalLideres === 0) && (
         <div className="dash-state">
           Nenhuma avaliação registrada ainda. Assim que os líderes responderem ao ICD, os indicadores
           aparecem aqui.
         </div>
       )}
 
-      {status === "ok" && data && data.icdMedio !== null && data.ranking.length > 0 && (
+      {status === "ok" && data && data.icdMedio !== null && data.totalLideres > 0 && (
         <>
           <div className="kpi-grid">
             <div className="kpi">
@@ -58,7 +62,7 @@ export function DashboardScreen() {
             </div>
             <div className="kpi">
               <span className="kpi__label">Líderes avaliados</span>
-              <strong className="kpi__value">{data.totalLideres ?? data.ranking.length}</strong>
+              <strong className="kpi__value">{data.totalLideres}</strong>
               <span className="kpi__delta">no ciclo atual</span>
             </div>
             <div className="kpi">
@@ -81,38 +85,36 @@ export function DashboardScreen() {
           <div className="card">
             <div className="card__head">
               <div>
-                <h3>Ranking de líderes — ICD</h3>
-                <span className="card__sub">Último score por líder, do maior ao menor</span>
+                <h3>Coerência decisória da liderança — agregada</h3>
+                <span className="card__sub">Média por dimensão (4 Rs). Sem identificação individual de líderes.</span>
               </div>
             </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Líder</th>
-                  <th>ICD</th>
-                  <th>Tensão dominante</th>
-                  <th>Reatividade</th>
-                  <th>Rigidez</th>
-                  <th>Repercussão</th>
-                  <th>Risco</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.ranking.map((r) => (
-                  <tr key={r.leaderId}>
-                    <td>{r.nome}</td>
-                    <td>
-                      <strong className={`dash-score ${scoreClass(r.score)}`}>{r.score}</strong>
-                    </td>
-                    <td>{PATTERN_LABEL[r.padraoDominante] ?? r.padraoDominante}</td>
-                    <td>{r.dimensoes?.reatividade ?? "—"}</td>
-                    <td>{r.dimensoes?.rigidez ?? "—"}</td>
-                    <td>{r.dimensoes?.repercussao ?? "—"}</td>
-                    <td>{r.dimensoes?.risco ?? "—"}</td>
+            {data.totalLideres < MIN_RESPONDENTES ? (
+              <p className="dash-state">
+                Dados insuficientes para preservar a confidencialidade (mínimo de {MIN_RESPONDENTES} respondentes).
+              </p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Dimensão (R)</th>
+                    <th>Coerência média</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {DIMENSIONS.map((d) => (
+                    <tr key={d}>
+                      <td>{DIMENSION_LABEL[d] ?? d}</td>
+                      <td>
+                        <strong className={`dash-score ${scoreClass(data.dimensionAverages?.[d] ?? 0)}`}>
+                          {data.dimensionAverages?.[d] ?? 0}
+                        </strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </>
       )}

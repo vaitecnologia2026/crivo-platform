@@ -3,20 +3,14 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-// Shape real de GET /api/icd/dashboard (verificado contra a API).
-export interface RankingRow {
-  leaderId: string;
-  nome: string;
-  score: number;
-  padraoDominante: string;
-  dimensoes: Record<string, number>;
-}
+// Shape real de GET /api/icd/dashboard (verificado contra a API). Leitura
+// AGREGADA: sem ranking nem dados individuais de líderes (confidencialidade).
 export interface DashboardData {
   icdMedio: number | null;
   totalAvaliacoes: number;
-  totalLideres?: number;
-  ranking: RankingRow[];
+  totalLideres: number;
   distribuicaoPadrao: Record<string, number>;
+  dimensionAverages: Record<string, number>;
 }
 
 export type LoadStatus = "loading" | "error" | "ok";

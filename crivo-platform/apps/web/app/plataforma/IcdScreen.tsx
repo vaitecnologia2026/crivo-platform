@@ -13,14 +13,14 @@ function barClass(v: number): string {
 export function IcdScreen() {
   const { data, status, refresh } = useIcdDashboard();
 
-  // Média de cada dimensão entre todos os líderes avaliados.
+  // Média agregada por dimensão (vinda do servidor — sem dados individuais).
   function dimensionAverages(): { key: string; label: string; value: number }[] {
-    if (!data || data.ranking.length === 0) return [];
-    return DIMENSIONS.map((key) => {
-      const vals = data.ranking.map((r) => r.dimensoes?.[key]).filter((v): v is number => typeof v === "number");
-      const avg = vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 0;
-      return { key, label: DIMENSION_LABEL[key] ?? key, value: avg };
-    });
+    if (!data) return [];
+    return DIMENSIONS.map((key) => ({
+      key,
+      label: DIMENSION_LABEL[key] ?? key,
+      value: data.dimensionAverages?.[key] ?? 0,
+    }));
   }
 
   // Padrão dominante mais frequente entre os líderes.
@@ -59,7 +59,7 @@ export function IcdScreen() {
         </div>
       )}
 
-      {status === "ok" && data && (data.icdMedio === null || data.ranking.length === 0) && (
+      {status === "ok" && data && (data.icdMedio === null || data.totalLideres === 0) && (
         <div className="dash-state">Nenhuma avaliação registrada ainda neste ciclo.</div>
       )}
 
@@ -95,7 +95,7 @@ export function IcdScreen() {
                 <small>/100</small>
               </strong>
               <span className="card__hint">
-                Média de {data.totalLideres ?? data.ranking.length} líderes avaliados.
+                Média agregada de {data.totalLideres} líderes — sem identificação individual.
               </span>
               <div className="kpi__bar">
                 <div style={{ width: `${data.icdMedio}%` }} />
