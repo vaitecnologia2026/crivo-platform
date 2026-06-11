@@ -5,6 +5,7 @@ import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
 import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
+import { TenantBrandingService } from './tenant-branding.service';
 import { AuditService } from './audit.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 
@@ -20,6 +21,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     TenantsService,
     ProvisioningService,
     TenantModulesService,
+    TenantBrandingService,
     AuditService,
     SuperAdminGuard,
   ],

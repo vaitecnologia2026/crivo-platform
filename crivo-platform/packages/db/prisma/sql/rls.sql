@@ -34,7 +34,7 @@ DECLARE
   tenant_col text;
   tables text[] := ARRAY['organizations','companies','units','teams','users','team_members',
                          'assessment_cycles','assessments','responses','icd_scores','leads',
-                         'tenant_modules','usage_counters'];
+                         'tenant_modules','usage_counters','tenant_branding'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
@@ -97,6 +97,12 @@ $$;
 --    plane, conexão owner). Assim uma empresa não se auto-habilita um módulo
 --    que não contratou, mesmo que um bug exponha um caminho de escrita.
 REVOKE INSERT, UPDATE, DELETE ON tenant_modules FROM crivo_app;
+
+-- 7) White-label (F5): tenant_branding também tem RLS por tenant (item 3, p/ a
+--    plataforma LER a própria identidade), mas a ESCRITA é owner-only — quem
+--    define o branding é o super admin (control plane). Tenant self-service de
+--    branding entra numa fatia futura (com permissão dedicada).
+REVOKE INSERT, UPDATE, DELETE ON tenant_branding FROM crivo_app;
 
 -- =====================================================================
 -- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):

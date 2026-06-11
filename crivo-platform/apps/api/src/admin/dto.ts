@@ -1,4 +1,14 @@
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsHexColor,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Plan } from '@crivo/db';
 
 export class PlatformLoginDto {
@@ -48,4 +58,27 @@ export class SetModuleDto {
 export class SetPlanDto {
   @IsEnum(Plan)
   plan!: Plan;
+}
+
+export class UpdateBrandingDto {
+  @IsOptional() @IsUrl() @MaxLength(500)
+  logoUrl?: string;
+
+  @IsOptional() @IsUrl() @MaxLength(500)
+  faviconUrl?: string;
+
+  @IsOptional() @IsHexColor()
+  primaryColor?: string;
+
+  @IsOptional() @IsHexColor()
+  accentColor?: string;
+
+  @IsOptional() @IsEmail() @MaxLength(200)
+  emailFrom?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  whatsapp?: string;
+
+  @IsOptional() @IsString() @MaxLength(280)
+  footerText?: string;
 }

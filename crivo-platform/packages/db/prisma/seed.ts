@@ -33,6 +33,7 @@ async function main() {
   await prisma.rolePermission.deleteMany();
   await prisma.permission.deleteMany();
   await prisma.roleDef.deleteMany();
+  await prisma.tenantBranding.deleteMany();
   await prisma.tenantModule.deleteMany();
   await prisma.moduleCatalog.deleteMany();
   await prisma.tenant.deleteMany();
@@ -102,6 +103,17 @@ async function main() {
   for (const code of modulesForPlan('ENTERPRISE')) {
     await prisma.tenantModule.create({ data: { tenantId: org.id, moduleCode: code, enabled: true } });
   }
+
+  // 1.2) White-label de exemplo (F5) — inerte até a injeção visual (próxima fatia).
+  await prisma.tenantBranding.create({
+    data: {
+      tenantId: org.id,
+      primaryColor: '#0d1f3c',
+      accentColor: '#c4894a',
+      whatsapp: '(11) 91853-1796',
+      footerText: 'O2 Legacy & Consulting · powered by CRIVO',
+    },
+  });
 
   // 2) CEO (login de acesso ao painel executivo)
   await prisma.user.create({

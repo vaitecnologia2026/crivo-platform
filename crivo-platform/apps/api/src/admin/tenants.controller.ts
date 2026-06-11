@@ -7,14 +7,16 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
+import { TenantBrandingService } from './tenant-branding.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { CreateTenantDto, SetModuleDto, SetPlanDto } from './dto';
+import { CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBrandingDto } from './dto';
 import type { PlatformAdmin } from '@crivo/types';
 
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
@@ -25,6 +27,7 @@ export class TenantsController {
     private readonly tenants: TenantsService,
     private readonly provisioning: ProvisioningService,
     private readonly modules: TenantModulesService,
+    private readonly branding: TenantBrandingService,
   ) {}
 
   /** Lista todas as empresas. */
@@ -76,6 +79,24 @@ export class TenantsController {
   @Get(':id/usage')
   usage(@Param('id', ParseUUIDPipe) id: string) {
     return this.tenants.usage(id);
+  }
+
+  // ── White-label (F5) ──
+
+  /** Identidade visual da empresa. */
+  @Get(':id/branding')
+  getBranding(@Param('id', ParseUUIDPipe) id: string) {
+    return this.branding.get(id);
+  }
+
+  /** Atualiza a identidade visual (logo, cores, contatos, rodapé). */
+  @Put(':id/branding')
+  updateBranding(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBrandingDto,
+  ) {
+    return this.branding.update(id, dto, { id: admin.id, email: admin.email });
   }
 
   // ── Módulos (F4) ──

@@ -183,6 +183,25 @@ model ModuleCatalog {
   @@map("module_catalog")
 }
 
+// White-label (F5): identidade visual por empresa. 1:1 com Organization.
+// Data plane (RLS por tenant): a plataforma lê a própria via forTenant; a
+// escrita é owner-only (super admin define), como tenant_modules. As cores
+// sobrescrevem os tokens --crivo-* (primária = azul-profundo, acento = terra).
+model TenantBranding {
+  tenantId     String       @id @db.Uuid
+  org          Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logoUrl      String?
+  faviconUrl   String?
+  primaryColor String? // hex, sobrescreve --crivo-azul-profundo
+  accentColor  String? // hex, sobrescreve --crivo-terra
+  emailFrom    String?
+  whatsapp     String?
+  footerText   String?
+  updatedAt    DateTime     @updatedAt
+
+  @@map("tenant_branding")
+}
+
 // Metering (F4): contadores de uso por empresa/métrica/período (YYYY-MM).
 // Data plane (RLS por tenant): o app incrementa sob forTenant. Base p/ billing
 // e enforcement de limites de plano (PLAN_LIMITS).
@@ -239,6 +258,7 @@ model Organization {
   leads     Lead[]
   modules   TenantModule[]
   usage     UsageCounter[]
+  branding  TenantBranding?
 
   @@map("organizations")
 }

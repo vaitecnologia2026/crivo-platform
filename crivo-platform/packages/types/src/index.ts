@@ -133,6 +133,21 @@ export function planAllowsModule(plan: Plan, moduleCode: ModuleCode): boolean {
   return PLAN_RANK[plan] >= PLAN_RANK[mod.minPlan as Plan];
 }
 
+/** White-label (F5): identidade visual de uma empresa. Campos null = usa o
+ *  padrão CRIVO (tokens --crivo-*). primaryColor/accentColor são hex (#rrggbb). */
+export interface TenantBrandingData {
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  emailFrom: string | null;
+  whatsapp: string | null;
+  footerText: string | null;
+}
+
+/** Atualização de branding (todos opcionais; ausente = não mexe). */
+export type UpdateBrandingRequest = Partial<TenantBrandingData>;
+
 /** Uso corrente de uma empresa vs. limites do plano (painel super-admin). */
 export interface UsageSummary {
   plan: Plan;

@@ -469,7 +469,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
-| **F5** | **White-label** (FASE 5) | `TenantBranding`/`TenantDomain`, middleware de resolução por domínio, injeção de tokens `--crivo-*`, automação de domínio (Vercel) | F1 | 2 sem |
+| **F5** 🟦 | **White-label** (FASE 5) | ✅ `TenantBranding` (RLS leitura, escrita owner-only) + API super admin (GET/PUT, valida hex/URL, audita) + `GET /me/branding`. Resta: injeção dos tokens `--crivo-*` na plataforma (visual), `TenantDomain` + middleware de resolução por domínio, automação Vercel. **Ver Apêndice G** | F1 | em curso |
 | **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` × permissão do papel (`GET /me/modules` + `/me/permissions`; shell oculta módulos inativos e o que o papel não vê, falha-aberto). Resta: migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
 | **F8** | **Formulários/avaliações dinâmicos** (FASE 7) | `FormDefinition`/`FormSubmission`, engine de scoring, ICD migrado p/ template, builder de formulário | F3 | 3 sem |
@@ -861,3 +861,37 @@ no futuro sem mudança de contrato.
 
 - **Renderizar a sidebar em React** a partir de `NAV` (em vez de injetar HTML), removendo a filtragem por
   manipulação de DOM. Depois, migrar as telas para componentes config-driven. Habilita F7 (dashboards).
+
+---
+
+## Apêndice G — F5 entregue (White-label, fatia 1 · backend)
+
+**Status:** 🟦 identidade visual por empresa persistida e exposta; injeção visual + domínios pendentes.
+
+### O que foi construído
+
+- **Schema** (migration `f5_tenant_branding`): `TenantBranding` (1:1 com Organization; `logoUrl`,
+  `faviconUrl`, `primaryColor`, `accentColor`, `emailFrom`, `whatsapp`, `footerText`). Data plane com
+  **RLS por tenant** (a plataforma lê a própria via `forTenant`); **escrita owner-only** (`rls.sql`),
+  como `tenant_modules` — o super admin define; self-service do tenant entra depois.
+- **Tipos** (`@crivo/types`): `TenantBrandingData` + `UpdateBrandingRequest`.
+- **API super admin**: `GET /admin/tenants/:id/branding` e `PUT .../branding` (upsert parcial; valida
+  `@IsHexColor`/`@IsUrl`/`@IsEmail`; audita `tenant.branding.update`). `TenantBrandingService` (owner).
+- **Plataforma**: `GET /me/branding` lê a identidade da própria empresa sob RLS.
+- **Seed**: branding de exemplo para o tenant demo (cores CRIVO, whatsapp, rodapé) — inerte até a injeção.
+
+### Verificação (E2E)
+
+- `/me/branding` (CEO) e `GET` admin retornam o seed; `PUT` parcial atualiza `primaryColor`+`logoUrl` e
+  **preserva** os demais campos; `/me/branding` reflete; hex inválido → **400**; sem token → **401**.
+- DB: `crivo_app` lê o próprio branding sob `app.tenant`, **UPDATE negado** (escrita owner-only).
+- Gates: typecheck 8/8 · lint 3/3 · build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
+
+### Pendente da F5 (próxima fatia)
+
+- **Injeção visual** dos tokens na plataforma: aplicar `primaryColor`→`--crivo-azul-profundo` e
+  `accentColor`→`--crivo-terra` (e logo/favicon/rodapé) lidos de `/me/branding`. **Mudança visual —
+  verificar no browser.**
+- **`TenantDomain` + middleware de resolução por domínio** (hostname→tenant, pré-auth via owner) e
+  automação de domínio na Vercel.
+- **Self-service**: permitir o admin da empresa editar o próprio branding (permissão dedicada).
