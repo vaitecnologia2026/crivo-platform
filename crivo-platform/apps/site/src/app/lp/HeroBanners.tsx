@@ -54,7 +54,7 @@ export function HeroBanners() {
       </p>
       <div className="hero__ctas">
         <a href="#diagnostico" className="btn btn--terra">
-          Fazer diagnóstico inicial
+          Realizar diagnóstico
         </a>
         <a
           href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
