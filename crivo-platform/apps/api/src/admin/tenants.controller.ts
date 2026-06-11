@@ -14,9 +14,10 @@ import { TenantsService } from './tenants.service';
 import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
 import { TenantBrandingService } from './tenant-branding.service';
+import { DomainsService } from './domains.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBrandingDto } from './dto';
+import { AddDomainDto, CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBrandingDto } from './dto';
 import type { PlatformAdmin } from '@crivo/types';
 
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
@@ -28,6 +29,7 @@ export class TenantsController {
     private readonly provisioning: ProvisioningService,
     private readonly modules: TenantModulesService,
     private readonly branding: TenantBrandingService,
+    private readonly domains: DomainsService,
   ) {}
 
   /** Lista todas as empresas. */
@@ -97,6 +99,44 @@ export class TenantsController {
     @Body() dto: UpdateBrandingDto,
   ) {
     return this.branding.update(id, dto, { id: admin.id, email: admin.email });
+  }
+
+  // ── Domínios próprios (F5) ──
+
+  /** Domínios da empresa (primary primeiro). */
+  @Get(':id/domains')
+  listDomains(@Param('id', ParseUUIDPipe) id: string) {
+    return this.domains.list(id);
+  }
+
+  /** Adiciona um domínio (o 1º vira canônico). */
+  @Post(':id/domains')
+  addDomain(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddDomainDto,
+  ) {
+    return this.domains.add(id, dto.domain, { id: admin.id, email: admin.email });
+  }
+
+  /** Define o domínio canônico (primary). */
+  @Patch(':id/domains/:domainId/primary')
+  setPrimaryDomain(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('domainId', ParseUUIDPipe) domainId: string,
+  ) {
+    return this.domains.setPrimary(id, domainId, { id: admin.id, email: admin.email });
+  }
+
+  /** Remove um domínio da empresa. */
+  @Delete(':id/domains/:domainId')
+  removeDomain(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('domainId', ParseUUIDPipe) domainId: string,
+  ) {
+    return this.domains.remove(id, domainId, { id: admin.id, email: admin.email });
   }
 
   // ── Módulos (F4) ──

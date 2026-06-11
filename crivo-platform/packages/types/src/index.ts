@@ -148,6 +148,22 @@ export interface TenantBrandingData {
 /** Atualização de branding (todos opcionais; ausente = não mexe). */
 export type UpdateBrandingRequest = Partial<TenantBrandingData>;
 
+/** Domínio próprio de uma empresa (F5). */
+export interface TenantDomainData {
+  id: string;
+  domain: string;
+  verified: boolean;
+  primary: boolean;
+}
+
+/** Resolução PÚBLICA de um domínio → empresa (pré-login, p/ tema/white-label).
+ *  Só expõe dados não-sensíveis. null quando o domínio não resolve. */
+export interface PublicTenantResolution {
+  slug: string;
+  name: string;
+  branding: TenantBrandingData;
+}
+
 /** Uso corrente de uma empresa vs. limites do plano (painel super-admin). */
 export interface UsageSummary {
   plan: Plan;

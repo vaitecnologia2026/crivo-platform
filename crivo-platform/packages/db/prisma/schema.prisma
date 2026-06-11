@@ -183,6 +183,22 @@ model ModuleCatalog {
   @@map("module_catalog")
 }
 
+// Domínios próprios por empresa (F5). A resolução por domínio acontece ANTES
+// de conhecer o tenant (pré-login), então tenant_domains é CONTROL PLANE:
+// acesso só via owner (crivo_app revogado no rls.sql). organizationId liga ao
+// data plane (sem relation Prisma p/ manter o desacoplamento, como Tenant).
+model TenantDomain {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid // → organizations.id (data plane)
+  domain         String   @unique // app.clientex.com | clientex.crivolegacy.com.br
+  verified       Boolean  @default(false)
+  primary        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@map("tenant_domains")
+}
+
 // White-label (F5): identidade visual por empresa. 1:1 com Organization.
 // Data plane (RLS por tenant): a plataforma lê a própria via forTenant; a
 // escrita é owner-only (super admin define), como tenant_modules. As cores

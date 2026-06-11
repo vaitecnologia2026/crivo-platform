@@ -33,6 +33,7 @@ async function main() {
   await prisma.rolePermission.deleteMany();
   await prisma.permission.deleteMany();
   await prisma.roleDef.deleteMany();
+  await prisma.tenantDomain.deleteMany();
   await prisma.tenantBranding.deleteMany();
   await prisma.tenantModule.deleteMany();
   await prisma.moduleCatalog.deleteMany();
@@ -113,6 +114,11 @@ async function main() {
       whatsapp: '(11) 91853-1796',
       footerText: 'O2 Legacy & Consulting · powered by CRIVO',
     },
+  });
+
+  // 1.3) Domínio próprio de exemplo (F5) — alimenta a resolução pública por host.
+  await prisma.tenantDomain.create({
+    data: { organizationId: org.id, domain: 'o2legacy.crivolegacy.com.br', verified: true, primary: true },
   });
 
   // 2) CEO (login de acesso ao painel executivo)

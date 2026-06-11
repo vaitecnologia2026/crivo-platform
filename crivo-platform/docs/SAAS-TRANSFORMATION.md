@@ -469,7 +469,7 @@ Sequência otimizada por **dependência + risco** (não pela ordem literal). Cad
 | **F2** 🟦 | **Hardening multi-tenant** (FASE 4 + FASE 9 parte 1) | ✅ Fix login cross-tenant, ✅ check CI anti-`prisma.admin`, ✅ teste automatizado de isolamento, ✅ AuditLog das ações de plataforma. Resta: MFA/TOTP, `tenantId` em logs. **Ver Apêndice C** | F1 | em curso |
 | **F3** 🟦 | **RBAC dinâmico** (FASE 3) | ✅ Catálogo `Permission`/`RoleDef`/`RolePermission` + seed (espelha enum), `PermissionService`+`PermissionGuard`+`@RequirePermission`, módulo Leads migrado (piloto). Resta: papéis customizados por empresa (`UserRole` + RLS), UI, migrar ICD. **Ver Apêndice D** | F1 | em curso |
 | **F4** 🟦 | **Planos + módulos** (FASE 1 cont.) | ✅ Catálogo `ModuleCatalog` + `TenantModule` (RLS, escrita owner-only), fonte única em `@crivo/types` (`MODULES`/`PLAN_LIMITS`/`modulesForPlan`), `ModuleService`+`ModuleGuard`+`@RequireModule` (piloto CRM/Leads), API admin de módulos por empresa (listar/alternar c/ validação de plano), provisioning ativa módulos do plano. Resta: metering (`UsageCounter` + limites), UI de módulos no `/superadm`. **Ver Apêndice E** | F1, F3 | em curso |
-| **F5** 🟦 | **White-label** (FASE 5) | ✅ `TenantBranding` (RLS leitura, escrita owner-only) + API super admin (GET/PUT, valida hex/URL, audita) + `GET /me/branding`. Resta: injeção dos tokens `--crivo-*` na plataforma (visual), `TenantDomain` + middleware de resolução por domínio, automação Vercel. **Ver Apêndice G** | F1 | em curso |
+| **F5** 🟦 | **White-label** (FASE 5) | ✅ `TenantBranding` + API branding; ✅ `TenantDomain` (control plane) + CRUD super admin + **resolução pública por host** (`GET /public/tenant?domain=`, só ACTIVE). Resta: injeção dos tokens `--crivo-*` na plataforma (visual), middleware Next de resolução, automação Vercel, self-service. **Ver Apêndices G/H** | F1 | em curso |
 | **F6** 🟦 | **Nav + telas data-driven** (FASE 5 cont.) | ✅ Nav filtrada por `TenantModule` × permissão do papel (`GET /me/modules` + `/me/permissions`; shell oculta módulos inativos e o que o papel não vê, falha-aberto). Resta: migrar shell `markup.ts` → React config-driven. **Ver Apêndice F** | F3, F4 | em curso |
 | **F7** | **Dashboards dinâmicos** (FASE 6) | `Dashboard`/`Widget`, **registry de métricas** server-side, builder drag-drop (react-grid-layout), 10 widgets | F3, F6 | 3 sem |
 | **F8** | **Formulários/avaliações dinâmicos** (FASE 7) | `FormDefinition`/`FormSubmission`, engine de scoring, ICD migrado p/ template, builder de formulário | F3 | 3 sem |
@@ -887,11 +887,43 @@ no futuro sem mudança de contrato.
 - DB: `crivo_app` lê o próprio branding sob `app.tenant`, **UPDATE negado** (escrita owner-only).
 - Gates: typecheck 8/8 · lint 3/3 · build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
 
-### Pendente da F5 (próxima fatia)
+### Pendente da F5 (após a fatia 2)
 
-- **Injeção visual** dos tokens na plataforma: aplicar `primaryColor`→`--crivo-azul-profundo` e
-  `accentColor`→`--crivo-terra` (e logo/favicon/rodapé) lidos de `/me/branding`. **Mudança visual —
-  verificar no browser.**
-- **`TenantDomain` + middleware de resolução por domínio** (hostname→tenant, pré-auth via owner) e
-  automação de domínio na Vercel.
+- **Injeção visual** dos tokens na plataforma (ver fatia 3 abaixo). **Mudança visual — verificar no browser.**
 - **Self-service**: permitir o admin da empresa editar o próprio branding (permissão dedicada).
+
+---
+
+## Apêndice H — F5 fatia 2 entregue (Domínios + resolução por host · backend)
+
+**Status:** 🟦 domínios próprios geridos pelo super admin e resolução pública por host; middleware Next + automação Vercel pendentes.
+
+### O que foi construído
+
+- **Schema** (migration `f5_tenant_domain`): `TenantDomain` (`domain` único, `verified`, `primary`,
+  `organizationId` sem relation — desacoplado, como `Tenant`). **Control plane**: a resolução é
+  pré-login (sem tenant no contexto), então `tenant_domains` entrou no bloco control-plane do `rls.sql`
+  (REVOKE de `crivo_app`; acesso só via owner).
+- **Tipos**: `TenantDomainData`, `PublicTenantResolution`.
+- **`DomainsService`** (owner): `list`/`add` (normaliza host, valida, 1º = primary, super admin =
+  verified, unicidade global)/`remove`/`setPrimary`/`resolve` (host→empresa ACTIVE→branding). Audita
+  `tenant.domain.add|remove|primary`.
+- **API super admin** (`TenantsController`): `GET`/`POST`/`DELETE /admin/tenants/:id/domains[/:domainId]`
+  + `PATCH .../primary`.
+- **Resolução pública** (`PublicResolutionController`, sem auth, rate-limit, no módulo Admin p/ satisfazer
+  o gate anti-`prisma.admin`): `GET /api/public/tenant?domain=<host>` → `{ slug, name, branding }` ou 404.
+- **Seed**: domínio demo `o2legacy.crivolegacy.com.br` (primary/verified).
+
+### Verificação (E2E)
+
+- Add (1º → primary+verified); 2º domínio com URL completa normalizado p/ host; resolução pública por
+  host → empresa + branding (sem auth); domínio desconhecido → **404**; duplicado → **409**; empresa
+  **SUSPENDED** não resolve (**404**); reativada volta a resolver.
+- DB: `crivo_app` **sem acesso** a `tenant_domains` (control plane). Gates: typecheck 8/8 · lint 3/3 ·
+  build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
+
+### Pendente da F5 (fatia 3 — visual/edge)
+
+- **Middleware Next** (apps/site/web): lê o host, chama `/public/tenant`, injeta tokens `--crivo-*`
+  (primary→azul-profundo, accent→terra) + logo/favicon/rodapé. **Verificar no browser.**
+- **Automação de domínio na Vercel** (Domains API) ao adicionar/verificar um `TenantDomain`.

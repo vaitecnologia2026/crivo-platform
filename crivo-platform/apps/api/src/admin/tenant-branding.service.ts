@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, type AuditActor } from './audit.service';
 
 /** Converte a linha Prisma (ou ausência) no contrato compartilhado (nulls). */
-function toBrandingData(b: TenantBranding | null): TenantBrandingData {
+export function toBrandingData(b: TenantBranding | null): TenantBrandingData {
   return {
     logoUrl: b?.logoUrl ?? null,
     faviconUrl: b?.faviconUrl ?? null,

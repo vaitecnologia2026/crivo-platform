@@ -60,6 +60,12 @@ export class SetPlanDto {
   plan!: Plan;
 }
 
+export class AddDomainDto {
+  @IsString()
+  @MaxLength(253)
+  domain!: string;
+}
+
 export class UpdateBrandingDto {
   @IsOptional() @IsUrl() @MaxLength(500)
   logoUrl?: string;
