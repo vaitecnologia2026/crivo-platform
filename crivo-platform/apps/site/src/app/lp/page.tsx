@@ -618,6 +618,49 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ===================== ECOSSISTEMA · ACADEMIA ===================== */}
+      <section className="section section--light" id="ecossistema">
+        <div className="container">
+          <span className="eyebrow">Ecossistema CRIVO</span>
+          <h2 className="h2">Um ecossistema contínuo de desenvolvimento organizacional.</h2>
+          <p className="lede">
+            A jornada não termina no diagnóstico nem no app. Ela continua no Portal do Líder e na Academia CRIVO — com
+            conteúdos, trilhas, treinamentos, dashboards e inteligência contínua.
+          </p>
+
+          <div className="eco-grid">
+            <div className="eco-card eco-card--main">
+              <span className="eco-card__tag">Portal do Líder · Academia CRIVO</span>
+              <h3>Academia CRIVO de Liderança e Cultura</h3>
+              <p>
+                Vídeos, cursos, trilhas, artigos, guias, checklists, gravações de mentorias e materiais práticos —
+                conectados ao plano de ação, à mentoria e à evolução.
+              </p>
+              <ul className="eco-list">
+                <li>Dashboards</li>
+                <li>Conteúdos &amp; vídeos</li>
+                <li>Cursos &amp; trilhas</li>
+                <li>Biblioteca estratégica</li>
+                <li>Artigos &amp; guias</li>
+                <li>Analytics &amp; inteligência contínua</li>
+              </ul>
+            </div>
+            <div className="eco-side">
+              <div className="eco-card">
+                <span className="eco-card__tag">Integrações</span>
+                <h4>LinkedIn · YouTube</h4>
+                <p>Conteúdos e produção da CRIVO integrados ao Portal do Líder — quando tecnicamente viável.</p>
+              </div>
+              <div className="eco-card">
+                <span className="eco-card__tag">Roadmap</span>
+                <h4>Plataforma em evolução contínua</h4>
+                <p>Login executivo, conteúdos, cursos, dashboards e jornadas integradas.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ===================== SOLUÇÕES ===================== */}
       <section className="section section--light" id="solucoes">
         <div className="container">
