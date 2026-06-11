@@ -5,7 +5,7 @@ import "./lp.css";
 export const metadata: Metadata = {
   title: "CRIVO™ — Decision Intelligence System",
   description:
-    "A CRIVO quantifica a qualidade decisória da liderança com metodologia proprietária. ICD — Índice de Coerência Decisória, apoio à conformidade NR-1 e transformação organizacional através da liderança.",
+    "Plataforma de inteligência organizacional e desenvolvimento da liderança. A CRIVO identifica riscos humanos, custos invisíveis e padrões de liderança que afetam cultura, execução e resultados — transformando diagnóstico em plano de ação, desenvolvimento e evolução sustentável.",
 };
 
 // Plataforma React (apps/web). Configurável por env: defina
@@ -67,18 +67,19 @@ export default function LandingPage() {
         <div className="hero__bg"></div>
         <div className="container hero__inner">
           <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">Decision Intelligence System</span>
+            <span className="eyebrow eyebrow--terra">Inteligência Organizacional e Liderança</span>
             <h1 className="display">
-              Transformação organizacional começa pela{" "}
-              <span className="terra-text">qualidade das decisões</span> da liderança.
+              Transformação organizacional começa pelo{" "}
+              <span className="terra-text">comportamento e pelas decisões</span> da liderança.
             </h1>
             <p className="hero__sub">
-              A CRIVO™ quantifica a qualidade decisória de uma organização com metodologia proprietária. O ICD mapeia
-              padrões, reduz passivos e transforma reatividade em estratégia — com resultado mensurável.
+              A CRIVO™ ajuda empresas a identificar riscos humanos e organizacionais, custos invisíveis e padrões de
+              liderança que afetam cultura, execução e resultados — transformando diagnóstico em plano de ação,
+              desenvolvimento e evolução sustentável.
             </p>
             <div className="hero__ctas">
               <a href="#diagnostico" className="btn btn--terra">
-                Solicitar diagnóstico
+                Fazer diagnóstico inicial
               </a>
               <a
                 href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
@@ -89,7 +90,7 @@ export default function LandingPage() {
                 Falar com especialista
               </a>
             </div>
-            <p className="hero__micro">Decisão com critério é infraestrutura de qualidade e resultado.</p>
+            <p className="hero__micro">Diagnosticar é o começo. Sustentar a mudança exige liderança preparada.</p>
           </div>
 
           <div className="hero__visual">
@@ -119,8 +120,8 @@ export default function LandingPage() {
             <span>Jornada completa</span>
           </div>
           <div className="trust__item">
-            <strong>NR-1</strong>
-            <span>Apoio à conformidade · 26/05/2026</span>
+            <strong>Evolução</strong>
+            <span>Plano de ação e resultado mensurável</span>
           </div>
         </div>
       </section>
