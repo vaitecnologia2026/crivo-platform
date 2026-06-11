@@ -228,15 +228,16 @@ export default function LandingPage() {
           <div className="split__left">
             <span className="eyebrow eyebrow--terra">Quem somos</span>
             <h2 className="h2 h2--light">
-              Consultoria estratégica de transformação organizacional através do desenvolvimento sustentável da
+              Consultoria estratégica de transformação organizacional por meio do desenvolvimento sustentável da
               liderança.
             </h2>
             <p className="body--light">
-              Não entregamos apenas consultoria pontual. Entregamos uma metodologia proprietária que quantifica decisões
-              — com métrica própria, processo estruturado e consequência mensurável.
+              A CRIVO™ combina método proprietário, leitura organizacional, desenvolvimento da liderança e tecnologia
+              aplicada para transformar sinais dispersos em clareza, plano de ação e evolução sustentável — conectando
+              liderança, comportamento, cultura, governança, tecnologia, execução e resultado.
             </p>
             <blockquote className="pull-quote">
-              &ldquo;A CRIVO conecta liderança, comportamento, cultura e execução em uma estrutura integrada.&rdquo;
+              &ldquo;Toda transformação passa pela liderança.&rdquo;
             </blockquote>
           </div>
           <div className="split__right">
@@ -244,28 +245,38 @@ export default function LandingPage() {
               <span className="frente__ic">▴</span>
               <div>
                 <strong>Liderança</strong>
-                <span>Fortalecimento da capacidade humana de liderar em ambientes de alta complexidade.</span>
+                <span>
+                  Fortalecimento da capacidade humana de liderar, decidir, comunicar e sustentar a rotina em ambientes
+                  de pressão e complexidade.
+                </span>
               </div>
             </div>
             <div className="frente">
               <span className="frente__ic">▴</span>
               <div>
                 <strong>Cultura</strong>
-                <span>Coesão, alinhamento e sustentação cultural.</span>
+                <span>Leitura e desenvolvimento dos padrões culturais, comportamentos e rituais que sustentam ou limitam a execução.</span>
               </div>
             </div>
             <div className="frente">
               <span className="frente__ic">▴</span>
               <div>
                 <strong>Inteligência Organizacional</strong>
-                <span>Diagnóstico, prevenção e leitura de riscos invisíveis — NR-1 e riscos psicossociais.</span>
+                <span>Diagnóstico estruturado de riscos humanos, fatores psicossociais, custos invisíveis e sinais que afetam clima, performance e continuidade.</span>
               </div>
             </div>
             <div className="frente">
               <span className="frente__ic">▴</span>
               <div>
-                <strong>Performance</strong>
-                <span>Sustentação contínua da entrega e da transformação.</span>
+                <strong>Governança e IA</strong>
+                <span>Preparação da liderança e da cultura para o uso responsável da inteligência artificial — conectando pessoas, tecnologia, ética, decisão e produtividade.</span>
+              </div>
+            </div>
+            <div className="frente">
+              <span className="frente__ic">▴</span>
+              <div>
+                <strong>Performance Sustentável</strong>
+                <span>Transformação de diagnóstico em plano de ação, acompanhamento, desenvolvimento da liderança e evolução mensurável.</span>
               </div>
             </div>
           </div>
@@ -275,22 +286,23 @@ export default function LandingPage() {
           <article className="mvv-card">
             <span className="mvv-card__tag">Missão</span>
             <p>
-              Transformar organizações pela qualidade das decisões da liderança — tornando mensurável o que antes era
-              intuição e reduzindo os riscos invisíveis que comprometem cultura e performance.
+              Transformar riscos invisíveis em consciência, ação e evolução organizacional — desenvolvendo lideranças
+              capazes de sustentar cultura, decisões, governança e resultados em ambientes de pressão e transformação
+              tecnológica.
             </p>
           </article>
           <article className="mvv-card">
             <span className="mvv-card__tag">Visão</span>
             <p>
-              Ser a referência em inteligência decisória: o padrão pelo qual as organizações medem, desenvolvem e
-              sustentam a qualidade de quem decide.
+              Ser referência em inteligência organizacional e desenvolvimento da liderança para empresas que precisam
+              integrar pessoas, cultura, tecnologia, decisão e performance de forma sustentável.
             </p>
           </article>
           <article className="mvv-card">
             <span className="mvv-card__tag">Valores</span>
             <p>
-              Critério acima de pressão. Evidência acima de opinião. O desenvolvimento humano como base de todo
-              resultado — com confidencialidade e respeito ao dado de cada pessoa.
+              Critério acima de pressão. Evidência acima de opinião. Governança, confidencialidade e responsabilidade —
+              com o desenvolvimento humano como base de todo resultado sustentável.
             </p>
           </article>
         </div>
@@ -302,35 +314,35 @@ export default function LandingPage() {
           <span className="eyebrow">Metodologia</span>
           <h2 className="h2">Método, sustentação e inteligência organizacional contínua.</h2>
           <p className="lede">
-            O Método CRIVO conecta consciência, responsabilidade, integração, valores e organização em um sistema
-            integrado de coerência decisória.
+            O Método CRIVO transforma percepção, responsabilidade, integração, valores e organização em práticas de
+            liderança, decisões mais coerentes e evolução mensurável da cultura.
           </p>
 
           <div className="metodo-grid">
             <div className="metodo-card">
               <span className="metodo-card__letter">C</span>
               <h3>Consciência</h3>
-              <p>Clareza sobre o contexto, as pessoas e as decisões.</p>
+              <p>Ler o contexto, reconhecer pressões e ampliar a clareza antes de decidir.</p>
             </div>
             <div className="metodo-card">
               <span className="metodo-card__letter">R</span>
               <h3>Responsabilidade</h3>
-              <p>Ownership, execução e liderança de resultados.</p>
+              <p>Assumir escolhas, consequências e compromissos de execução.</p>
             </div>
             <div className="metodo-card">
               <span className="metodo-card__letter">I</span>
               <h3>Integração</h3>
-              <p>Colaboração, comunicação e coerência organizacional.</p>
+              <p>Conectar pessoas, áreas, comunicação e prioridades.</p>
             </div>
             <div className="metodo-card">
               <span className="metodo-card__letter">V</span>
               <h3>Valores</h3>
-              <p>Decisões alinhadas à cultura e ao propósito.</p>
+              <p>Decidir com critério, propósito e coerência cultural.</p>
             </div>
             <div className="metodo-card">
               <span className="metodo-card__letter">O</span>
               <h3>Organização</h3>
-              <p>Estrutura, performance e sustentação operacional.</p>
+              <p>Transformar decisões em rotina, plano de ação, acompanhamento e resultado.</p>
             </div>
           </div>
         </div>
@@ -342,30 +354,31 @@ export default function LandingPage() {
           <span className="eyebrow eyebrow--terra">Diferencial proprietário</span>
           <h2 className="h2 h2--light h2--center">ICD — Índice de Coerência Decisória</h2>
           <p className="lede lede--light">
-            A métrica proprietária da CRIVO que mede a qualidade do <strong>estado decisório</strong> do líder. Não o
-            resultado da decisão, mas as condições em que ela foi tomada.
+            O ICD™ é uma metodologia proprietária da CRIVO para apoiar líderes na leitura da{" "}
+            <strong>coerência decisória sob pressão</strong>. Não julga a decisão nem mede personalidade: mostra onde a
+            decisão pode estar perdendo sustentação.
           </p>
 
           <div className="icd-how">
             <div className="icd-step">
-              <span className="icd-step__num">10</span>
+              <span className="icd-step__num">8</span>
               <strong>perguntas</strong>
-              <span>Formulário aplicado em uma decisão real, específica e recente.</span>
+              <span>Aplicadas a uma decisão real, específica e recente.</span>
             </div>
             <div className="icd-step">
-              <span className="icd-step__num">5</span>
-              <strong>dimensões</strong>
-              <span>Clareza · Pressão · Confiança · Influência · Risco/Ação</span>
+              <span className="icd-step__num">4</span>
+              <strong>dimensões — os 4 Rs</strong>
+              <span>Reatividade · Rigidez · Repercussão · Risco</span>
             </div>
             <div className="icd-step">
               <span className="icd-step__num">0–100</span>
               <strong>score</strong>
-              <span>Quanto mais alto, maior a coerência decisória estrutural.</span>
+              <span>Com zonas de leitura. Quanto mais alto, maior a coerência decisória.</span>
             </div>
             <div className="icd-step">
               <span className="icd-step__num">1</span>
-              <strong>padrão dominante</strong>
-              <span>Revela o driver: Pressão, Autoimagem, Conformidade ou Ameaça.</span>
+              <strong>tensão dominante</strong>
+              <span>O R que mais pesa na decisão sob pressão (entre os 4 Rs).</span>
             </div>
           </div>
 
@@ -376,17 +389,20 @@ export default function LandingPage() {
             </div>
             <div className="deliver-card">
               <span className="deliver-card__tag">Para a empresa</span>
-              <p>Diagnóstico comparável por área e momento — com baseline e evolução mensurável.</p>
+              <p>
+                Leitura agregada da coerência decisória da liderança por ciclos e áreas elegíveis — com evolução no
+                tempo e preservando a confidencialidade.
+              </p>
             </div>
             <div className="deliver-card">
               <span className="deliver-card__tag">Para o RH</span>
-              <p>Evidência de impacto, argumentação para NR-1 e cruzamento com clima e turnover.</p>
+              <p>Evidência de impacto e cruzamento com clima e turnover — sempre com dados agregados e protegidos.</p>
             </div>
           </div>
 
           <div className="cta-inline">
             <a href={PLATAFORMA_URL} className="btn btn--terra">
-              Ver o ICD na plataforma →
+              Conhecer o Radar da Decisão →
             </a>
           </div>
         </div>
