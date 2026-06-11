@@ -28,13 +28,14 @@ export const PERMISSIONS = [
   { code: "leads:edit", module: "leads", action: "edit", label: "Editar leads" },
   { code: "icd:view", module: "icd", action: "view", label: "Ver indicadores ICD" },
   { code: "icd:submit", module: "icd", action: "submit", label: "Aplicar avaliação ICD" },
+  { code: "branding:edit", module: "branding", action: "edit", label: "Editar identidade visual" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit"],
   GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
   RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit"],
   LIDER: ["icd:view"],

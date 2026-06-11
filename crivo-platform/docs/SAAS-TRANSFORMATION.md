@@ -922,11 +922,23 @@ no futuro sem mudança de contrato.
 - DB: `crivo_app` **sem acesso** a `tenant_domains` (control plane). Gates: typecheck 8/8 · lint 3/3 ·
   build 5/5 · check:rls-bypass ✓ · test:isolation 6/6 ✓.
 
-### Pendente da F5 (após a fatia 3)
+### Self-service de branding (ENTREGUE)
+
+- **RBAC**: nova permissão `branding:edit` (catálogo `@crivo/types`), concedida a `ADMIN`/`CEO`.
+- **RLS**: `tenant_branding` passou a aceitar escrita do app (RLS `WITH CHECK` confina ao próprio tenant);
+  o super admin (owner) continua escrevendo via control plane. (Removido o REVOKE de escrita.)
+- **Endpoint**: `PUT /me/branding` (MeController, `@RequirePermission('branding:edit')`) faz upsert do
+  próprio branding sob `forTenant`. O admin da empresa edita a marca sem depender do super admin.
+- E2E: CEO `PUT /me/branding` **200** (tem `branding:edit`); LÍDER **403** (não tem) mas **GET 200**;
+  escrita confinada ao tenant pela RLS. Gates + `test:isolation` 6/6 ✓.
+
+### Pendente da F5 (próximas fatias)
 
 - **Theming da tela de LOGIN por host** (pré-auth): middleware/efeito que chama `/public/tenant?domain=`
   e injeta tokens + logo antes do login. **Verificar no browser.**
 - **Logo/favicon/rodapé** dinâmicos (hoje só as cores são injetadas).
+- **Tela de marca dentro da plataforma** (tenant) consumindo `PUT /me/branding` (hoje o self-service só
+  existe na API; a UI fica no `/superadm`).
 - **Automação de domínio na Vercel** (Domains API) ao adicionar/verificar um `TenantDomain`.
 
 ---

@@ -100,11 +100,10 @@ $$;
 --    que não contratou, mesmo que um bug exponha um caminho de escrita.
 REVOKE INSERT, UPDATE, DELETE ON tenant_modules FROM crivo_app;
 
--- 7) White-label (F5): tenant_branding também tem RLS por tenant (item 3, p/ a
---    plataforma LER a própria identidade), mas a ESCRITA é owner-only — quem
---    define o branding é o super admin (control plane). Tenant self-service de
---    branding entra numa fatia futura (com permissão dedicada).
-REVOKE INSERT, UPDATE, DELETE ON tenant_branding FROM crivo_app;
+-- 7) White-label (F5): tenant_branding tem RLS por tenant (item 3). A escrita é
+--    permitida ao app — a RLS (WITH CHECK) confina ao próprio tenant e a API
+--    gateia por permissão `branding:edit` (self-service do admin da empresa).
+--    O super admin (owner) também escreve via control plane. Sem REVOKE aqui.
 
 -- =====================================================================
 -- ⚠️  REQUISITO DE DEPLOY (por causa do FORCE ROW LEVEL SECURITY acima):
