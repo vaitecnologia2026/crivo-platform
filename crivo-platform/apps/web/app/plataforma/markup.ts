@@ -1,5 +1,8 @@
 // Gerado de CRIVO-PLATAFORMA/index.html (markup do protótipo, fiel 1:1).
 // Renderizado via dangerouslySetInnerHTML; a interatividade vive em PlatEffects.
+// A sidebar é GERADA da config única de navegação (F6) — ver nav.config.ts.
+import { renderNavHtml } from "./nav.config";
+
 export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ==================== -->
   <div id="login" class="screen screen--login is-active">
     <div class="login__bg"></div>
@@ -64,50 +67,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         </span>
       </div>
 
-      <nav class="sidebar__nav">
-        <span class="sidebar__group">Comercial · CRIVO</span>
-        <a href="#" class="nav-item" data-route="crm">
-          <span class="ni__ic">◧</span>CRM · Pipeline de Leads
-        </a>
-
-        <span class="sidebar__group">Geral</span>
-        <a href="#" class="nav-item is-active" data-route="dashboard">
-          <span class="ni__ic">▣</span>Dashboard
-        </a>
-        <a href="#" class="nav-item" data-route="icd">
-          <span class="ni__ic">◈</span>Índice de Coerência (ICD)
-        </a>
-
-        <span class="sidebar__group">Diagnóstico</span>
-        <a href="#" class="nav-item" data-route="campanhas">
-          <span class="ni__ic">◭</span>Campanhas NR-1
-        </a>
-        <a href="#" class="nav-item" data-route="parecer">
-          <span class="ni__ic">❖</span>Parecer CRIVO
-        </a>
-        <a href="#" class="nav-item" data-route="questionario">
-          <span class="ni__ic">✎</span>Questionário NR-1
-        </a>
-
-        <span class="sidebar__group">Desenvolvimento</span>
-        <a href="#" class="nav-item" data-route="lider">
-          <span class="ni__ic">★</span>Área do Líder
-        </a>
-        <a href="#" class="nav-item" data-route="biblioteca">
-          <span class="ni__ic">▦</span>Biblioteca & Cursos
-        </a>
-        <a href="#" class="nav-item" data-route="relatorios">
-          <span class="ni__ic">▤</span>Relatórios & Comunicações
-        </a>
-
-        <span class="sidebar__group">Configurações</span>
-        <a href="#" class="nav-item nav-item--muted">
-          <span class="ni__ic">⚙</span>Organização
-        </a>
-        <a href="#" class="nav-item nav-item--muted">
-          <span class="ni__ic">◌</span>Usuários
-        </a>
-      </nav>
+      ${renderNavHtml()}
 
       <div class="sidebar__footer">
         <div class="org-card">

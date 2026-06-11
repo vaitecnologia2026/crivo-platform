@@ -10,38 +10,15 @@ import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
+import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
 // interatividade do app.js (login, router SPA, likert, quiz, chat, animações de
 // barras) é portada para este efeito. Telas serão progressivamente ligadas à API.
-const routeMeta: Record<string, { path: string; current: string }> = {
-  crm: { path: "Comercial", current: "Pipeline de Leads" },
-  dashboard: { path: "Dashboard", current: "Visão Executiva" },
-  icd: { path: "Indicadores", current: "Índice de Coerência (ICD)" },
-  campanhas: { path: "Diagnóstico", current: "Campanhas NR-1" },
-  parecer: { path: "Diagnóstico", current: "Parecer Consultivo CRIVO" },
-  questionario: { path: "Aplicação", current: "Questionário NR-1" },
-  lider: { path: "Desenvolvimento", current: "Área do Líder" },
-  biblioteca: { path: "Desenvolvimento", current: "Biblioteca & Formação" },
-  relatorios: { path: "Documentos", current: "Relatórios & Comunicações" },
-};
-
-// Nav data-driven (F6): cada rota mapeia a um módulo do catálogo (F4) e,
-// quando existe, à permissão de "ver" daquela área (RBAC, F3). O menu esconde
-// o que a empresa não tem no plano (módulo) E o que o papel não pode ver
-// (permissão). A autorização real continua nos guards da API — menu é só UX.
-// Obs.: o módulo "crm" usa permissões "leads:*"; "questionario" é aplicar ICD.
-const routeAccess: Record<string, { module: string; perm?: string }> = {
-  crm: { module: "crm", perm: "leads:view" },
-  dashboard: { module: "dashboard" },
-  icd: { module: "icd", perm: "icd:view" },
-  questionario: { module: "icd", perm: "icd:submit" },
-  campanhas: { module: "campanhas" },
-  parecer: { module: "parecer" },
-  lider: { module: "lider" },
-  biblioteca: { module: "biblioteca" },
-  relatorios: { module: "relatorios" },
-};
+//
+// Nav data-driven (F6): rotas, módulos (F4) e permissões (F3) vêm da config
+// única `nav.config.ts`. O menu esconde o que a empresa não tem no plano E o
+// que o papel não pode ver — a autorização real continua nos guards da API.
 
 export function Plataforma() {
   useEffect(() => {
@@ -129,7 +106,7 @@ export function Plataforma() {
     }
 
     function setRoute(name: string) {
-      if (!routeVisible(name)) name = "dashboard"; // rota sem acesso → painel
+      if (!routeVisible(name)) name = DEFAULT_ROUTE; // rota sem acesso → painel
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
@@ -231,7 +208,7 @@ export function Plataforma() {
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
-      setRoute("dashboard");
+      setRoute(DEFAULT_ROUTE);
     });
 
     navItems.forEach((item) =>

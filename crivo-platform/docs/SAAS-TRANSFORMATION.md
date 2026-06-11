@@ -848,7 +848,16 @@ no futuro sem mudança de contrato.
 - E2E: CEO (5 permissões) vê CRM + Questionário; LÍDER (só `icd:view`) tem CRM e Questionário ocultos,
   ICD visível. Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
 
+### Fatia 3 — Config única de navegação (ENTREGUE)
+
+- **`nav.config.ts`**: fonte ÚNICA da nav (grupos + itens: `route`/`label`/`icon`/`module`/`perm`/
+  `breadcrumb`). Antes a nav vivia triplicada (HTML no markup, `routeAccess`, `routeMeta`). Agora:
+  `markup.ts` GERA a sidebar via `renderNavHtml()`; `Plataforma.tsx` deriva `routeAccess`/`routeMeta`/
+  `DEFAULT_ROUTE` da config. Mesmo comportamento em runtime, sem manipular HTML à mão.
+- Verificação: paridade do HTML gerado vs. original (9 rotas na mesma ordem, 5 grupos, 2 itens mudos,
+  `dashboard` ativo) ✓. Gates: typecheck 8/8 · lint 3/3 · build 5/5 ✓.
+
 ### Pendente da F6 (próxima fatia)
 
-- **Migrar o shell `markup.ts` → React config-driven**: nav e telas geradas de uma config (em vez de HTML
-  estático), removendo a manipulação de DOM. Habilita F7 (dashboards dinâmicos).
+- **Renderizar a sidebar em React** a partir de `NAV` (em vez de injetar HTML), removendo a filtragem por
+  manipulação de DOM. Depois, migrar as telas para componentes config-driven. Habilita F7 (dashboards).
