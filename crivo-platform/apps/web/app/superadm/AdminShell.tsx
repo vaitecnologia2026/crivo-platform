@@ -9,6 +9,8 @@ import {
   type AuditEntry,
 } from "@/lib/admin-api";
 import { TenantsManager } from "./TenantsManager";
+import { CrmSection } from "./CrmSection";
+import { ProductsSection } from "./ProductsSection";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
 function VerticeMark() {
@@ -24,12 +26,14 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "empresas" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "empresas" | "auditoria";
 
-const NAV: { key: Section; label: string; icon: string; current: string }[] = [
-  { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral" },
-  { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente" },
-  { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria" },
+const NAV: { key: Section; label: string; icon: string; current: string; group: string }[] = [
+  { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Plataforma" },
+  { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
+  { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
+  { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
+  { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
 ];
 
 // Reset para usar a classe .nav-item (estilizada para <a>) em <button>.
@@ -62,18 +66,21 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
         </div>
 
         <nav className="sidebar__nav">
-          <span className="sidebar__group">Plataforma</span>
-          {NAV.map((n) => (
-            <button
-              key={n.key}
-              type="button"
-              style={navBtn}
-              className={`nav-item${section === n.key ? " is-active" : ""}`}
-              onClick={() => setSection(n.key)}
-            >
-              <span className="ni__ic">{n.icon}</span>
-              {n.label}
-            </button>
+          {NAV.map((n, i) => (
+            <div key={n.key}>
+              {(i === 0 || NAV[i - 1].group !== n.group) && (
+                <span className="sidebar__group">{n.group}</span>
+              )}
+              <button
+                type="button"
+                style={navBtn}
+                className={`nav-item${section === n.key ? " is-active" : ""}`}
+                onClick={() => setSection(n.key)}
+              >
+                <span className="ni__ic">{n.icon}</span>
+                {n.label}
+              </button>
+            </div>
           ))}
         </nav>
 
@@ -116,6 +123,8 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
 
         <section className="route is-active">
           {section === "overview" && <OverviewSection onGoToEmpresas={() => setSection("empresas")} />}
+          {section === "crm" && <CrmSection />}
+          {section === "produtos" && <ProductsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "auditoria" && <AuditSection />}
         </section>
@@ -252,6 +261,12 @@ const ACTION_LABEL: Record<string, string> = {
   "admin.password.change": "Senha do super admin",
   "admin.mfa.enable": "MFA ativado",
   "admin.mfa.disable": "MFA desativado",
+  "product.create": "Produto criado",
+  "product.update": "Produto atualizado",
+  "product.delete": "Produto excluído",
+  "lead.intake": "Lead capturado (LP)",
+  "lead.stage": "Lead movido no funil",
+  "lead.notes": "Nota do lead",
 };
 
 function AuditSection() {

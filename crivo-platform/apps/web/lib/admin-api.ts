@@ -4,13 +4,18 @@
 import type {
   CreateTenantRequest,
   Plan,
+  PlatformLeadStage,
+  PlatformLeadSummary,
   PlatformLoginResponse,
+  ProductDetail,
+  ProductSummary,
   ProvisionResult,
   TenantBrandingData,
   TenantDomainData,
   TenantModuleSummary,
   TenantSummary,
   UpdateBrandingRequest,
+  UpsertProductRequest,
   UsageSummary,
 } from "@crivo/types";
 
@@ -169,6 +174,54 @@ export function getOverview(): Promise<AdminOverview> {
 
 export function getAuditLog(): Promise<AuditEntry[]> {
   return adminFetch<AuditEntry[]>("/admin/audit");
+}
+
+// ── CRM do super admin (funil comercial) ──
+
+export function listLeads(): Promise<PlatformLeadSummary[]> {
+  return adminFetch<PlatformLeadSummary[]>("/admin/leads");
+}
+
+export function setLeadStage(id: string, stage: PlatformLeadStage): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/stage`, {
+    method: "PATCH",
+    body: JSON.stringify({ stage }),
+  });
+}
+
+export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/notes`, {
+    method: "PATCH",
+    body: JSON.stringify({ notes }),
+  });
+}
+
+// ── Catálogo de produtos (product-driven) ──
+
+export function listProducts(): Promise<ProductSummary[]> {
+  return adminFetch<ProductSummary[]>("/admin/products");
+}
+
+export function getProduct(id: string): Promise<ProductDetail> {
+  return adminFetch<ProductDetail>(`/admin/products/${id}`);
+}
+
+export function createProduct(dto: UpsertProductRequest): Promise<ProductDetail> {
+  return adminFetch<ProductDetail>("/admin/products", {
+    method: "POST",
+    body: JSON.stringify(dto),
+  });
+}
+
+export function updateProduct(id: string, dto: UpsertProductRequest): Promise<ProductDetail> {
+  return adminFetch<ProductDetail>(`/admin/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}
+
+export function deleteProduct(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/products/${id}`, { method: "DELETE" });
 }
 
 // ── White-label: branding + domínios (F5) ──
