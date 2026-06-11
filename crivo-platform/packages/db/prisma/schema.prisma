@@ -121,6 +121,7 @@ model Tenant {
   name           String
   plan           Plan         @default(BASE)
   status         TenantStatus @default(ACTIVE)
+  productId      String?      @db.Uuid // → products.id: produto que originou a empresa (FASE 3)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

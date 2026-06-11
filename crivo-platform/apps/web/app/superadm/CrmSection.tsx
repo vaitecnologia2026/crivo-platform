@@ -5,8 +5,10 @@ import {
   PLATFORM_LEAD_STAGE_LABEL,
   type PlatformLeadStage,
   type PlatformLeadSummary,
+  type ProductSummary,
+  type ProvisionResult,
 } from "@crivo/types";
-import { listLeads, setLeadStage } from "@/lib/admin-api";
+import { convertLead, listLeads, listProducts, setLeadStage } from "@/lib/admin-api";
 
 // Colunas do funil (Print 2 do Portal PDF). PERDIDO sai do board (continua no
 // banco) — movido via o seletor de estágio do card.
@@ -22,6 +24,11 @@ export function CrmSection() {
   const [leads, setLeads] = useState<PlatformLeadSummary[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [converting, setConverting] = useState<PlatformLeadSummary | null>(null);
+
+  async function refresh() {
+    try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -132,7 +139,7 @@ export function CrmSection() {
                       </div>
                       <select
                         value={l.stage}
-                        disabled={busyId === l.id}
+                        disabled={busyId === l.id || !!l.convertedTenantId}
                         onChange={(e) => move(l.id, e.target.value as PlatformLeadStage)}
                         className="kb-stage-select"
                         aria-label="Mover lead no funil"
@@ -141,6 +148,13 @@ export function CrmSection() {
                           <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
                         ))}
                       </select>
+                      {l.convertedTenantId ? (
+                        <span className="kb-converted">✓ Cliente provisionado</span>
+                      ) : (
+                        <button type="button" className="kb-convert" onClick={() => setConverting(l)}>
+                          Converter em cliente →
+                        </button>
+                      )}
                     </article>
                   ))}
                   {items.length === 0 && <p className="kb-empty">—</p>}
@@ -156,6 +170,132 @@ export function CrmSection() {
           )}
         </>
       )}
+
+      {converting && (
+        <ConvertModal
+          lead={converting}
+          onClose={() => setConverting(null)}
+          onConverted={async () => { setConverting(null); await refresh(); }}
+        />
+      )}
     </>
+  );
+}
+
+/** Modal de conversão Lead → Cliente: escolhe o produto e provisiona a empresa. */
+function ConvertModal({
+  lead,
+  onClose,
+  onConverted,
+}: {
+  lead: PlatformLeadSummary;
+  onClose: () => void;
+  onConverted: () => void;
+}) {
+  const [products, setProducts] = useState<ProductSummary[] | null>(null);
+  const [productId, setProductId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<ProvisionResult | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const all = await listProducts();
+        if (alive) setProducts(all.filter((p) => !p.isLeadCapture && p.status === "ACTIVE"));
+      } catch {
+        if (alive) setProducts([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function confirm() {
+    if (!productId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      setDone(await convertLead(lead.id, productId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na conversão");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={done ? onConverted : onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <h2>{done ? "Cliente provisionado ✓" : "Converter em cliente"}</h2>
+          <button className="icon-btn" onClick={done ? onConverted : onClose} title="Fechar">✕</button>
+        </header>
+
+        <div className="modal__body">
+          {done ? (
+            <div className="convert-done">
+              <p>
+                Empresa <strong>{done.tenant.name}</strong> criada a partir do produto contratado.
+              </p>
+              <dl className="convert-creds">
+                <div><dt>Subdomínio</dt><dd>{done.tenant.slug}</dd></div>
+                <div><dt>Admin</dt><dd>{done.adminEmail}</dd></div>
+                {done.tempPassword && (
+                  <div>
+                    <dt>Senha temporária</dt>
+                    <dd><code>{done.tempPassword}</code></dd>
+                  </div>
+                )}
+              </dl>
+              {done.tempPassword && (
+                <p className="convert-warn">Copie a senha agora — não será exibida novamente.</p>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="convert-lead">
+                Lead: <strong>{lead.name}</strong>{lead.company ? ` · ${lead.company}` : ""} · {lead.email ?? "sem e-mail"}
+              </p>
+              {!lead.email && (
+                <p className="convert-warn">Este lead não tem e-mail — necessário para criar o acesso do admin.</p>
+              )}
+              <label className="prod-field prod-field--full" style={{ marginTop: 10 }}>
+                <span>Produto contratado</span>
+                <select value={productId} onChange={(e) => setProductId(e.target.value)} disabled={!products}>
+                  <option value="">{products ? "Selecione…" : "Carregando…"}</option>
+                  {(products ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.modules.length} módulos
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="prod-note">
+                O sistema cria automaticamente: empresa, admin, módulos liberados, perguntas e IA do produto.
+              </p>
+              {error && <p className="convert-warn">{error}</p>}
+            </>
+          )}
+        </div>
+
+        <div className="modal__foot">
+          {done ? (
+            <button className="btn btn--terra btn--sm" onClick={onConverted}>Concluir</button>
+          ) : (
+            <>
+              <button className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
+              <button
+                className="btn btn--terra btn--sm"
+                disabled={saving || !productId || !lead.email}
+                onClick={confirm}
+              >
+                {saving ? "Provisionando…" : "Converter e provisionar"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

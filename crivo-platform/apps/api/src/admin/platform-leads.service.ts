@@ -1,13 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   computePreDiagnostic,
   type CreateDiagnosticLeadRequest,
+  type Plan,
   type PlatformLeadStage,
   type PlatformLeadSummary,
   type PreDiagnosticResult,
+  type ProvisionResult,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { ProvisioningService } from './provisioning.service';
 
 type Actor = { id: string; email: string };
 
@@ -22,6 +25,7 @@ export class PlatformLeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly provisioning: ProvisioningService,
   ) {}
 
   async list(): Promise<PlatformLeadSummary[]> {
@@ -97,6 +101,48 @@ export class PlatformLeadsService {
     });
     await this.audit.record({ action: 'lead.notes', actor, target: id });
     return this.toSummary(updated);
+  }
+
+  /**
+   * FASE 3 — CONVERTE o lead em cliente. Seleciona o produto contratado e o
+   * sistema provisiona automaticamente: empresa + admin + módulos liberados do
+   * produto. A empresa fica ligada ao produto (perguntas + IA herdadas). O lead
+   * vai para FECHADO com convertedTenantId.
+   */
+  async convert(leadId: string, productId: string, actor: Actor): Promise<ProvisionResult> {
+    const lead = await this.prisma.admin.platformLead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead não encontrado');
+    if (lead.convertedTenantId) throw new ConflictException('Lead já convertido em cliente');
+    if (!lead.email) throw new BadRequestException('Lead sem e-mail — necessário para criar o acesso do admin');
+
+    const product = await this.prisma.admin.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Produto não encontrado');
+    if (product.isLeadCapture) {
+      throw new BadRequestException('O produto de captura (pré-diagnóstico) não pode ser contratado');
+    }
+
+    const result = await this.provisioning.provisionFromProduct({
+      companyName: lead.company?.trim() || lead.name,
+      adminName: lead.name,
+      adminEmail: lead.email,
+      plan: (product.plan ?? 'BASE') as Plan,
+      productId: product.id,
+      modules: Array.isArray(product.modules) ? (product.modules as string[]) : [],
+      actor,
+    });
+
+    await this.prisma.admin.platformLead.update({
+      where: { id: leadId },
+      data: { stage: 'FECHADO', convertedTenantId: result.tenant.id, productId: product.id },
+    });
+    await this.audit.record({
+      action: 'lead.convert',
+      actor,
+      target: leadId,
+      meta: { product: product.name, tenant: result.tenant.slug },
+    });
+
+    return result;
   }
 
   private toSummary(l: {

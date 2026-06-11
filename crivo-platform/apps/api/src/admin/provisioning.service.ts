@@ -102,4 +102,73 @@ export class ProvisioningService {
       tempPassword: generated ? password : undefined,
     };
   }
+
+  /**
+   * FASE 3 — provisiona uma empresa A PARTIR de um PRODUTO contratado. Cria
+   * org + tenant (ligado ao produto) + admin inicial e ativa exatamente os
+   * MÓDULOS do produto (não os do plano). As perguntas e a IA ficam no próprio
+   * produto, referenciado por tenant.productId — a empresa "herda" o produto.
+   */
+  async provisionFromProduct(input: {
+    companyName: string;
+    adminName: string;
+    adminEmail: string;
+    plan: Plan;
+    productId: string;
+    modules: string[];
+    actor?: AuditActor;
+  }): Promise<ProvisionResult> {
+    const db = this.prisma.admin;
+    const slug = slugify(input.companyName);
+    if (!slug) throw new ConflictException('Não foi possível derivar um slug do nome da empresa');
+
+    const slugTaken = await db.tenant.findUnique({ where: { slug } });
+    if (slugTaken) throw new ConflictException(`Slug "${slug}" já está em uso`);
+
+    const password = generatePassword();
+    const adminEmail = input.adminEmail.toLowerCase().trim();
+    // Sem módulos definidos no produto → cai para os do plano (defensivo).
+    const moduleCodes = input.modules.length ? input.modules : modulesForPlan(input.plan);
+
+    const tenant = await db.$transaction(async (tx) => {
+      const org = await tx.organization.create({ data: { name: input.companyName, plan: input.plan } });
+      const created = await tx.tenant.create({
+        data: {
+          organizationId: org.id,
+          slug,
+          name: input.companyName,
+          plan: input.plan,
+          status: 'ACTIVE',
+          productId: input.productId,
+        },
+      });
+      await tx.user.create({
+        data: {
+          tenantId: org.id,
+          email: adminEmail,
+          name: input.adminName,
+          role: 'ADMIN',
+          passwordHash: bcrypt.hashSync(password, 10),
+        },
+      });
+      await tx.tenantModule.createMany({
+        data: moduleCodes.map((moduleCode) => ({ tenantId: org.id, moduleCode })),
+      });
+      return created;
+    });
+
+    await this.audit.record({
+      action: 'tenant.provision',
+      actor: input.actor,
+      target: tenant.slug,
+      tenantId: tenant.organizationId,
+      meta: { plan: tenant.plan, adminEmail, productId: input.productId, fromLead: true },
+    });
+
+    return {
+      tenant: toTenantSummary(tenant),
+      adminEmail,
+      tempPassword: password,
+    };
+  }
 }

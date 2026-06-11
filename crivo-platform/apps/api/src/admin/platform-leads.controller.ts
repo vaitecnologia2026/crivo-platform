@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import type { PlatformAdmin } from '@crivo/types';
 import { PlatformLeadsService } from './platform-leads.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { SetLeadNotesDto, SetLeadStageDto } from './commerce.dto';
+import { ConvertLeadDto, SetLeadNotesDto, SetLeadStageDto } from './commerce.dto';
 
 /** CRM do super admin (funil comercial da CRIVO). Exclusivo de super admins. */
 @Controller('admin/leads')
@@ -33,5 +33,15 @@ export class PlatformLeadsController {
     @Body() dto: SetLeadNotesDto,
   ) {
     return this.leads.setNotes(id, dto.notes, { id: admin.id, email: admin.email });
+  }
+
+  /** Converte o lead em cliente, provisionando a empresa pelo produto contratado. */
+  @Post(':id/convert')
+  convert(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ConvertLeadDto,
+  ) {
+    return this.leads.convert(id, dto.productId, { id: admin.id, email: admin.email });
   }
 }

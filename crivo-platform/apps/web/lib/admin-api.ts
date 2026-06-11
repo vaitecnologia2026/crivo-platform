@@ -196,6 +196,14 @@ export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSum
   });
 }
 
+/** Converte o lead em cliente provisionando pela estrutura do produto. */
+export function convertLead(id: string, productId: string): Promise<ProvisionResult> {
+  return adminFetch<ProvisionResult>(`/admin/leads/${id}/convert`, {
+    method: "POST",
+    body: JSON.stringify({ productId }),
+  });
+}
+
 // ── Catálogo de produtos (product-driven) ──
 
 export function listProducts(): Promise<ProductSummary[]> {

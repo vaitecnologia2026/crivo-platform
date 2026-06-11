@@ -72,6 +72,11 @@ export class SetLeadNotesDto {
   notes!: string;
 }
 
+export class ConvertLeadDto {
+  @IsString()
+  productId!: string;
+}
+
 // ── Diagnóstico Inicial público (LP) ──
 
 class DiagnosticAnswerDto {
