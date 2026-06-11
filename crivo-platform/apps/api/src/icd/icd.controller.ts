@@ -39,6 +39,12 @@ export class IcdController {
     return this.icd.dashboard(user.tenantId);
   }
 
+  /** ICD pessoal do líder logado (sem @Roles: cada um vê o próprio). */
+  @Get('me')
+  myScore(@CurrentUser() user: SessionUser) {
+    return this.icd.myScore(user.tenantId, user.id);
+  }
+
   /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas. */
   @Get('campaigns')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')

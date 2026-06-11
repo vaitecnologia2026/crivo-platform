@@ -10,6 +10,7 @@ import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CrmScreen } from "./CrmScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
+import { LiderScreen } from "./LiderScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
@@ -116,6 +117,7 @@ export function Plataforma() {
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
       if (name === "crm") mountIsland("crm-root", <CrmScreen />);
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
+      if (name === "lider") mountIsland("lider-root", <LiderScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
       if (meta) {

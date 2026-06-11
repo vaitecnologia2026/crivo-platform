@@ -49,6 +49,33 @@ export class IcdService {
     );
   }
 
+  /** ICD pessoal do líder logado (último score) + posição no ranking do tenant. */
+  async myScore(tenantId: string, userId: string) {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const scores = await tx.icdScore.findMany({ orderBy: { computedAt: 'desc' } });
+      if (scores.length === 0) return null;
+
+      // Último score por líder (já desc por computedAt).
+      const latestByLeader = new Map<string, (typeof scores)[number]>();
+      for (const s of scores) if (!latestByLeader.has(s.leaderId)) latestByLeader.set(s.leaderId, s);
+
+      const mine = latestByLeader.get(userId);
+      if (!mine) return null;
+
+      const ranking = [...latestByLeader.values()].sort((a, b) => b.score - a.score);
+      const rank = ranking.findIndex((s) => s.leaderId === userId) + 1;
+
+      return {
+        score: mine.score,
+        dimensions: mine.dimensions,
+        dominantPattern: mine.dominantPattern,
+        computedAt: mine.computedAt.toISOString(),
+        rank,
+        totalLideres: ranking.length,
+      };
+    });
+  }
+
   /** Campanhas de diagnóstico (ciclos) com estatísticas: respondentes, adesão e ICD médio. */
   async campaigns(tenantId: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {

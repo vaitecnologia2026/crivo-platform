@@ -310,6 +310,16 @@ export interface SubmitIcdRequest {
   answers: IcdAnswer[];
 }
 
+/** ICD pessoal do líder logado (Área do Líder), com posição no ranking. */
+export interface MyIcd {
+  score: number;
+  dimensions: IcdDimensions;
+  dominantPattern: DominantPattern;
+  computedAt: string;
+  rank: number; // 1 = melhor
+  totalLideres: number;
+}
+
 /** Campanha de diagnóstico (ciclo de avaliação) com estatísticas agregadas. */
 export interface CampaignSummary {
   id: string;
