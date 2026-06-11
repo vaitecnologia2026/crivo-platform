@@ -106,10 +106,13 @@ export class TenantsService {
     const limits = PLAN_LIMITS[plan];
 
     // leads e usuários ativos são contados direto da tabela (fonte de verdade
-    // dos limites), não de contadores acumulados.
+    // dos limites). api_calls vem do contador acumulado do período (metering).
     const leadCount = await this.prisma.admin.lead.count({ where: { tenantId: tenant.organizationId } });
     const activeUsers = await this.prisma.admin.user.count({
       where: { tenantId: tenant.organizationId, active: true },
+    });
+    const apiCalls = await this.prisma.admin.usageCounter.findUnique({
+      where: { tenantId_metric_period: { tenantId: tenant.organizationId, metric: 'api_calls', period } },
     });
 
     return {
@@ -118,6 +121,7 @@ export class TenantsService {
       metrics: [
         { metric: 'leads', value: leadCount, limit: limits.maxLeads },
         { metric: 'active_users', value: activeUsers, limit: limits.maxUsers },
+        { metric: 'api_calls', value: Number(apiCalls?.value ?? 0n), limit: null },
       ],
     };
   }

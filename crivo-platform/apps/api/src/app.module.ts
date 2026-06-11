@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { IamModule } from './iam/iam.module';
 import { IcdModule } from './icd/icd.module';
 import { LeadsModule } from './leads/leads.module';
 import { UsersModule } from './users/users.module';
+import { MeteringModule } from './metering/metering.module';
+import { MeteringInterceptor } from './metering/metering.interceptor';
 import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health/health.controller';
 
@@ -20,9 +22,14 @@ import { HealthController } from './health/health.controller';
     IcdModule,
     LeadsModule,
     UsersModule,
+    MeteringModule,
     AdminModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Metering de api_calls por tenant (F4) — conta requisições autenticadas.
+    { provide: APP_INTERCEPTOR, useClass: MeteringInterceptor },
+  ],
 })
 export class AppModule {}

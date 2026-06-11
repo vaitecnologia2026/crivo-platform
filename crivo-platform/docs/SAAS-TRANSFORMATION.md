@@ -811,7 +811,12 @@ no futuro sem mudança de contrato.
 
 ### Pendente da F4 (follow-ups menores)
 
-- ✅ **`maxUsers` enforced** — ver "Gestão de usuários" abaixo. Resta metering de `api_calls`.
+- ✅ **`maxUsers` enforced** — ver "Gestão de usuários" (Apêndice J).
+- ✅ **Metering de `api_calls`** — `MeteringInterceptor` global conta cada requisição autenticada de
+  tenant no `UsageCounter` (`MeteringService.track`, best-effort fora do caminho crítico). `usage()`
+  reporta `api_calls` do período. E2E: 6 requisições de tenant → `api_calls=6`; super admin e rotas
+  públicas (sem `tenantId`) **não** contam. Nota de escala: hoje é 1 upsert/request — agregar em
+  buffer/Redis se o volume exigir.
 - **Mais pilotos**: aplicar `@RequireModule` aos demais módulos conforme forem migrando para React/API.
 
 ---
