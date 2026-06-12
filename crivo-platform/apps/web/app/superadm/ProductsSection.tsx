@@ -8,6 +8,7 @@ import {
   PRODUCT_STATUSES,
   type Plan,
   type ProductAiConfig,
+  type ProductDiagnostic,
   type ProductDetail,
   type ProductStatus,
   type ProductSummary,
@@ -23,6 +24,31 @@ import {
 
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function slugifyKey(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_").replace(/(^_|_$)/g, "") || "dim";
+}
+
+/** Instrumento padrão (escala 1–5 de maturidade) para um produto novo. */
+function defaultDiagnostic(): ProductDiagnostic {
+  return {
+    dimensions: [],
+    scales: [{
+      key: "maturidade",
+      label: "Maturidade (1–5)",
+      options: [
+        { value: 1, label: "Muito baixo / inexistente" },
+        { value: 2, label: "Baixo" },
+        { value: 3, label: "Parcial" },
+        { value: 4, label: "Bom" },
+        { value: 5, label: "Muito bom / estruturado" },
+      ],
+    }],
+    blocks: [],
+    questions: [],
+  };
+}
 
 /** Catálogo de PRODUTOS — núcleo product-driven (tudo nasce daqui). */
 export function ProductsSection() {
@@ -142,6 +168,7 @@ function ProductForm({
     maxLeaders: initial?.maxLeaders ?? 0,
     companyType: initial?.companyType ?? "",
     modules: initial?.modules ?? [],
+    diagnostic: initial?.diagnostic ?? defaultDiagnostic(),
     aiConfig: initial?.aiConfig ?? {},
     isLeadCapture: initial?.isLeadCapture ?? false,
   }));
@@ -151,6 +178,8 @@ function ProductForm({
   const ai = (form.aiConfig ?? {}) as ProductAiConfig;
   const setAi = (k: keyof ProductAiConfig, v: string) =>
     set("aiConfig", { ...ai, [k]: v });
+  const diag = (form.diagnostic ?? defaultDiagnostic()) as ProductDiagnostic;
+  const setDiag = (d: ProductDiagnostic) => set("diagnostic", d);
 
   function toggleModule(code: string) {
     const cur = form.modules ?? [];
@@ -265,6 +294,11 @@ function ProductForm({
           </fieldset>
 
           <fieldset className="prod-fs">
+            <legend>Diagnóstico — perguntas editáveis</legend>
+            <DiagnosticEditor value={diag} onChange={setDiag} />
+          </fieldset>
+
+          <fieldset className="prod-fs">
             <legend>IA dos líderes</legend>
             <div className="prod-form__grid">
               <Field label="Objetivo da IA" full>
@@ -283,12 +317,6 @@ function ProductForm({
                 <textarea rows={2} value={ai.limitations ?? ""} onChange={(e) => setAi("limitations", e.target.value)} />
               </Field>
             </div>
-            {initial && (
-              <p className="prod-note">
-                Instrumento de diagnóstico: <strong>{initial.questionCount} perguntas</strong>.
-                A edição de blocos/perguntas chega na FASE 2.
-              </p>
-            )}
           </fieldset>
 
           <div className="modal__foot">
@@ -311,5 +339,143 @@ function Field({ label, full, children }: { label: string; full?: boolean; child
       {label && <span>{label}</span>}
       {children}
     </label>
+  );
+}
+
+/** Editor do instrumento de diagnóstico: dimensões, escala e perguntas (não-fixas). */
+function DiagnosticEditor({
+  value,
+  onChange,
+}: {
+  value: ProductDiagnostic;
+  onChange: (d: ProductDiagnostic) => void;
+}) {
+  const dimensions = value.dimensions ?? [];
+  const scale = value.scales?.[0];
+  const questions = value.questions ?? [];
+  const scaleKey = scale?.key ?? "maturidade";
+
+  // ── Dimensões ──
+  function addDimension() {
+    const key = `dim_${dimensions.length + 1}`;
+    onChange({ ...value, dimensions: [...dimensions, { key, label: "" }] });
+  }
+  function updateDimension(i: number, label: string) {
+    const next = dimensions.map((d, j) => (j === i ? { ...d, label } : d));
+    onChange({ ...value, dimensions: next });
+  }
+  function removeDimension(i: number) {
+    onChange({ ...value, dimensions: dimensions.filter((_, j) => j !== i) });
+  }
+
+  // ── Escala ──
+  function updateOption(i: number, label: string) {
+    if (!scale) return;
+    const opts = scale.options.map((o, j) => (j === i ? { ...o, label } : o));
+    onChange({ ...value, scales: [{ ...scale, options: opts }] });
+  }
+
+  // ── Perguntas ──
+  function addQuestion() {
+    const id = questions.reduce((m, q) => Math.max(m, q.id), 0) + 1;
+    const dim = dimensions[0]?.key ?? "";
+    onChange({
+      ...value,
+      questions: [...questions, { id, text: "", dimension: dim, block: dim, scale: scaleKey, weight: 1, inverse: false }],
+    });
+  }
+  function updateQuestion(i: number, patch: Partial<NonNullable<ProductDiagnostic["questions"]>[number]>) {
+    const next = questions.map((q, j) => (j === i ? { ...q, ...patch } : q));
+    onChange({ ...value, questions: next });
+  }
+  function removeQuestion(i: number) {
+    onChange({ ...value, questions: questions.filter((_, j) => j !== i) });
+  }
+
+  return (
+    <div className="diag-editor">
+      {/* Dimensões */}
+      <div className="diag-editor__block">
+        <div className="diag-editor__head">
+          <strong>Dimensões / categorias</strong>
+          <button type="button" className="diag-editor__add" onClick={addDimension}>+ dimensão</button>
+        </div>
+        {dimensions.length === 0 && <p className="prod-note">Nenhuma dimensão. Adicione ao menos uma.</p>}
+        {dimensions.map((d, i) => (
+          <div key={d.key} className="diag-editor__row">
+            <input
+              value={d.label}
+              placeholder="Nome da dimensão"
+              onChange={(e) => updateDimension(i, e.target.value)}
+            />
+            <button type="button" className="diag-editor__del" onClick={() => removeDimension(i)} title="Remover">✕</button>
+          </div>
+        ))}
+      </div>
+
+      {/* Escala */}
+      {scale && (
+        <div className="diag-editor__block">
+          <div className="diag-editor__head"><strong>Escala de resposta — {scale.label}</strong></div>
+          {scale.options.map((o, i) => (
+            <div key={o.value} className="diag-editor__row">
+              <span className="diag-editor__optval">{o.value}</span>
+              <input value={o.label} onChange={(e) => updateOption(i, e.target.value)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Perguntas */}
+      <div className="diag-editor__block">
+        <div className="diag-editor__head">
+          <strong>Perguntas ({questions.length})</strong>
+          <button type="button" className="diag-editor__add" onClick={addQuestion}>+ pergunta</button>
+        </div>
+        {questions.length === 0 && <p className="prod-note">Nenhuma pergunta cadastrada.</p>}
+        {questions.map((q, i) => (
+          <div key={q.id} className="diag-editor__q">
+            <div className="diag-editor__q-top">
+              <span className="diag-editor__qn">{i + 1}</span>
+              <textarea
+                rows={2}
+                value={q.text}
+                placeholder="Texto da pergunta"
+                onChange={(e) => updateQuestion(i, { text: e.target.value })}
+              />
+              <button type="button" className="diag-editor__del" onClick={() => removeQuestion(i)} title="Remover">✕</button>
+            </div>
+            <div className="diag-editor__q-meta">
+              <label>
+                Dimensão
+                <select
+                  value={q.dimension ?? ""}
+                  onChange={(e) => updateQuestion(i, { dimension: e.target.value, block: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {dimensions.map((d) => (<option key={d.key} value={d.key}>{d.label || d.key}</option>))}
+                </select>
+              </label>
+              <label>
+                Peso
+                <input
+                  type="number" min={0} step="0.5"
+                  value={q.weight ?? 1}
+                  onChange={(e) => updateQuestion(i, { weight: Number(e.target.value) })}
+                />
+              </label>
+              <label className="diag-editor__inv">
+                <input
+                  type="checkbox"
+                  checked={q.inverse ?? false}
+                  onChange={(e) => updateQuestion(i, { inverse: e.target.checked })}
+                />
+                Invertida
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

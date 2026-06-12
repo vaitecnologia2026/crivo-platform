@@ -1679,3 +1679,51 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .convert-creds dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); }
 .convert-creds dd { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
 .convert-creds code { font-family: var(--font-mono); background: var(--bg); padding: 2px 8px; border-radius: 4px; color: var(--gold-deep); }
+
+/* ---- Editor do diagnóstico (produto) ---- */
+.diag-editor { display: flex; flex-direction: column; gap: 18px; }
+.diag-editor__block { display: flex; flex-direction: column; gap: 8px; }
+.diag-editor__head { display: flex; align-items: center; justify-content: space-between; }
+.diag-editor__head strong { font-size: 13px; font-weight: 600; color: var(--text); }
+.diag-editor__add {
+  font-size: 12px; font-weight: 600; color: var(--gold-deep); background: rgba(168,105,61,0.1);
+  border: 1px solid rgba(168,105,61,0.25); border-radius: var(--r-sm); padding: 4px 10px; cursor: pointer;
+}
+.diag-editor__add:hover { background: var(--gold); color: var(--off-white, #F2F0EC); border-color: var(--gold); }
+.diag-editor__row { display: flex; align-items: center; gap: 8px; }
+.diag-editor__row input {
+  flex: 1; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px;
+  font-size: 13px; color: var(--text); background: var(--bg); font-family: inherit;
+}
+.diag-editor__row input:focus { outline: none; border-color: var(--gold); }
+.diag-editor__optval {
+  width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-sec);
+  background: var(--line-soft); border-radius: var(--r-sm);
+}
+.diag-editor__del {
+  width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg); color: var(--text-mute); cursor: pointer; font-size: 12px;
+}
+.diag-editor__del:hover { color: var(--danger, #b4453a); border-color: var(--danger, #b4453a); }
+.diag-editor__q { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; background: var(--bg); display: flex; flex-direction: column; gap: 10px; }
+.diag-editor__q-top { display: flex; align-items: flex-start; gap: 8px; }
+.diag-editor__qn {
+  width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--gold-deep);
+  background: rgba(168,105,61,0.1); border-radius: 50%; margin-top: 4px;
+}
+.diag-editor__q-top textarea {
+  flex: 1; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px;
+  font-size: 13px; color: var(--text); background: var(--bg-elev); font-family: inherit; resize: vertical;
+}
+.diag-editor__q-top textarea:focus { outline: none; border-color: var(--gold); }
+.diag-editor__q-meta { display: flex; flex-wrap: wrap; gap: 14px; padding-left: 32px; }
+.diag-editor__q-meta label { display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); }
+.diag-editor__q-meta select, .diag-editor__q-meta input[type="number"] {
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px 8px; font-size: 13px;
+  color: var(--text); background: var(--bg-elev); font-family: inherit; text-transform: none;
+}
+.diag-editor__q-meta input[type="number"] { width: 64px; }
+.diag-editor__inv { cursor: pointer; }
+.diag-editor__inv input { width: 14px; height: 14px; accent-color: var(--gold); }
