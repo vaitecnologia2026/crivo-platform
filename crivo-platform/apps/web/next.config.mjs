@@ -9,12 +9,16 @@ const nextConfig = {
   transpilePackages: ["@crivo/types", "@crivo/ui"],
   turbopack: { root: monorepoRoot },
   env: {
-    // Em produção NÃO embute localhost: se API_URL não estiver setada no build,
-    // o cliente falha de forma clara (ver lib/api.ts) em vez de bater na máquina
-    // do usuário. Em dev, mantém o fallback local.
+    // URL da API. Usa API_URL do ambiente se definida e NÃO vazia (|| cobre
+    // string vazia, que o ?? deixaria passar); senão cai no padrão: a API de
+    // produção (Railway) em prod, ou o localhost em dev. Hardcode do default de
+    // produção garante a URL embutida mesmo que o build não receba a env
+    // (ex.: Turborepo filtra variáveis não declaradas).
     NEXT_PUBLIC_API_URL:
-      process.env.API_URL ??
-      (process.env.NODE_ENV === "production" ? "" : "http://localhost:3333"),
+      process.env.API_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://crivo-platform-production.up.railway.app/api"
+        : "http://localhost:3333"),
   },
 };
 
