@@ -37,11 +37,13 @@ cd crivo-platform
 export DATABASE_URL="postgresql://postgres:SENHA@HOST.proxy.rlwy.net:PORTA/railway"
 
 pnpm install
-pnpm --filter @crivo/db generate        # gera o client
-pnpm --filter @crivo/db migrate:deploy   # cria TODAS as tabelas (16 migrations)
-pnpm --filter @crivo/db rls              # cria o usuário crivo_app + políticas RLS
-pnpm --filter @crivo/db seed             # super admin + produtos + dados demo
+pnpm --filter @crivo/db setup:prod       # faz tudo: generate + migrate + rls + seed
 ```
+
+> `setup:prod` roda, em ordem: `generate` (client) → `migrate:deploy` (cria as
+> tabelas) → `rls` (usuário crivo_app + políticas RLS) → `seed` (super admin +
+> produtos + dados demo). Se preferir passo a passo, rode os 4 separadamente
+> (`generate`, `migrate:deploy`, `rls`, `seed`). O `rls` precisa de `psql` instalado.
 
 O `seed` cria, entre outros, o produto obrigatório **PRÉ-DIAGNÓSTICO CRIVO** + CRIVO
 Lite/Professional/Enterprise e leads de CRM demo.
@@ -68,11 +70,10 @@ No mesmo projeto → **New** → **GitHub Repo** → `vaitecnologia2026/crivo-pl
 Configure o serviço:
 
 - **Root Directory:** `/` (é um monorepo pnpm — não aponte para `apps/api`)
-- **Build Command:**
-  ```
-  pnpm install --frozen-lockfile && pnpm --filter @crivo/types build && pnpm --filter @crivo/db generate && pnpm --filter @crivo/api build
-  ```
-- **Start Command:** `node apps/api/dist/main.js`
+- **Build / Start:** já vêm prontos do **`railway.json`** na raiz do repo — o Railway
+  lê automaticamente. (Se quiser conferir/sobrescrever na UI:)
+  - Build: `pnpm install --frozen-lockfile && pnpm --filter @crivo/types build && pnpm --filter @crivo/db generate && pnpm --filter @crivo/api build`
+  - Start: `node apps/api/dist/main.js`
 
 **Variáveis de ambiente da API** (aba Variables):
 

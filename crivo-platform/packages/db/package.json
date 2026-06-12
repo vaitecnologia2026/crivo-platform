@@ -12,6 +12,7 @@
     "studio": "prisma studio",
     "rls": "psql \"${DATABASE_URL%%\\?*}\" -f prisma/sql/rls.sql",
     "seed": "tsx prisma/seed.ts",
+    "setup:prod": "prisma generate && prisma migrate deploy && pnpm run rls && pnpm run seed",
     "test:isolation": "tsx prisma/test-isolation.ts",
     "typecheck": "tsc --noEmit"
   },
