@@ -53,9 +53,9 @@ export function DashboardScreen() {
         <>
           <div className="kpi-grid">
             <div className="kpi">
-              <span className="kpi__label">ICD Geral</span>
+              <span className="kpi__label">Índice Geral CRIVO</span>
               <strong className="kpi__value">{data.icdMedio}</strong>
-              <span className="kpi__delta">média dos líderes avaliados</span>
+              <span className="kpi__delta">coerência decisória média da liderança</span>
               <div className="kpi__bar">
                 <div style={{ width: `${data.icdMedio}%` }} />
               </div>

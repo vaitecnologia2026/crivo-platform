@@ -1018,6 +1018,15 @@ export default function LandingPage() {
               <label htmlFor="email">E-mail corporativo</label>
               <input type="email" id="email" name="email" placeholder="nome@empresa.com.br" required />
             </div>
+            <div className="field">
+              <label htmlFor="desafio">Principal desafio atual da empresa (opcional)</label>
+              <textarea
+                id="desafio"
+                name="desafio"
+                rows={2}
+                placeholder="Ex.: turnover na liderança, conflitos entre áreas, decisões sob pressão…"
+              />
+            </div>
 
             <button type="submit" className="btn btn--terra btn--block">
               Solicitar diagnóstico inicial →
@@ -1080,6 +1089,15 @@ export default function LandingPage() {
                 diagnóstico, acompanha a adesão e gere o plano de ação. O dashboard reúne o Índice Geral CRIVO, fatores
                 psicossociais, liderança e cultura, áreas críticas, plano de ação, evidências e relatório executivo —
                 sempre com dados agregados, por grupos elegíveis e protegidos pela LGPD.
+              </p>
+            </details>
+            <details>
+              <summary>Qual é o papel do App CRIVO?</summary>
+              <p>
+                O App CRIVO é a camada que sustenta a transformação na rotina do líder: Meu Estado, CRIVO Pocket, Radar
+                da Decisão (ICD™), Simulador de Decisão, Mentor Operacional e Mentor CRIVO, Academia CRIVO e Dashboard
+                do Líder. Enquanto o Portal organiza a visão executiva da empresa, o app ajuda a liderança a aplicar o
+                método no dia a dia — conectado aos planos de ação e aos indicadores agregados.
               </p>
             </details>
             <details>
@@ -1184,7 +1202,13 @@ export default function LandingPage() {
             <h5>Soluções</h5>
             <ul>
               <li>
-                <a href="#solucoes">CRIVO Base</a>
+                <a href="#diagnostico">Diagnóstico Inicial</a>
+              </li>
+              <li>
+                <a href="#solucoes">CRIVO Diagnóstico™</a>
+              </li>
+              <li>
+                <a href="#solucoes">CRIVO Liderança</a>
               </li>
               <li>
                 <a href="#solucoes">CRIVO Evolução</a>
@@ -1201,13 +1225,22 @@ export default function LandingPage() {
             <h5>Sistema</h5>
             <ul>
               <li>
-                <a href="#icd">ICD — Índice de Coerência</a>
-              </li>
-              <li>
-                <a href="#metodo">Método CRIVO</a>
+                <a href="#solucoes">CRIVO Diagnóstico™</a>
               </li>
               <li>
                 <a href="#portal">Portal Executivo</a>
+              </li>
+              <li>
+                <a href="#app">App CRIVO</a>
+              </li>
+              <li>
+                <a href="#ecossistema">Academia CRIVO</a>
+              </li>
+              <li>
+                <a href="#icd">Radar da Decisão · ICD™</a>
+              </li>
+              <li>
+                <a href="#dashboard">Dashboard</a>
               </li>
               <li>
                 <a href="#nr1">NR-1</a>

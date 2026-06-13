@@ -23,7 +23,7 @@ export function IcdScreen() {
     }));
   }
 
-  // Padrão dominante mais frequente entre os líderes.
+  // Tensão dominante mais frequente entre os líderes.
   function topPattern(): string | null {
     if (!data) return null;
     const entries = Object.entries(data.distribuicaoPadrao);

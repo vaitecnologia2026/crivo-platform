@@ -479,14 +479,15 @@ img, svg { display: block; max-width: 100%; }
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-dark-sec); margin-bottom: 7px;
 }
-.field input, .field select {
+.field input, .field select, .field textarea {
   width: 100%; padding: 13px 15px;
   border: 1px solid var(--line); border-radius: var(--r);
   font-family: var(--font-body); font-size: 14px; font-weight: 300;
   color: var(--text-dark); background: #fff;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  resize: vertical;
 }
-.field input:focus, .field select:focus {
+.field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--terra);
   box-shadow: 0 0 0 3px rgba(168, 105, 61, 0.12);
 }
