@@ -71,7 +71,7 @@ DECLARE
   -- contexto) → acesso só via owner, como o restante do control plane.
   -- products + platform_leads: catálogo de produtos e CRM do super admin são
   -- globais (funil comercial da CRIVO) → owner-only, como o resto do control plane.
-  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads','contracts'];
+  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads','contracts','ai_settings'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

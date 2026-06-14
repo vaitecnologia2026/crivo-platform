@@ -85,6 +85,27 @@ export class ConvertLeadDto {
   productId!: string;
 }
 
+// ── Configuração de IA ──
+
+export class UpsertAiSettingsDto {
+  @IsOptional() @IsString() @MaxLength(300)
+  apiKey?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  model?: string;
+
+  @IsOptional() @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  enabledModules?: string[];
+}
+
+export class AiTestDto {
+  @IsOptional() @IsString() @MaxLength(300)
+  apiKey?: string;
+}
+
 // ── Contrato por empresa ──
 
 export class UpsertContractDto {

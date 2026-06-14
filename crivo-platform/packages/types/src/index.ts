@@ -714,6 +714,47 @@ export interface CreateEvidenceRequest {
   note?: string;
 }
 
+// ── Configuração de IA (Super Admin · auditoria 2.3.1) ──
+
+export const AI_MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'o4-mini'] as const;
+export type AiModel = (typeof AI_MODELS)[number];
+
+export const AI_STATUS_LABEL: Record<string, string> = {
+  ok: 'Conectada',
+  invalid: 'Token inválido',
+  rate_limited: 'Limite excedido',
+  error: 'Erro',
+  untested: 'Não testada',
+};
+
+/** Config de IA SEM o token em claro — nunca expomos a chave. */
+export interface AiSettingsData {
+  provider: string;
+  model: string;
+  enabled: boolean;
+  enabledModules: string[];
+  hasKey: boolean;
+  keyHint: string | null; // últimos 4 chars, p/ exibir mascarado
+  lastStatus: string | null;
+  lastTestedAt: string | null;
+}
+
+export interface UpsertAiSettingsRequest {
+  apiKey?: string; // novo token (texto puro); '' = limpar; undefined = manter
+  model?: string;
+  enabled?: boolean;
+  enabledModules?: string[];
+}
+
+export interface AiTestRequest {
+  apiKey?: string; // testa com token informado; ausente = usa o armazenado
+}
+export interface AiTestResult {
+  ok: boolean;
+  status: string; // ok | invalid | rate_limited | error
+  message?: string;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

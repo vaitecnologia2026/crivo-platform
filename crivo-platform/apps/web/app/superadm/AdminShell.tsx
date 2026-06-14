@@ -11,6 +11,7 @@ import {
 import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
+import { AiSettingsSection } from "./AiSettingsSection";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
 function VerticeMark() {
@@ -26,13 +27,14 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "empresas" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "empresas" | "ia" | "auditoria";
 
 const NAV: { key: Section; label: string; icon: string; current: string; group: string }[] = [
   { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Plataforma" },
   { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
   { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
+  { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
   { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
 ];
 
@@ -126,6 +128,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
+          {section === "ia" && <AiSettingsSection />}
           {section === "auditoria" && <AuditSection />}
         </section>
       </main>
@@ -267,6 +270,11 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.intake": "Lead capturado (LP)",
   "lead.stage": "Lead movido no funil",
   "lead.notes": "Nota do lead",
+  "lead.convert": "Lead convertido em cliente",
+  "contract.create": "Contrato criado",
+  "contract.update": "Contrato atualizado",
+  "ai.config.update": "Config de IA atualizada",
+  "ai.test": "Conexão de IA testada",
 };
 
 function AuditSection() {

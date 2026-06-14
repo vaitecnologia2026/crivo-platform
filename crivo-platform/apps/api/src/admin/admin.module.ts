@@ -12,6 +12,8 @@ import { AdminOverviewController } from './admin-overview.controller';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
 import { ContractsService } from './contracts.service';
+import { AiSettingsController } from './ai-settings.controller';
+import { AiSettingsService } from './ai-settings.service';
 import { PlatformLeadsController } from './platform-leads.controller';
 import { PlatformLeadsService } from './platform-leads.service';
 import { PublicDiagnosticController } from './public-diagnostic.controller';
@@ -32,6 +34,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     ProductsController,
     PlatformLeadsController,
     PublicDiagnosticController,
+    AiSettingsController,
   ],
   providers: [
     AdminAuthService,
@@ -43,6 +46,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     ProductsService,
     PlatformLeadsService,
     ContractsService,
+    AiSettingsService,
     AuditService,
     SuperAdminGuard,
   ],

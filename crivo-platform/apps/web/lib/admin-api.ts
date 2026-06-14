@@ -2,6 +2,8 @@
 // token próprio (crivo_admin_token) e redirect para /superadm em 401 — para que
 // as duas sessões (plataforma vs. painel global) nunca se misturem.
 import type {
+  AiSettingsData,
+  AiTestResult,
   ContractData,
   CreateTenantRequest,
   Plan,
@@ -16,6 +18,7 @@ import type {
   TenantModuleSummary,
   TenantSummary,
   UpdateBrandingRequest,
+  UpsertAiSettingsRequest,
   UpsertContractRequest,
   UpsertProductRequest,
   UsageSummary,
@@ -232,6 +235,26 @@ export function updateProduct(id: string, dto: UpsertProductRequest): Promise<Pr
 
 export function deleteProduct(id: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/products/${id}`, { method: "DELETE" });
+}
+
+// ── Configuração de IA (auditoria 2.3.1) ──
+
+export function getAiSettings(): Promise<AiSettingsData> {
+  return adminFetch<AiSettingsData>("/admin/ai-settings");
+}
+
+export function updateAiSettings(dto: UpsertAiSettingsRequest): Promise<AiSettingsData> {
+  return adminFetch<AiSettingsData>("/admin/ai-settings", {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}
+
+export function testAiConnection(apiKey?: string): Promise<AiTestResult> {
+  return adminFetch<AiTestResult>("/admin/ai-settings/test", {
+    method: "POST",
+    body: JSON.stringify(apiKey ? { apiKey } : {}),
+  });
 }
 
 // ── Contrato por empresa (Briefing §11) ──

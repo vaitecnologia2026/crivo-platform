@@ -314,6 +314,36 @@ model Contract {
 }
 
 // =====================================================================
+// CONFIGURAÇÃO DE IA (Super Admin · auditoria 2.3.1) — token OpenAI/ChatGPT
+// configurável SEM código, CRIPTOGRAFADO em repouso (AES-256-GCM com chave
+// derivada de AUTH_SECRET). Singleton (scope='global'). Control plane
+// (owner-only): nenhum usuário comum lê o token. Prompts por produto vivem em
+// Product.aiConfig; aqui ficam token, modelo, ativação e módulos habilitados.
+// =====================================================================
+model AiSettings {
+  id       String @id @default(uuid()) @db.Uuid
+  scope    String @unique @default("global")
+  provider String @default("openai")
+  model    String @default("gpt-4o-mini")
+
+  // Token criptografado (nunca em claro no banco nem na API de leitura).
+  apiKeyEnc  String? // ciphertext base64
+  apiKeyIv   String? // IV base64
+  apiKeyTag  String? // auth tag base64 (GCM)
+  apiKeyHint String? // últimos 4 chars, p/ exibir mascarado
+
+  enabled        Boolean   @default(false)
+  enabledModules Json      @default("[]") // string[] de moduleCode que podem usar IA
+  lastStatus     String? // ok | invalid | error | rate_limited | untested
+  lastTestedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_settings")
+}
+
+// =====================================================================
 // RBAC DINÂMICO (F3) — catálogo GLOBAL de permissões (módulo:ação) e papéis
 // de sistema. Sem RLS por tenant (catálogo compartilhado entre todas as
 // empresas); SOMENTE-LEITURA para o app — escrita só via seed/owner (rls.sql).
