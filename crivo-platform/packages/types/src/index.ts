@@ -755,6 +755,48 @@ export interface AiTestResult {
   message?: string;
 }
 
+// ── Documentos gerados (portal · Briefing §15 + Matriz "Documentos Gerados") ──
+
+/** Frase de responsabilidade OBRIGATÓRIA em todos os documentos técnicos. */
+export const RESPONSIBILITY_NOTE =
+  'Os documentos gerados pela plataforma CRIVO têm caráter de apoio técnico, gerencial e documental à identificação, registro, gestão e acompanhamento dos fatores psicossociais relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do responsável técnico/designado.';
+
+export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
+  relatorio_preliminar: 'Relatório preliminar',
+  dossie_aep: 'Dossiê de apoio à AEP',
+  dossie_aep_pgr: 'Dossiê de apoio à AEP + PGR',
+  inventario_pgr: 'Inventário / anexo para PGR',
+  relatorio_tecnico: 'Relatório técnico',
+  relatorio_executivo: 'Relatório executivo',
+  plano_acao: 'Plano de Ação',
+};
+
+export interface DocumentDescriptor {
+  type: string;
+  title: string;
+  available: boolean;
+  reason?: string; // por que não está disponível (ex.: requer plano validado)
+}
+
+export interface DocumentSection {
+  heading: string;
+  body?: string;
+  rows?: { label: string; value: string }[];
+  /** Tabela com cabeçalho + linhas (ex.: plano de ação). */
+  table?: { columns: string[]; data: string[][] };
+}
+
+export interface GeneratedDocument {
+  type: string;
+  title: string;
+  subtitle?: string;
+  company: string;
+  generatedAt: string;
+  meta: { label: string; value: string }[];
+  sections: DocumentSection[];
+  responsibilityNote: string;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

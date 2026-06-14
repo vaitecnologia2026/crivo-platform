@@ -6,7 +6,9 @@ import type {
   CreateActionItemRequest,
   CreateActionPlanRequest,
   CreateEvidenceRequest,
+  DocumentDescriptor,
   EvidenceData,
+  GeneratedDocument,
   TenantBrandingData,
   UpdateActionItemRequest,
 } from '@crivo/types';
@@ -119,4 +121,13 @@ export function addEvidence(itemId: string, dto: CreateEvidenceRequest): Promise
     method: 'POST',
     body: JSON.stringify(dto),
   });
+}
+
+// ── Documentos (Briefing §15) ──
+
+export function listDocuments(): Promise<DocumentDescriptor[]> {
+  return apiFetch<DocumentDescriptor[]>('/action-plans/documents');
+}
+export function generateDocument(type: string): Promise<GeneratedDocument> {
+  return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`);
 }

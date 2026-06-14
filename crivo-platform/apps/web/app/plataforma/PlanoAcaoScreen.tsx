@@ -15,6 +15,7 @@ import {
   updateActionItem,
   validateActionPlan,
 } from "@/lib/api";
+import { DocumentsPanel } from "./DocumentsPanel";
 
 const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link"];
 
@@ -43,6 +44,8 @@ export function PlanoAcaoScreen() {
 
       {status === "loading" && <p className="dash-state">Carregando planos…</p>}
       {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar.</div>}
+
+      {status === "ok" && <DocumentsPanel />}
 
       {creating && <NewPlanForm onClose={() => setCreating(false)} onCreated={async () => { setCreating(false); await refresh(); }} />}
 

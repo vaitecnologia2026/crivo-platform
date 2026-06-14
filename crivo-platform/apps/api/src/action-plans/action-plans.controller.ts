@@ -15,6 +15,7 @@ import { ModuleGuard } from '../iam/guards/module.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ActionPlansService } from './action-plans.service';
+import { DocumentsService } from './documents.service';
 import {
   CreateActionItemDto,
   CreateActionPlanDto,
@@ -30,7 +31,24 @@ import {
 @UseGuards(AuthGuard, ModuleGuard)
 @RequireModule('relatorios')
 export class ActionPlansController {
-  constructor(private readonly plans: ActionPlansService) {}
+  constructor(
+    private readonly plans: ActionPlansService,
+    private readonly documents: DocumentsService,
+  ) {}
+
+  // ── Documentos gerados (Briefing §15) ──
+
+  /** Documentos disponíveis conforme método + saída técnica do contrato. */
+  @Get('documents')
+  availableDocuments(@CurrentUser() user: SessionUser) {
+    return this.documents.available(user.tenantId);
+  }
+
+  /** Conteúdo estruturado de um documento (montado dos dados reais). */
+  @Get('documents/:type')
+  generateDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
+    return this.documents.generate(user.tenantId, type);
+  }
 
   @Get()
   list(@CurrentUser() user: SessionUser) {
