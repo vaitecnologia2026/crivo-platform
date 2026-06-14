@@ -8,6 +8,10 @@ export const ROLES = [
   'JURIDICO',
   'CEO',
   'ADMIN',
+  // Perfis CRIVO (Briefing §4 — acompanhamento/conteúdo, não-empregados do tenant).
+  'CONSULTOR', // Consultor CRIVO — acompanha o cliente, aplica diagnóstico e parecer.
+  'MENTOR',    // Mentor — conduz mentorias e cura conteúdo da Academia.
+  'ACADEMIA',  // Usuário Academia — acesso restrito à Academia CRIVO (conteúdo).
 ] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -34,18 +38,25 @@ export const PERMISSIONS = [
   { code: "users:edit", module: "users", action: "edit", label: "Editar usuários" },
   { code: "library:view", module: "library", action: "view", label: "Ver biblioteca" },
   { code: "library:manage", module: "library", action: "manage", label: "Gerir biblioteca" },
+  { code: "parecer:view", module: "parecer", action: "view", label: "Ver parecer consultivo" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
   LIDER: ["icd:view", "library:view"],
-  JURIDICO: ["icd:view", "library:view"],
+  JURIDICO: ["icd:view", "library:view", "parecer:view"],
   COLABORADOR: ["library:view"],
+  // Consultor CRIVO: acompanha o cliente ponta a ponta (diagnóstico, conteúdo, parecer).
+  CONSULTOR: ["leads:view", "icd:view", "icd:submit", "users:view", "library:view", "library:manage", "parecer:view"],
+  // Mentor: conduz mentorias e cura a Academia; leitura dos indicadores do líder.
+  MENTOR: ["icd:view", "library:view", "library:manage"],
+  // Usuário Academia: acesso restrito ao conteúdo da Academia CRIVO.
+  ACADEMIA: ["library:view"],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -56,6 +67,9 @@ export const ROLE_LABELS: Record<Role, string> = {
   LIDER: "Líder",
   JURIDICO: "Jurídico",
   COLABORADOR: "Colaborador",
+  CONSULTOR: "Consultor CRIVO",
+  MENTOR: "Mentor",
+  ACADEMIA: "Usuário Academia",
 };
 
 // ── Gestão de usuários da empresa (time) ──

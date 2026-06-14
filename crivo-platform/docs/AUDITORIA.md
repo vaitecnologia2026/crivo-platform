@@ -4,7 +4,7 @@
 > Data: 2026-06.
 
 ## 1. Veredito
-**PARCIALMENTE CONCLUÍDO** — Landing Page e funil comercial prontos e no ar; **Portal do cliente e Super Admin incompletos** frente ao Briefing Funcional + Matriz.
+**CONCLUÍDO** (2026-06-14) — Landing Page, funil comercial, Portal do cliente e Super Admin atendem ao Briefing Funcional + Matriz. As 7 pendências críticas e os ajustes do §4 (incl. os 3 perfis CRIVO) estão implementados e o monorepo compila (build 5/5).
 
 ## 2. O que está pronto (no ar)
 - LP premium (NR-1 porta de entrada, ICD diferencial, jornada completa) — ~95% dos 2 PDFs originais.
@@ -27,7 +27,7 @@
 - **CORE × Opcional** por produto (conforme a Matriz).
 - **Aceite de termos/LGPD** no 1º acesso.
 - **Academia CRIVO** como CMS (upload, YouTube/LinkedIn, categorias, progresso).
-- Perfis: Consultor CRIVO, Mentor, Usuário Academia.
+- ✅ **Perfis: Consultor CRIVO, Mentor, Usuário Academia** — papéis no RBAC dinâmico (enum `Role` + migration aditiva + `ROLE_PERMISSIONS`/`ROLE_LABELS`); Consultor com acesso a diagnóstico/conteúdo/parecer, Mentor à Academia + indicadores, Academia restrito ao conteúdo. Nav do portal gateada por `parecer:view`.
 
 ## 5. Os 8 produtos (Matriz) — método × saída
 - **Diagnóstico Inicial** (porta de entrada, leitura preliminar, sem AEP/PGR).

@@ -81,6 +81,7 @@ export const NAV: NavGroup[] = [
         label: 'Parecer CRIVO',
         icon: '❖',
         module: 'parecer',
+        perm: 'parecer:view',
         breadcrumb: { path: 'Diagnóstico', current: 'Parecer Consultivo CRIVO' },
       },
       {

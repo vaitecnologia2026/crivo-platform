@@ -22,6 +22,9 @@ enum Role {
   JURIDICO
   CEO
   ADMIN
+  CONSULTOR
+  MENTOR
+  ACADEMIA
 }
 
 enum Plan {
