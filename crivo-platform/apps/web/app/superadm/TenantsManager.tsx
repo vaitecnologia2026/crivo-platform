@@ -14,6 +14,7 @@ import {
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
 import { BrandingModal } from "./BrandingModal";
+import { ContractModal } from "./ContractModal";
 
 const STATUS_STYLE: Record<TenantStatus, string> = {
   ACTIVE: "bg-[rgba(46,120,80,0.14)] text-[#2e7850] border-[rgba(46,120,80,0.3)]",
@@ -41,6 +42,7 @@ export function TenantsManager({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
   const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
+  const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -142,6 +144,9 @@ export function TenantsManager({
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-3 text-[12px]">
                         {t.status !== "DELETED" && (
+                          <ActionLink onClick={() => setContractOf(t)}>Contrato</ActionLink>
+                        )}
+                        {t.status !== "DELETED" && (
                           <ActionLink onClick={() => setModulesOf(t)}>Módulos</ActionLink>
                         )}
                         {t.status !== "DELETED" && (
@@ -190,6 +195,8 @@ export function TenantsManager({
       )}
 
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
+
+      {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
     </div>
   );
 }

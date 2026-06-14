@@ -555,6 +555,81 @@ export interface CreateDiagnosticLeadResponse {
   result: PreDiagnosticResult;
 }
 
+// ── Contrato por empresa (Super Admin · Briefing §11 + Matriz) ──
+
+export const DIAGNOSTIC_METHODS = ['INICIAL', 'ESSENCIAL', 'ORGANIZACIONAL'] as const;
+export type DiagnosticMethod = (typeof DIAGNOSTIC_METHODS)[number];
+export const DIAGNOSTIC_METHOD_LABEL: Record<DiagnosticMethod, string> = {
+  INICIAL: 'Diagnóstico Inicial',
+  ESSENCIAL: 'Diagnóstico Essencial',
+  ORGANIZACIONAL: 'Diagnóstico Organizacional',
+};
+
+export const TECHNICAL_OUTPUTS = ['SEM_INTEGRACAO', 'AEP', 'AEP_PGR'] as const;
+export type TechnicalOutput = (typeof TECHNICAL_OUTPUTS)[number];
+export const TECHNICAL_OUTPUT_LABEL: Record<TechnicalOutput, string> = {
+  SEM_INTEGRACAO: 'Sem integração formal',
+  AEP: 'Apoio à AEP',
+  AEP_PGR: 'Apoio à AEP + PGR',
+};
+
+export const CONTRACT_MODELS = ['PONTUAL', 'SEIS_MESES', 'DOZE_MESES', 'VINTE_QUATRO_MESES', 'CUSTOM'] as const;
+export type ContractModel = (typeof CONTRACT_MODELS)[number];
+export const CONTRACT_MODEL_LABEL: Record<ContractModel, string> = {
+  PONTUAL: 'Pontual',
+  SEIS_MESES: '6 meses',
+  DOZE_MESES: '12 meses',
+  VINTE_QUATRO_MESES: '24 meses',
+  CUSTOM: 'Customizado',
+};
+
+export const CONTRACT_STATUSES = ['RASCUNHO', 'ATIVO', 'SUSPENSO', 'ENCERRADO'] as const;
+export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  ATIVO: 'Ativo',
+  SUSPENSO: 'Suspenso',
+  ENCERRADO: 'Encerrado',
+};
+
+export interface ContractData {
+  id: string;
+  organizationId: string;
+  productId: string | null;
+  model: ContractModel;
+  status: ContractStatus;
+  method: DiagnosticMethod | null;
+  technicalOutput: TechnicalOutput;
+  startDate: string | null;
+  endDate: string | null;
+  accessDays: number | null;
+  rounds: number;
+  maxRespondents: number;
+  maxLeaders: number;
+  optionalModules: string[];
+  responsible: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertContractRequest {
+  productId?: string | null;
+  model?: ContractModel;
+  status?: ContractStatus;
+  method?: DiagnosticMethod | null;
+  technicalOutput?: TechnicalOutput;
+  startDate?: string | null;
+  endDate?: string | null;
+  accessDays?: number | null;
+  rounds?: number;
+  maxRespondents?: number;
+  maxLeaders?: number;
+  optionalModules?: string[];
+  responsible?: string | null;
+  notes?: string | null;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

@@ -11,7 +11,15 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Plan, ProductStatus, PlatformLeadStage } from '@crivo/db';
+import {
+  Plan,
+  ProductStatus,
+  PlatformLeadStage,
+  ContractModel,
+  ContractStatus,
+  DiagnosticMethod,
+  TechnicalOutput,
+} from '@crivo/db';
 
 // ── Produtos ──
 
@@ -75,6 +83,52 @@ export class SetLeadNotesDto {
 export class ConvertLeadDto {
   @IsString()
   productId!: string;
+}
+
+// ── Contrato por empresa ──
+
+export class UpsertContractDto {
+  @IsOptional() @IsString()
+  productId?: string | null;
+
+  @IsOptional() @IsEnum(ContractModel)
+  model?: ContractModel;
+
+  @IsOptional() @IsEnum(ContractStatus)
+  status?: ContractStatus;
+
+  @IsOptional() @IsEnum(DiagnosticMethod)
+  method?: DiagnosticMethod | null;
+
+  @IsOptional() @IsEnum(TechnicalOutput)
+  technicalOutput?: TechnicalOutput;
+
+  @IsOptional() @IsString()
+  startDate?: string | null;
+
+  @IsOptional() @IsString()
+  endDate?: string | null;
+
+  @IsOptional() @IsInt() @Min(0)
+  accessDays?: number | null;
+
+  @IsOptional() @IsInt() @Min(0)
+  rounds?: number;
+
+  @IsOptional() @IsInt() @Min(0)
+  maxRespondents?: number;
+
+  @IsOptional() @IsInt() @Min(0)
+  maxLeaders?: number;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  optionalModules?: string[];
+
+  @IsOptional() @IsString() @MaxLength(160)
+  responsible?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  notes?: string | null;
 }
 
 // ── Diagnóstico Inicial público (LP) ──

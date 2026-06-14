@@ -11,6 +11,7 @@ import { PublicResolutionController } from './public-resolution.controller';
 import { AdminOverviewController } from './admin-overview.controller';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
+import { ContractsService } from './contracts.service';
 import { PlatformLeadsController } from './platform-leads.controller';
 import { PlatformLeadsService } from './platform-leads.service';
 import { PublicDiagnosticController } from './public-diagnostic.controller';
@@ -41,6 +42,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     DomainsService,
     ProductsService,
     PlatformLeadsService,
+    ContractsService,
     AuditService,
     SuperAdminGuard,
   ],

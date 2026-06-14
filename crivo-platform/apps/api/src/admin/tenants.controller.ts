@@ -15,9 +15,11 @@ import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
 import { TenantBrandingService } from './tenant-branding.service';
 import { DomainsService } from './domains.service';
+import { ContractsService } from './contracts.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
 import { AddDomainDto, CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBrandingDto } from './dto';
+import { UpsertContractDto } from './commerce.dto';
 import type { PlatformAdmin } from '@crivo/types';
 
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
@@ -30,7 +32,26 @@ export class TenantsController {
     private readonly modules: TenantModulesService,
     private readonly branding: TenantBrandingService,
     private readonly domains: DomainsService,
+    private readonly contracts: ContractsService,
   ) {}
+
+  // ── Contrato (Briefing §11) ──
+
+  /** Contrato vigente da empresa (ou null). */
+  @Get(':id/contract')
+  getContract(@Param('id', ParseUUIDPipe) id: string) {
+    return this.contracts.get(id);
+  }
+
+  /** Cria/atualiza o contrato da empresa (produto, prazo, AEP/PGR, módulos, status). */
+  @Put(':id/contract')
+  upsertContract(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertContractDto,
+  ) {
+    return this.contracts.upsert(id, dto, { id: admin.id, email: admin.email });
+  }
 
   /** Lista todas as empresas. */
   @Get()

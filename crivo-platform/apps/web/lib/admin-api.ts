@@ -2,6 +2,7 @@
 // token próprio (crivo_admin_token) e redirect para /superadm em 401 — para que
 // as duas sessões (plataforma vs. painel global) nunca se misturem.
 import type {
+  ContractData,
   CreateTenantRequest,
   Plan,
   PlatformLeadStage,
@@ -15,6 +16,7 @@ import type {
   TenantModuleSummary,
   TenantSummary,
   UpdateBrandingRequest,
+  UpsertContractRequest,
   UpsertProductRequest,
   UsageSummary,
 } from "@crivo/types";
@@ -230,6 +232,22 @@ export function updateProduct(id: string, dto: UpsertProductRequest): Promise<Pr
 
 export function deleteProduct(id: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/products/${id}`, { method: "DELETE" });
+}
+
+// ── Contrato por empresa (Briefing §11) ──
+
+export function getContract(tenantId: string): Promise<ContractData | null> {
+  return adminFetch<ContractData | null>(`/admin/tenants/${tenantId}/contract`);
+}
+
+export function upsertContract(
+  tenantId: string,
+  dto: UpsertContractRequest,
+): Promise<ContractData> {
+  return adminFetch<ContractData>(`/admin/tenants/${tenantId}/contract`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
 }
 
 // ── White-label: branding + domínios (F5) ──
