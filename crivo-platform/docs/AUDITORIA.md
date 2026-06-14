@@ -13,14 +13,14 @@
 - ICD nos 4 Rs, tensão dominante, **sem ranking**, confidencialidade (mín. respondentes).
 - Multi-tenant RLS; API (NestJS) + DB (Postgres) + 2 frontends (Vercel) deployados.
 
-## 3. Pendências CRÍTICAS (impedem "concluído")
-1. **Config de IA/Token ChatGPT** no Super Admin (token criptografado, teste de conexão, modelo, prompts por produto/módulo, ativar por módulo, logs) — **inexistente**.
-2. **Método × Saída técnica** (AEP / AEP+PGR) — regra-mãe ausente. Essencial deve poder gerar AEP+PGR sem virar Organizacional.
-3. **Plano de Ação** (CORE de todo diagnóstico) — inexistente.
-4. **Evidências** (upload + vínculo à ação) — inexistente.
-5. **Geração de documentos/dossiês** (AEP, AEP+PGR, inventário, relatórios) + frase de responsabilidade obrigatória — inexistente.
-6. **Configuração de contrato no Super Admin** (datas, prazo, rodadas, respondentes, integração técnica, documentos, status) — inexistente.
-7. **Diagnóstico Essencial** (autoavaliação, escuta, dossiê) e **Organizacional** completo — inexistente/parcial.
+## 3. Pendências CRÍTICAS — ✅ TODAS RESOLVIDAS (validadas em produção, 2026-06-14)
+1. ✅ **Config de IA/Token ChatGPT** — token AES-256-GCM, modelo, teste de conexão, ativar por módulo, status (`/superadm` → Configurações de IA). Prompts por produto em Produtos.
+2. ✅ **Método × Saída técnica** (AEP / AEP+PGR) — no contrato; Essencial gera AEP+PGR sem virar Organizacional.
+3. ✅ **Plano de Ação** — módulo completo com validação humana (portal → Plano de Ação & Evidências).
+4. ✅ **Evidências** — upload/link + vínculo à ação.
+5. ✅ **Geração de documentos/dossiês** (AEP, AEP+PGR, inventário, relatórios) com frase de responsabilidade obrigatória + impressão/PDF.
+6. ✅ **Contrato no Super Admin** (produto, modelo, datas, prazo, rodadas, respondentes, integração AEP/PGR, módulos, status) — sem programação.
+7. ✅ **Diagnóstico Essencial** (autoavaliação guiada + escuta/observação → plano → dossiê).
 
 ## 4. Ajustes importantes
 - LP: seção **Como nasceu a CRIVO**, bloco **Riscos psicossociais e IA** (4 cards), escada com os **8 produtos** da Matriz (Inicial, Essencial, Organizacional, Liderança, Evolução, Enterprise, Advisory, Projetos Especiais), **foto institucional** no hero.
