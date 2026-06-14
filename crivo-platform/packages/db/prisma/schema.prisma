@@ -87,6 +87,49 @@ enum PlatformLeadStage {
   PERDIDO
 }
 
+// MÉTODO CRIVO — como a avaliação é conduzida (Briefing §4). Porte/complexidade
+// definem o método.
+enum DiagnosticMethod {
+  INICIAL
+  ESSENCIAL
+  ORGANIZACIONAL
+}
+
+// SAÍDA TÉCNICA — quais documentos são gerados (Briefing §4). Obrigação
+// documental define a saída — independente do método. PGR não obriga Organizacional.
+enum TechnicalOutput {
+  SEM_INTEGRACAO // leitura preliminar, sem caráter AEP/PGR
+  AEP // apoio à AEP
+  AEP_PGR // apoio à AEP + PGR
+}
+
+// Modelo de contratação (Matriz §Contrato): define prazo e recorrência.
+enum ContractModel {
+  PONTUAL
+  SEIS_MESES
+  DOZE_MESES
+  VINTE_QUATRO_MESES
+  CUSTOM
+}
+
+// Estado do contrato de um cliente.
+enum ContractStatus {
+  RASCUNHO
+  ATIVO
+  SUSPENSO
+  ENCERRADO
+}
+
+// Status de uma ação do plano (Matriz §Plano de Ação).
+enum ActionStatus {
+  SUGERIDA
+  EM_REVISAO
+  APROVADA
+  EM_ANDAMENTO
+  CONCLUIDA
+  REAVALIADA
+}
+
 // =====================================================================
 // CONTROL PLANE (F1) — registro GLOBAL de empresas-cliente e super admins.
 // NÃO é escopado por tenant: estas tabelas ficam FORA da RLS por tenant.
@@ -172,6 +215,12 @@ model Product {
   // Módulos liberados: códigos do ModuleCatalog habilitados por este produto.
   modules Json @default("[]") // string[] de moduleCode
 
+  // Método CRIVO deste produto + saídas técnicas que ele pode gerar (Briefing §4).
+  // coreModules = liberados automaticamente na contratação (CORE da Matriz).
+  method           DiagnosticMethod?
+  coreModules      Json              @default("[]") // string[] de moduleCode (CORE)
+  supportedOutputs Json              @default("[]") // TechnicalOutput[] suportados
+
   // Instrumento de diagnóstico EDITÁVEL (não fixo): blocos, categorias,
   // dimensões, escalas de resposta, pesos e perguntas. Cada produto tem o seu.
   // { dimensions:[{key,label}], scales:[{key,label,options:[{value,label}]}],
@@ -223,6 +272,45 @@ model PlatformLead {
   @@index([stage])
   @@index([createdAt])
   @@map("platform_leads")
+}
+
+// =====================================================================
+// CONTRATO (Briefing §11 + Matriz §Super Admin) — o que a CRIVO configura por
+// cliente SEM programação: produto, modelo, prazo, rodadas, respondentes,
+// líderes, integração técnica (AEP/PGR), módulos opcionais, responsável e
+// status. Control plane (owner-only). Um contrato ATIVO por empresa; histórico
+// permitido. O portal libera menus a partir do produto (CORE) + opcionais.
+// =====================================================================
+model Contract {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @db.Uuid // → organizations.id (empresa-cliente)
+  productId      String?        @db.Uuid // → products.id (produto contratado)
+  model          ContractModel  @default(PONTUAL)
+  status         ContractStatus @default(RASCUNHO)
+
+  // Método é herdado do produto, mas pode ser sobrescrito por contrato.
+  method          DiagnosticMethod?
+  // Saída técnica define os documentos gerados — independente do método.
+  technicalOutput TechnicalOutput   @default(SEM_INTEGRACAO)
+
+  startDate      DateTime?
+  endDate        DateTime?
+  accessDays     Int? // prazo de acesso (dias) — alternativa a endDate
+  rounds         Int       @default(1) // rodadas/ciclos/pulsos
+  maxRespondents Int       @default(0) // 0 = ilimitado
+  maxLeaders     Int       @default(0)
+
+  // Módulos opcionais ativados além do CORE do produto (códigos do ModuleCatalog).
+  optionalModules Json    @default("[]")
+  responsible     String? // responsável CRIVO pelo contrato
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("contracts")
 }
 
 // =====================================================================
