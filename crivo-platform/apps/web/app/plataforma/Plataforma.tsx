@@ -16,6 +16,7 @@ import { ParecerScreen } from "./ParecerScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
 import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
+import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
 
@@ -329,5 +330,10 @@ export function Plataforma() {
     return () => cleanups.forEach((fn) => fn());
   }, []);
 
-  return <div dangerouslySetInnerHTML={{ __html: PLATFORM_MARKUP }} />;
+  return (
+    <>
+      <TermsGate />
+      <div dangerouslySetInnerHTML={{ __html: PLATFORM_MARKUP }} />
+    </>
+  );
 }

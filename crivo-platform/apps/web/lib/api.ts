@@ -14,6 +14,7 @@ import type {
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
+  TermsStatus,
   UpdateActionItemRequest,
 } from '@crivo/types';
 
@@ -92,6 +93,15 @@ export function getMyPermissions(): Promise<string[]> {
 /** Identidade visual (white-label) da empresa do usuário logado. */
 export function getMyBranding(): Promise<TenantBrandingData> {
   return apiFetch<TenantBrandingData>('/me/branding');
+}
+
+// ── Aceite de termos/LGPD ──
+
+export function getTerms(): Promise<TermsStatus> {
+  return apiFetch<TermsStatus>('/me/terms');
+}
+export function acceptTerms(): Promise<TermsStatus> {
+  return apiFetch<TermsStatus>('/me/terms/accept', { method: 'POST' });
 }
 
 // ── Plano de Ação + Evidências (Briefing §8/§9) ──

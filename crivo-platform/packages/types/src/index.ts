@@ -835,6 +835,17 @@ export interface CreateEssentialRecordRequest {
   points?: string;
 }
 
+// ── Aceite de termos/LGPD no 1º acesso (Briefing · Matriz §Confidencialidade) ──
+
+/** Versão vigente dos termos/LGPD. Bump → todos reaceitam. */
+export const TERMS_VERSION = '2026-06';
+
+export interface TermsStatus {
+  accepted: boolean;
+  acceptedVersion: string | null;
+  currentVersion: string;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

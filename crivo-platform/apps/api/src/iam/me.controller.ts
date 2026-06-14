@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from './guards/auth.guard';
 import { PermissionGuard } from './guards/permission.guard';
 import { RequirePermission } from './require-permission.decorator';
@@ -8,7 +8,7 @@ import { PermissionService } from './permission.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateBrandingDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
-import type { SessionUser, TenantBrandingData } from '@crivo/types';
+import { TERMS_VERSION, type SessionUser, type TenantBrandingData, type TermsStatus } from '@crivo/types';
 
 /** Converte a linha (ou ausência) no contrato compartilhado (nulls). */
 function toBrandingData(b: TenantBranding | null): TenantBrandingData {
@@ -43,6 +43,32 @@ export class MeController {
   @Get('permissions')
   async myPermissions(@CurrentUser() user: SessionUser): Promise<string[]> {
     return [...(await this.permissions.effectiveForRole(user.role))];
+  }
+
+  /** Status do aceite de termos/LGPD do usuário (1º acesso). */
+  @Get('terms')
+  myTerms(@CurrentUser() user: SessionUser): Promise<TermsStatus> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const u = await tx.user.findUnique({ where: { id: user.id } });
+      const acceptedVersion = u?.termsVersion ?? null;
+      return {
+        accepted: !!u?.termsAcceptedAt && acceptedVersion === TERMS_VERSION,
+        acceptedVersion,
+        currentVersion: TERMS_VERSION,
+      };
+    });
+  }
+
+  /** Registra o aceite dos termos/LGPD na versão vigente. */
+  @Post('terms/accept')
+  acceptTerms(@CurrentUser() user: SessionUser): Promise<TermsStatus> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION },
+      });
+      return { accepted: true, acceptedVersion: TERMS_VERSION, currentVersion: TERMS_VERSION };
+    });
   }
 
   /** Identidade visual (white-label, F5) da empresa — lida sob RLS. */
