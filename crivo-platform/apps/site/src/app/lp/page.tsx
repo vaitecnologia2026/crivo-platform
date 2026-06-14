@@ -214,7 +214,7 @@ export default function LandingPage() {
               liderança, comportamento, cultura, governança, tecnologia, execução e resultado.
             </p>
             <blockquote className="pull-quote">
-              &ldquo;Toda transformação passa pela liderança.&rdquo;
+              &ldquo;A CRIVO™ transforma sinais invisíveis em clareza, liderança e evolução sustentável.&rdquo;
             </blockquote>
           </div>
           <div className="split__right">
@@ -282,6 +282,82 @@ export default function LandingPage() {
               com o desenvolvimento humano como base de todo resultado sustentável.
             </p>
           </article>
+        </div>
+      </section>
+
+      {/* ===================== COMO NASCEU ===================== */}
+      <section className="section section--light" id="como-nasceu">
+        <div className="container container--narrow">
+          <span className="eyebrow">Como nasceu a CRIVO™</span>
+          <h2 className="h2">Da deterioração decisória sob pressão a um método de transformação.</h2>
+          <p className="lede">
+            A CRIVO™ nasceu da percepção executiva de que organizações perdem performance, clareza, cultura e
+            sustentabilidade quando a qualidade das decisões se deteriora sob pressão. Enquanto o mercado mede sintomas,
+            a CRIVO desenvolveu uma camada de inteligência organizacional capaz de transformar padrões invisíveis de
+            risco humano em leitura executiva, indicadores, desenvolvimento da liderança e transformação.
+          </p>
+
+          <div className="founders">
+            <article className="founder">
+              <h3>Rodrigo Oliveira</h3>
+              <span className="founder__role">Cofundador</span>
+              <p>
+                Quase três décadas nos bastidores das decisões que impactam cultura, liderança, clima, execução e
+                resultados. Conduziu agendas de RH, transformação cultural, desenvolvimento de lideranças, relações
+                trabalhistas, sucessão, integração pós-aquisição e decisões críticas sob pressão. Aprofundou estudos em
+                comportamento humano, neurociência, PNL, conselho consultivo, tomada de decisão e IA.
+              </p>
+            </article>
+            <article className="founder">
+              <h3>Viviani Ostan</h3>
+              <span className="founder__role">Cofundadora</span>
+              <p>
+                Experiência executiva no setor bancário e de investimentos, liderando grandes equipes, estruturando
+                novos negócios, desenvolvendo pessoas e sustentando relações de confiança em contextos de alta
+                exigência, performance e responsabilidade.
+              </p>
+            </article>
+          </div>
+
+          <blockquote className="pull-quote pull-quote--center">
+            &ldquo;A CRIVO™ nasceu para transformar sinais invisíveis em clareza, liderança e evolução
+            sustentável.&rdquo;
+          </blockquote>
+        </div>
+      </section>
+
+      {/* ===================== RISCOS PSICOSSOCIAIS E IA ===================== */}
+      <section className="section section--dark" id="riscos-ia">
+        <div className="container">
+          <span className="eyebrow eyebrow--terra">Os dois desafios da nova gestão</span>
+          <h2 className="h2 h2--light h2--center">Riscos psicossociais e IA.</h2>
+          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 8px" }}>
+            A CRIVO™ atua onde os dois maiores desafios das empresas se encontram: o aumento da pressão humana e a
+            aceleração tecnológica.
+          </p>
+
+          <div className="riscos-grid">
+            <article className="risco-card">
+              <span className="risco-card__ic">◴</span>
+              <h3>Riscos psicossociais</h3>
+              <p>Leitura estruturada de sobrecarga, conflitos, afastamentos, comunicação, segurança psicológica e fatores humanos que impactam cultura, execução e resultados.</p>
+            </article>
+            <article className="risco-card">
+              <span className="risco-card__ic">◆</span>
+              <h3>Pessoas + IA</h3>
+              <p>Preparação da liderança e da cultura para integrar inteligência artificial com consciência, critério, governança e responsabilidade.</p>
+            </article>
+            <article className="risco-card">
+              <span className="risco-card__ic">▲</span>
+              <h3>Liderança e cultura</h3>
+              <p>Desenvolvimento de líderes capazes de sustentar decisões, conversas, rotinas e comportamentos em ambientes de pressão e transformação.</p>
+            </article>
+            <article className="risco-card">
+              <span className="risco-card__ic">❖</span>
+              <h3>Governança comportamental</h3>
+              <p>Transformação de sinais invisíveis em diagnóstico, plano de ação, desenvolvimento da liderança, evidências e evolução sustentável.</p>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -648,7 +724,7 @@ export default function LandingPage() {
             de IA e performance.
           </p>
 
-          <div className="ladder ladder--7">
+          <div className="ladder ladder--8">
             <div className="ladder__step ladder__step--free">
               <span className="ladder__tag ladder__tag--free">Grátis</span>
               <strong>Diagnóstico Inicial</strong>
@@ -656,33 +732,38 @@ export default function LandingPage() {
             </div>
             <div className="ladder__step ladder__step--s1">
               <span className="ladder__tag">01</span>
-              <strong>CRIVO Diagnóstico™</strong>
-              <span>Diagnóstico organizacional</span>
+              <strong>Diagnóstico Essencial</strong>
+              <span>Pequenas empresas · AEP/PGR</span>
             </div>
-            <div className="ladder__step ladder__step--s2">
+            <div className="ladder__step ladder__step--s1">
               <span className="ladder__tag">02</span>
-              <strong>CRIVO Liderança</strong>
-              <span>Jornada · app · mentorias</span>
+              <strong>Diagnóstico Organizacional</strong>
+              <span>Campanha · dashboards · inventário</span>
             </div>
             <div className="ladder__step ladder__step--s2">
               <span className="ladder__tag">03</span>
-              <strong>CRIVO Evolução</strong>
-              <span>Mentoria &amp; governança</span>
+              <strong>Liderança</strong>
+              <span>Jornada · app · mentorias</span>
+            </div>
+            <div className="ladder__step ladder__step--s2">
+              <span className="ladder__tag">04</span>
+              <strong>Evolução</strong>
+              <span>Mentoria &amp; governança · ciclos</span>
             </div>
             <div className="ladder__step ladder__step--s3">
-              <span className="ladder__tag">04</span>
-              <strong>CRIVO Enterprise</strong>
-              <span>Transformação</span>
+              <span className="ladder__tag">05</span>
+              <strong>Enterprise</strong>
+              <span>Transformação organizacional</span>
             </div>
             <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">05</span>
-              <strong>CRIVO Advisory</strong>
+              <span className="ladder__tag">06</span>
+              <strong>Advisory</strong>
               <span>Conselho C-Level</span>
             </div>
             <div className="ladder__step ladder__step--s4">
               <span className="ladder__tag">+</span>
-              <strong>Soluções Estratégicas</strong>
-              <span>Cultura · IA · governança</span>
+              <strong>Projetos Especiais</strong>
+              <span>Escopo customizado</span>
             </div>
           </div>
 

@@ -996,3 +996,23 @@ th.compare__crivo { color: var(--terra) !important; }
 .product-grid--auto {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
 }
+
+/* ===================== COMO NASCEU + RISCOS/IA + escada 8 ===================== */
+.ladder--8 { grid-template-columns: repeat(8, 1fr); }
+@media (max-width: 980px) { .ladder--8 { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); } }
+
+.founders { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 28px 0 8px; }
+@media (max-width: 640px) { .founders { grid-template-columns: 1fr; } }
+.founder { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 22px; border-top: 3px solid var(--terra); }
+.founder h3 { font-family: var(--font-display); font-size: 19px; color: var(--azul-profundo); margin: 0; }
+.founder__role { display: inline-block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--terra-dourado); margin: 2px 0 10px; }
+.founder p { font-size: 13.5px; font-weight: 300; line-height: 1.6; color: var(--text-dark-sec); margin: 0; }
+.pull-quote--center { text-align: center; max-width: 680px; margin: 26px auto 0; }
+
+.riscos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 28px; }
+@media (max-width: 900px) { .riscos-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .riscos-grid { grid-template-columns: 1fr; } }
+.risco-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(242,240,236,0.12); border-radius: 8px; padding: 22px; }
+.risco-card__ic { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; background: rgba(196,137,74,0.16); color: var(--terra-dourado); font-size: 18px; margin-bottom: 12px; }
+.risco-card h3 { font-family: var(--font-display); font-size: 17px; color: var(--off-white); margin: 0 0 6px; }
+.risco-card p { font-size: 13px; font-weight: 300; line-height: 1.55; color: var(--text-light-sec); margin: 0; }
