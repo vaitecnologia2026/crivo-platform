@@ -15,6 +15,7 @@ import { BibliotecaScreen } from "./BibliotecaScreen";
 import { ParecerScreen } from "./ParecerScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
+import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
 
@@ -123,6 +124,7 @@ export function Plataforma() {
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);
       if (name === "biblioteca") mountIsland("biblioteca-root", <BibliotecaScreen />);
       if (name === "relatorios") mountIsland("relatorios-root", <PlanoAcaoScreen />);
+      if (name === "essencial") mountIsland("essencial-root", <DiagnosticoEssencialScreen />);
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];

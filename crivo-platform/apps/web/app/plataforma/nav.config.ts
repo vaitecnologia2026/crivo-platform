@@ -63,6 +63,13 @@ export const NAV: NavGroup[] = [
     title: 'Diagnóstico',
     items: [
       {
+        route: 'essencial',
+        label: 'Diagnóstico Essencial',
+        icon: '✦',
+        module: 'campanhas',
+        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico Essencial' },
+      },
+      {
         route: 'campanhas',
         label: 'Campanhas de Diagnóstico',
         icon: '◭',

@@ -1727,3 +1727,16 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .diag-editor__q-meta input[type="number"] { width: 64px; }
 .diag-editor__inv { cursor: pointer; }
 .diag-editor__inv input { width: 14px; height: 14px; accent-color: var(--gold); }
+
+/* ==================== DIAGNÓSTICO ESSENCIAL ==================== */
+.essencial-q { list-style: none; margin: 0 0 18px; padding: 0; }
+.essencial-q li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.essencial-q li p { font-size: 14px; margin: 0 0 10px; color: var(--text); }
+.essencial-scale { display: flex; gap: 8px; }
+.essencial-opt {
+  width: 40px; height: 40px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-elev); color: var(--text-sec); font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all .15s ease;
+}
+.essencial-opt:hover { border-color: var(--gold); color: var(--gold-deep); }
+.essencial-opt.is-sel { background: var(--gold); border-color: var(--gold); color: var(--off-white, #F2F0EC); }

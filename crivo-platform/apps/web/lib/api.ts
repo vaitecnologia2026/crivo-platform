@@ -6,9 +6,13 @@ import type {
   CreateActionItemRequest,
   CreateActionPlanRequest,
   CreateEvidenceRequest,
+  CreateEssentialRecordRequest,
   DocumentDescriptor,
+  EssentialRecordData,
   EvidenceData,
   GeneratedDocument,
+  SelfAssessmentData,
+  SubmitSelfAssessmentRequest,
   TenantBrandingData,
   UpdateActionItemRequest,
 } from '@crivo/types';
@@ -130,4 +134,22 @@ export function listDocuments(): Promise<DocumentDescriptor[]> {
 }
 export function generateDocument(type: string): Promise<GeneratedDocument> {
   return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`);
+}
+
+// ── Diagnóstico Essencial (Briefing §5) ──
+
+export function getSelfAssessment(): Promise<SelfAssessmentData | null> {
+  return apiFetch<SelfAssessmentData | null>('/essencial/self-assessment');
+}
+export function submitSelfAssessment(dto: SubmitSelfAssessmentRequest): Promise<SelfAssessmentData> {
+  return apiFetch<SelfAssessmentData>('/essencial/self-assessment', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function listEssentialRecords(): Promise<EssentialRecordData[]> {
+  return apiFetch<EssentialRecordData[]>('/essencial/records');
+}
+export function createEssentialRecord(dto: CreateEssentialRecordRequest): Promise<EssentialRecordData> {
+  return apiFetch<EssentialRecordData>('/essencial/records', { method: 'POST', body: JSON.stringify(dto) });
 }

@@ -797,6 +797,44 @@ export interface GeneratedDocument {
   responsibilityNote: string;
 }
 
+// ── Diagnóstico Essencial (portal · Briefing §5) ──
+
+export type EssentialRecordKind = 'ESCUTA' | 'OBSERVACAO';
+export const ESSENTIAL_RECORD_LABEL: Record<EssentialRecordKind, string> = {
+  ESCUTA: 'Registro de escuta e alinhamento',
+  OBSERVACAO: 'Observação / análise da atividade',
+};
+
+export interface SelfAssessmentData {
+  id: string;
+  score: number;
+  result: PreDiagnosticResult;
+  createdAt: string;
+}
+
+export interface EssentialRecordData {
+  id: string;
+  kind: EssentialRecordKind;
+  title: string;
+  recordDate: string | null;
+  participants: string | null;
+  notes: string | null;
+  points: string | null;
+  createdAt: string;
+}
+
+export interface SubmitSelfAssessmentRequest {
+  answers: IcdAnswer[];
+}
+export interface CreateEssentialRecordRequest {
+  kind: EssentialRecordKind;
+  title: string;
+  recordDate?: string | null;
+  participants?: string;
+  notes?: string;
+  points?: string;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

@@ -130,6 +130,13 @@ enum ActionStatus {
   REAVALIADA
 }
 
+// Tipo de registro do Diagnóstico Essencial (Briefing §5): escuta com empregados
+// ou observação/análise da atividade.
+enum EssentialRecordKind {
+  ESCUTA
+  OBSERVACAO
+}
+
 // =====================================================================
 // CONTROL PLANE (F1) — registro GLOBAL de empresas-cliente e super admins.
 // NÃO é escopado por tenant: estas tabelas ficam FORA da RLS por tenant.
@@ -499,22 +506,24 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  companies   Company[]
-  units       Unit[]
-  teams       Team[]
-  users       User[]
-  cycles      AssessmentCycle[]
-  assessments Assessment[]
-  responses   Response[]
-  icdScores   IcdScore[]
-  leads       Lead[]
-  modules     TenantModule[]
-  usage       UsageCounter[]
-  branding    TenantBranding?
-  library     LibraryItem[]
-  actionPlans ActionPlan[]
-  actionItems ActionItem[]
-  evidences   Evidence[]
+  companies        Company[]
+  units            Unit[]
+  teams            Team[]
+  users            User[]
+  cycles           AssessmentCycle[]
+  assessments      Assessment[]
+  responses        Response[]
+  icdScores        IcdScore[]
+  leads            Lead[]
+  modules          TenantModule[]
+  usage            UsageCounter[]
+  branding         TenantBranding?
+  library          LibraryItem[]
+  actionPlans      ActionPlan[]
+  actionItems      ActionItem[]
+  evidences        Evidence[]
+  selfAssessments  SelfAssessment[]
+  essentialRecords EssentialRecord[]
 
   @@map("organizations")
 }
@@ -760,4 +769,38 @@ model Evidence {
   @@index([tenantId])
   @@index([itemId])
   @@map("evidences")
+}
+
+// =====================================================================
+// DIAGNÓSTICO ESSENCIAL (Briefing §5) — jornada simples para empresas pequenas:
+// autoavaliação guiada + registro de escuta/observação → pontos de atenção que
+// alimentam o Plano de Ação e o dossiê AEP/AEP+PGR. Data plane (RLS por tenant).
+// =====================================================================
+model SelfAssessment {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  answers   Json // [{ questionId, value }]
+  score     Int // 0–100 (maturidade)
+  result    Json // { score, level, byDimension, topAttention }
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId])
+  @@map("self_assessments")
+}
+
+model EssentialRecord {
+  id           String              @id @default(uuid()) @db.Uuid
+  tenantId     String              @db.Uuid
+  org          Organization        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind         EssentialRecordKind
+  title        String
+  recordDate   DateTime?
+  participants String? // quem participou da escuta / contexto da observação
+  notes        String?
+  points       String? // pontos de atenção identificados
+  createdAt    DateTime            @default(now())
+
+  @@index([tenantId])
+  @@map("essential_records")
 }

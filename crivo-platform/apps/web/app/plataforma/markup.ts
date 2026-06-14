@@ -138,6 +138,11 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="crm-root"></div>
       </section>
 
+      <!-- ============ DIAGNÓSTICO ESSENCIAL ============ -->
+      <section class="route" data-route="essencial">
+        <div id="essencial-root"></div>
+      </section>
+
       <!-- ============ CAMPANHAS NR-1 ============ -->
       <section class="route" data-route="campanhas">
         <div id="campanhas-root"></div>
