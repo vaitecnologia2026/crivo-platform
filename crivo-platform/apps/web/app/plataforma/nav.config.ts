@@ -105,10 +105,10 @@ export const NAV: NavGroup[] = [
       },
       {
         route: 'relatorios',
-        label: 'Relatórios, Evidências & Comunicações',
+        label: 'Plano de Ação & Evidências',
         icon: '▤',
         module: 'relatorios',
-        breadcrumb: { path: 'Documentos', current: 'Relatórios, Evidências & Comunicações' },
+        breadcrumb: { path: 'Documentos', current: 'Plano de Ação & Evidências' },
       },
     ],
   },

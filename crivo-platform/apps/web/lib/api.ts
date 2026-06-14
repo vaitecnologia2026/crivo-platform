@@ -1,6 +1,15 @@
 // Base da API. Em produção vem de NEXT_PUBLIC_API_URL (injetada no build).
 // Sem ela, falha de forma clara em vez de bater silenciosamente em localhost.
-import type { TenantBrandingData } from '@crivo/types';
+import type {
+  ActionItemData,
+  ActionPlanData,
+  CreateActionItemRequest,
+  CreateActionPlanRequest,
+  CreateEvidenceRequest,
+  EvidenceData,
+  TenantBrandingData,
+  UpdateActionItemRequest,
+} from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -77,4 +86,37 @@ export function getMyPermissions(): Promise<string[]> {
 /** Identidade visual (white-label) da empresa do usuário logado. */
 export function getMyBranding(): Promise<TenantBrandingData> {
   return apiFetch<TenantBrandingData>('/me/branding');
+}
+
+// ── Plano de Ação + Evidências (Briefing §8/§9) ──
+
+export function listActionPlans(): Promise<ActionPlanData[]> {
+  return apiFetch<ActionPlanData[]>('/action-plans');
+}
+export function createActionPlan(dto: CreateActionPlanRequest): Promise<ActionPlanData> {
+  return apiFetch<ActionPlanData>('/action-plans', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function addActionItem(planId: string, dto: CreateActionItemRequest): Promise<ActionItemData> {
+  return apiFetch<ActionItemData>(`/action-plans/${planId}/items`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function updateActionItem(itemId: string, dto: UpdateActionItemRequest): Promise<ActionItemData> {
+  return apiFetch<ActionItemData>(`/action-plans/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  });
+}
+export function removeActionItem(itemId: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/action-plans/items/${itemId}`, { method: 'DELETE' });
+}
+export function validateActionPlan(planId: string): Promise<ActionPlanData> {
+  return apiFetch<ActionPlanData>(`/action-plans/${planId}/validate`, { method: 'POST' });
+}
+export function addEvidence(itemId: string, dto: CreateEvidenceRequest): Promise<EvidenceData> {
+  return apiFetch<EvidenceData>(`/action-plans/items/${itemId}/evidences`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
 }

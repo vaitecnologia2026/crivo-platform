@@ -11,6 +11,7 @@ import { LibraryModule } from './library/library.module';
 import { MeteringModule } from './metering/metering.module';
 import { MeteringInterceptor } from './metering/metering.interceptor';
 import { AdminModule } from './admin/admin.module';
+import { ActionPlansModule } from './action-plans/action-plans.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -26,6 +27,7 @@ import { HealthController } from './health/health.controller';
     LibraryModule,
     MeteringModule,
     AdminModule,
+    ActionPlansModule,
   ],
   controllers: [HealthController],
   providers: [

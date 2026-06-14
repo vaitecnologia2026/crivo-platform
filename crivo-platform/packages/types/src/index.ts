@@ -630,6 +630,90 @@ export interface UpsertContractRequest {
   notes?: string | null;
 }
 
+// ── Plano de Ação + Evidências (portal do cliente · Briefing §8/§9) ──
+
+export const ACTION_STATUSES = [
+  'SUGERIDA',
+  'EM_REVISAO',
+  'APROVADA',
+  'EM_ANDAMENTO',
+  'CONCLUIDA',
+  'REAVALIADA',
+] as const;
+export type ActionStatus = (typeof ACTION_STATUSES)[number];
+export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
+  SUGERIDA: 'Sugerida',
+  EM_REVISAO: 'Em revisão',
+  APROVADA: 'Aprovada',
+  EM_ANDAMENTO: 'Em andamento',
+  CONCLUIDA: 'Concluída',
+  REAVALIADA: 'Reavaliada',
+};
+
+export interface EvidenceData {
+  id: string;
+  itemId: string | null;
+  kind: string;
+  title: string;
+  url: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ActionItemData {
+  id: string;
+  planId: string;
+  point: string;
+  origin: string | null;
+  action: string;
+  responsible: string | null;
+  dueDate: string | null;
+  status: ActionStatus;
+  expectedEvidence: string | null;
+  reviewDate: string | null;
+  createdAt: string;
+  evidences: EvidenceData[];
+}
+
+export interface ActionPlanData {
+  id: string;
+  title: string;
+  source: string | null;
+  validatedAt: string | null;
+  validatedBy: string | null;
+  createdAt: string;
+  items: ActionItemData[];
+}
+
+export interface CreateActionPlanRequest {
+  title: string;
+  source?: string;
+}
+export interface CreateActionItemRequest {
+  point: string;
+  origin?: string;
+  action: string;
+  responsible?: string;
+  dueDate?: string | null;
+  expectedEvidence?: string;
+}
+export interface UpdateActionItemRequest {
+  point?: string;
+  origin?: string;
+  action?: string;
+  responsible?: string;
+  dueDate?: string | null;
+  status?: ActionStatus;
+  expectedEvidence?: string;
+  reviewDate?: string | null;
+}
+export interface CreateEvidenceRequest {
+  kind: string;
+  title: string;
+  url?: string;
+  note?: string;
+}
+
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
 export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;

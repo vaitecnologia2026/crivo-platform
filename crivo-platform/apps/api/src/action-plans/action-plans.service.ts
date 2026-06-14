@@ -1,0 +1,208 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  ActionItemData,
+  ActionPlanData,
+  ActionStatus,
+  CreateActionItemRequest,
+  CreateActionPlanRequest,
+  CreateEvidenceRequest,
+  EvidenceData,
+  UpdateActionItemRequest,
+} from '@crivo/types';
+import { PrismaService } from '../prisma/prisma.service';
+
+type ActorName = string;
+
+/**
+ * Plano de Ação + Evidências do tenant (Briefing §8/§9). CORE de todo
+ * diagnóstico: ponto → ação → responsável → prazo → status → evidência. O plano
+ * só vira documento após validação humana (validatePlan). Data plane: todas as
+ * operações sob forTenant (RLS por tenant).
+ */
+@Injectable()
+export class ActionPlansService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(tenantId: string): Promise<ActionPlanData[]> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plans = await tx.actionPlan.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: {
+            orderBy: { createdAt: 'asc' },
+            include: { evidences: { orderBy: { createdAt: 'desc' } } },
+          },
+        },
+      });
+      return plans.map((p) => this.toPlan(p));
+    });
+  }
+
+  async createPlan(tenantId: string, dto: CreateActionPlanRequest): Promise<ActionPlanData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const p = await tx.actionPlan.create({
+        data: { tenantId, title: dto.title.trim(), source: dto.source ?? null },
+        include: { items: { include: { evidences: true } } },
+      });
+      return this.toPlan(p);
+    });
+  }
+
+  async addItem(
+    tenantId: string,
+    planId: string,
+    dto: CreateActionItemRequest,
+  ): Promise<ActionItemData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
+      if (!plan) throw new NotFoundException('Plano não encontrado');
+      const item = await tx.actionItem.create({
+        data: {
+          tenantId,
+          planId,
+          point: dto.point.trim(),
+          action: dto.action.trim(),
+          origin: dto.origin ?? null,
+          responsible: dto.responsible ?? null,
+          dueDate: parseDate(dto.dueDate),
+          expectedEvidence: dto.expectedEvidence ?? null,
+        },
+        include: { evidences: true },
+      });
+      return this.toItem(item);
+    });
+  }
+
+  async updateItem(
+    tenantId: string,
+    itemId: string,
+    dto: UpdateActionItemRequest,
+  ): Promise<ActionItemData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
+      if (!existing) throw new NotFoundException('Ação não encontrada');
+      const item = await tx.actionItem.update({
+        where: { id: itemId },
+        data: {
+          point: dto.point ?? existing.point,
+          action: dto.action ?? existing.action,
+          origin: dto.origin === undefined ? existing.origin : dto.origin,
+          responsible: dto.responsible === undefined ? existing.responsible : dto.responsible,
+          dueDate: dto.dueDate === undefined ? existing.dueDate : parseDate(dto.dueDate),
+          status: (dto.status ?? existing.status) as ActionStatus,
+          expectedEvidence:
+            dto.expectedEvidence === undefined ? existing.expectedEvidence : dto.expectedEvidence,
+          reviewDate: dto.reviewDate === undefined ? existing.reviewDate : parseDate(dto.reviewDate),
+        },
+        include: { evidences: { orderBy: { createdAt: 'desc' } } },
+      });
+      return this.toItem(item);
+    });
+  }
+
+  async removeItem(tenantId: string, itemId: string): Promise<{ ok: true }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      await tx.actionItem.delete({ where: { id: itemId } }).catch(() => {
+        throw new NotFoundException('Ação não encontrada');
+      });
+      return { ok: true } as const;
+    });
+  }
+
+  /** Validação humana — sem ela o plano é minuta; com ela vira documento final. */
+  async validatePlan(tenantId: string, planId: string, by: ActorName): Promise<ActionPlanData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
+      if (!plan) throw new NotFoundException('Plano não encontrado');
+      await tx.actionPlan.update({
+        where: { id: planId },
+        data: { validatedAt: new Date(), validatedBy: by },
+      });
+      const full = await tx.actionPlan.findUnique({
+        where: { id: planId },
+        include: { items: { include: { evidences: true } } },
+      });
+      return this.toPlan(full!);
+    });
+  }
+
+  async addEvidence(
+    tenantId: string,
+    itemId: string,
+    dto: CreateEvidenceRequest,
+  ): Promise<EvidenceData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const item = await tx.actionItem.findUnique({ where: { id: itemId } });
+      if (!item) throw new NotFoundException('Ação não encontrada');
+      const ev = await tx.evidence.create({
+        data: {
+          tenantId,
+          itemId,
+          kind: dto.kind.trim(),
+          title: dto.title.trim(),
+          url: dto.url ?? null,
+          note: dto.note ?? null,
+        },
+      });
+      return this.toEvidence(ev);
+    });
+  }
+
+  // ── mappers ──
+  private toPlan(p: {
+    id: string; title: string; source: string | null; validatedAt: Date | null;
+    validatedBy: string | null; createdAt: Date; items: Parameters<ActionPlansService['toItem']>[0][];
+  }): ActionPlanData {
+    return {
+      id: p.id,
+      title: p.title,
+      source: p.source,
+      validatedAt: p.validatedAt?.toISOString() ?? null,
+      validatedBy: p.validatedBy,
+      createdAt: p.createdAt.toISOString(),
+      items: (p.items ?? []).map((i) => this.toItem(i)),
+    };
+  }
+
+  private toItem(i: {
+    id: string; planId: string; point: string; origin: string | null; action: string;
+    responsible: string | null; dueDate: Date | null; status: string; expectedEvidence: string | null;
+    reviewDate: Date | null; createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
+  }): ActionItemData {
+    return {
+      id: i.id,
+      planId: i.planId,
+      point: i.point,
+      origin: i.origin,
+      action: i.action,
+      responsible: i.responsible,
+      dueDate: i.dueDate?.toISOString() ?? null,
+      status: i.status as ActionStatus,
+      expectedEvidence: i.expectedEvidence,
+      reviewDate: i.reviewDate?.toISOString() ?? null,
+      createdAt: i.createdAt.toISOString(),
+      evidences: (i.evidences ?? []).map((e) => this.toEvidence(e)),
+    };
+  }
+
+  private toEvidence(e: {
+    id: string; itemId: string | null; kind: string; title: string; url: string | null;
+    note: string | null; createdAt: Date;
+  }): EvidenceData {
+    return {
+      id: e.id,
+      itemId: e.itemId,
+      kind: e.kind,
+      title: e.title,
+      url: e.url,
+      note: e.note,
+      createdAt: e.createdAt.toISOString(),
+    };
+  }
+}
+
+function parseDate(v: string | null | undefined): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}

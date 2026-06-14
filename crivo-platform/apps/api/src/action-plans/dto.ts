@@ -1,0 +1,70 @@
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ActionStatus } from '@crivo/db';
+
+export class CreateActionPlanDto {
+  @IsString() @MaxLength(200)
+  title!: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  source?: string;
+}
+
+export class CreateActionItemDto {
+  @IsString() @MaxLength(500)
+  point!: string;
+
+  @IsString() @MaxLength(1000)
+  action!: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  origin?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  responsible?: string;
+
+  @IsOptional() @IsString()
+  dueDate?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  expectedEvidence?: string;
+}
+
+export class UpdateActionItemDto {
+  @IsOptional() @IsString() @MaxLength(500)
+  point?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  action?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  origin?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  responsible?: string;
+
+  @IsOptional() @IsString()
+  dueDate?: string | null;
+
+  @IsOptional() @IsEnum(ActionStatus)
+  status?: ActionStatus;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  expectedEvidence?: string;
+
+  @IsOptional() @IsString()
+  reviewDate?: string | null;
+}
+
+export class CreateEvidenceDto {
+  @IsString() @MaxLength(40)
+  kind!: string;
+
+  @IsString() @MaxLength(200)
+  title!: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  url?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  note?: string;
+}

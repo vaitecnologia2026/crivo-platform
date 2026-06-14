@@ -13,8 +13,8 @@ import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
 import { BibliotecaScreen } from "./BibliotecaScreen";
 import { ParecerScreen } from "./ParecerScreen";
-import { SoonScreen } from "./SoonScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
+import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
 import { PLATFORM_MARKUP } from "./markup";
 import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
 
@@ -122,15 +122,7 @@ export function Plataforma() {
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);
       if (name === "biblioteca") mountIsland("biblioteca-root", <BibliotecaScreen />);
-      if (name === "relatorios")
-        mountIsland(
-          "relatorios-root",
-          <SoonScreen
-            title="Relatórios, Evidências & Comunicações"
-            sub="Relatórios executivos, parecer, plano de ação, evidências e comunicações da CRIVO."
-            message="A geração de relatórios e o parecer consultivo entram em uma próxima entrega."
-          />,
-        );
+      if (name === "relatorios") mountIsland("relatorios-root", <PlanoAcaoScreen />);
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       const meta = routeMeta[name];
