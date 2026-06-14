@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { LibraryItem } from '@crivo/db';
-import type { CreateLibraryItemRequest, LibraryItemData, LibraryKind } from '@crivo/types';
+import type {
+  CreateLibraryItemRequest,
+  LibraryItemData,
+  LibraryKind,
+  UpdateLibraryItemRequest,
+} from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 
 function toData(i: LibraryItem): LibraryItemData {
@@ -35,6 +40,23 @@ export class LibraryService {
           description: dto.description?.trim() || null,
           kind: dto.kind,
           url: dto.url?.trim() || null,
+        },
+      });
+      return toData(item);
+    });
+  }
+
+  async update(tenantId: string, id: string, dto: UpdateLibraryItemRequest): Promise<LibraryItemData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const existing = await tx.libraryItem.findFirst({ where: { id } });
+      if (!existing) throw new NotFoundException('Item não encontrado');
+      const item = await tx.libraryItem.update({
+        where: { id },
+        data: {
+          title: dto.title?.trim() ?? existing.title,
+          description: dto.description === undefined ? existing.description : dto.description?.trim() || null,
+          kind: dto.kind ?? existing.kind,
+          url: dto.url === undefined ? existing.url : dto.url?.trim() || null,
         },
       });
       return toData(item);

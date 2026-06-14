@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, UseGuards } from '@nestjs/common';
 import { LibraryService } from './library.service';
-import { CreateLibraryItemDto } from './dto';
+import { CreateLibraryItemDto, UpdateLibraryItemDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { RequirePermission } from '../iam/require-permission.decorator';
@@ -23,6 +23,16 @@ export class LibraryController {
   @RequirePermission('library:manage')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateLibraryItemDto) {
     return this.library.create(user.tenantId, dto);
+  }
+
+  @Put(':id')
+  @RequirePermission('library:manage')
+  update(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateLibraryItemDto,
+  ) {
+    return this.library.update(user.tenantId, id, dto);
   }
 
   @Delete(':id')

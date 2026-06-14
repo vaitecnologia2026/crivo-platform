@@ -7,7 +7,9 @@ import type {
   CreateActionPlanRequest,
   CreateEvidenceRequest,
   CreateEssentialRecordRequest,
+  CreateLibraryItemRequest,
   DocumentDescriptor,
+  LibraryItemData,
   EssentialRecordData,
   EvidenceData,
   GeneratedDocument,
@@ -16,6 +18,7 @@ import type {
   TenantBrandingData,
   TermsStatus,
   UpdateActionItemRequest,
+  UpdateLibraryItemRequest,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -102,6 +105,21 @@ export function getTerms(): Promise<TermsStatus> {
 }
 export function acceptTerms(): Promise<TermsStatus> {
   return apiFetch<TermsStatus>('/me/terms/accept', { method: 'POST' });
+}
+
+// ── Academia CRIVO (biblioteca / CMS) ──
+
+export function listLibrary(): Promise<LibraryItemData[]> {
+  return apiFetch<LibraryItemData[]>('/library');
+}
+export function createLibraryItem(dto: CreateLibraryItemRequest): Promise<LibraryItemData> {
+  return apiFetch<LibraryItemData>('/library', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateLibraryItem(id: string, dto: UpdateLibraryItemRequest): Promise<LibraryItemData> {
+  return apiFetch<LibraryItemData>(`/library/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+export function removeLibraryItem(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/library/${id}`, { method: 'DELETE' });
 }
 
 // ── Plano de Ação + Evidências (Briefing §8/§9) ──

@@ -1755,3 +1755,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .terms-body p { margin-bottom: 12px; }
 .terms-body ul { margin: 0 0 12px; padding-left: 18px; list-style: disc; }
 .terms-body li { margin-bottom: 6px; }
+
+/* ---- Academia (CMS) ações ---- */
+.lib-act { font-size: 12px; color: var(--azul-cobalto); background: none; border: 0; cursor: pointer; padding: 0; }
+.lib-act:hover { text-decoration: underline; }
+.lib-act--danger { color: var(--danger, #b4453a); }

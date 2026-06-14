@@ -848,8 +848,26 @@ export interface TermsStatus {
 
 // ── Biblioteca & Formação (conteúdo do tenant) ──
 
-export const LIBRARY_KINDS = ['artigo', 'podcast', 'ebook', 'curso', 'framework'] as const;
+export const LIBRARY_KINDS = [
+  'curso', 'trilha', 'video', 'youtube', 'linkedin', 'podcast',
+  'artigo', 'ebook', 'pdf', 'guia', 'checklist', 'mentoria', 'framework',
+] as const;
 export type LibraryKind = (typeof LIBRARY_KINDS)[number];
+export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
+  curso: 'Curso',
+  trilha: 'Trilha',
+  video: 'Vídeo',
+  youtube: 'YouTube',
+  linkedin: 'LinkedIn',
+  podcast: 'Podcast',
+  artigo: 'Artigo',
+  ebook: 'E-book',
+  pdf: 'PDF',
+  guia: 'Guia',
+  checklist: 'Checklist',
+  mentoria: 'Gravação de mentoria',
+  framework: 'Framework',
+};
 
 export interface LibraryItemData {
   id: string;
@@ -864,6 +882,13 @@ export interface CreateLibraryItemRequest {
   title: string;
   description?: string;
   kind: LibraryKind;
+  url?: string;
+}
+
+export interface UpdateLibraryItemRequest {
+  title?: string;
+  description?: string;
+  kind?: LibraryKind;
   url?: string;
 }
 

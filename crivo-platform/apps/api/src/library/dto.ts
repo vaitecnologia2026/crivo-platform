@@ -19,3 +19,17 @@ export class CreateLibraryItemDto {
   @MaxLength(500)
   url?: string;
 }
+
+export class UpdateLibraryItemDto {
+  @IsOptional() @IsString() @MaxLength(200)
+  title?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
+
+  @IsOptional() @IsIn(LIBRARY_KINDS)
+  kind?: LibraryKind;
+
+  @IsOptional() @IsUrl() @MaxLength(500)
+  url?: string;
+}
