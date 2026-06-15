@@ -50,5 +50,6 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     AuditService,
     SuperAdminGuard,
   ],
+  exports: [AiSettingsService],
 })
 export class AdminModule {}

@@ -3,6 +3,8 @@
 import type {
   ActionItemData,
   ActionPlanData,
+  CopilotoAskRequest,
+  CopilotoAskResponse,
   CreateActionItemRequest,
   CreateActionPlanRequest,
   CreateEvidenceRequest,
@@ -185,6 +187,15 @@ export function removeParecer(id: string): Promise<{ ok: true }> {
 }
 export function generateParecerDocument(id: string): Promise<GeneratedDocument> {
   return apiFetch<GeneratedDocument>(`/parecer/${id}/document`);
+}
+
+// ── Copiloto CRIVO (Área do Líder — apoio reflexivo por IA) ──
+
+export function askCopiloto(dto: CopilotoAskRequest): Promise<CopilotoAskResponse> {
+  return apiFetch<CopilotoAskResponse>('/copiloto/ask', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
 }
 
 // ── Diagnóstico Essencial (Briefing §5) ──

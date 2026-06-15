@@ -956,6 +956,93 @@ export interface MyIcd {
   totalLideres: number;
 }
 
+// ── Área do Líder — Trilha de desenvolvimento + Copiloto CRIVO (Briefing §6/§7) ──
+// A trilha é DERIVADA do ICD do líder: a tensão dominante (4 Rs) define o foco e
+// as práticas. Não é personalidade nem saúde mental — é coerência decisória sob
+// pressão. O Copiloto é um apoio reflexivo (IA), não um diagnóstico.
+
+export interface LeaderTrack {
+  /** Tensão dominante a que a trilha responde. */
+  tension: DominantPattern;
+  title: string;
+  focus: string;
+  /** Práticas concretas para desenvolver a coerência naquela tensão. */
+  practices: string[];
+}
+
+/** Mapa tensão dominante (4 Rs) → trilha de desenvolvimento do líder. */
+export const LEADER_TRACKS: Record<DominantPattern, LeaderTrack> = {
+  REATIVIDADE: {
+    tension: 'REATIVIDADE',
+    title: 'Decidir sob pressão sem reagir no impulso',
+    focus: 'Criar um intervalo entre o estímulo e a decisão para reduzir reações automáticas.',
+    practices: [
+      'Antes de decisões quentes, nomeie a emoção e respire 3 vezes antes de responder.',
+      'Adote a regra das “24h” para decisões reversíveis de alto impacto emocional.',
+      'Registre 1 decisão por semana: o que pressionava, o que decidi, o que faria diferente.',
+    ],
+  },
+  RIGIDEZ: {
+    tension: 'RIGIDEZ',
+    title: 'Rever decisões diante de novos dados',
+    focus: 'Sustentar firmeza sem fechar para evidências e leituras divergentes da equipe.',
+    practices: [
+      'Em cada decisão, pergunte: “qual dado me faria mudar de ideia?”.',
+      'Convide ativamente uma visão contrária antes de fechar a posição.',
+      'Revise mensalmente uma decisão mantida e avalie se ainda se sustenta.',
+    ],
+  },
+  REPERCUSSAO: {
+    tension: 'REPERCUSSAO',
+    title: 'Decidir pelo mérito, não pela imagem',
+    focus: 'Separar a decisão necessária do receio de como ela será percebida.',
+    practices: [
+      'Explicite o critério técnico/de negócio antes de pensar na repercussão.',
+      'Identifique a decisão que você adia por medo de reação e dê o primeiro passo.',
+      'Comunique o “porquê” da decisão — clareza reduz ruído de percepção.',
+    ],
+  },
+  RISCO: {
+    tension: 'RISCO',
+    title: 'Equilibrar proteção e oportunidade',
+    focus: 'Decidir buscando ganho legítimo, não apenas evitando ameaças.',
+    practices: [
+      'Para cada decisão defensiva, descreva também o ganho que ela pode destravar.',
+      'Dimensione o risco real (probabilidade × impacto) antes de recuar.',
+      'Defina o “custo de não agir” — muitas vezes maior que o risco temido.',
+    ],
+  },
+  EQUILIBRADO: {
+    tension: 'EQUILIBRADO',
+    title: 'Sustentar a coerência e desenvolver o time',
+    focus: 'Sua leitura está equilibrada nos 4 Rs — consolide o padrão e apoie pares.',
+    practices: [
+      'Documente como você decide bem sob pressão e compartilhe com a equipe.',
+      'Atue como referência em decisões difíceis de outros líderes.',
+      'Mantenha o ritual de revisão para não perder a coerência sob estresse.',
+    ],
+  },
+};
+
+/** Pergunta ao Copiloto CRIVO (apoio reflexivo do líder). O contexto do ICD é
+ *  enviado pelo cliente (dados do próprio usuário) para personalizar a resposta. */
+export interface CopilotoAskRequest {
+  question: string;
+  context?: {
+    score?: number;
+    dominantPattern?: DominantPattern;
+    dimensions?: Partial<IcdDimensions>;
+  };
+}
+
+export interface CopilotoAskResponse {
+  ok: boolean;
+  /** Resposta do copiloto (quando ok). */
+  answer?: string;
+  /** Motivo quando indisponível (ex.: IA não configurada/desativada). */
+  reason?: string;
+}
+
 /** Campanha de diagnóstico (ciclo de avaliação) com estatísticas agregadas. */
 export interface CampaignSummary {
   id: string;

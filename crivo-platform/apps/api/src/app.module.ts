@@ -14,6 +14,7 @@ import { AdminModule } from './admin/admin.module';
 import { ActionPlansModule } from './action-plans/action-plans.module';
 import { EssencialModule } from './essencial/essencial.module';
 import { ParecerModule } from './parecer/parecer.module';
+import { CopilotoModule } from './copiloto/copiloto.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -32,6 +33,7 @@ import { HealthController } from './health/health.controller';
     ActionPlansModule,
     EssencialModule,
     ParecerModule,
+    CopilotoModule,
   ],
   controllers: [HealthController],
   providers: [
