@@ -29,8 +29,10 @@ function VerticeMark() {
 
 type Section = "overview" | "crm" | "produtos" | "empresas" | "ia" | "auditoria";
 
+// Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
+// repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
 const NAV: { key: Section; label: string; icon: string; current: string; group: string }[] = [
-  { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Plataforma" },
+  { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Geral" },
   { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
   { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
