@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from './ai-settings.service';
+import { EditableTextsService } from './editable-texts.service';
 import {
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
   type MaturityLevel,
@@ -27,6 +28,7 @@ export class PreliminaryReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiSettingsService,
+    private readonly texts: EditableTextsService,
   ) {}
 
   /** Lista os relatórios de um lead. */
@@ -104,11 +106,17 @@ export class PreliminaryReportsService {
 
     // Tenta enviar (best-effort).
     if (recipient) {
+      // #60 — Rodapé do e-mail editável pelo Super Admin sem deploy.
+      const footer = await this.texts.render(
+        'EMAIL_PRELIMINARY_FOOTER',
+        'Este é um relatório preliminar gerado a partir do Diagnóstico Inicial CRIVO. Não substitui AEP/PGR nem Diagnóstico Essencial/Organizacional.',
+      );
       const send = await this.sendEmail({
         to: recipient,
         leadName: lead.name,
         company: lead.company ?? null,
         markdown: content,
+        footer,
       });
       const final = await this.prisma.admin.preliminaryReport.update({
         where: { id: report.id },
@@ -138,11 +146,16 @@ export class PreliminaryReportsService {
     const lead = await this.prisma.admin.platformLead.findUnique({
       where: { id: report.platformLeadId },
     });
+    const footer = await this.texts.render(
+      'EMAIL_PRELIMINARY_FOOTER',
+      'Este é um relatório preliminar gerado a partir do Diagnóstico Inicial CRIVO. Não substitui AEP/PGR nem Diagnóstico Essencial/Organizacional.',
+    );
     const send = await this.sendEmail({
       to: sendTo,
       leadName: lead?.name ?? 'Cliente',
       company: lead?.company ?? null,
       markdown: report.content,
+      footer,
     });
     const updated = await this.prisma.admin.preliminaryReport.update({
       where: { id },
@@ -203,6 +216,7 @@ export class PreliminaryReportsService {
     leadName: string;
     company: string | null;
     markdown: string;
+    footer: string;
   }): Promise<{ ok: boolean; provider: string; reason?: string }> {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.RESEND_FROM ?? 'CRIVO <noreply@crivolegacy.com.br>';
@@ -222,7 +236,7 @@ export class PreliminaryReportsService {
     const subject = input.company
       ? `Seu Relatório Preliminar CRIVO — ${input.company}`
       : 'Seu Relatório Preliminar CRIVO';
-    const html = renderEmailHtml(input.leadName, input.markdown);
+    const html = renderEmailHtml(input.leadName, input.markdown, input.footer);
     const text = input.markdown;
 
     try {
@@ -370,7 +384,7 @@ Produza agora o Relatório Preliminar CRIVO conforme a estrutura definida.
 `.trim();
 }
 
-function renderEmailHtml(leadName: string, markdown: string): string {
+function renderEmailHtml(leadName: string, markdown: string, footer: string): string {
   // Renderização HTML simples — preserva quebras e parágrafos. Não usa lib
   // de markdown para manter o serviço sem dependências adicionais.
   const escaped = markdown
@@ -394,6 +408,6 @@ function renderEmailHtml(leadName: string, markdown: string): string {
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
   <div><p>${html}</p></div>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
-  <p style="font-size:12px;color:#727a8c">Este é um relatório preliminar gerado a partir do Diagnóstico Inicial CRIVO. Não substitui AEP/PGR nem Diagnóstico Essencial/Organizacional.</p>
+  <p style="font-size:12px;color:#727a8c">${footer}</p>
 </body></html>`.trim();
 }

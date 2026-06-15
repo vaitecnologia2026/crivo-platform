@@ -40,4 +40,15 @@ export class LibraryController {
   remove(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.library.remove(user.tenantId, id);
   }
+
+  /** #62 — Importa um GlobalAcademyContent (catálogo Super Admin) para a
+   *  biblioteca do tenant. Requer library:manage. */
+  @Post('import-global/:contentId')
+  @RequirePermission('library:manage')
+  importFromGlobal(
+    @CurrentUser() user: SessionUser,
+    @Param('contentId', ParseUUIDPipe) contentId: string,
+  ) {
+    return this.library.importFromGlobal(user.tenantId, contentId);
+  }
 }

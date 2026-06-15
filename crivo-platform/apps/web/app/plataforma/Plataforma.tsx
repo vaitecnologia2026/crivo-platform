@@ -31,6 +31,7 @@ import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
 import { PocketScreen } from "./PocketScreen";
 import { SoonScreen } from "./SoonScreen";
 import { HistoricoScreen } from "./HistoricoScreen";
+import { MentoriasScreen } from "./MentoriasScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
@@ -147,7 +148,7 @@ export function Plataforma() {
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       if (name === "pocket") mountIsland("pocket-root", <PocketScreen />);
-      if (name === "mentorias") mountIsland("mentorias-root", <SoonScreen title="Mentorias" sub="Agenda, formato e histórico." message="O calendário das mentorias contratadas será habilitado em breve." />);
+      if (name === "mentorias") mountIsland("mentorias-root", <MentoriasScreen />);
       if (name === "analytics") mountIsland("analytics-root", <SoonScreen title="People Analytics avançado" sub="Cruzamentos de indicadores e custos invisíveis." message="Cruzamentos por ciclo, liderança, clima e custos invisíveis chegam em breve." />);
       if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
       const meta = routeMeta[name];

@@ -73,6 +73,45 @@ export class ActionPlansService {
     });
   }
 
+  /** #61 — Importa um ActionTemplate (catálogo global) como ActionItem
+   *  do plano. Calcula dueDate = today + defaultReviewDays. */
+  async addItemFromTemplate(
+    tenantId: string,
+    planId: string,
+    templateId: string,
+  ): Promise<ActionItemData> {
+    // Catálogo global — control plane, sem RLS.
+    const template = await this.prisma.admin.actionTemplate.findUnique({
+      where: { id: templateId },
+    });
+    if (!template) throw new NotFoundException('Ação modelo não encontrada.');
+    if (!template.active) {
+      throw new NotFoundException('Esta ação modelo foi desativada pelo Super Admin.');
+    }
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + template.defaultReviewDays);
+
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
+      if (!plan) throw new NotFoundException('Plano não encontrado.');
+      const item = await tx.actionItem.create({
+        data: {
+          tenantId,
+          planId,
+          point: template.category, // categoria vira o "ponto identificado"
+          action: template.title,
+          origin: `template:${template.id}`,
+          responsible: template.suggestedResponsible,
+          dueDate,
+          expectedEvidence: template.expectedEvidence,
+        },
+        include: { evidences: true },
+      });
+      return this.toItem(item);
+    });
+  }
+
   async updateItem(
     tenantId: string,
     itemId: string,

@@ -69,6 +69,16 @@ export class ActionPlansController {
     return this.plans.addItem(user.tenantId, planId, dto);
   }
 
+  /** #61 — Importa um ActionTemplate (Biblioteca de Ações global) como item. */
+  @Post(':planId/items-from-template/:templateId')
+  addItemFromTemplate(
+    @CurrentUser() user: SessionUser,
+    @Param('planId', ParseUUIDPipe) planId: string,
+    @Param('templateId', ParseUUIDPipe) templateId: string,
+  ) {
+    return this.plans.addItemFromTemplate(user.tenantId, planId, templateId);
+  }
+
   @Post(':planId/validate')
   validate(@CurrentUser() user: SessionUser, @Param('planId', ParseUUIDPipe) planId: string) {
     return this.plans.validatePlan(user.tenantId, planId, user.name ?? user.email);

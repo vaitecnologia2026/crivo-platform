@@ -51,6 +51,41 @@ export class EditableTextsService {
     await this.prisma.admin.editableText.delete({ where: { key } });
     return { ok: true as const };
   }
+
+  /** #60 — Resolve uma chave em texto com fallback. Cache em memória (60s) para
+   *  evitar hit no banco em e-mails de alto volume. Substitui placeholders
+   *  `{nome}` por valores passados em `replacements`. */
+  async render(key: string, fallback: string, replacements?: Record<string, string>): Promise<string> {
+    const cached = this.getCache(key);
+    let content = cached ?? fallback;
+    if (cached === undefined) {
+      try {
+        const row = await this.prisma.admin.editableText.findUnique({ where: { key } });
+        content = row?.content ?? fallback;
+        this.setCache(key, content);
+      } catch {
+        /* falha de DB não derruba o serviço — usa fallback */
+      }
+    }
+    if (replacements) {
+      for (const [k, v] of Object.entries(replacements)) {
+        content = content.replaceAll(`{${k}}`, v);
+      }
+    }
+    return content;
+  }
+
+  // ── Cache em memória (TTL 60s). Boundary por instância NestJS. ──
+  private cache = new Map<string, { v: string; expires: number }>();
+  private getCache(key: string): string | undefined {
+    const hit = this.cache.get(key);
+    if (!hit) return undefined;
+    if (hit.expires < Date.now()) { this.cache.delete(key); return undefined; }
+    return hit.v;
+  }
+  private setCache(key: string, value: string) {
+    this.cache.set(key, { v: value, expires: Date.now() + 60_000 });
+  }
 }
 
 function toData(row: any): EditableTextData {

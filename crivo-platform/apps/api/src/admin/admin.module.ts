@@ -72,6 +72,6 @@ import { GlobalAcademyService } from './global-academy.service';
     EditableTextsService,
     GlobalAcademyService,
   ],
-  exports: [AiSettingsService],
+  exports: [AiSettingsService, EditableTextsService],
 })
 export class AdminModule {}

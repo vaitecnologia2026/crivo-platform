@@ -9,11 +9,14 @@ import {
 } from "@crivo/types";
 import {
   addActionItem,
+  addActionItemFromTemplate,
+  getMyActionTemplates,
   addEvidence,
   createActionPlan,
   listActionPlans,
   updateActionItem,
   validateActionPlan,
+  type ActionTemplateLite,
 } from "@/lib/api";
 import { DocumentsPanel } from "./DocumentsPanel";
 
@@ -236,7 +239,24 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
   const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "" });
   const [saving, setSaving] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  async function loadTemplates() {
+    if (templates) return;
+    try { setTemplates(await getMyActionTemplates()); } catch { setTemplates([]); }
+  }
+
+  async function importTemplate(tplId: string) {
+    setImportingId(tplId);
+    try {
+      await addActionItemFromTemplate(planId, tplId);
+      onAdded();
+    } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setImportingId(null); }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -251,6 +271,49 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
   }
   return (
     <form onSubmit={submit} style={{ marginTop: 12, padding: 14, background: "var(--line-soft)", borderRadius: 8 }}>
+      <div style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <span style={{ fontSize: 12, color: "var(--text-sec)" }}>
+          Criar ação personalizada ou importar do catálogo CRIVO.
+        </span>
+        <button
+          type="button"
+          className="btn btn--ghost-dark btn--sm"
+          onClick={() => { setShowTemplates((s) => !s); loadTemplates(); }}
+        >
+          {showTemplates ? "Fechar catálogo" : "◈ Importar do catálogo"}
+        </button>
+      </div>
+
+      {showTemplates && (
+        <div style={{ marginBottom: 14, padding: 12, background: "var(--bg-elev)", borderRadius: 6, border: "1px solid var(--line)" }}>
+          {templates === null && <p className="card__sub">Carregando…</p>}
+          {templates && templates.length === 0 && <p className="card__sub">Nenhuma ação modelo cadastrada no Super Admin ainda.</p>}
+          {templates && templates.length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 280, overflow: "auto" }}>
+              {templates.map((t) => (
+                <li key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--line-soft)" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontSize: 13 }}>{t.title}</strong>
+                    <div className="card__sub" style={{ fontSize: 11 }}>
+                      {t.category} · revisão em {t.defaultReviewDays}d
+                      {t.suggestedResponsible && ` · ${t.suggestedResponsible}`}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn--outline-dark btn--sm"
+                    onClick={() => importTemplate(t.id)}
+                    disabled={importingId === t.id}
+                  >
+                    {importingId === t.id ? "Importando…" : "+ usar"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="prod-form__grid">
         <label className="prod-field prod-field--full"><span>Ponto identificado</span>
           <input value={f.point} onChange={(e) => set("point")(e.target.value)} required placeholder="Ex.: Sobrecarga na liderança do turno B" />

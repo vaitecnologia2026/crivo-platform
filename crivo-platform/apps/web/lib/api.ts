@@ -109,6 +109,61 @@ export function getMyRole(): Promise<{ role: string; name: string }> {
   return apiFetch<{ role: string; name: string }>('/me/role');
 }
 
+/** #62 — Catálogo global Academia CRIVO + importação para biblioteca do tenant. */
+export interface GlobalAcademyLite {
+  id: string;
+  title: string;
+  kind: string;
+  description: string | null;
+  url: string | null;
+  category: string | null;
+  tags: string[];
+}
+export function getMyGlobalAcademy(): Promise<GlobalAcademyLite[]> {
+  return apiFetch<GlobalAcademyLite[]>('/me/global-academy');
+}
+export function importGlobalAcademyToLibrary(contentId: string): Promise<LibraryItemData> {
+  return apiFetch<LibraryItemData>(`/library/import-global/${contentId}`, { method: 'POST' });
+}
+
+/** #61 — Catálogo de ações modelo (Biblioteca de Ações do Super Admin). */
+export interface ActionTemplateLite {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  suggestedResponsible: string | null;
+  expectedEvidence: string | null;
+  defaultReviewDays: number;
+}
+export function getMyActionTemplates(): Promise<ActionTemplateLite[]> {
+  return apiFetch<ActionTemplateLite[]>('/me/action-templates');
+}
+export function addActionItemFromTemplate(planId: string, templateId: string): Promise<ActionItemData> {
+  return apiFetch<ActionItemData>(`/action-plans/${planId}/items-from-template/${templateId}`, {
+    method: 'POST',
+  });
+}
+
+/** #59 — Mentorias do tenant. Líder vê só as suas; RH/CEO veem todas. */
+export interface MentoriaTenantEntry {
+  id: string;
+  title: string;
+  format: string;
+  mentorName: string;
+  attendee: string;
+  scheduledAt: string;
+  durationMin: number;
+  meetingUrl: string | null;
+  location: string | null;
+  status: string;
+  notes: string | null;
+  recordingUrl: string | null;
+}
+export function getMyMentorias(): Promise<MentoriaTenantEntry[]> {
+  return apiFetch<MentoriaTenantEntry[]>('/me/mentorias');
+}
+
 /** #56 — Audit log do tenant (últimos 100 eventos). Filtra por tenantId no backend. */
 export interface AuditLogEntry {
   id: string;

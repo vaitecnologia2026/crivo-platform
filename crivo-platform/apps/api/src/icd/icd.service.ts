@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeIcd } from './scoring';
+import { EditableTextsService } from '../admin/editable-texts.service';
 import type { SubmitIcdDto } from './dto';
 import type { DominantPattern } from '@crivo/types';
 
 @Injectable()
 export class IcdService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly texts: EditableTextsService,
+  ) {}
 
   /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
   async submit(tenantId: string, dto: SubmitIcdDto) {
@@ -253,13 +257,26 @@ export class IcdService {
         };
       }
 
+      // #60 — Corpo do lembrete vem do EditableText (fallback embutido).
+      const bodyTemplate = await this.texts.render(
+        'EMAIL_CAMPAIGN_REMINDER_BODY',
+        `<p>Olá {first_name},</p>
+<p>Você ainda não respondeu à campanha de diagnóstico <strong>{campaign_name}</strong>.</p>
+<p>{description}</p>
+<p>Acesse o portal para responder.</p>`,
+      );
+      const subjectTemplate = await this.texts.render(
+        'EMAIL_CAMPAIGN_REMINDER_SUBJECT',
+        'Lembrete: responda a campanha "{campaign_name}"',
+      );
+
       let sent = 0;
       for (const u of pendentes) {
-        const subject = `Lembrete: responda a campanha "${cycle.name}"`;
-        const html = `<p>Olá ${u.name.split(' ')[0]},</p>
-          <p>Você ainda não respondeu à campanha de diagnóstico <strong>${cycle.name}</strong>.</p>
-          <p>${cycle.description ?? 'Sua participação ajuda a empresa a entender o ambiente decisório.'}</p>
-          <p>Acesse o portal para responder.</p>`;
+        const subject = subjectTemplate.replaceAll('{campaign_name}', cycle.name);
+        const html = bodyTemplate
+          .replaceAll('{first_name}', u.name.split(' ')[0])
+          .replaceAll('{campaign_name}', cycle.name)
+          .replaceAll('{description}', cycle.description ?? 'Sua participação ajuda a empresa a entender o ambiente decisório.');
         try {
           const res = await fetch('https://api.resend.com/emails', {
             method: 'POST',

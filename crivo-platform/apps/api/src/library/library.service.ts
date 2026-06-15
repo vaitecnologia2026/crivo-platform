@@ -71,4 +71,35 @@ export class LibraryService {
       return { ok: true as const };
     });
   }
+
+  /** #62 — Importa um GlobalAcademyContent (catálogo global Super Admin) para
+   *  a biblioteca do tenant. Idempotente: se a URL já estiver na biblioteca,
+   *  devolve o existente em vez de duplicar. */
+  async importFromGlobal(tenantId: string, contentId: string): Promise<LibraryItemData> {
+    const content = await this.prisma.admin.globalAcademyContent.findUnique({
+      where: { id: contentId },
+    });
+    if (!content) throw new NotFoundException('Conteúdo não encontrado.');
+    if (!content.published) {
+      throw new NotFoundException('Este conteúdo não está publicado pelo Super Admin.');
+    }
+
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      // Dedup leve: se já existe item com a mesma url, devolve.
+      if (content.url) {
+        const existing = await tx.libraryItem.findFirst({ where: { url: content.url } });
+        if (existing) return toData(existing);
+      }
+      const item = await tx.libraryItem.create({
+        data: {
+          tenantId,
+          title: content.title,
+          description: content.description,
+          kind: content.kind,
+          url: content.url,
+        },
+      });
+      return toData(item);
+    });
+  }
 }

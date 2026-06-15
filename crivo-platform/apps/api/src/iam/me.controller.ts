@@ -51,6 +51,89 @@ export class MeController {
     return { role: user.role, name: user.name };
   }
 
+  /** #62 — Catálogo GLOBAL da Academia CRIVO publicado pelo Super Admin.
+   *  Qualquer usuário autenticado pode ler. Importação para LibraryItem
+   *  fica em POST /library/import-global/:contentId. */
+  @Get('global-academy')
+  async myGlobalAcademy() {
+    const rows = await this.prisma.admin.globalAcademyContent.findMany({
+      where: { published: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      kind: r.kind,
+      description: r.description,
+      url: r.url,
+      category: r.category,
+      tags: r.tags ?? [],
+    }));
+  }
+
+  /** #61 — Catálogo de ActionTemplates ativos (Biblioteca de Ações modelo
+   *  do Super Admin). Qualquer usuário autenticado pode ler para importar
+   *  no próprio Plano de Ação. */
+  @Get('action-templates')
+  async myActionTemplates() {
+    const rows = await this.prisma.admin.actionTemplate.findMany({
+      where: { active: true },
+      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      category: r.category,
+      description: r.description,
+      suggestedResponsible: r.suggestedResponsible,
+      expectedEvidence: r.expectedEvidence,
+      defaultReviewDays: r.defaultReviewDays,
+    }));
+  }
+
+  /** #59 — Mentorias do tenant. Líder vê só as suas (match por e-mail no
+   *  campo attendee); RH/CEO/GESTOR/ADMIN veem todas. Control plane sem RLS. */
+  @Get('mentorias')
+  async myMentorias(
+    @CurrentUser() user: SessionUser,
+  ): Promise<Array<{
+    id: string;
+    title: string;
+    format: string;
+    mentorName: string;
+    attendee: string;
+    scheduledAt: string;
+    durationMin: number;
+    meetingUrl: string | null;
+    location: string | null;
+    status: string;
+    notes: string | null;
+    recordingUrl: string | null;
+  }>> {
+    const isLeaderOnly = user.role === 'LIDER' || user.role === 'COLABORADOR';
+    const rows = await this.prisma.admin.mentoria.findMany({
+      where: {
+        tenantId: user.tenantId,
+        ...(isLeaderOnly ? { attendee: { contains: user.email, mode: 'insensitive' } } : {}),
+      },
+      orderBy: { scheduledAt: 'desc' },
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      title: m.title,
+      format: m.format,
+      mentorName: m.mentorName,
+      attendee: m.attendee,
+      scheduledAt: m.scheduledAt.toISOString(),
+      durationMin: m.durationMin,
+      meetingUrl: m.meetingUrl,
+      location: m.location,
+      status: m.status,
+      notes: m.notes,
+      recordingUrl: m.recordingUrl,
+    }));
+  }
+
   /** Histórico de eventos de auditoria do tenant (últimos 100).
    *  #56 — alimenta a rota /historico do portal. Não expõe `meta` para evitar
    *  PII; lista apenas action/target/timestamp/actorEmail. */

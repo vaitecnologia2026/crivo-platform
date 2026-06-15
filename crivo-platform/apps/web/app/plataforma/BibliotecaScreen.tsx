@@ -9,10 +9,13 @@ import {
 } from "@crivo/types";
 import {
   createLibraryItem,
+  getMyGlobalAcademy,
   getMyPermissions,
+  importGlobalAcademyToLibrary,
   listLibrary,
   removeLibraryItem,
   updateLibraryItem,
+  type GlobalAcademyLite,
 } from "@/lib/api";
 
 type LoadStatus = "loading" | "error" | "ok";
@@ -68,10 +71,13 @@ export function BibliotecaScreen() {
         </div>
       )}
 
+      {/* #62 — Catálogo global CRIVO (visível a quem pode gerenciar). */}
+      {status === "ok" && canManage && <GlobalCatalogPanel onImported={load} existingUrls={new Set((data ?? []).map(d => d.url).filter(Boolean) as string[])} />}
+
       {status === "ok" && data && data.length === 0 && (
         <div className="card"><div className="card__head"><div>
           <h3>Acervo vazio</h3>
-          <span className="card__sub">{canManage ? "Adicione o primeiro conteúdo." : "Nenhum material publicado ainda."}</span>
+          <span className="card__sub">{canManage ? "Adicione um conteúdo próprio ou importe do catálogo CRIVO." : "Nenhum material publicado ainda."}</span>
         </div></div></div>
       )}
 
@@ -159,6 +165,84 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ── #62 — Catálogo global Academia CRIVO (Super Admin) ────────────────
+
+function GlobalCatalogPanel({ onImported, existingUrls }: { onImported: () => void; existingUrls: Set<string> }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<GlobalAcademyLite[] | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || items) return;
+    getMyGlobalAcademy().then(setItems).catch(() => setItems([]));
+  }, [open, items]);
+
+  async function imp(id: string) {
+    setBusyId(id);
+    try {
+      await importGlobalAcademyToLibrary(id);
+      onImported();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao importar.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center",
+          padding: 6, background: "none", border: 0, cursor: "pointer", color: "var(--text)",
+          fontFamily: "var(--font-display)", fontSize: 15,
+        }}
+      >
+        <span>
+          {open ? "▼" : "▶"} Catálogo CRIVO {items && `(${items.length} item${items.length === 1 ? "" : "s"})`}
+        </span>
+        <span className="card__sub" style={{ fontSize: 12 }}>curado pelo time CRIVO</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 12 }}>
+          {items === null && <p className="card__sub">Carregando…</p>}
+          {items && items.length === 0 && <p className="card__sub">Nenhum conteúdo publicado pelo Super Admin ainda.</p>}
+          {items && items.length > 0 && (
+            <div className="grid grid--3">
+              {items.map((it) => {
+                const already = it.url ? existingUrls.has(it.url) : false;
+                return (
+                  <div key={it.id} className="card card--mini">
+                    <span className="card__eyebrow">{it.kind}{it.category && ` · ${it.category}`}</span>
+                    <h4>{it.title}</h4>
+                    {it.description && <p>{it.description}</p>}
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+                      {it.url && <a className="link-gold" href={it.url} target="_blank" rel="noreferrer">Acessar →</a>}
+                      {already ? (
+                        <span className="card__sub" style={{ fontSize: 11 }}>✓ já está na sua biblioteca</span>
+                      ) : (
+                        <button
+                          className="btn btn--gold btn--sm"
+                          onClick={() => imp(it.id)}
+                          disabled={busyId === it.id}
+                        >
+                          {busyId === it.id ? "Importando…" : "+ Adicionar à minha biblioteca"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

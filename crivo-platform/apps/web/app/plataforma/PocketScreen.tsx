@@ -281,10 +281,45 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
       {isCompleted ? (
         <div className="card pocket-done">
           <h2>Sessão concluída</h2>
-          <p className="card__sub">
+          <p className="card__sub" style={{ marginBottom: 18 }}>
             Suas reflexões ficam salvas no seu histórico pessoal. Não são expostas
             individualmente para a empresa (§13).
           </p>
+
+          {session.aiSummary ? (
+            <div className="pocket-ai-summary">
+              <div className="pocket-ai-summary__head">
+                <span className="pill pill--gold">Mentoria IA · Pocket</span>
+                <span className="card__sub">
+                  Apoio reflexivo · não substitui mentor humano (§10)
+                </span>
+              </div>
+              <h3 style={{ margin: "12px 0 8px", fontFamily: "var(--font-display)" }}>Síntese</h3>
+              <p>{session.aiSummary.synthesis}</p>
+
+              {session.aiSummary.recommendation && (
+                <>
+                  <h4 style={{ margin: "14px 0 6px" }}>Cuidado / atenção</h4>
+                  <p>{session.aiSummary.recommendation}</p>
+                </>
+              )}
+
+              {session.aiSummary.nextStep && (
+                <>
+                  <h4 style={{ margin: "14px 0 6px" }}>Próximo passo</h4>
+                  <p className="pocket-ai-summary__next">
+                    {session.aiSummary.nextStep}
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="card__sub" style={{ marginBottom: 18, fontStyle: "italic" }}>
+              Mentoria IA indisponível neste ciclo — configure a IA no Super Admin para receber síntese,
+              cuidado sugerido e próximo passo a cada sessão.
+            </p>
+          )}
+
           <button className="btn btn--gold" onClick={onBack}>Voltar ao histórico</button>
         </div>
       ) : current ? (
