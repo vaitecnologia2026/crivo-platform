@@ -45,6 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="pt-BR"
+      // Extensões de navegador (gerenciadores de senha, antivírus, tradutores)
+      // injetam atributos no <html> antes do React hidratar — suprime apenas o
+      // aviso de mismatch deste elemento, não da árvore.
+      suppressHydrationWarning
       className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jakarta.variable} ${jetbrains.variable}`}
     >
       <body>{children}</body>
