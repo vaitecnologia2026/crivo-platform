@@ -1,101 +1,162 @@
-/* Login do Super Admin — estilos SCOPED (CSS Module).
-   Por que módulo e não Tailwind: o app.css global tem `* { margin:0; padding:0 }`
-   sem layer, que sobrepõe as utilities (layered) do Tailwind v4 e zera todo
-   margin/padding. Classes reais (especificidade > `*`) blindam o login disso. */
+/* Login do Super Admin — layout SPLIT (painel de marca + formulário), padrão
+   enterprise. Estilos SCOPED (CSS Module): classes reais vencem o reset
+   `* { margin:0; padding:0 }` (não-layered) do app.css, que zera as utilities
+   layered do Tailwind v4. Tokens hardcoded p/ controle total da marca. */
 
-.screen {
-  position: relative;
+.shell {
+  display: flex;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
   background: #071019;
-  padding: 24px;
   color: #f2f0ec;
   font-family: var(--font-poppins), system-ui, sans-serif;
 }
 
-.glow {
+/* ---------- Painel de marca (esquerda) ---------- */
+.brandSide {
+  position: relative;
+  flex: 1.05;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 56px;
+  overflow: hidden;
+  background: linear-gradient(155deg, #102542 0%, #0a1a2e 45%, #071019 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.brandGlow {
   position: absolute;
-  left: 50%;
-  top: -10%;
-  width: 520px;
-  height: 520px;
-  transform: translateX(-50%);
+  top: -120px;
+  left: -80px;
+  width: 460px;
+  height: 460px;
   border-radius: 9999px;
-  opacity: 0.16;
-  filter: blur(120px);
+  opacity: 0.22;
+  filter: blur(110px);
   background: radial-gradient(circle, #c4894a 0%, transparent 70%);
   pointer-events: none;
 }
-
-.wrap {
+.brandTop {
   position: relative;
-  width: 100%;
-  max-width: 400px;
-}
-
-.brand {
-  margin: 0 0 28px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
+  gap: 12px;
 }
-.mark {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 12px;
+.brandMark {
+  width: 40px;
+  height: 40px;
   color: #f2f0ec;
 }
-.brandName {
-  font-family: var(--font-cormorant), Georgia, serif;
-  font-size: 28px;
-  letter-spacing: 0.1em;
+.brandWord {
+  display: flex;
+  flex-direction: column;
   line-height: 1;
+}
+.brandWordName {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 24px;
+  letter-spacing: 0.12em;
   margin: 0;
 }
-.brandSub {
-  margin: 8px 0 0;
-  font-size: 10px;
+.brandWordSub {
+  font-size: 9.5px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.26em;
   color: #c4894a;
+  margin: 4px 0 0;
+}
+.brandMid {
+  position: relative;
+  max-width: 440px;
+}
+.brandHeadline {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 38px;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  margin: 0;
+  color: #f2f0ec;
+}
+.brandHeadline em {
+  font-style: italic;
+  color: #d9a866;
+}
+.brandText {
+  margin: 20px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(242, 240, 236, 0.62);
+}
+.brandRule {
+  width: 48px;
+  height: 2px;
+  margin: 28px 0 0;
+  background: linear-gradient(90deg, #c4894a, transparent);
+  border-radius: 2px;
+}
+.brandBottom {
+  position: relative;
+  display: flex;
+  gap: 28px;
+}
+.brandStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brandStatLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(242, 240, 236, 0.4);
+}
+.brandStatValue {
+  font-size: 13px;
+  color: rgba(242, 240, 236, 0.8);
 }
 
-.card {
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #0e2139;
-  padding: 32px;
-  box-shadow: 0 30px 70px -25px rgba(0, 0, 0, 0.85);
+/* ---------- Formulário (direita) ---------- */
+.formSide {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
 }
+.form {
+  width: 100%;
+  max-width: 360px;
+}
+.mobileBrand {
+  display: none;
+  margin: 0 0 28px;
+  text-align: center;
+}
+
 .title {
   font-family: var(--font-cormorant), Georgia, serif;
-  font-size: 20px;
-  letter-spacing: 0.02em;
-  margin: 0 0 4px;
+  font-size: 26px;
+  letter-spacing: 0.01em;
+  margin: 0 0 6px;
 }
 .subtitle {
-  font-size: 12.5px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.5;
   color: rgba(242, 240, 236, 0.55);
-  margin: 0 0 24px;
+  margin: 0 0 28px;
 }
 
 .field {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(242, 240, 236, 0.55);
+  color: rgba(242, 240, 236, 0.6);
 }
 .inputWrap {
   position: relative;
@@ -103,20 +164,21 @@
 .input {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: #091628;
-  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0d1d33;
+  padding: 12px 14px;
   font-size: 14px;
   color: #f2f0ec;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.22);
 }
 .input:focus {
   border-color: #c4894a;
-  box-shadow: 0 0 0 2px rgba(196, 137, 74, 0.25);
+  background: #0f2236;
+  box-shadow: 0 0 0 3px rgba(196, 137, 74, 0.18);
 }
 .hasToggle {
   padding-right: 84px;
@@ -129,31 +191,31 @@
   border-radius: 6px;
   padding: 5px 10px;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: rgba(242, 240, 236, 0.55);
+  color: rgba(242, 240, 236, 0.5);
   background: none;
   border: 0;
   cursor: pointer;
   transition: color 0.15s;
 }
 .toggle:hover {
-  color: #c4894a;
+  color: #d9a866;
 }
 
 .error {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 16px;
-  padding: 10px 12px;
+  margin-bottom: 18px;
+  padding: 11px 13px;
   border-radius: 10px;
-  border: 1px solid rgba(168, 105, 61, 0.4);
-  background: rgba(168, 105, 61, 0.12);
+  border: 1px solid rgba(196, 137, 74, 0.45);
+  background: rgba(196, 137, 74, 0.12);
   font-size: 12.5px;
-  line-height: 1.4;
-  color: #e0a578;
+  line-height: 1.45;
+  color: #e6ad7d;
 }
 
 .submit {
@@ -161,34 +223,51 @@
   margin-top: 4px;
   border-radius: 10px;
   border: 0;
-  background: linear-gradient(180deg, #d9a866 0%, #c4894a 100%);
+  background: linear-gradient(180deg, #e0b878 0%, #c4894a 100%);
   padding: 13px 16px;
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #091628;
+  color: #1a1205;
   cursor: pointer;
-  box-shadow: 0 12px 28px -10px rgba(196, 137, 74, 0.7);
+  box-shadow: 0 14px 30px -12px rgba(196, 137, 74, 0.75);
   transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
 }
 .submit:hover:not(:disabled) {
-  filter: brightness(1.06);
+  filter: brightness(1.05);
   transform: translateY(-1px);
+  box-shadow: 0 18px 36px -12px rgba(196, 137, 74, 0.85);
+}
+.submit:active:not(:disabled) {
+  transform: translateY(0);
 }
 .submit:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
   box-shadow: none;
 }
 
 .footer {
-  margin: 24px 0 0;
+  margin: 26px 0 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
+  gap: 7px;
   font-size: 11px;
-  color: rgba(242, 240, 236, 0.55);
+  line-height: 1.4;
+  color: rgba(242, 240, 236, 0.45);
+}
+.footerIcon {
+  flex-shrink: 0;
+  color: rgba(242, 240, 236, 0.4);
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 900px) {
+  .brandSide {
+    display: none;
+  }
+  .mobileBrand {
+    display: block;
+  }
 }

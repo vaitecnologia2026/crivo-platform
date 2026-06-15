@@ -1,0 +1,40 @@
+/* Polish visual do Super Admin (control plane) — ESCOPADO em .adm.
+   Aplica só dentro do shell do super admin; a plataforma de tenant
+   compartilha o app.css e NÃO é afetada. Especificidade (.adm .x) vence as
+   regras base de .x; arquivo não-layered vence as utilities do Tailwind. */
+
+/* KPI cards — acento dourado no topo + sombra refinada (sensação "premium"). */
+.adm .kpi {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(13, 31, 60, 0.08);
+  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04), 0 12px 32px -18px rgba(13, 31, 60, 0.22);
+}
+.adm .kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-deep));
+  opacity: 0.85;
+}
+.adm .kpi:hover {
+  border-color: var(--gold-soft, #e8d3b5);
+}
+
+/* Cards de seção — sombra mais suave e profunda. */
+.adm .card {
+  border-color: rgba(13, 31, 60, 0.08);
+  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04), 0 12px 32px -18px rgba(13, 31, 60, 0.18);
+}
+
+/* Tabelas — linhas mais respiráveis. */
+.adm .data-table tbody td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+/* Título de rota com leve refinamento tipográfico. */
+.adm .page-title {
+  letter-spacing: -0.01em;
+}

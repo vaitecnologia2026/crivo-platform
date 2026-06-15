@@ -80,24 +80,50 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
   }
 
   return (
-    <main className={s.screen}>
-      <div aria-hidden className={s.glow} />
-
-      <div className={s.wrap}>
-        <div className={s.brand}>
-          <svg viewBox="0 0 48 44" fill="none" aria-hidden="true" className={s.mark}>
-            <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
-            <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
-          </svg>
-          <p className={s.brandName}>CRIVO</p>
-          <p className={s.brandSub}>Painel da Plataforma</p>
+    <main className={s.shell}>
+      {/* Painel de marca (esquerda) — escondido no mobile */}
+      <aside className={s.brandSide}>
+        <div className={s.brandGlow} aria-hidden />
+        <div className={s.brandTop}>
+          <Mark className={s.brandMark} />
+          <span className={s.brandWord}>
+            <span className={s.brandWordName}>CRIVO</span>
+            <span className={s.brandWordSub}>Painel da Plataforma</span>
+          </span>
         </div>
 
-        <form onSubmit={onSubmit} className={s.card}>
+        <div className={s.brandMid}>
+          <h2 className={s.brandHeadline}>
+            Inteligência de decisão, <em>sob seu controle</em>.
+          </h2>
+          <p className={s.brandText}>
+            Control Plane da CRIVO™ — provisione empresas, configure produtos e contratos,
+            gerencie a IA e acompanhe a auditoria da plataforma.
+          </p>
+          <div className={s.brandRule} />
+        </div>
+
+        <div className={s.brandBottom}>
+          <div className={s.brandStat}>
+            <span className={s.brandStatLabel}>Ambiente</span>
+            <span className={s.brandStatValue}>Control Plane</span>
+          </div>
+          <div className={s.brandStat}>
+            <span className={s.brandStatLabel}>Acesso</span>
+            <span className={s.brandStatValue}>Administradores globais</span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Formulário (direita) */}
+      <section className={s.formSide}>
+        <form onSubmit={onSubmit} className={s.form}>
+          <div className={s.mobileBrand}>
+            <Mark className={s.brandMark} style={{ margin: "0 auto 10px" }} />
+            <p className={s.brandWordName}>CRIVO</p>
+            <p className={s.brandWordSub}>Painel da Plataforma</p>
+          </div>
+
           <h1 className={s.title}>Entrar</h1>
           <p className={s.subtitle}>Use suas credenciais de administrador global.</p>
 
@@ -136,14 +162,31 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
           <button type="submit" disabled={loading || !email || !password} className={s.submit}>
             {loading ? "Entrando…" : "Entrar"}
           </button>
-        </form>
 
-        <p className={s.footer}>
-          <span aria-hidden>🔒</span>
-          Acesso restrito a administradores globais da CRIVO™
-        </p>
-      </div>
+          <p className={s.footer}>
+            <svg className={s.footerIcon} width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            Acesso restrito e auditado. Sessão exclusiva de administradores globais da CRIVO™.
+          </p>
+        </form>
+      </section>
     </main>
+  );
+}
+
+/** Símbolo Vértice (marca CRIVO). */
+function Mark({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 48 44" fill="none" aria-hidden="true" className={className} style={style}>
+      <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
+      <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
+    </svg>
   );
 }
 

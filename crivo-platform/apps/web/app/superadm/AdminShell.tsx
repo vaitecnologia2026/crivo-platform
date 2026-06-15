@@ -12,6 +12,7 @@ import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
+import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
 function VerticeMark() {
@@ -59,7 +60,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
   const current = NAV.find((n) => n.key === section)!;
 
   return (
-    <div className="screen screen--app is-active">
+    <div className="screen screen--app is-active adm">
       <aside className="sidebar">
         <div className="sidebar__brand brand__lockup">
           <VerticeMark />
