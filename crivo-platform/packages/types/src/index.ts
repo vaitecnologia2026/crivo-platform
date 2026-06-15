@@ -39,20 +39,21 @@ export const PERMISSIONS = [
   { code: "library:view", module: "library", action: "view", label: "Ver biblioteca" },
   { code: "library:manage", module: "library", action: "manage", label: "Gerir biblioteca" },
   { code: "parecer:view", module: "parecer", action: "view", label: "Ver parecer consultivo" },
+  { code: "parecer:manage", module: "parecer", action: "manage", label: "Redigir/publicar parecer" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
   GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
   LIDER: ["icd:view", "library:view"],
   JURIDICO: ["icd:view", "library:view", "parecer:view"],
   COLABORADOR: ["library:view"],
-  // Consultor CRIVO: acompanha o cliente ponta a ponta (diagnóstico, conteúdo, parecer).
-  CONSULTOR: ["leads:view", "icd:view", "icd:submit", "users:view", "library:view", "library:manage", "parecer:view"],
+  // Consultor CRIVO: acompanha o cliente ponta a ponta (diagnóstico, conteúdo, parecer) — autor do parecer.
+  CONSULTOR: ["leads:view", "icd:view", "icd:submit", "users:view", "library:view", "library:manage", "parecer:view", "parecer:manage"],
   // Mentor: conduz mentorias e cura a Academia; leitura dos indicadores do líder.
   MENTOR: ["icd:view", "library:view", "library:manage"],
   // Usuário Academia: acesso restrito ao conteúdo da Academia CRIVO.
@@ -783,6 +784,7 @@ export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   relatorio_tecnico: 'Relatório técnico',
   relatorio_executivo: 'Relatório executivo',
   plano_acao: 'Plano de Ação',
+  parecer_consultivo: 'Parecer Consultivo CRIVO',
 };
 
 export interface DocumentDescriptor {
@@ -809,6 +811,44 @@ export interface GeneratedDocument {
   meta: { label: string; value: string }[];
   sections: DocumentSection[];
   responsibilityNote: string;
+}
+
+// ── Parecer Consultivo CRIVO (portal · Briefing §6 — módulo de autoria do consultor) ──
+// A camada HUMANA do diagnóstico: o consultor consolida os indicadores e redige
+// sinais, hipóteses, prioridades e recomendações. Sem IA e sem causalidade
+// absoluta. Vira documento (PDF) só após publicação. Data plane (RLS por tenant).
+
+export const PARECER_STATUSES = ['RASCUNHO', 'PUBLICADO'] as const;
+export type ParecerStatus = (typeof PARECER_STATUSES)[number];
+export const PARECER_STATUS_LABEL: Record<ParecerStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  PUBLICADO: 'Publicado',
+};
+
+export interface ParecerData {
+  id: string;
+  title: string;
+  status: ParecerStatus;
+  context: string | null;         // contexto/leitura da empresa
+  signals: string | null;         // sinais observados nos indicadores
+  hypotheses: string | null;      // hipóteses de trabalho
+  priorities: string | null;      // prioridades
+  recommendations: string | null; // recomendações
+  author: string | null;          // consultor responsável
+  devolutivaAt: string | null;    // devolutiva agendada
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertParecerRequest {
+  title?: string;
+  context?: string | null;
+  signals?: string | null;
+  hypotheses?: string | null;
+  priorities?: string | null;
+  recommendations?: string | null;
+  devolutivaAt?: string | null;
 }
 
 // ── Diagnóstico Essencial (portal · Briefing §5) ──

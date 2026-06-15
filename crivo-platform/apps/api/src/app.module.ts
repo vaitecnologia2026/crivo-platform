@@ -13,6 +13,7 @@ import { MeteringInterceptor } from './metering/metering.interceptor';
 import { AdminModule } from './admin/admin.module';
 import { ActionPlansModule } from './action-plans/action-plans.module';
 import { EssencialModule } from './essencial/essencial.module';
+import { ParecerModule } from './parecer/parecer.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -30,6 +31,7 @@ import { HealthController } from './health/health.controller';
     AdminModule,
     ActionPlansModule,
     EssencialModule,
+    ParecerModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -527,6 +527,7 @@ model Organization {
   evidences        Evidence[]
   selfAssessments  SelfAssessment[]
   essentialRecords EssentialRecord[]
+  pareceres        Parecer[]
 
   @@map("organizations")
 }
@@ -775,6 +776,33 @@ model Evidence {
   @@index([tenantId])
   @@index([itemId])
   @@map("evidences")
+}
+
+// =====================================================================
+// PARECER CONSULTIVO CRIVO (Briefing §6) — camada HUMANA do diagnóstico. O
+// consultor consolida os indicadores e redige sinais/hipóteses/prioridades/
+// recomendações. Vira documento (PDF) só após publicação (publishedAt). Data
+// plane (RLS por tenant). Não é gerado por IA nem promete conformidade automática.
+// =====================================================================
+model Parecer {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  org             Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title           String
+  status          String       @default("RASCUNHO") // RASCUNHO | PUBLICADO
+  context         String? // contexto/leitura da empresa
+  signals         String? // sinais observados nos indicadores
+  hypotheses      String? // hipóteses de trabalho
+  priorities      String? // prioridades
+  recommendations String? // recomendações
+  author          String? // consultor responsável
+  devolutivaAt    DateTime? // devolutiva agendada
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@map("pareceres")
 }
 
 // =====================================================================

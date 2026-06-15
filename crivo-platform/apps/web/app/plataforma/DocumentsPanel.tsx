@@ -61,7 +61,7 @@ export function DocumentsPanel() {
 }
 
 /** Abre o documento em uma janela imprimível (Salvar como PDF pelo navegador). */
-function printDocument(doc: GeneratedDocument) {
+export function printDocument(doc: GeneratedDocument) {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

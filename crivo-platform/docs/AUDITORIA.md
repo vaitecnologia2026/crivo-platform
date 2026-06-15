@@ -28,6 +28,7 @@
 - **Aceite de termos/LGPD** no 1º acesso.
 - **Academia CRIVO** como CMS (upload, YouTube/LinkedIn, categorias, progresso).
 - ✅ **Perfis: Consultor CRIVO, Mentor, Usuário Academia** — papéis no RBAC dinâmico (enum `Role` + migration aditiva + `ROLE_PERMISSIONS`/`ROLE_LABELS`); Consultor com acesso a diagnóstico/conteúdo/parecer, Mentor à Academia + indicadores, Academia restrito ao conteúdo. Nav do portal gateada por `parecer:view`.
+- ✅ **Parecer Consultivo — módulo de autoria do consultor** (Briefing §6): o Consultor CRIVO redige sinais/hipóteses/prioridades/recomendações, agenda devolutiva e **publica**; ao publicar libera o documento (PDF com frase de responsabilidade). API `parecer` (RLS por tenant) gateada por `parecer:view`/`parecer:manage`. Substitui os botões "em breve" da tela por fluxo real.
 
 ## 5. Os 8 produtos (Matriz) — método × saída
 - **Diagnóstico Inicial** (porta de entrada, leitura preliminar, sem AEP/PGR).

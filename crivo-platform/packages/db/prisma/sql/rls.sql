@@ -36,7 +36,7 @@ DECLARE
                          'assessment_cycles','assessments','responses','icd_scores','leads',
                          'tenant_modules','usage_counters','tenant_branding','library_items',
                          'action_plans','action_items','evidences',
-                         'self_assessments','essential_records'];
+                         'self_assessments','essential_records','pareceres'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

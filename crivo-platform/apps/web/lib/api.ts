@@ -13,12 +13,14 @@ import type {
   EssentialRecordData,
   EvidenceData,
   GeneratedDocument,
+  ParecerData,
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
   TermsStatus,
   UpdateActionItemRequest,
   UpdateLibraryItemRequest,
+  UpsertParecerRequest,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -162,6 +164,27 @@ export function listDocuments(): Promise<DocumentDescriptor[]> {
 }
 export function generateDocument(type: string): Promise<GeneratedDocument> {
   return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`);
+}
+
+// ── Parecer Consultivo CRIVO (Briefing §6 — autoria do consultor) ──
+
+export function listPareceres(): Promise<ParecerData[]> {
+  return apiFetch<ParecerData[]>('/parecer');
+}
+export function createParecer(dto: UpsertParecerRequest): Promise<ParecerData> {
+  return apiFetch<ParecerData>('/parecer', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateParecer(id: string, dto: UpsertParecerRequest): Promise<ParecerData> {
+  return apiFetch<ParecerData>(`/parecer/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+export function publishParecer(id: string): Promise<ParecerData> {
+  return apiFetch<ParecerData>(`/parecer/${id}/publish`, { method: 'POST' });
+}
+export function removeParecer(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/parecer/${id}`, { method: 'DELETE' });
+}
+export function generateParecerDocument(id: string): Promise<GeneratedDocument> {
+  return apiFetch<GeneratedDocument>(`/parecer/${id}/document`);
 }
 
 // ── Diagnóstico Essencial (Briefing §5) ──
