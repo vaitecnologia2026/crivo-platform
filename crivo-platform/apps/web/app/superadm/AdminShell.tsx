@@ -12,6 +12,8 @@ import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
+import { ExtrasSection } from "./ExtrasSection";
+import { RbacSection } from "./RbacSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -28,7 +30,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "empresas" | "ia" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "empresas" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -38,6 +40,8 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
+  { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
+  { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
   { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
 ];
 
@@ -144,6 +148,8 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "produtos" && <ProductsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "ia" && <AiSettingsSection />}
+          {section === "extras" && <ExtrasSection />}
+          {section === "rbac" && <RbacSection />}
           {section === "auditoria" && <AuditSection />}
         </section>
       </main>

@@ -1670,6 +1670,23 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .kb-convert:hover { background: var(--gold); color: var(--off-white, #F2F0EC); border-color: var(--gold); }
 .kb-converted { margin-top: 6px; font-size: 11px; font-weight: 600; color: var(--success); }
+.kb-report {
+  margin-top: 6px; width: 100%; font-size: 11px; font-weight: 600; color: var(--azul-cobalto);
+  background: rgba(74,111,165,0.1); border: 1px solid rgba(74,111,165,0.25);
+  border-radius: var(--r-sm); padding: 6px 8px; cursor: pointer; font-family: inherit;
+}
+.kb-report:hover { background: var(--azul-cobalto); color: var(--off-white, #F2F0EC); border-color: var(--azul-cobalto); }
+
+/* Pílulas de status do Relatório Preliminar (PreliminaryReportModal). */
+.prelim-status {
+  display: inline-block; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: .03em;
+}
+.prelim-status--gerando { background: var(--line-soft); color: var(--text-sec); }
+.prelim-status--pronto  { background: rgba(74,111,165,0.14); color: var(--azul-cobalto); }
+.prelim-status--enviado { background: rgba(46,77,122,0.14); color: var(--success); }
+.prelim-status--erro    { background: rgba(196,135,74,0.16); color: var(--gold-deep); }
+.prelim-content { white-space: pre-wrap; font-family: var(--font-body); }
 .convert-lead { font-size: 13px; color: var(--text-sec); }
 .convert-lead strong { color: var(--text); }
 .convert-warn { margin-top: 10px; font-size: 12px; font-weight: 500; color: var(--gold-deep); }
@@ -1760,3 +1777,145 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .lib-act { font-size: 12px; color: var(--azul-cobalto); background: none; border: 0; cursor: pointer; padding: 0; }
 .lib-act:hover { text-decoration: underline; }
 .lib-act--danger { color: var(--danger, #b4453a); }
+
+/* ==================== CAMPANHAS EDITÁVEIS (Portal §7) ==================== */
+.camp-filters {
+  display: flex; gap: 12px; align-items: center; margin: 12px 0;
+  font-size: 13px; color: var(--text-sec);
+}
+.camp-filters select {
+  margin-left: 8px; padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text);
+  font-size: 13px; font-family: var(--font-body);
+}
+.camp-row-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.camp-form {
+  padding: 16px; background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: var(--r-md); margin-bottom: 12px;
+}
+.camp-form__grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.camp-form__full { grid-column: 1 / -1; }
+.camp-form__check { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.camp-form__check input { width: auto; }
+.camp-form__check span { color: var(--text); font-weight: normal; }
+.camp-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-sec); font-weight: 600; }
+.camp-form label > span { letter-spacing: .02em; text-transform: uppercase; }
+.camp-form input, .camp-form textarea, .camp-form select {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg); color: var(--text); font-size: 13.5px;
+  font-family: var(--font-body); width: 100%;
+}
+.camp-form input:focus, .camp-form textarea:focus { outline: 2px solid var(--gold-soft); border-color: var(--gold); }
+.camp-form textarea { resize: vertical; min-height: 60px; }
+.camp-form__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+.camp-edit-row > td { background: rgba(168,105,61,0.05); padding: 0 !important; }
+.camp-edit-row .camp-form { margin: 12px 16px; }
+tr.is-editing { background: rgba(168,105,61,0.03); }
+
+@media (max-width: 768px) {
+  .camp-form__grid { grid-template-columns: 1fr; }
+}
+
+/* ==================== DASHBOARD EXECUTIVO (§7 — diagnóstico + plano) ==================== */
+/* Tom semáfórico do "Nível de Atenção Organizacional" (§10 faixas). */
+.dash-attn { font-family: var(--font-display); font-size: 24px; }
+.dash-attn--ok   { color: #5fbf8f; }
+.dash-attn--alert{ color: var(--gold-deep); }
+.dash-attn--crit { color: #e0875f; }
+.dash-attn--na   { color: var(--text-mute); }
+
+/* Frase obrigatória §11 — rodapé sutil, sem competir com os cards. */
+.dash-privacy {
+  margin-top: 24px; padding: 12px 16px;
+  border-left: 3px solid var(--gold-soft);
+  background: var(--bg-elev); color: var(--text-sec);
+  font-size: 12.5px; line-height: 1.55; border-radius: var(--r-sm);
+}
+.dash-privacy strong { color: var(--text); }
+
+/* ==================== POCKET CRIVO (Anexo Pocket §11 — mobile-first) ==================== */
+/* Layout centralizado e estreito (max 720px) para reduzir distração e funcionar
+   bem em mobile/desktop. Cards verticais, fluxo curto, salvar e retomar. */
+.pocket { max-width: 720px; margin: 0 auto; }
+
+.pocket-new { display: flex; flex-direction: column; gap: 14px; }
+.pocket-new h3 { font-family: var(--font-display); font-size: 18px; margin: 0; color: var(--text); }
+.pocket-field { display: flex; flex-direction: column; gap: 6px; }
+.pocket-field span { font-size: 12px; color: var(--text-sec); font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+.pocket-field input, .pocket-field select {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-elev); color: var(--text); font-size: 14px; font-family: var(--font-body);
+}
+.pocket-field input:focus, .pocket-field select:focus { outline: 2px solid var(--gold-soft); border-color: var(--gold); }
+
+.pocket-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.pocket-empty h3 { font-family: var(--font-display); font-size: 18px; margin: 0 0 6px; }
+.pocket-empty p { font-size: 14px; line-height: 1.6; color: var(--text-sec); margin: 0; }
+
+/* Lista de sessões — cards clicáveis verticais. */
+.pocket-list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.pocket-row { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.pocket-row:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.pocket-row__top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.pocket-row h4 { font-family: var(--font-display); font-size: 16px; margin: 0 0 10px; color: var(--text); }
+.pocket-row__meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sec); }
+
+/* Wizard de 1 pergunta por vez. */
+.pocket-progress {
+  flex: 1; max-width: 260px; height: 6px; background: var(--line-soft);
+  border-radius: 999px; overflow: hidden; margin-left: 16px;
+}
+.pocket-progress__bar {
+  height: 100%; background: linear-gradient(90deg, var(--gold-deep), var(--gold));
+  border-radius: 999px; transition: width .3s ease;
+}
+
+.pocket-card { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.pocket-card__head { display: flex; justify-content: space-between; align-items: center; }
+.pocket-tag {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--line-soft); color: var(--text);
+}
+/* Cores por dimensão CRIVO (5) — diferenciação visual sem peso semântico. */
+.pocket-card[data-dim="C"] .pocket-tag { background: rgba(168,105,61,0.14); color: var(--gold-deep); }
+.pocket-card[data-dim="R"] .pocket-tag { background: rgba(13,31,60,0.10); color: var(--azul-cobalto); }
+.pocket-card[data-dim="I"] .pocket-tag { background: rgba(46,134,193,0.14); color: var(--azul-claro); }
+.pocket-card[data-dim="V"] .pocket-tag { background: rgba(168,105,61,0.10); color: var(--gold-deep); }
+.pocket-card[data-dim="O"] .pocket-tag { background: rgba(13,31,60,0.06); color: var(--ink-700); }
+
+.pocket-question {
+  font-family: var(--font-display); font-size: 22px; line-height: 1.35; margin: 0;
+  color: var(--text); font-weight: 500;
+}
+.pocket-dim-fn { font-size: 13px; color: var(--text-sec); margin: 0; font-style: italic; }
+
+.pocket-input {
+  width: 100%; min-height: 120px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-elev); color: var(--text);
+  font-size: 15px; font-family: var(--font-body); line-height: 1.55;
+  resize: vertical;
+}
+.pocket-input:focus { outline: 2px solid var(--gold-soft); border-color: var(--gold); }
+
+.pocket-save-resume { align-self: center; margin-top: 4px; opacity: .85; }
+.pocket-save-resume:disabled { opacity: .4; }
+
+.pocket-done { text-align: center; padding: 32px 24px; }
+.pocket-done h2 { font-family: var(--font-display); font-size: 24px; margin: 0 0 10px; color: var(--text); }
+.pocket-done p { font-size: 14px; color: var(--text-sec); line-height: 1.6; margin: 0 0 18px; }
+
+/* Mobile (<=480px): reduz padding e mantém legibilidade. */
+@media (max-width: 480px) {
+  .pocket-question { font-size: 19px; }
+  .pocket-progress { max-width: 140px; margin-left: 8px; }
+  .pocket-row__meta { flex-direction: column; gap: 4px; align-items: flex-start; }
+  .pocket-actions { justify-content: stretch; }
+  .pocket-actions .btn { flex: 1; }
+}

@@ -9,6 +9,7 @@ import {
   type ProvisionResult,
 } from "@crivo/types";
 import { convertLead, listLeads, listProducts, setLeadStage } from "@/lib/admin-api";
+import { PreliminaryReportModal } from "./PreliminaryReportModal";
 
 // Colunas do funil (Print 2 do Portal PDF). PERDIDO sai do board (continua no
 // banco) — movido via o seletor de estágio do card.
@@ -25,6 +26,7 @@ export function CrmSection() {
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [converting, setConverting] = useState<PlatformLeadSummary | null>(null);
+  const [reportingLead, setReportingLead] = useState<PlatformLeadSummary | null>(null);
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -155,6 +157,16 @@ export function CrmSection() {
                           Converter em cliente →
                         </button>
                       )}
+                      {l.diagnosticScore != null && (
+                        <button
+                          type="button"
+                          className="kb-report"
+                          onClick={() => setReportingLead(l)}
+                          title="Gerar Relatório Preliminar CRIVO via IA"
+                        >
+                          ◈ Relatório CRIVO
+                        </button>
+                      )}
                     </article>
                   ))}
                   {items.length === 0 && <p className="kb-empty">—</p>}
@@ -176,6 +188,13 @@ export function CrmSection() {
           lead={converting}
           onClose={() => setConverting(null)}
           onConverted={async () => { setConverting(null); await refresh(); }}
+        />
+      )}
+
+      {reportingLead && (
+        <PreliminaryReportModal
+          lead={reportingLead}
+          onClose={() => setReportingLead(null)}
         />
       )}
     </>

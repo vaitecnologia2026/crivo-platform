@@ -150,6 +150,16 @@ export class TenantsController {
     return this.domains.setPrimary(id, domainId, { id: admin.id, email: admin.email });
   }
 
+  /** Verifica posse do domínio via DNS TXT em `_crivo.<domain>`. */
+  @Post(':id/domains/:domainId/verify')
+  verifyDomain(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('domainId', ParseUUIDPipe) domainId: string,
+  ) {
+    return this.domains.verify(id, domainId, { id: admin.id, email: admin.email });
+  }
+
   /** Remove um domínio da empresa. */
   @Delete(':id/domains/:domainId')
   removeDomain(

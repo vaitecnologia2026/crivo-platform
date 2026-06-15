@@ -236,7 +236,7 @@ export function DiagnosticoInicialQuiz() {
       </div>
 
       <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
-        Realizar diagnóstico →
+        Fazer diagnóstico inicial →
       </button>
     </form>
   );

@@ -9,6 +9,7 @@ import {
   listTenantDomains,
   removeTenantDomain,
   setPrimaryTenantDomain,
+  verifyTenantDomain,
   updateTenantBranding,
 } from "@/lib/admin-api";
 
@@ -90,11 +91,16 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
     }
   }
 
-  async function domainAction(id: string, action: "primary" | "remove") {
+  async function domainAction(id: string, action: "primary" | "remove" | "verify") {
     setBusyDomain(id);
     setError(null);
     try {
-      const fn = action === "primary" ? setPrimaryTenantDomain : removeTenantDomain;
+      const fn =
+        action === "primary"
+          ? setPrimaryTenantDomain
+          : action === "verify"
+            ? verifyTenantDomain
+            : removeTenantDomain;
       setDomains(await fn(tenant.id, id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na operação");
@@ -160,33 +166,70 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
               <p className="mb-3 mt-8 text-[12px] uppercase tracking-[0.1em] text-text-sec">Domínios próprios</p>
               <ul className="divide-y divide-line rounded-[6px] border border-line">
                 {domains.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px]">
-                    <span className="font-mono text-azul-profundo">
-                      {d.domain}
-                      {d.primary && (
-                        <span className="ml-2 rounded-full bg-[rgba(46,120,80,0.14)] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#2e7850]">
-                          canônico
+                  <li key={d.id} className="flex flex-col gap-2 px-3 py-2.5 text-[13px]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-azul-profundo">
+                        {d.domain}
+                        {d.primary && (
+                          <span className="ml-2 rounded-full bg-[rgba(46,120,80,0.14)] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#2e7850]">
+                            canônico
+                          </span>
+                        )}
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
+                            d.verified
+                              ? "bg-[rgba(46,120,80,0.14)] text-[#2e7850]"
+                              : "bg-[rgba(196,135,74,0.16)] text-[#7b4f2e]"
+                          }`}
+                        >
+                          {d.verified ? "verificado" : "pendente"}
                         </span>
-                      )}
-                    </span>
-                    <span className="flex gap-3 text-[12px]">
-                      {!d.primary && (
+                      </span>
+                      <span className="flex gap-3 text-[12px]">
                         <button
                           disabled={busyDomain === d.id}
-                          onClick={() => domainAction(d.id, "primary")}
+                          onClick={() => domainAction(d.id, "verify")}
                           className="text-azul-cobalto underline-offset-4 hover:underline disabled:opacity-40"
+                          title="Verificar DNS (TXT em _crivo.<domínio>)"
                         >
-                          Tornar canônico
+                          {busyDomain === d.id ? "Verificando…" : "Verificar DNS"}
                         </button>
-                      )}
-                      <button
-                        disabled={busyDomain === d.id}
-                        onClick={() => domainAction(d.id, "remove")}
-                        className="text-terra-escura underline-offset-4 hover:underline disabled:opacity-40"
-                      >
-                        Remover
-                      </button>
-                    </span>
+                        {!d.primary && (
+                          <button
+                            disabled={busyDomain === d.id}
+                            onClick={() => domainAction(d.id, "primary")}
+                            className="text-azul-cobalto underline-offset-4 hover:underline disabled:opacity-40"
+                          >
+                            Tornar canônico
+                          </button>
+                        )}
+                        <button
+                          disabled={busyDomain === d.id}
+                          onClick={() => domainAction(d.id, "remove")}
+                          className="text-terra-escura underline-offset-4 hover:underline disabled:opacity-40"
+                        >
+                          Remover
+                        </button>
+                      </span>
+                    </div>
+                    {d.verificationToken && (
+                      <div className="rounded-[3px] border border-line bg-[#fafaf7] p-2 text-[11px] text-text-sec">
+                        <span className="block">
+                          Publique este TXT em <code className="font-mono text-azul-profundo">_crivo.{d.domain}</code>:
+                        </span>
+                        <code className="mt-1 inline-block break-all rounded-[2px] bg-white px-1.5 py-0.5 font-mono text-text">
+                          {d.verificationToken}
+                        </code>
+                        {d.lastVerifyError && (
+                          <p className="mt-1 text-[#9c4c46]">↳ {d.lastVerifyError}</p>
+                        )}
+                        {d.verifiedAt && (
+                          <p className="mt-1 text-[#2e7850]">
+                            ✓ Verificado em {new Date(d.verifiedAt).toLocaleString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
                 {domains.length === 0 && (

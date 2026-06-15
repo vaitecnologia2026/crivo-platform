@@ -162,10 +162,14 @@ export const MODULES = [
   { code: 'dashboard', name: 'Dashboard', category: 'core', minPlan: 'BASE' },
   { code: 'icd', name: 'Indicadores ICD', category: 'core', minPlan: 'BASE' },
   { code: 'lider', name: 'Líderes', category: 'core', minPlan: 'BASE' },
+  { code: 'pocket', name: 'Pocket CRIVO', category: 'lideranca', minPlan: 'EVOLUCAO' },
+  { code: 'mentorias', name: 'Mentorias', category: 'lideranca', minPlan: 'EVOLUCAO' },
   { code: 'crm', name: 'CRM / Pipeline', category: 'comercial', minPlan: 'EVOLUCAO' },
   { code: 'biblioteca', name: 'Academia CRIVO', category: 'conteudo', minPlan: 'EVOLUCAO' },
   { code: 'relatorios', name: 'Relatórios & Evidências', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'campanhas', name: 'Campanhas de Diagnóstico', category: 'diagnostico', minPlan: 'ENTERPRISE' },
+  { code: 'analytics', name: 'People Analytics avançado', category: 'analytics', minPlan: 'ENTERPRISE' },
+  { code: 'historico', name: 'Histórico & Auditoria', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'parecer', name: 'Parecer', category: 'advisory', minPlan: 'ADVISORY' },
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];
@@ -204,6 +208,11 @@ export interface TenantDomainData {
   domain: string;
   verified: boolean;
   primary: boolean;
+  /** Token TXT a publicar em `_crivo.<domain>` para confirmar posse. */
+  verificationToken: string | null;
+  verifiedAt: string | null;
+  lastVerifyAttempt: string | null;
+  lastVerifyError: string | null;
 }
 
 /** Resolução PÚBLICA de um domínio → empresa (pré-login, p/ tema/white-label).
@@ -946,14 +955,722 @@ export interface UpdateLibraryItemRequest {
   url?: string;
 }
 
-/** ICD pessoal do líder logado (Área do Líder), com posição no ranking. */
+/**
+ * ICD pessoal do líder logado (Área do Líder).
+ *
+ * § PRIVACIDADE — Anexo Técnico ICD do Líder v1, §11: o líder NÃO deve visualizar
+ * ranking individual nem percentil de posição entre pares. Mostramos apenas o
+ * score próprio, dimensões, tensão dominante e timestamp.
+ */
 export interface MyIcd {
   score: number;
   dimensions: IcdDimensions;
   dominantPattern: DominantPattern;
   computedAt: string;
-  rank: number; // 1 = melhor
-  totalLideres: number;
+}
+
+// =====================================================================
+// REGISTRO DE DECISÃO — Anexo Técnico ICD do Líder v1, §5–§9.
+// Base operacional do ICD: o líder registra decisões reais; o ICD avalia
+// a coerência da decisão em 4 eixos (Clareza/Critério/Alinhamento/Sustentação).
+// Os enums abaixo cobrem os campos visíveis ao líder (§5.1) e a regra
+// de impacto/peso (§9.3).
+// =====================================================================
+
+/** Impacto da decisão — define peso na média ponderada trimestral (Anexo §9.3). */
+export const DECISION_IMPACTS = ['BAIXO', 'MEDIO', 'ALTO'] as const;
+export type DecisionImpact = (typeof DECISION_IMPACTS)[number];
+
+/** Peso da decisão no ICD oficial (Anexo §9.3): BAIXO fica só no histórico. */
+export const DECISION_IMPACT_WEIGHT: Record<DecisionImpact, number> = {
+  BAIXO: 0,
+  MEDIO: 1,
+  ALTO: 2,
+};
+
+export const DECISION_IMPACT_LABEL: Record<DecisionImpact, string> = {
+  BAIXO: 'Baixo (apenas histórico)',
+  MEDIO: 'Médio (peso 1 no ICD)',
+  ALTO: 'Alto (peso 2 no ICD)',
+};
+
+/** Natureza da decisão (Anexo §5.1). */
+export const DECISION_TYPES = [
+  'INDIVIDUAL',
+  'COLETIVA',
+  'RECOMENDACAO_APROVACAO',
+  'COMPARTILHADA',
+] as const;
+export type DecisionType = (typeof DECISION_TYPES)[number];
+
+export const DECISION_TYPE_LABEL: Record<DecisionType, string> = {
+  INDIVIDUAL: 'Individual',
+  COLETIVA: 'Coletiva (em grupo)',
+  RECOMENDACAO_APROVACAO: 'Recomendação que dependeu de aprovação',
+  COMPARTILHADA: 'Compartilhada (com superior/par)',
+};
+
+/** Correlação com o Pocket CRIVO (Anexo §5.1). */
+export const DECISION_POCKET_USES = ['NAO_UTILIZADO', 'ANTES', 'DURANTE'] as const;
+export type DecisionPocketUse = (typeof DECISION_POCKET_USES)[number];
+
+export const DECISION_POCKET_USE_LABEL: Record<DecisionPocketUse, string> = {
+  NAO_UTILIZADO: 'Não utilizei',
+  ANTES: 'Sim, antes da decisão',
+  DURANTE: 'Sim, durante a decisão',
+};
+
+/** Fator de pressão dominante (Anexo §5.1). */
+export const DECISION_PRESSURE_FACTORS = [
+  'URGENCIA',
+  'CONFLITO',
+  'FALTA_INFORMACAO',
+  'PRESSAO_RESULTADO',
+  'RISCO_FINANCEIRO',
+  'RISCO_PESSOAS',
+  'RISCO_JURIDICO',
+  'EXPOSICAO_REPUTACIONAL',
+  'OUTRO',
+] as const;
+export type DecisionPressureFactor = (typeof DECISION_PRESSURE_FACTORS)[number];
+
+export const DECISION_PRESSURE_FACTOR_LABEL: Record<DecisionPressureFactor, string> = {
+  URGENCIA: 'Urgência',
+  CONFLITO: 'Conflito interno',
+  FALTA_INFORMACAO: 'Falta de informação',
+  PRESSAO_RESULTADO: 'Pressão por resultado',
+  RISCO_FINANCEIRO: 'Risco financeiro',
+  RISCO_PESSOAS: 'Risco a pessoas',
+  RISCO_JURIDICO: 'Risco jurídico',
+  EXPOSICAO_REPUTACIONAL: 'Exposição reputacional',
+  OUTRO: 'Outro',
+};
+
+/** Janela para revisão futura da decisão (Anexo §5.1). */
+export const DECISION_REVISION_PERIODS = ['D30', 'D60', 'D90', 'SEM_REVISAO'] as const;
+export type DecisionRevisionPeriod = (typeof DECISION_REVISION_PERIODS)[number];
+
+export const DECISION_REVISION_PERIOD_LABEL: Record<DecisionRevisionPeriod, string> = {
+  D30: 'Em 30 dias',
+  D60: 'Em 60 dias',
+  D90: 'Em 90 dias',
+  SEM_REVISAO: 'Sem revisão prevista',
+};
+
+/** Ciclo de vida da decisão (Anexo §5.3). Elegibilidade ao oficial = impact ≠ BAIXO. */
+export const DECISION_STATUSES = ['EM_REGISTRO', 'REGISTRADA', 'AVALIADA_PELO_ICD'] as const;
+export type DecisionStatus = (typeof DECISION_STATUSES)[number];
+
+/** Categorias padrão criadas por-tenant na primeira inicialização (Anexo §5.1).
+ *  Podem ser renomeadas/desativadas; isDefault marca as seed para distinguir
+ *  das criadas manualmente pelo cliente. */
+export const DEFAULT_DECISION_CATEGORIES: Array<{ slug: string; name: string }> = [
+  { slug: 'pessoas', name: 'Pessoas' },
+  { slug: 'operacao', name: 'Operação' },
+  { slug: 'cliente', name: 'Cliente' },
+  { slug: 'estrategia', name: 'Estratégia' },
+  { slug: 'financeiro', name: 'Financeiro' },
+  { slug: 'cultura', name: 'Cultura' },
+  { slug: 'processo', name: 'Processo' },
+  { slug: 'risco-compliance', name: 'Risco / Compliance' },
+  { slug: 'outro', name: 'Outro' },
+];
+
+/** Públicos potencialmente afetados padrão (Anexo §5.1) — M:N com Decision. */
+export const DEFAULT_AFFECTED_AUDIENCES: Array<{ slug: string; name: string }> = [
+  { slug: 'equipe', name: 'Equipe' },
+  { slug: 'cliente', name: 'Cliente' },
+  { slug: 'fornecedor', name: 'Fornecedor' },
+  { slug: 'diretoria', name: 'Diretoria' },
+  { slug: 'pares', name: 'Pares' },
+  { slug: 'sociedade', name: 'Sociedade' },
+];
+
+/** Categoria de decisão (por-tenant, editável). */
+export interface DecisionCategory {
+  id: string;
+  name: string;
+  slug: string;
+  isDefault: boolean;
+  active: boolean;
+  order: number;
+}
+
+/** Público potencialmente afetado (por-tenant). */
+export interface AffectedAudience {
+  id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  order: number;
+}
+
+/** Ação de sustentação prevista (Anexo §5.1). 1:1 com Decisão. */
+export interface SustentationActionData {
+  id: string;
+  action: string;
+  responsible: string;
+  deadline: string;
+  expectedResult: string | null;
+  evidenceUrl: string | null;
+}
+
+/** Registro de decisão real (Anexo §5.1). */
+export interface DecisionData {
+  id: string;
+  leaderId: string;
+  title: string;
+  description: string;
+  category: DecisionCategory | null;
+  impact: DecisionImpact;
+  type: DecisionType;
+  pocketUse: DecisionPocketUse;
+  pressureFactor: DecisionPressureFactor;
+  revisionPeriod: DecisionRevisionPeriod;
+  status: DecisionStatus;
+  decidedAt: string;
+  audiences: AffectedAudience[];
+  sustentationAction: SustentationActionData | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload de criação/edição de decisão (front → API). */
+export interface DecisionInput {
+  title: string;
+  description: string;
+  categoryId: string | null;
+  impact: DecisionImpact;
+  type: DecisionType;
+  pocketUse: DecisionPocketUse;
+  pressureFactor: DecisionPressureFactor;
+  revisionPeriod: DecisionRevisionPeriod;
+  decidedAt: string;
+  audienceIds: string[];
+  sustentationAction?: {
+    action: string;
+    responsible: string;
+    deadline: string;
+    expectedResult?: string;
+    evidenceUrl?: string;
+  };
+}
+
+// =====================================================================
+// ICD NOVO — 4 Eixos (Anexo Técnico ICD do Líder v1, §6–§9).
+// Substitui o modelo legado dos 4 Rs. As 8 afirmações P1–P8 (§7) são
+// aplicadas SOBRE uma decisão real registrada. Escala 1–5 → score
+// (valor − 1) × 25. Cada eixo é a média das 2 perguntas. ICD da decisão
+// é a média dos 4 eixos.
+// =====================================================================
+
+/** Os 4 eixos oficiais do ICD (Anexo §6). */
+export const ICD_AXES = ['CLAREZA', 'CRITERIO', 'ALINHAMENTO', 'SUSTENTACAO'] as const;
+export type IcdAxis = (typeof ICD_AXES)[number];
+
+export const ICD_AXIS_LABEL: Record<IcdAxis, string> = {
+  CLAREZA: 'Clareza Decisória',
+  CRITERIO: 'Critério Decisório',
+  ALINHAMENTO: 'Alinhamento Decisório',
+  SUSTENTACAO: 'Sustentação Decisória',
+};
+
+export const ICD_AXIS_DESCRIPTION: Record<IcdAxis, string> = {
+  CLAREZA:
+    'Se a decisão foi construída com base em fatos, dados, informações relevantes e consciência das lacunas existentes.',
+  CRITERIO:
+    'Se a decisão foi conduzida com discernimento, prioridade e consistência, mesmo sob pressão.',
+  ALINHAMENTO:
+    'Se a decisão considerou pessoas, áreas, processos, comunicação e condições reais de implementação.',
+  SUSTENTACAO:
+    'Se a decisão é estratégica, executável, coerente com cultura e valores, e sustentável em seus impactos futuros.',
+};
+
+/** Afirmação oficial do ICD aplicada à decisão registrada (Anexo §7).
+ *  Regra de redação §7: SEMPRE em formato de afirmação (sem ponto de
+ *  interrogação) — o líder responde uma escala de concordância. */
+export interface IcdAxisQuestion {
+  /** Código oficial: "P1" .. "P8". */
+  id: string;
+  axis: IcdAxis;
+  /** Texto da afirmação (sem `?`, conforme §7). */
+  text: string;
+}
+
+/** Catálogo oficial das 8 afirmações P1–P8 do ICD (Anexo §7). */
+export const ICD_AXIS_QUESTIONS: IcdAxisQuestion[] = [
+  {
+    id: 'P1',
+    axis: 'CLAREZA',
+    text: 'Os fatos, dados e informações relevantes foram identificados antes da conclusão da decisão.',
+  },
+  {
+    id: 'P2',
+    axis: 'CLAREZA',
+    text: 'As principais premissas, dúvidas ou lacunas de informação foram reconhecidas antes da conclusão da decisão.',
+  },
+  {
+    id: 'P3',
+    axis: 'CRITERIO',
+    text: 'Mesmo sob pressão, os elementos essenciais foram analisados antes da escolha.',
+  },
+  {
+    id: 'P4',
+    axis: 'CRITERIO',
+    text: 'A decisão foi orientada por critérios e prioridades claros, mesmo diante de urgências ou imprevistos.',
+  },
+  {
+    id: 'P5',
+    axis: 'ALINHAMENTO',
+    text: 'As pessoas, áreas ou processos impactados foram considerados de forma adequada.',
+  },
+  {
+    id: 'P6',
+    axis: 'ALINHAMENTO',
+    text: 'Diferenças de prioridades ou perspectivas foram tratadas para favorecer a implementação da decisão.',
+  },
+  {
+    id: 'P7',
+    axis: 'SUSTENTACAO',
+    text: 'Consequências de médio e longo prazo foram avaliadas antes da escolha final.',
+  },
+  {
+    id: 'P8',
+    axis: 'SUSTENTACAO',
+    text: 'A decisão é coerente com a estratégia, a cultura e os valores que se deseja sustentar.',
+  },
+];
+
+/** Escala de concordância oficial (Anexo §8). value: 1–5 → score: 0–100. */
+export const ICD_AXIS_SCALE = [
+  { value: 1, label: 'Discordo totalmente', score: 0 },
+  { value: 2, label: 'Discordo parcialmente', score: 25 },
+  { value: 3, label: 'Nem concordo nem discordo', score: 50 },
+  { value: 4, label: 'Concordo parcialmente', score: 75 },
+  { value: 5, label: 'Concordo totalmente', score: 100 },
+] as const;
+
+/** Fórmula técnica oficial (Anexo §8): score = (value − 1) × 25. */
+export function icdAxisValueToScore(value: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > 5) {
+    throw new Error(`Resposta inválida: ${value}. Use 1–5.`);
+  }
+  return (value - 1) * 25;
+}
+
+/** Resposta ao ICD da decisão. */
+export interface IcdAxisAnswer {
+  /** "P1" .. "P8". */
+  id: string;
+  /** 1–5. */
+  value: number;
+}
+
+/** Scores por eixo (0–100). */
+export type IcdAxesScores = Record<IcdAxis, number>;
+
+/** Resultado completo do ICD de uma decisão (Anexo §9). */
+export interface DecisionIcdResult {
+  /** ICD da decisão (0–100) — média dos 4 eixos (§9.2). */
+  score: number;
+  /** Scores por eixo (§9.1). */
+  axes: IcdAxesScores;
+  /** Respostas brutas (8 afirmações). */
+  answers: IcdAxisAnswer[];
+  /** Peso da decisão no ICD oficial (§9.3): derivado do impact. */
+  weight: number;
+}
+
+/** Calcula o ICD de uma decisão (Anexo §9.1 e §9.2). Função pura, sem I/O.
+ *  Lança se faltar resposta ou se IDs forem inválidos. */
+export function computeDecisionIcd(
+  answers: IcdAxisAnswer[],
+  impact: DecisionImpact,
+): DecisionIcdResult {
+  // Valida: deve ter as 8 afirmações P1-P8, sem duplicatas.
+  const expected = new Set(ICD_AXIS_QUESTIONS.map((q) => q.id));
+  const given = new Set(answers.map((a) => a.id));
+  if (given.size !== 8) {
+    throw new Error(`São necessárias 8 respostas (P1–P8). Recebidas: ${given.size}.`);
+  }
+  for (const id of expected) {
+    if (!given.has(id)) throw new Error(`Resposta de ${id} ausente.`);
+  }
+
+  // Converte cada valor (1-5) em score (0-100), indexado por P*.
+  const scoresById = new Map<string, number>();
+  for (const a of answers) {
+    scoresById.set(a.id, icdAxisValueToScore(a.value));
+  }
+
+  // Média por eixo (§9.1): cada eixo tem 2 afirmações.
+  const axes: IcdAxesScores = {
+    CLAREZA: 0,
+    CRITERIO: 0,
+    ALINHAMENTO: 0,
+    SUSTENTACAO: 0,
+  };
+  for (const axis of ICD_AXES) {
+    const qs = ICD_AXIS_QUESTIONS.filter((q) => q.axis === axis);
+    const sum = qs.reduce((acc, q) => acc + (scoresById.get(q.id) ?? 0), 0);
+    axes[axis] = Math.round(sum / qs.length);
+  }
+
+  // ICD da decisão (§9.2): média dos 4 eixos.
+  const score = Math.round(
+    (axes.CLAREZA + axes.CRITERIO + axes.ALINHAMENTO + axes.SUSTENTACAO) / 4,
+  );
+
+  return { score, axes, answers, weight: DECISION_IMPACT_WEIGHT[impact] };
+}
+
+/** Payload do front para submeter o ICD da decisão. */
+export interface SubmitDecisionIcdRequest {
+  answers: IcdAxisAnswer[];
+}
+
+/** Resposta da API com o ICD persistido de uma decisão. */
+export interface DecisionIcdData {
+  id: string;
+  decisionId: string;
+  leaderId: string;
+  score: number;
+  axes: IcdAxesScores;
+  answers: IcdAxisAnswer[];
+  weight: number;
+  computedAt: string;
+}
+
+// =====================================================================
+// CICLO TRIMESTRAL DO ICD — Anexo Técnico ICD do Líder v1, §9.4–§9.6,
+// §10 (faixas de maturidade), §11 (privacidade/supressão).
+// =====================================================================
+
+/** Faixas de Maturidade Decisória (Anexo §10). Ordem: pior → melhor. */
+export const ICD_MATURITY_BANDS = [
+  { key: 'CRITICA', min: 0, max: 49, label: 'Maturidade Decisória Crítica' },
+  { key: 'DESENVOLVIMENTO', min: 50, max: 64, label: 'Maturidade Decisória em Desenvolvimento' },
+  { key: 'FUNCIONAL', min: 65, max: 74, label: 'Maturidade Decisória Funcional' },
+  { key: 'CONSISTENTE', min: 75, max: 84, label: 'Maturidade Decisória Consistente' },
+  { key: 'AVANCADA', min: 85, max: 94, label: 'Maturidade Decisória Avançada' },
+  { key: 'ELEVADA', min: 95, max: 100, label: 'Maturidade Decisória Elevada — validar consistência' },
+] as const;
+
+export type IcdMaturityBand = (typeof ICD_MATURITY_BANDS)[number]['key'];
+
+/** Mapeia um score 0–100 na faixa de maturidade correspondente (Anexo §10). */
+export function getIcdMaturityBand(score: number): typeof ICD_MATURITY_BANDS[number] {
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  const band = ICD_MATURITY_BANDS.find((b) => clamped >= b.min && clamped <= b.max);
+  // Garantido pela cobertura 0..100 do array; defensivamente devolve a primeira.
+  return band ?? ICD_MATURITY_BANDS[0];
+}
+
+/** Anexo §11 — recortes (área/cargo/unidade) só são exibidos com volume mínimo.
+ *  Abaixo desse número, o sistema oculta o recorte ou agrega em grupo maior. */
+export const MIN_LEADERS_FOR_DISCLOSURE = 5;
+
+/** Aplica a regra de supressão a um conjunto de scores (Anexo §11): se o
+ *  número de líderes for menor que `MIN_LEADERS_FOR_DISCLOSURE`, devolve
+ *  `{ suppressed: true, score: null }`. */
+export function applyIcdSuppression(leaderScores: number[]): {
+  suppressed: boolean;
+  score: number | null;
+  count: number;
+} {
+  const count = leaderScores.length;
+  if (count < MIN_LEADERS_FOR_DISCLOSURE) {
+    return { suppressed: true, score: null, count };
+  }
+  const score = Math.round(leaderScores.reduce((sum, s) => sum + s, 0) / count);
+  return { suppressed: false, score, count };
+}
+
+/** Anexo §9.4 — calcula o ICD trimestral ponderado de UM líder.
+ *  Inclui apenas as avaliações com peso > 0 (impact MÉDIO/ALTO).
+ *  Fórmula: Σ(score × peso) / Σ(pesos). Devolve null se não houver elegível. */
+export function computeLeaderQuarterlyIcd(scores: Array<{ score: number; weight: number; axes?: IcdAxesScores }>): {
+  score: number;
+  decisionCount: number;
+  totalWeight: number;
+  axesAverage: IcdAxesScores;
+} | null {
+  const eligible = scores.filter((s) => s.weight > 0);
+  if (eligible.length === 0) return null;
+
+  const totalWeight = eligible.reduce((sum, s) => sum + s.weight, 0);
+  const score = Math.round(
+    eligible.reduce((sum, s) => sum + s.score * s.weight, 0) / totalWeight,
+  );
+
+  // Média ponderada por eixo (mesma fórmula §9.1+§9.4 aplicada por dimensão).
+  const axes: IcdAxesScores = { CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 };
+  for (const axis of ICD_AXES) {
+    const weighted = eligible.reduce(
+      (sum, s) => sum + ((s.axes?.[axis] ?? 0) * s.weight),
+      0,
+    );
+    axes[axis] = Math.round(weighted / totalWeight);
+  }
+
+  return {
+    score,
+    decisionCount: eligible.length,
+    totalWeight,
+    axesAverage: axes,
+  };
+}
+
+/** Anexo §9.5 — ICD oficial da empresa = média dos ICDs trimestrais dos
+ *  líderes elegíveis. Aplica supressão <5 (§11). Devolve distribuição por
+ *  faixa de maturidade (Anexo §10) e média por eixo (se não suprimido). */
+export function computeCompanyQuarterlyIcd(
+  leaderScores: Array<{ score: number; axesAverage: IcdAxesScores }>,
+): {
+  score: number | null;
+  suppressed: boolean;
+  eligibleLeaders: number;
+  distribution: Record<IcdMaturityBand, number>;
+  axesAverage: IcdAxesScores;
+} {
+  const suppression = applyIcdSuppression(leaderScores.map((l) => l.score));
+
+  const distribution: Record<IcdMaturityBand, number> = {
+    CRITICA: 0,
+    DESENVOLVIMENTO: 0,
+    FUNCIONAL: 0,
+    CONSISTENTE: 0,
+    AVANCADA: 0,
+    ELEVADA: 0,
+  };
+  for (const l of leaderScores) {
+    const band = getIcdMaturityBand(l.score);
+    distribution[band.key] += 1;
+  }
+
+  const axesAverage: IcdAxesScores = { CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 };
+  if (!suppression.suppressed && leaderScores.length > 0) {
+    for (const axis of ICD_AXES) {
+      const sum = leaderScores.reduce((acc, l) => acc + (l.axesAverage[axis] ?? 0), 0);
+      axesAverage[axis] = Math.round(sum / leaderScores.length);
+    }
+  }
+
+  return {
+    score: suppression.score,
+    suppressed: suppression.suppressed,
+    eligibleLeaders: leaderScores.length,
+    distribution,
+    axesAverage,
+  };
+}
+
+/** Ciclo trimestral do ICD (§9.6). */
+export interface IcdCycleData {
+  id: string;
+  name: string;
+  quarter: number; // 1..4
+  year: number;
+  startsAt: string;
+  endsAt: string;
+  status: 'OPEN' | 'CLOSED';
+  closedAt: string | null;
+}
+
+/** ICD trimestral ponderado do líder (§9.4). */
+export interface LeaderQuarterlyIcdData {
+  id: string;
+  cycleId: string;
+  leaderId: string;
+  score: number;
+  decisionCount: number;
+  totalWeight: number;
+  axesAverage: IcdAxesScores;
+  band: typeof ICD_MATURITY_BANDS[number];
+  computedAt: string;
+}
+
+/** ICD oficial da empresa no ciclo (§9.5). Sob supressão <5 (§11). */
+export interface CompanyQuarterlyIcdData {
+  id: string;
+  cycleId: string;
+  score: number | null;
+  suppressed: boolean;
+  eligibleLeaders: number;
+  distribution: Record<IcdMaturityBand, number>;
+  axesAverage: IcdAxesScores;
+  band: typeof ICD_MATURITY_BANDS[number] | null; // null se suprimido
+  computedAt: string;
+}
+
+/** Payload de criação de novo ciclo trimestral (POST /icd-cycles). */
+export interface CreateIcdCycleRequest {
+  quarter: number; // 1..4
+  year: number;
+  startsAt: string;
+  endsAt: string;
+  name?: string;
+}
+
+/** Calcula label padrão do ciclo: "2026-Q3". */
+export function defaultIcdCycleName(year: number, quarter: number): string {
+  return `${year}-Q${quarter}`;
+}
+
+// =====================================================================
+// POCKET CRIVO / INTERNAL ENGINE (Anexo Técnico Pocket v1).
+// 10 perguntas reflexivas (C1-O2) nas 5 dimensões CRIVO. NÃO gera score.
+// Prepara o líder ANTES ou DURANTE decisões relevantes (§5).
+// =====================================================================
+
+/** As 5 dimensões da base CRIVO (Anexo Pocket §4.1). */
+export const POCKET_DIMENSIONS = ['C', 'R', 'I', 'V', 'O'] as const;
+export type PocketDimension = (typeof POCKET_DIMENSIONS)[number];
+
+export const POCKET_DIMENSION_LABEL: Record<PocketDimension, string> = {
+  C: 'Consciência',
+  R: 'Responsabilidade',
+  I: 'Integração',
+  V: 'Valores',
+  O: 'Organização',
+};
+
+export const POCKET_DIMENSION_FUNCTION: Record<PocketDimension, string> = {
+  C: 'Observar fatos, contexto e estado interno antes de reagir.',
+  R: 'Distinguir o que está sob influência do líder e qual resposta pode ser assumida.',
+  I: 'Considerar informações, impactos e perspectivas relevantes.',
+  V: 'Conectar a decisão ou resposta à cultura, referência e princípios desejados.',
+  O: 'Transformar clareza em próximo passo, ação e acompanhamento.',
+};
+
+/** Pergunta reflexiva oficial do Pocket (Anexo §6). */
+export interface PocketQuestion {
+  /** Código oficial: "C1" .. "O2". */
+  code: string;
+  dimension: PocketDimension;
+  /** Texto da pergunta (mantém ponto de interrogação — §6: pergunta reflexiva). */
+  text: string;
+}
+
+/** Catálogo OFICIAL das 10 perguntas do Pocket (Anexo §6). */
+export const POCKET_QUESTIONS: PocketQuestion[] = [
+  {
+    code: 'C1',
+    dimension: 'C',
+    text: 'O que parece estar influenciando mais esta decisão agora: os fatos, o contexto ou meu estado interno?',
+  },
+  {
+    code: 'C2',
+    dimension: 'C',
+    text: 'Se a pressão fosse menor, eu avaliaria esta situação da mesma forma?',
+  },
+  {
+    code: 'R1',
+    dimension: 'R',
+    text: 'Estou conduzindo a situação ou sendo conduzido por ela?',
+  },
+  {
+    code: 'R2',
+    dimension: 'R',
+    text: 'O que está realmente sob minha influência neste momento?',
+  },
+  {
+    code: 'I1',
+    dimension: 'I',
+    text: 'Que informação relevante ainda precisa ser considerada?',
+  },
+  {
+    code: 'I2',
+    dimension: 'I',
+    text: 'Estou avaliando apenas o resultado imediato ou também seus impactos?',
+  },
+  {
+    code: 'V1',
+    dimension: 'V',
+    text: 'Esta decisão reforça a cultura que desejo construir?',
+  },
+  {
+    code: 'V2',
+    dimension: 'V',
+    text: 'Eu gostaria que esta forma de decidir virasse referência para a equipe?',
+  },
+  {
+    code: 'O1',
+    dimension: 'O',
+    text: 'O próximo passo está claro ou apenas parece urgente?',
+  },
+  {
+    code: 'O2',
+    dimension: 'O',
+    text: 'Esta decisão simplifica ou complica a execução futura?',
+  },
+];
+
+/** Versão oficial do conjunto de perguntas (Anexo §12). Bumpar quando o
+ *  catálogo for revisado para manter rastro histórico nas sessões antigas. */
+export const POCKET_QUESTIONS_VERSION = 'v1';
+
+/** Momento de uso (Anexo §8). */
+export const POCKET_MOMENTS = ['AVULSO', 'ANTES_DECISAO', 'DURANTE_DECISAO'] as const;
+export type PocketMomentOfUse = (typeof POCKET_MOMENTS)[number];
+
+export const POCKET_MOMENT_LABEL: Record<PocketMomentOfUse, string> = {
+  AVULSO: 'Reflexão avulsa',
+  ANTES_DECISAO: 'Antes de uma decisão',
+  DURANTE_DECISAO: 'Durante uma decisão',
+};
+
+export const POCKET_SESSION_STATUSES = ['EM_ANDAMENTO', 'CONCLUIDA'] as const;
+export type PocketSessionStatus = (typeof POCKET_SESSION_STATUSES)[number];
+
+/** Reflexão a uma das 10 perguntas (Anexo §7). */
+export interface PocketReflectionData {
+  id: string;
+  questionCode: string;
+  text: string | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Sessão Pocket (Anexo §5/§12). */
+export interface PocketSessionData {
+  id: string;
+  leaderId: string;
+  context: string | null;
+  momentOfUse: PocketMomentOfUse;
+  decisionId: string | null;
+  status: PocketSessionStatus;
+  questionsVersion: string;
+  reflections: PocketReflectionData[];
+  aiSummary: PocketAiSummaryData | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Síntese opcional da Mentoria IA (Anexo §7/§10). */
+export interface PocketAiSummaryData {
+  id: string;
+  synthesis: string;
+  recommendation: string | null;
+  nextStep: string | null;
+  modelVersion: string;
+  createdAt: string;
+}
+
+/** Payload de criação de sessão Pocket. */
+export interface CreatePocketSessionRequest {
+  context?: string;
+  momentOfUse?: PocketMomentOfUse;
+  decisionId?: string;
+}
+
+/** Payload de submissão de uma reflexão (POST /pocket/sessions/:id/reflections). */
+export interface UpsertPocketReflectionRequest {
+  questionCode: string;
+  text?: string;
+  tags?: string[];
 }
 
 // ── Área do Líder — Trilha de desenvolvimento + Copiloto CRIVO (Briefing §6/§7) ──
@@ -1047,10 +1764,231 @@ export interface CopilotoAskResponse {
 export interface CampaignSummary {
   id: string;
   name: string;
+  description: string | null;
+  sector: string | null;
+  publicSlug: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  reminderAt: string | null;
+  reminderSentAt: string | null;
+  closedAt: string | null;
   status: 'OPEN' | 'CLOSED';
   createdAt: string;
   respondentes: number;
   totalParticipantes: number;
   adesao: number; // 0–100 (%)
   icdMedio: number | null;
+}
+
+/** Payload de criação de campanha (POST /icd/campaigns). */
+export interface CreateCampaignRequest {
+  name: string;
+  description?: string;
+  sector?: string;
+  startsAt?: string; // ISO
+  endsAt?: string;
+  reminderAt?: string;
+  /** Gerar slug público (link sem login). Default false. */
+  generatePublicLink?: boolean;
+}
+
+/** Payload de edição (PATCH /icd/campaigns/:id). Todos opcionais. */
+export interface UpdateCampaignRequest {
+  name?: string;
+  description?: string | null;
+  sector?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  reminderAt?: string | null;
+  regeneratePublicLink?: boolean;
+  /** Limpa o slug público (campanha vira interna). */
+  clearPublicLink?: boolean;
+}
+
+/** Resposta do GET /public/campaigns/:slug (acesso sem login). */
+export interface PublicCampaignInfo {
+  name: string;
+  description: string | null;
+  sector: string | null;
+  status: 'OPEN' | 'CLOSED';
+  startsAt: string | null;
+  endsAt: string | null;
+  /** Nome da empresa para exibição. */
+  tenantName: string;
+}
+
+// =====================================================================
+// Relatório Preliminar CRIVO (Briefing §5, Portal §7).
+// Gerado por IA a partir do Diagnóstico Inicial do PlatformLead.
+// =====================================================================
+
+export const PRELIMINARY_REPORT_STATUSES = ['GERANDO', 'PRONTO', 'ENVIADO', 'ERRO'] as const;
+export type PreliminaryReportStatus = (typeof PRELIMINARY_REPORT_STATUSES)[number];
+
+export const PRELIMINARY_REPORT_STATUS_LABEL: Record<PreliminaryReportStatus, string> = {
+  GERANDO: 'Gerando',
+  PRONTO: 'Pronto',
+  ENVIADO: 'Enviado',
+  ERRO: 'Erro',
+};
+
+export interface PreliminaryReportData {
+  id: string;
+  platformLeadId: string;
+  diagnosticScore: number;
+  diagnosticLevel: MaturityLevel;
+  diagnosticDimensions: Record<PreDiagnosticDimension, number>;
+  topAttention: PreDiagnosticDimension;
+  content: string;
+  modelVersion: string;
+  promptVersion: string;
+  status: PreliminaryReportStatus;
+  errorReason: string | null;
+  sentTo: string | null;
+  sentAt: string | null;
+  emailProvider: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload POST /admin/preliminary-reports — gera e dispara envio. */
+export interface GeneratePreliminaryReportRequest {
+  platformLeadId: string;
+  /** Destinatário do e-mail. Se omitido, usa email do lead. */
+  sendTo?: string;
+}
+
+// =====================================================================
+// Super Admin extras (#54) — Mentorias, Biblioteca de Ações, Textos
+// editáveis, Academia global.
+// =====================================================================
+
+export const MENTORIA_FORMATS = ['ONLINE', 'PRESENCIAL', 'HIBRIDA'] as const;
+export type MentoriaFormat = (typeof MENTORIA_FORMATS)[number];
+
+export const MENTORIA_STATUSES = ['AGENDADA', 'REALIZADA', 'CANCELADA', 'REAGENDADA'] as const;
+export type MentoriaStatus = (typeof MENTORIA_STATUSES)[number];
+
+export const MENTORIA_FORMAT_LABEL: Record<MentoriaFormat, string> = {
+  ONLINE: 'Online',
+  PRESENCIAL: 'Presencial',
+  HIBRIDA: 'Híbrida',
+};
+
+export const MENTORIA_STATUS_LABEL: Record<MentoriaStatus, string> = {
+  AGENDADA: 'Agendada',
+  REALIZADA: 'Realizada',
+  CANCELADA: 'Cancelada',
+  REAGENDADA: 'Reagendada',
+};
+
+export interface MentoriaData {
+  id: string;
+  tenantId: string;
+  title: string;
+  format: MentoriaFormat;
+  mentorName: string;
+  attendee: string;
+  scheduledAt: string;
+  durationMin: number;
+  meetingUrl: string | null;
+  location: string | null;
+  status: MentoriaStatus;
+  notes: string | null;
+  recordingUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMentoriaRequest {
+  tenantId: string;
+  title: string;
+  format: MentoriaFormat;
+  mentorName: string;
+  attendee: string;
+  scheduledAt: string;
+  durationMin?: number;
+  meetingUrl?: string;
+  location?: string;
+  notes?: string;
+}
+
+export interface UpdateMentoriaRequest {
+  title?: string;
+  format?: MentoriaFormat;
+  mentorName?: string;
+  attendee?: string;
+  scheduledAt?: string;
+  durationMin?: number;
+  meetingUrl?: string | null;
+  location?: string | null;
+  status?: MentoriaStatus;
+  notes?: string | null;
+  recordingUrl?: string | null;
+}
+
+/** Biblioteca de Ações modelo (catálogo CRIVO global). */
+export interface ActionTemplateData {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  suggestedResponsible: string | null;
+  expectedEvidence: string | null;
+  defaultReviewDays: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertActionTemplateRequest {
+  title: string;
+  category: string;
+  description?: string;
+  suggestedResponsible?: string;
+  expectedEvidence?: string;
+  defaultReviewDays?: number;
+  active?: boolean;
+}
+
+/** Texto editável pelo Super Admin sem deploy (key-value versionado). */
+export interface EditableTextData {
+  id: string;
+  key: string;
+  category: string;
+  content: string;
+  version: number;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertEditableTextRequest {
+  key: string;
+  category?: string;
+  content: string;
+}
+
+/** Conteúdo global da Academia CRIVO (catálogo). */
+export interface GlobalAcademyContentData {
+  id: string;
+  title: string;
+  kind: string;
+  description: string | null;
+  url: string | null;
+  category: string | null;
+  tags: string[];
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertGlobalAcademyContentRequest {
+  title: string;
+  kind: string;
+  description?: string;
+  url?: string;
+  category?: string;
+  tags?: string[];
+  published?: boolean;
 }

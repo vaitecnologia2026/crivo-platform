@@ -15,6 +15,9 @@ import { ActionPlansModule } from './action-plans/action-plans.module';
 import { EssencialModule } from './essencial/essencial.module';
 import { ParecerModule } from './parecer/parecer.module';
 import { CopilotoModule } from './copiloto/copiloto.module';
+import { DecisionsModule } from './decisions/decisions.module';
+import { IcdCyclesModule } from './icd-cycles/icd-cycles.module';
+import { PocketModule } from './pocket/pocket.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -34,6 +37,9 @@ import { HealthController } from './health/health.controller';
     EssencialModule,
     ParecerModule,
     CopilotoModule,
+    DecisionsModule,
+    IcdCyclesModule,
+    PocketModule,
   ],
   controllers: [HealthController],
   providers: [

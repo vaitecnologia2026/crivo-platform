@@ -1,5 +1,19 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsUUID, Max, Min, ValidateNested, ArrayMinSize } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 export class IcdAnswerDto {
   @IsInt()
@@ -24,4 +38,84 @@ export class SubmitIcdDto {
   @ValidateNested({ each: true })
   @Type(() => IcdAnswerDto)
   answers!: IcdAnswerDto[];
+}
+
+// ── Campanhas editáveis (Portal §7) ─────────────────────────────────────
+
+export class CreateCampaignDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sector?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startsAt?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endsAt?: string;
+
+  @IsOptional()
+  @IsDateString()
+  reminderAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  generatePublicLink?: boolean;
+}
+
+export class UpdateCampaignDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sector?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  startsAt?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  endsAt?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  reminderAt?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  regeneratePublicLink?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  clearPublicLink?: boolean;
+}
+
+export class ListCampaignsQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sector?: string;
 }

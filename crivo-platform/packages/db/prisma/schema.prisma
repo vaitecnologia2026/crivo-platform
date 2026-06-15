@@ -141,6 +141,133 @@ enum EssentialRecordKind {
 }
 
 // =====================================================================
+// REGISTRO DE DECISÃO (Anexo Técnico ICD do Líder v1, §5–§9).
+// Base operacional do ICD: o líder registra decisões reais; o ICD avalia
+// a coerência da decisão em 4 eixos (Clareza/Critério/Alinhamento/Sustentação).
+// Os enums abaixo cobrem os campos visíveis ao líder (§5.1) e a regra
+// de impacto/peso (§9.3). Os modelos de scoring e ciclo vêm nas próximas
+// migrations (tasks #46 e #47).
+// =====================================================================
+
+// Anexo ICD §5.1 e §9.3 — define peso na média ponderada trimestral.
+// BAIXO=0 (fica só no histórico, não entra no ICD oficial); MEDIO=1; ALTO=2.
+enum DecisionImpact {
+  BAIXO
+  MEDIO
+  ALTO
+}
+
+// Anexo ICD §5.1 — natureza da decisão.
+enum DecisionType {
+  INDIVIDUAL
+  COLETIVA
+  RECOMENDACAO_APROVACAO
+  COMPARTILHADA
+}
+
+// Anexo ICD §5.1 — correlação com uso do Pocket antes/durante a decisão.
+enum DecisionPocketUse {
+  NAO_UTILIZADO
+  ANTES
+  DURANTE
+}
+
+// Anexo ICD §5.1 — principal fator de pressão sobre a decisão.
+enum DecisionPressureFactor {
+  URGENCIA
+  CONFLITO
+  FALTA_INFORMACAO
+  PRESSAO_RESULTADO
+  RISCO_FINANCEIRO
+  RISCO_PESSOAS
+  RISCO_JURIDICO
+  EXPOSICAO_REPUTACIONAL
+  OUTRO
+}
+
+// Anexo ICD §5.1 — janela para revisão futura da decisão.
+enum DecisionRevisionPeriod {
+  D30
+  D60
+  D90
+  SEM_REVISAO
+}
+
+// Anexo ICD §5.3 — ciclo de vida da decisão. EM_REGISTRO = rascunho;
+// REGISTRADA = no histórico, sem ICD; AVALIADA_PELO_ICD = ICD completo
+// respondido. A elegibilidade para o oficial é derivada (impact ≠ BAIXO).
+enum DecisionStatus {
+  EM_REGISTRO
+  REGISTRADA
+  AVALIADA_PELO_ICD
+}
+
+// Anexo ICD §6 — quatro EIXOS oficiais (substituem os 4 Rs do modelo legado).
+// Cada eixo é medido por 2 afirmações (P1-P8, §7) em escala 1–5; o score do
+// eixo é a média dos dois scores convertidos (§9.1). O ICD da decisão é a
+// média dos 4 eixos (§9.2).
+enum IcdAxis {
+  CLAREZA // P1/P2 — fatos, dados e lacunas reconhecidas antes da conclusão.
+  CRITERIO // P3/P4 — discernimento, prioridade e consistência sob pressão.
+  ALINHAMENTO // P5/P6 — pessoas, áreas, processos, comunicação considerados.
+  SUSTENTACAO // P7/P8 — coerência com estratégia/cultura/valores; horizonte longo.
+}
+
+// Anexo ICD §9.6 — ciclo trimestral do ICD. OPEN = parcial (atualiza ao vivo
+// conforme decisões são avaliadas); CLOSED = oficial, congelado para histórico.
+enum IcdCycleStatus {
+  OPEN
+  CLOSED
+}
+
+// =====================================================================
+// POCKET CRIVO / INTERNAL ENGINE (Anexo Técnico Pocket v1).
+// Módulo de Liderança/App: prepara o líder ANTES ou DURANTE decisões
+// relevantes via 10 perguntas reflexivas (C1-O2) nas 5 dimensões CRIVO.
+// NÃO gera score (§6) e NÃO é avaliação — é apoio metacognitivo (§3).
+// =====================================================================
+
+// Anexo Pocket §8 — quando o líder usa o Pocket em relação à decisão.
+enum PocketMomentOfUse {
+  AVULSO // reflexão sem decisão específica
+  ANTES_DECISAO
+  DURANTE_DECISAO
+}
+
+// Estado da sessão Pocket. EM_ANDAMENTO = pelo menos uma pergunta respondida;
+// CONCLUIDA = líder marcou fim. Histórico individual (§13).
+enum PocketSessionStatus {
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+// Estado de um Relatório Preliminar CRIVO (Diagnóstico Inicial, §7).
+// GERANDO → IA está produzindo o conteúdo;
+// PRONTO  → conteúdo gerado, ainda não enviado;
+// ENVIADO → e-mail entregue ao provider (não significa entregue ao usuário);
+// ERRO    → falhou em gerar OU enviar (errorReason preenchido).
+enum PreliminaryReportStatus {
+  GERANDO
+  PRONTO
+  ENVIADO
+  ERRO
+}
+
+// Mentoria (Matriz §Mentorias / Briefing §10). Formato e status controlados.
+enum MentoriaFormat {
+  ONLINE
+  PRESENCIAL
+  HIBRIDA
+}
+
+enum MentoriaStatus {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+  REAGENDADA
+}
+
+// =====================================================================
 // CONTROL PLANE (F1) — registro GLOBAL de empresas-cliente e super admins.
 // NÃO é escopado por tenant: estas tabelas ficam FORA da RLS por tenant.
 // Acesso EXCLUSIVO via conexão owner (prisma.admin) pelo módulo Admin —
@@ -179,6 +306,132 @@ model Tenant {
   updatedAt      DateTime     @updatedAt
 
   @@map("tenants")
+}
+
+// Relatório Preliminar CRIVO (Briefing §5, Portal §7).
+// Control plane: gerado a partir de PlatformLead (Diagnóstico Inicial preenchido
+// na LP). Conteúdo produzido pela IA (mesmo provider do Copiloto) a partir do
+// snapshot do diagnóstico. Envio por e-mail é best-effort (graceful fallback).
+// Sem RLS por tenant — não pertence a um tenant; pertence ao funil do super admin.
+model PreliminaryReport {
+  id             String @id @default(uuid()) @db.Uuid
+  platformLeadId String @db.Uuid // → platform_leads.id (sem relation Prisma para manter desacoplado)
+
+  // Snapshot do diagnóstico no momento da geração (imutável, mesmo se o lead
+  // refizer o diagnóstico depois).
+  diagnosticScore      Int
+  diagnosticLevel      String // INICIAL | EM_ESTRUTURACAO | ESTRUTURADO | AVANCADO
+  diagnosticDimensions Json // Record<PreDiagnosticDimension, number>
+  topAttention         String
+
+  // Conteúdo do relatório (markdown), modelo usado e versão do prompt.
+  content       String
+  modelVersion  String // ex: gpt-4o-mini / claude-sonnet-4-6
+  promptVersion String @default("v1")
+
+  status      PreliminaryReportStatus @default(GERANDO)
+  errorReason String?
+
+  // Envio por e-mail.
+  sentTo        String? // endereço do destinatário
+  sentAt        DateTime?
+  emailProvider String? // resend | smtp | stub
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([platformLeadId])
+  @@index([status])
+  @@map("preliminary_reports")
+}
+
+// Mentoria de líder (Briefing §10, Matriz §Mentorias). Vinculada a um tenant
+// (ID lógico, sem relation Prisma para manter control plane desacoplado).
+// Super Admin agenda, controla formato/quantidade/status; o cliente vê o
+// histórico/calendário (próxima fatia da UI do tenant).
+model Mentoria {
+  id           String         @id @default(uuid()) @db.Uuid
+  tenantId     String         @db.Uuid // → organizations.id (sem relation)
+  title        String
+  format       MentoriaFormat @default(ONLINE)
+  mentorName   String
+  // Líder/colaborador convidado — armazenado como string (e-mail/nome) para
+  // permitir mentoria de pessoas que ainda não estão no app.
+  attendee     String
+  scheduledAt  DateTime
+  durationMin  Int            @default(60)
+  meetingUrl   String? // para ONLINE
+  location     String? // para PRESENCIAL
+  status       MentoriaStatus @default(AGENDADA)
+  notes        String?
+  recordingUrl String? // gravação / ata após realizada
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("mentorias")
+}
+
+// Biblioteca de Ações (Matriz §Plano de Ação): catálogo GLOBAL de ações
+// modelo que o RH/CEO da empresa pode IMPORTAR para o próprio plano. Sem RLS.
+// Cada ação carrega categoria, responsável-tipo (não pessoa nominal),
+// evidência esperada e prazo padrão para revisão.
+model ActionTemplate {
+  id                   String   @id @default(uuid()) @db.Uuid
+  title                String
+  category             String // Pessoas | Operação | Cultura | Cliente | Compliance | …
+  description          String?
+  suggestedResponsible String? // ex: "RH", "Gestor da área", "Liderança direta"
+  expectedEvidence     String? // ex: "Ata da reunião", "Plano publicado no Confluence"
+  defaultReviewDays    Int      @default(30)
+  active               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([category])
+  @@index([active])
+  @@map("action_templates")
+}
+
+// Textos editáveis (copy do produto): key-value de strings/blobs longos que o
+// Super Admin pode editar SEM precisar de deploy. Casos típicos: rodapé do
+// Relatório Preliminar, e-mail de boas-vindas, parágrafos legais. `key` é
+// estável; `version` permite rollback.
+model EditableText {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique // ex: "EMAIL_WELCOME_BODY"
+  category  String   @default("geral") // emails | legais | onboarding | reports …
+  content   String // texto/markdown
+  version   Int      @default(1)
+  updatedBy String? // e-mail do super admin que editou
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@map("editable_texts")
+}
+
+// Conteúdo GLOBAL da Academia CRIVO (control plane). Distinto do LibraryItem
+// (que é por-tenant). Super admin cura cursos/vídeos/trilhas DISPONÍVEIS para
+// todos os clientes Premium. Cliente pode IMPORTAR (gera LibraryItem na sua
+// biblioteca) ou apenas referenciar pelo ID.
+model GlobalAcademyContent {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  kind        String // curso | video | trilha | ebook | artigo | podcast
+  description String?
+  url         String?
+  category    String?
+  tags        String[] @default([])
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published])
+  @@index([kind])
+  @@map("global_academy_content")
 }
 
 // Trilha de auditoria das ações de plataforma (F2). Control plane: owner-only
@@ -417,12 +670,18 @@ model ModuleCatalog {
 // acesso só via owner (crivo_app revogado no rls.sql). organizationId liga ao
 // data plane (sem relation Prisma p/ manter o desacoplamento, como Tenant).
 model TenantDomain {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @db.Uuid // → organizations.id (data plane)
-  domain         String   @unique // app.clientex.com | clientex.crivolegacy.com.br
-  verified       Boolean  @default(false)
-  primary        Boolean  @default(false)
-  createdAt      DateTime @default(now())
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @db.Uuid // → organizations.id (data plane)
+  domain            String    @unique // app.clientex.com | clientex.crivolegacy.com.br
+  verified          Boolean   @default(false)
+  primary           Boolean   @default(false)
+  // Token TXT que o cliente deve publicar em _crivo.<domain> para provar posse.
+  // Gerado na criação do registro (32 hex chars), nunca regenerado em prod.
+  verificationToken String? // null em domínios legados pré-#55; preenchido em novos
+  verifiedAt        DateTime?
+  lastVerifyAttempt DateTime?
+  lastVerifyError   String? // razão do último insucesso (lookup, mismatch, timeout)
+  createdAt         DateTime  @default(now())
 
   @@index([organizationId])
   @@map("tenant_domains")
@@ -529,6 +788,19 @@ model Organization {
   essentialRecords EssentialRecord[]
   pareceres        Parecer[]
 
+  // Anexo ICD do Líder v1 — Registro de Decisão (task #45).
+  decisionCategories  DecisionCategory[]
+  decisionIcdScores   DecisionIcdScore[]
+  icdCycles           IcdCycle[]
+  leaderQuarterlyIcd  LeaderQuarterlyIcd[]
+  companyQuarterlyIcd CompanyQuarterlyIcd[]
+  affectedAudiences   AffectedAudience[]
+  decisions           Decision[]
+  sustentationActions SustentationAction[]
+  PocketSession       PocketSession[]
+  PocketReflection    PocketReflection[]
+  PocketAiSummary     PocketAiSummary[]
+
   @@map("organizations")
 }
 
@@ -598,9 +870,14 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  memberships TeamMember[]
-  assessments Assessment[] @relation("LeaderAssessments")
-  icdScores   IcdScore[]   @relation("LeaderScores")
+  memberships              TeamMember[]
+  assessments              Assessment[]         @relation("LeaderAssessments")
+  icdScores                IcdScore[]           @relation("LeaderScores")
+  // Anexo ICD do Líder v1 — decisões registradas pelo líder (task #45).
+  decisions                Decision[]           @relation("LeaderDecisions")
+  decisionIcdScoresMine    DecisionIcdScore[]   @relation("LeaderDecisionIcdScores")
+  leaderQuarterlyIcdScores LeaderQuarterlyIcd[] @relation("LeaderQuarterlyIcdScores")
+  pocketSessions           PocketSession[]      @relation("LeaderPocketSessions")
 
   // E-mail único POR tenant (mesmo e-mail pode existir em orgs diferentes)
   @@unique([tenantId, email])
@@ -627,16 +904,28 @@ model TeamMember {
 // =====================================================================
 
 model AssessmentCycle {
-  id        String       @id @default(uuid()) @db.Uuid
-  tenantId  String       @db.Uuid
-  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String
-  status    CycleStatus  @default(OPEN)
-  createdAt DateTime     @default(now())
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @db.Uuid
+  org            Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  description    String? // contexto/instrução opcional da campanha
+  sector         String? // setor/área alvo (RH, Comercial, Operações…); null = toda a empresa
+  // Slug público para link de convite (Anexo Portal §7): respondentes acessam
+  // /p/c/<slug> sem login. Único por tenant para evitar colisão de leituras.
+  publicSlug     String?      @unique
+  startsAt       DateTime? // janela opcional
+  endsAt         DateTime?
+  reminderAt     DateTime? // quando o sistema deve enviar lembrete (job futuro)
+  reminderSentAt DateTime? // idempotência: marca quando enviou
+  status         CycleStatus  @default(OPEN)
+  closedAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   assessments Assessment[]
 
   @@index([tenantId])
+  @@index([sector])
   @@map("assessment_cycles")
 }
 
@@ -837,4 +1126,303 @@ model EssentialRecord {
 
   @@index([tenantId])
   @@map("essential_records")
+}
+
+// =====================================================================
+// REGISTRO DE DECISÃO — modelos (Anexo Técnico ICD do Líder v1, §5).
+//
+// Coexiste com Assessment/Response/IcdScore (modelo legado 4 Rs) durante
+// a transição. Os scores ICD por decisão e o cálculo trimestral entram
+// nas próximas migrations (tasks #46 e #47).
+// =====================================================================
+
+// §5.1 — Categorias de decisão. Lista padrão sugerida pelo Anexo:
+// Pessoas, Operação, Cliente, Estratégia, Financeiro, Cultura, Processo,
+// Risco/Compliance, Outro. Customizável por empresa via Super Admin.
+model DecisionCategory {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String // identificador estável (ex.: "pessoas", "operacao")
+  isDefault Boolean      @default(false) // seedada como sugestão CRIVO
+  active    Boolean      @default(true)
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  decisions Decision[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("decision_categories")
+}
+
+// §5.1 — Públicos / áreas impactados pela decisão. Multi-seleção por decisão.
+// Cadastrados por empresa no Super Admin (áreas, unidades, cargos, públicos).
+model AffectedAudience {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  active    Boolean      @default(true)
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  decisions DecisionAudience[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("affected_audiences")
+}
+
+// §5.1 — Decisão real registrada pela liderança. Base operacional do ICD
+// e do histórico de prática decisória. Os campos abaixo cobrem o registro
+// visível ao líder; respostas P1-P8 e score por eixo vivem em modelos
+// próprios (próxima migration — task #46).
+model Decision {
+  id       String       @id @default(uuid()) @db.Uuid
+  tenantId String       @db.Uuid
+  org      Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leaderId String       @db.Uuid
+  leader   User         @relation("LeaderDecisions", fields: [leaderId], references: [id], onDelete: Cascade)
+
+  title          String
+  description    String?
+  categoryId     String?                 @db.Uuid
+  category       DecisionCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  impact         DecisionImpact
+  type           DecisionType
+  pocketUse      DecisionPocketUse       @default(NAO_UTILIZADO)
+  pressureFactor DecisionPressureFactor?
+  revisionPeriod DecisionRevisionPeriod  @default(SEM_REVISAO)
+  status         DecisionStatus          @default(EM_REGISTRO)
+
+  // Momento em que a decisão foi tomada (não o registro). Anexo §5.1.
+  decidedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  audiences          DecisionAudience[]
+  sustentationAction SustentationAction?
+  icdScore           DecisionIcdScore?
+  pocketSessions     PocketSession[] // vínculo opcional (§8)
+
+  @@index([tenantId])
+  @@index([leaderId])
+  @@index([decidedAt])
+  @@map("decisions")
+}
+
+// §5.1 — M:N entre Decision e AffectedAudience. Permite que uma decisão
+// afete múltiplos públicos simultaneamente (RH, Comercial, Operações...).
+model DecisionAudience {
+  decisionId String           @db.Uuid
+  decision   Decision         @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  audienceId String           @db.Uuid
+  audience   AffectedAudience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+
+  @@id([decisionId, audienceId])
+  @@index([audienceId])
+  @@map("decision_audiences")
+}
+
+// §5.2 — Ação concreta para sustentar/implementar/comunicar a decisão.
+// 1:1 obrigatória com a decisão. Reusa ActionStatus existente.
+model SustentationAction {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @db.Uuid
+  org        Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  decisionId String       @unique @db.Uuid
+  decision   Decision     @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  action         String // O que será feito (obrigatório, §5.2)
+  responsible    String // Pessoa, líder, área ou equipe (obrigatório)
+  deadline       DateTime // Prazo limite ou data da 1ª revisão (obrigatório)
+  expectedResult String? // Qual efeito a ação pretende gerar (opcional)
+  evidenceUrl    String? // Ata, comunicado, plano, print, indicador… (opcional)
+  status         ActionStatus @default(SUGERIDA)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([decisionId])
+  @@map("sustentation_actions")
+}
+
+// Anexo ICD §6–§9 — ICD de UMA decisão (4 eixos × 2 perguntas). 1:1 com Decision.
+// `axes` é um Json {clareza, criterio, alinhamento, sustentacao} cada um 0–100
+// (média dos 2 scores das perguntas do eixo). `score` é a média dos 4 eixos.
+// `answers` armazena as 8 respostas brutas (id P1-P8 + value 1-5) para auditoria.
+// `weight` espelha DECISION_IMPACT_WEIGHT do impact da decisão na hora do registro
+// (BAIXO=0 → não entra no fechamento trimestral; MEDIO=1; ALTO=2).
+model DecisionIcdScore {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @db.Uuid
+  org        Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  decisionId String       @unique @db.Uuid
+  decision   Decision     @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  leaderId   String       @db.Uuid
+  leader     User         @relation("LeaderDecisionIcdScores", fields: [leaderId], references: [id], onDelete: Cascade)
+  // Ciclo trimestral em que a avaliação caiu (definido pelo decidedAt da decisão).
+  // null = avaliada fora de qualquer ciclo aberto (legado/seed). §9.4 conta só
+  // as que têm cycleId no fechamento.
+  cycleId    String?      @db.Uuid
+  cycle      IcdCycle?    @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+
+  score      Int // 0–100, média dos 4 eixos (§9.2)
+  axes       Json // { clareza, criterio, alinhamento, sustentacao } cada 0–100
+  answers    Json // [{ id: "P1"|...|"P8", value: 1..5 }]
+  weight     Int // 0|1|2 derivado do impact da decisão (§9.3)
+  computedAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([leaderId])
+  @@index([cycleId])
+  @@index([computedAt])
+  @@map("decision_icd_scores")
+}
+
+// Anexo ICD §9.4 e §9.6 — janela trimestral oficial do ICD. Um ciclo agrupa
+// todas as avaliações de decisões cuja `decidedAt` cai dentro do intervalo
+// [startsAt, endsAt]. OPEN = parcial; CLOSED = oficial congelado. Único por
+// tenant: só pode existir 1 OPEN por vez (lógica garantida no service).
+model IcdCycle {
+  id        String         @id @default(uuid()) @db.Uuid
+  tenantId  String         @db.Uuid
+  org       Organization   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String // ex: "2026-Q3" (label gerado, editável)
+  quarter   Int // 1..4
+  year      Int
+  startsAt  DateTime
+  endsAt    DateTime
+  status    IcdCycleStatus @default(OPEN)
+  closedAt  DateTime?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  scores        DecisionIcdScore[]
+  leaderResults LeaderQuarterlyIcd[]
+  companyResult CompanyQuarterlyIcd?
+
+  @@unique([tenantId, year, quarter])
+  @@index([tenantId])
+  @@index([status])
+  @@map("icd_cycles")
+}
+
+// Anexo ICD §9.4 — ICD trimestral ponderado de um líder. Gerado no fechamento
+// do ciclo. Inclui só decisões MÉDIO/ALTO impacto avaliadas pelo ICD dentro do
+// ciclo (peso > 0). Líderes com 0 decisões elegíveis NÃO geram registro
+// (ficam fora do §9.5 média da empresa).
+model LeaderQuarterlyIcd {
+  id       String       @id @default(uuid()) @db.Uuid
+  tenantId String       @db.Uuid
+  org      Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId  String       @db.Uuid
+  cycle    IcdCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  leaderId String       @db.Uuid
+  leader   User         @relation("LeaderQuarterlyIcdScores", fields: [leaderId], references: [id], onDelete: Cascade)
+
+  score         Int // 0–100, média ponderada das decisões elegíveis
+  decisionCount Int // quantas decisões MÉDIO/ALTO elegíveis entraram
+  totalWeight   Int // soma dos pesos (peso médio + peso alto)
+  axesAverage   Json // { clareza, criterio, alinhamento, sustentacao } médias ponderadas
+  computedAt    DateTime @default(now())
+
+  @@unique([cycleId, leaderId]) // um resultado por líder por ciclo
+  @@index([tenantId])
+  @@index([leaderId])
+  @@map("leader_quarterly_icd")
+}
+
+// Anexo ICD §9.5 — ICD oficial da empresa no ciclo. Média dos ICDs trimestrais
+// dos líderes elegíveis (>= 1 decisão MÉDIO/ALTO avaliada). NÃO é média direta
+// das decisões. §11: só calculado se >= 5 líderes elegíveis (regra de
+// supressão); abaixo disso, score fica null e `suppressed=true`.
+model CompanyQuarterlyIcd {
+  id       String       @id @default(uuid()) @db.Uuid
+  tenantId String       @db.Uuid
+  org      Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId  String       @unique @db.Uuid // 1:1 com ciclo
+  cycle    IcdCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  score           Int? // null se suppressed (< 5 líderes elegíveis)
+  eligibleLeaders Int // quantos líderes elegíveis no ciclo
+  suppressed      Boolean  @default(false) // §11: recorte < 5
+  distribution    Json // { critica, desenvolvimento, funcional, consistente, avancada, elevada } counts
+  axesAverage     Json // médias agregadas dos 4 eixos (apenas se !suppressed)
+  computedAt      DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("company_quarterly_icd")
+}
+
+// Anexo Pocket §5/§12 — sessão do Pocket CRIVO. Iniciada quando o líder abre
+// o módulo no app. Contém metadados de uso (contexto opcional, momento) e
+// pode ser vinculada a uma Decisão existente (§8). Histórico individual (§13).
+model PocketSession {
+  id       String       @id @default(uuid()) @db.Uuid
+  tenantId String       @db.Uuid
+  org      Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leaderId String       @db.Uuid
+  leader   User         @relation("LeaderPocketSessions", fields: [leaderId], references: [id], onDelete: Cascade)
+
+  context          String? // texto curto opcional (§7) — não é obrigatório
+  momentOfUse      PocketMomentOfUse   @default(AVULSO)
+  decisionId       String?             @db.Uuid // vínculo opcional §8
+  decision         Decision?           @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  status           PocketSessionStatus @default(EM_ANDAMENTO)
+  questionsVersion String              @default("v1") // versão das perguntas (§12)
+  completedAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  reflections PocketReflection[]
+  aiSummary   PocketAiSummary?
+
+  @@index([tenantId])
+  @@index([leaderId])
+  @@index([decisionId])
+  @@map("pocket_sessions")
+}
+
+// Anexo Pocket §7/§12 — reflexão a uma das 10 perguntas oficiais (C1-O2).
+// Resposta é opcional (texto livre curto) e tags são opcionais. Cada pergunta
+// pode aparecer no máximo 1 vez por sessão (gerenciado no service).
+model PocketReflection {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenantId     String        @db.Uuid
+  org          Organization  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId    String        @db.Uuid
+  session      PocketSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionCode String // "C1" .. "O2"
+  text         String? // resposta reflexiva opcional
+  tags         String[] // tags opcionais (sinalização de estado, §7)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([sessionId, questionCode]) // 1 reflexão por pergunta por sessão
+  @@index([tenantId])
+  @@map("pocket_reflections")
+}
+
+// Anexo Pocket §7/§10 — síntese gerada pela Mentoria IA quando ativada.
+// 1:1 com a sessão. Inclui versão do modelo/prompt para auditoria (§12).
+model PocketAiSummary {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @db.Uuid
+  org            Organization  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessionId      String        @unique @db.Uuid
+  session        PocketSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  synthesis      String // resumo da reflexão do líder
+  recommendation String? // cuidado/atenção sugerida (Anexo §10)
+  nextStep       String? // próximo passo sugerido (Anexo §10)
+  modelVersion   String // ex: "claude-opus-4-7-2026-06"
+  createdAt      DateTime      @default(now())
+
+  @@index([tenantId])
+  @@map("pocket_ai_summaries")
 }

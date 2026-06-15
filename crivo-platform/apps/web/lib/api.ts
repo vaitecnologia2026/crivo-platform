@@ -3,10 +3,13 @@
 import type {
   ActionItemData,
   ActionPlanData,
+  CampaignSummary,
   CopilotoAskRequest,
   CopilotoAskResponse,
   CreateActionItemRequest,
   CreateActionPlanRequest,
+  CreateCampaignRequest,
+  CreatePocketSessionRequest,
   CreateEvidenceRequest,
   CreateEssentialRecordRequest,
   CreateLibraryItemRequest,
@@ -16,13 +19,17 @@ import type {
   EvidenceData,
   GeneratedDocument,
   ParecerData,
+  PocketReflectionData,
+  PocketSessionData,
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
   TermsStatus,
   UpdateActionItemRequest,
+  UpdateCampaignRequest,
   UpdateLibraryItemRequest,
   UpsertParecerRequest,
+  UpsertPocketReflectionRequest,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -95,6 +102,31 @@ export function getMyModules(): Promise<string[]> {
 /** Permissões efetivas (modulo:acao) do papel do usuário logado. */
 export function getMyPermissions(): Promise<string[]> {
   return apiFetch<string[]>('/me/permissions');
+}
+
+/** Papel + nome do usuário logado (#51 — usado para HOME por papel). */
+export function getMyRole(): Promise<{ role: string; name: string }> {
+  return apiFetch<{ role: string; name: string }>('/me/role');
+}
+
+/** #56 — Audit log do tenant (últimos 100 eventos). Filtra por tenantId no backend. */
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  target: string | null;
+  actorEmail: string | null;
+  at: string;
+}
+export function getMyAuditLog(): Promise<AuditLogEntry[]> {
+  return apiFetch<AuditLogEntry[]>('/me/audit-log');
+}
+
+/** #56 — Troca de senha do próprio usuário (exige senha atual). */
+export function changeMyPassword(currentPassword: string, newPassword: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }
 
 /** Identidade visual (white-label) da empresa do usuário logado. */
@@ -214,4 +246,64 @@ export function listEssentialRecords(): Promise<EssentialRecordData[]> {
 }
 export function createEssentialRecord(dto: CreateEssentialRecordRequest): Promise<EssentialRecordData> {
   return apiFetch<EssentialRecordData>('/essencial/records', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+// ── Campanhas de Diagnóstico (Portal §7 — editáveis pelo RH/CEO) ──
+
+export function listCampaigns(sector?: string): Promise<CampaignSummary[]> {
+  const qs = sector ? `?sector=${encodeURIComponent(sector)}` : '';
+  return apiFetch<CampaignSummary[]>(`/icd/campaigns${qs}`);
+}
+export function createCampaign(dto: CreateCampaignRequest): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>('/icd/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function updateCampaign(id: string, dto: UpdateCampaignRequest): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/icd/campaigns/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  });
+}
+export function closeCampaign(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/icd/campaigns/${id}/close`, { method: 'POST' });
+}
+
+/** #56 — Dispara lembretes por e-mail aos usuários que ainda não responderam. */
+export function sendCampaignReminders(id: string): Promise<{ sent: number; pending: number; provider: string; reason?: string }> {
+  return apiFetch<{ sent: number; pending: number; provider: string; reason?: string }>(
+    `/icd/campaigns/${id}/send-reminders`,
+    { method: 'POST' },
+  );
+}
+
+// ── Pocket CRIVO (Anexo Técnico Pocket v1) — apoio reflexivo do líder ──
+
+export function listMyPocketSessions(): Promise<PocketSessionData[]> {
+  return apiFetch<PocketSessionData[]>('/pocket/sessions');
+}
+export function getPocketSession(id: string): Promise<PocketSessionData> {
+  return apiFetch<PocketSessionData>(`/pocket/sessions/${id}`);
+}
+export function createPocketSession(dto: CreatePocketSessionRequest): Promise<PocketSessionData> {
+  return apiFetch<PocketSessionData>('/pocket/sessions', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function upsertPocketReflection(
+  sessionId: string,
+  dto: UpsertPocketReflectionRequest,
+): Promise<PocketReflectionData> {
+  return apiFetch<PocketReflectionData>(`/pocket/sessions/${sessionId}/reflections`, {
+    method: 'PUT',
+    body: JSON.stringify(dto),
+  });
+}
+export function completePocketSession(id: string): Promise<PocketSessionData> {
+  return apiFetch<PocketSessionData>(`/pocket/sessions/${id}/complete`, { method: 'POST' });
+}
+export function removePocketSession(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/pocket/sessions/${id}`, { method: 'DELETE' });
 }

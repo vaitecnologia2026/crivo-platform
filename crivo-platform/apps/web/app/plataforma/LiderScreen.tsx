@@ -87,7 +87,6 @@ export function LiderScreen() {
     };
   }, []);
 
-  const topPct = data ? Math.max(1, Math.round((data.rank / data.totalLideres) * 100)) : null;
   const track = data ? LEADER_TRACKS[data.dominantPattern] : null;
   const suggestions = track
     ? [`Como começar a trabalhar minha tensão de ${PATTERN_LABEL[data!.dominantPattern] ?? data!.dominantPattern}?`,
@@ -137,11 +136,9 @@ export function LiderScreen() {
               <div>
                 <h3>Seu ICD atual</h3>
                 <span className="card__sub">
-                  Top {topPct}% · entre {data.totalLideres} líderes ·{" "}
-                  padrão {PATTERN_LABEL[data.dominantPattern] ?? data.dominantPattern}
+                  Tensão dominante: {PATTERN_LABEL[data.dominantPattern] ?? data.dominantPattern}
                 </span>
               </div>
-              <span className="pill pill--gold">#{data.rank}</span>
             </div>
             <h2 style={{ fontSize: "48px", margin: "8px 0", color: "var(--crivo-azul-profundo)" }}>
               {data.score}

@@ -4,7 +4,19 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getMyModules, getMyPermissions, getMyBranding, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getMyModules, getMyPermissions, getMyBranding, getMyRole, setToken, clearToken } from "@/lib/api";
+
+/** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
+const ROLE_STORAGE_KEY = "crivo_role";
+function cacheRole(role: string) {
+  try { localStorage.setItem(ROLE_STORAGE_KEY, role); } catch { /* private mode */ }
+}
+function readCachedRole(): string | null {
+  try { return localStorage.getItem(ROLE_STORAGE_KEY); } catch { return null; }
+}
+function clearCachedRole() {
+  try { localStorage.removeItem(ROLE_STORAGE_KEY); } catch { /* noop */ }
+}
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
@@ -16,9 +28,14 @@ import { ParecerScreen } from "./ParecerScreen";
 import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
 import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
+import { PocketScreen } from "./PocketScreen";
+import { SoonScreen } from "./SoonScreen";
+import { HistoricoScreen } from "./HistoricoScreen";
+import { ChangePasswordModal } from "./ChangePasswordModal";
+import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
-import { DEFAULT_ROUTE, routeAccess, routeMeta } from "./nav.config";
+import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta } from "./nav.config";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
 // interatividade do app.js (login, router SPA, likert, quiz, chat, animações de
@@ -46,6 +63,7 @@ export function Plataforma() {
     const app = document.getElementById("app");
     const loginForm = document.getElementById("loginForm") as HTMLFormElement | null;
     const logoutBtn = document.getElementById("logoutBtn");
+    const chgPwdBtn = document.getElementById("chgPwdBtn");
     if (!login || !app || !loginForm || !logoutBtn) {
       log.error("estrutura da plataforma incompleta");
       return;
@@ -128,6 +146,10 @@ export function Plataforma() {
       if (name === "essencial") mountIsland("essencial-root", <DiagnosticoEssencialScreen />);
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
+      if (name === "pocket") mountIsland("pocket-root", <PocketScreen />);
+      if (name === "mentorias") mountIsland("mentorias-root", <SoonScreen title="Mentorias" sub="Agenda, formato e histórico." message="O calendário das mentorias contratadas será habilitado em breve." />);
+      if (name === "analytics") mountIsland("analytics-root", <SoonScreen title="People Analytics avançado" sub="Cruzamentos de indicadores e custos invisíveis." message="Cruzamentos por ciclo, liderança, clima e custos invisíveis chegam em breve." />);
+      if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
       const meta = routeMeta[name];
       if (meta) {
         if (bcPath) bcPath.textContent = meta.path;
@@ -190,6 +212,8 @@ export function Plataforma() {
         // Nav data-driven: oculta o que a empresa não tem no plano (módulo) e o
         // que o papel não pode ver (permissão). Falha-aberto se a busca falhar —
         // a API ainda gateia o acesso.
+        let homeRole: string | null = r.user.role ?? null;
+        if (homeRole) cacheRole(homeRole);
         try {
           const [mods, perms, branding] = await Promise.all([
             getMyModules(),
@@ -205,7 +229,13 @@ export function Plataforma() {
         } catch (err) {
           routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
         }
-        mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
+        // #51 — HOME inicial por papel; cai no dashboard se rota indisponível.
+        const home = homeForRole(homeRole);
+        if (home !== DEFAULT_ROUTE) {
+          setRoute(home);
+        } else {
+          mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
+        }
         animateBars();
       } catch (err) {
         clearToken();
@@ -227,6 +257,7 @@ export function Plataforma() {
 
     on(logoutBtn, "click", () => {
       clearToken();
+      clearCachedRole();
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
@@ -234,6 +265,25 @@ export function Plataforma() {
       removeBranding = null;
       setRoute(DEFAULT_ROUTE);
     });
+
+    // #56 — Trocar senha: monta um portal modal on-demand e desmonta no close.
+    let pwdRoot: ReturnType<typeof createRootForModal> | null = null;
+    let pwdHost: HTMLDivElement | null = null;
+    function openChangePassword() {
+      if (pwdRoot) return;
+      pwdHost = document.createElement("div");
+      document.body.appendChild(pwdHost);
+      pwdRoot = createRootForModal(pwdHost);
+      const close = () => {
+        const r = pwdRoot; const h = pwdHost;
+        pwdRoot = null; pwdHost = null;
+        if (r) setTimeout(() => r.unmount(), 0);
+        if (h) setTimeout(() => h.remove(), 0);
+      };
+      pwdRoot.render(<ChangePasswordModal onClose={close} />);
+      cleanups.push(close);
+    }
+    if (chgPwdBtn) on(chgPwdBtn, "click", openChangePassword);
 
     navItems.forEach((item) =>
       on(item, "click", (e) => {

@@ -104,6 +104,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
               <span>Diretor de RH</span>
             </div>
           </div>
+          <button class="icon-btn" id="chgPwdBtn" title="Trocar senha">⚿</button>
           <button class="icon-btn" id="logoutBtn" title="Sair">↶</button>
         </div>
       </header>
@@ -151,6 +152,26 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
       <!-- ============ PARECER CRIVO ============ -->
       <section class="route" data-route="parecer">
         <div id="parecer-root"></div>
+      </section>
+
+      <!-- ============ POCKET CRIVO ============ -->
+      <section class="route" data-route="pocket">
+        <div id="pocket-root"></div>
+      </section>
+
+      <!-- ============ MENTORIAS (placeholder) ============ -->
+      <section class="route" data-route="mentorias">
+        <div id="mentorias-root"></div>
+      </section>
+
+      <!-- ============ PEOPLE ANALYTICS (placeholder) ============ -->
+      <section class="route" data-route="analytics">
+        <div id="analytics-root"></div>
+      </section>
+
+      <!-- ============ HISTÓRICO & AUDITORIA (placeholder) ============ -->
+      <section class="route" data-route="historico">
+        <div id="historico-root"></div>
       </section>
 
       <!-- ============ BIBLIOTECA & CURSOS ============ -->

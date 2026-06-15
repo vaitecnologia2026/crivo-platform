@@ -52,6 +52,22 @@ async function main() {
   await prisma.response.deleteMany();
   await prisma.assessment.deleteMany();
   await prisma.assessmentCycle.deleteMany();
+  // Pocket CRIVO (Anexo Pocket §5/§7): limpa filhos antes da raiz session.
+  await prisma.pocketAiSummary.deleteMany();
+  await prisma.pocketReflection.deleteMany();
+  await prisma.pocketSession.deleteMany();
+  // Registro de Decisão (Anexo §5) — limpa M:N e 1:1 antes da raiz Decision.
+  // Ciclo trimestral (§9.4–§9.6): limpa company → leader → cycles antes dos
+  // decision_icd_scores (a SET NULL do cycleId é seguro mas explicitar é melhor).
+  await prisma.companyQuarterlyIcd.deleteMany();
+  await prisma.leaderQuarterlyIcd.deleteMany();
+  await prisma.icdCycle.deleteMany();
+  await prisma.decisionIcdScore.deleteMany();
+  await prisma.sustentationAction.deleteMany();
+  await prisma.decisionAudience.deleteMany();
+  await prisma.decision.deleteMany();
+  await prisma.affectedAudience.deleteMany();
+  await prisma.decisionCategory.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.user.deleteMany();
   await prisma.team.deleteMany();

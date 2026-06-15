@@ -2,14 +2,21 @@
 // token próprio (crivo_admin_token) e redirect para /superadm em 401 — para que
 // as duas sessões (plataforma vs. painel global) nunca se misturem.
 import type {
+  ActionTemplateData,
   AiSettingsData,
   AiTestResult,
   ContractData,
+  CreateMentoriaRequest,
   CreateTenantRequest,
+  EditableTextData,
+  GeneratePreliminaryReportRequest,
+  GlobalAcademyContentData,
+  MentoriaData,
   Plan,
   PlatformLeadStage,
   PlatformLeadSummary,
   PlatformLoginResponse,
+  PreliminaryReportData,
   ProductDetail,
   ProductSummary,
   ProvisionResult,
@@ -18,8 +25,12 @@ import type {
   TenantModuleSummary,
   TenantSummary,
   UpdateBrandingRequest,
+  UpdateMentoriaRequest,
+  UpsertActionTemplateRequest,
   UpsertAiSettingsRequest,
   UpsertContractRequest,
+  UpsertEditableTextRequest,
+  UpsertGlobalAcademyContentRequest,
   UpsertProductRequest,
   UsageSummary,
 } from "@crivo/types";
@@ -300,6 +311,12 @@ export function addTenantDomain(id: string, domain: string): Promise<TenantDomai
   });
 }
 
+export function verifyTenantDomain(id: string, domainId: string): Promise<TenantDomainData[]> {
+  return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains/${domainId}/verify`, {
+    method: "POST",
+  });
+}
+
 export function setPrimaryTenantDomain(id: string, domainId: string): Promise<TenantDomainData[]> {
   return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains/${domainId}/primary`, {
     method: "PATCH",
@@ -310,4 +327,79 @@ export function removeTenantDomain(id: string, domainId: string): Promise<Tenant
   return adminFetch<TenantDomainData[]>(`/admin/tenants/${id}/domains/${domainId}`, {
     method: "DELETE",
   });
+}
+
+// ── Relatório Preliminar CRIVO (Briefing §5 / Portal §7) ──
+
+export function listPreliminaryReportsByLead(platformLeadId: string): Promise<PreliminaryReportData[]> {
+  return adminFetch<PreliminaryReportData[]>(`/admin/preliminary-reports?platformLeadId=${platformLeadId}`);
+}
+
+export function generatePreliminaryReport(dto: GeneratePreliminaryReportRequest): Promise<PreliminaryReportData> {
+  return adminFetch<PreliminaryReportData>("/admin/preliminary-reports/generate", {
+    method: "POST",
+    body: JSON.stringify(dto),
+  });
+}
+
+export function resendPreliminaryReport(id: string, sendTo: string): Promise<PreliminaryReportData> {
+  return adminFetch<PreliminaryReportData>(`/admin/preliminary-reports/${id}/resend`, {
+    method: "POST",
+    body: JSON.stringify({ sendTo }),
+  });
+}
+
+// ── Super Admin extras (#54) ────────────────────────────────────────
+
+export function listMentorias(tenantId?: string): Promise<MentoriaData[]> {
+  const qs = tenantId ? `?tenantId=${tenantId}` : "";
+  return adminFetch<MentoriaData[]>(`/admin/mentorias${qs}`);
+}
+export function createMentoria(dto: CreateMentoriaRequest): Promise<MentoriaData> {
+  return adminFetch<MentoriaData>("/admin/mentorias", { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateMentoria(id: string, dto: UpdateMentoriaRequest): Promise<MentoriaData> {
+  return adminFetch<MentoriaData>(`/admin/mentorias/${id}`, { method: "PATCH", body: JSON.stringify(dto) });
+}
+export function removeMentoria(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/mentorias/${id}`, { method: "DELETE" });
+}
+
+export function listActionTemplates(category?: string): Promise<ActionTemplateData[]> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  return adminFetch<ActionTemplateData[]>(`/admin/action-templates${qs}`);
+}
+export function createActionTemplate(dto: UpsertActionTemplateRequest): Promise<ActionTemplateData> {
+  return adminFetch<ActionTemplateData>("/admin/action-templates", { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateActionTemplate(id: string, dto: UpsertActionTemplateRequest): Promise<ActionTemplateData> {
+  return adminFetch<ActionTemplateData>(`/admin/action-templates/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function removeActionTemplate(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/action-templates/${id}`, { method: "DELETE" });
+}
+
+export function listEditableTexts(category?: string): Promise<EditableTextData[]> {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  return adminFetch<EditableTextData[]>(`/admin/editable-texts${qs}`);
+}
+export function upsertEditableText(dto: UpsertEditableTextRequest): Promise<EditableTextData> {
+  return adminFetch<EditableTextData>("/admin/editable-texts", { method: "PUT", body: JSON.stringify(dto) });
+}
+export function removeEditableText(key: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/editable-texts/${encodeURIComponent(key)}`, { method: "DELETE" });
+}
+
+export function listGlobalAcademy(opts?: { kind?: string }): Promise<GlobalAcademyContentData[]> {
+  const qs = opts?.kind ? `?kind=${encodeURIComponent(opts.kind)}` : "";
+  return adminFetch<GlobalAcademyContentData[]>(`/admin/global-academy${qs}`);
+}
+export function createGlobalAcademy(dto: UpsertGlobalAcademyContentRequest): Promise<GlobalAcademyContentData> {
+  return adminFetch<GlobalAcademyContentData>("/admin/global-academy", { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateGlobalAcademy(id: string, dto: UpsertGlobalAcademyContentRequest): Promise<GlobalAcademyContentData> {
+  return adminFetch<GlobalAcademyContentData>(`/admin/global-academy/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function removeGlobalAcademy(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/global-academy/${id}`, { method: "DELETE" });
 }

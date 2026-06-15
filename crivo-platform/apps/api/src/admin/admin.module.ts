@@ -19,6 +19,18 @@ import { PlatformLeadsService } from './platform-leads.service';
 import { PublicDiagnosticController } from './public-diagnostic.controller';
 import { AuditService } from './audit.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
+import { PreliminaryReportsController } from './preliminary-reports.controller';
+import { PreliminaryReportsService } from './preliminary-reports.service';
+import {
+  ActionTemplatesController,
+  EditableTextsController,
+  GlobalAcademyController,
+  MentoriasController,
+} from './super-admin-extras.controller';
+import { MentoriasService } from './mentorias.service';
+import { ActionTemplatesService } from './action-templates.service';
+import { EditableTextsService } from './editable-texts.service';
+import { GlobalAcademyService } from './global-academy.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -35,6 +47,11 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     PlatformLeadsController,
     PublicDiagnosticController,
     AiSettingsController,
+    PreliminaryReportsController,
+    MentoriasController,
+    ActionTemplatesController,
+    EditableTextsController,
+    GlobalAcademyController,
   ],
   providers: [
     AdminAuthService,
@@ -49,6 +66,11 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
     AiSettingsService,
     AuditService,
     SuperAdminGuard,
+    PreliminaryReportsService,
+    MentoriasService,
+    ActionTemplatesService,
+    EditableTextsService,
+    GlobalAcademyService,
   ],
   exports: [AiSettingsService],
 })

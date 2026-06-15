@@ -1047,7 +1047,7 @@ export default function LandingPage() {
           </div>
 
           <form className="lead-form" id="leadForm">
-            <h3 className="form__title">Solicitar diagnóstico inicial</h3>
+            <h3 className="form__title">Fazer diagnóstico inicial</h3>
             <p className="form__sub">Gratuito · Resposta de um especialista em até 24h úteis.</p>
 
             <div className="field">
@@ -1110,7 +1110,7 @@ export default function LandingPage() {
             </div>
 
             <button type="submit" className="btn btn--terra btn--block">
-              Solicitar diagnóstico inicial →
+              Fazer diagnóstico inicial →
             </button>
             <p className="form__lgpd">Dados protegidos pela LGPD · Confidencial · Sem spam</p>
             <p className="form__success" id="formSuccess" role="status" aria-live="polite">

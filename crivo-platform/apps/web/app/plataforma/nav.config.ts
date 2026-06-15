@@ -25,6 +25,35 @@ export interface NavGroup {
 /** Rota ativa por padrão ao abrir a plataforma. */
 export const DEFAULT_ROUTE = 'dashboard';
 
+/**
+ * HOME inicial por papel (#51 — áreas por papel). Cada Role abre numa tela
+ * que faz sentido para sua função na empresa. Se a rota não estiver visível
+ * (módulo/perm), a Plataforma cai no DEFAULT_ROUTE.
+ *
+ * - Executivos / gestores → Dashboard (Visão Executiva)
+ * - Liderança operacional → Área do Líder
+ * - Jurídico → Parecer Consultivo CRIVO
+ * - Colaborador / Academia → Biblioteca / Academia CRIVO
+ * - Consultor / Mentor → Dashboard (acompanha o cliente)
+ */
+export const DEFAULT_ROUTE_BY_ROLE: Record<string, string> = {
+  ADMIN: 'dashboard',
+  CEO: 'dashboard',
+  GESTOR: 'dashboard',
+  RH: 'dashboard',
+  CONSULTOR: 'dashboard',
+  MENTOR: 'lider',
+  LIDER: 'lider',
+  JURIDICO: 'parecer',
+  COLABORADOR: 'biblioteca',
+  ACADEMIA: 'biblioteca',
+};
+
+export function homeForRole(role: string | null | undefined): string {
+  if (!role) return DEFAULT_ROUTE;
+  return DEFAULT_ROUTE_BY_ROLE[role] ?? DEFAULT_ROUTE;
+}
+
 export const NAV: NavGroup[] = [
   {
     title: 'Comercial · CRIVO',
@@ -105,6 +134,20 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Desenvolvimento', current: 'Área do Líder' },
       },
       {
+        route: 'pocket',
+        label: 'Pocket CRIVO',
+        icon: '◐',
+        module: 'pocket',
+        breadcrumb: { path: 'Desenvolvimento', current: 'Pocket CRIVO' },
+      },
+      {
+        route: 'mentorias',
+        label: 'Mentorias',
+        icon: '☉',
+        module: 'mentorias',
+        breadcrumb: { path: 'Desenvolvimento', current: 'Mentorias' },
+      },
+      {
         route: 'biblioteca',
         label: 'Academia CRIVO',
         icon: '▦',
@@ -117,6 +160,20 @@ export const NAV: NavGroup[] = [
         icon: '▤',
         module: 'relatorios',
         breadcrumb: { path: 'Documentos', current: 'Plano de Ação & Evidências' },
+      },
+      {
+        route: 'analytics',
+        label: 'People Analytics',
+        icon: '⌭',
+        module: 'analytics',
+        breadcrumb: { path: 'Indicadores', current: 'People Analytics' },
+      },
+      {
+        route: 'historico',
+        label: 'Histórico & Auditoria',
+        icon: '⊞',
+        module: 'historico',
+        breadcrumb: { path: 'Plataforma', current: 'Histórico & Auditoria' },
       },
     ],
   },

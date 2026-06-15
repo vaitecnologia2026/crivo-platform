@@ -1,6 +1,21 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { IcdService } from './icd.service';
-import { SubmitIcdDto } from './dto';
+import {
+  CreateCampaignDto,
+  ListCampaignsQueryDto,
+  SubmitIcdDto,
+  UpdateCampaignDto,
+} from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { Roles } from '../iam/roles.decorator';
@@ -45,10 +60,49 @@ export class IcdController {
     return this.icd.myScore(user.tenantId, user.id);
   }
 
-  /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas. */
+  /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas.
+   *  Filtra por setor (?sector=) quando informado (Portal §7). */
   @Get('campaigns')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
-  campaigns(@CurrentUser() user: SessionUser) {
-    return this.icd.campaigns(user.tenantId);
+  campaigns(@CurrentUser() user: SessionUser, @Query() query: ListCampaignsQueryDto) {
+    return this.icd.campaigns(user.tenantId, query.sector);
+  }
+
+  /** Cria uma nova campanha. RH/CEO/ADMIN (edição/criação não é do GESTOR). */
+  @Post('campaigns')
+  @Roles('RH', 'CEO', 'ADMIN')
+  createCampaign(@CurrentUser() user: SessionUser, @Body() dto: CreateCampaignDto) {
+    return this.icd.createCampaign(user.tenantId, dto);
+  }
+
+  /** Edita uma campanha existente. */
+  @Patch('campaigns/:id')
+  @Roles('RH', 'CEO', 'ADMIN')
+  updateCampaign(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateCampaignDto,
+  ) {
+    return this.icd.updateCampaign(user.tenantId, id, dto);
+  }
+
+  /** Encerra uma campanha (status → CLOSED). */
+  @Post('campaigns/:id/close')
+  @Roles('RH', 'CEO', 'ADMIN')
+  closeCampaign(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.icd.closeCampaign(user.tenantId, id);
+  }
+
+  /** #56 — Dispara lembretes por e-mail para usuários que ainda não responderam. */
+  @Post('campaigns/:id/send-reminders')
+  @Roles('RH', 'CEO', 'ADMIN')
+  sendCampaignReminders(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.icd.sendCampaignReminders(user.tenantId, id);
   }
 }

@@ -45,6 +45,36 @@ export class MeController {
     return [...(await this.permissions.effectiveForRole(user.role))];
   }
 
+  /** Papel do usuário logado — define a HOME inicial e a área padrão (#51). */
+  @Get('role')
+  myRole(@CurrentUser() user: SessionUser): { role: string; name: string } {
+    return { role: user.role, name: user.name };
+  }
+
+  /** Histórico de eventos de auditoria do tenant (últimos 100).
+   *  #56 — alimenta a rota /historico do portal. Não expõe `meta` para evitar
+   *  PII; lista apenas action/target/timestamp/actorEmail. */
+  @Get('audit-log')
+  async myAuditLog(
+    @CurrentUser() user: SessionUser,
+  ): Promise<Array<{ id: string; action: string; target: string | null; actorEmail: string | null; at: string }>> {
+    // AuditLog é control plane (sem RLS) mas filtra por tenantId. Acesso é
+    // restrito pelo AuthGuard + filtro WHERE tenantId = user.tenantId.
+    const rows = await this.prisma.admin.auditLog.findMany({
+      where: { tenantId: user.tenantId },
+      orderBy: { at: 'desc' },
+      take: 100,
+      select: { id: true, action: true, target: true, actorEmail: true, at: true },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      target: r.target,
+      actorEmail: r.actorEmail,
+      at: r.at.toISOString(),
+    }));
+  }
+
   /** Status do aceite de termos/LGPD do usuário (1º acesso). */
   @Get('terms')
   myTerms(@CurrentUser() user: SessionUser): Promise<TermsStatus> {
