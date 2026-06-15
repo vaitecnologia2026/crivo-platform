@@ -1,0 +1,194 @@
+/* Login do Super Admin — estilos SCOPED (CSS Module).
+   Por que módulo e não Tailwind: o app.css global tem `* { margin:0; padding:0 }`
+   sem layer, que sobrepõe as utilities (layered) do Tailwind v4 e zera todo
+   margin/padding. Classes reais (especificidade > `*`) blindam o login disso. */
+
+.screen {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #071019;
+  padding: 24px;
+  color: #f2f0ec;
+  font-family: var(--font-poppins), system-ui, sans-serif;
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  width: 520px;
+  height: 520px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  opacity: 0.16;
+  filter: blur(120px);
+  background: radial-gradient(circle, #c4894a 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+
+.brand {
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.mark {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  color: #f2f0ec;
+}
+.brandName {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 28px;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  margin: 0;
+}
+.brandSub {
+  margin: 8px 0 0;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: #c4894a;
+}
+
+.card {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0e2139;
+  padding: 32px;
+  box-shadow: 0 30px 70px -25px rgba(0, 0, 0, 0.85);
+}
+.title {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  margin: 0 0 4px;
+}
+.subtitle {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: rgba(242, 240, 236, 0.55);
+  margin: 0 0 24px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(242, 240, 236, 0.55);
+}
+.inputWrap {
+  position: relative;
+}
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #091628;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: #f2f0ec;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+.input:focus {
+  border-color: #c4894a;
+  box-shadow: 0 0 0 2px rgba(196, 137, 74, 0.25);
+}
+.hasToggle {
+  padding-right: 84px;
+}
+.toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(242, 240, 236, 0.55);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.toggle:hover {
+  color: #c4894a;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(168, 105, 61, 0.4);
+  background: rgba(168, 105, 61, 0.12);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #e0a578;
+}
+
+.submit {
+  width: 100%;
+  margin-top: 4px;
+  border-radius: 10px;
+  border: 0;
+  background: linear-gradient(180deg, #d9a866 0%, #c4894a 100%);
+  padding: 13px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #091628;
+  cursor: pointer;
+  box-shadow: 0 12px 28px -10px rgba(196, 137, 74, 0.7);
+  transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
+}
+.submit:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.footer {
+  margin: 24px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(242, 240, 236, 0.55);
+}

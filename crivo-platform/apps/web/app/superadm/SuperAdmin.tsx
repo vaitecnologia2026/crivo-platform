@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@crivo/ui";
 import { adminLogin, clearAdminToken, getAdminToken, setAdminToken } from "@/lib/admin-api";
 import type { PlatformAdmin } from "@crivo/types";
 import { AdminShell } from "./AdminShell";
+import s from "./login.module.css";
 
 /**
  * Painel do Super Admin (control plane). Sessão separada da plataforma de tenant
@@ -80,10 +80,12 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
   }
 
   return (
-    <main className="min-h-screen grid place-items-center bg-azul-abismo px-6 font-body text-off-white">
-      <div className="w-full max-w-[380px]">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <svg viewBox="0 0 48 44" fill="none" aria-hidden="true" className="mb-3 h-10 w-10 text-off-white">
+    <main className={s.screen}>
+      <div aria-hidden className={s.glow} />
+
+      <div className={s.wrap}>
+        <div className={s.brand}>
+          <svg viewBox="0 0 48 44" fill="none" aria-hidden="true" className={s.mark}>
             <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
             <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
             <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
@@ -91,16 +93,14 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
             <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
             <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
           </svg>
-          <p className="font-display text-2xl tracking-[0.06em] text-off-white">CRIVO</p>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-terra-dourado">
-            Painel da Plataforma
-          </p>
+          <p className={s.brandName}>CRIVO</p>
+          <p className={s.brandSub}>Painel da Plataforma</p>
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="rounded-[6px] border border-[rgba(242,240,236,0.12)] bg-[rgba(255,255,255,0.03)] p-7"
-        >
+        <form onSubmit={onSubmit} className={s.card}>
+          <h1 className={s.title}>Entrar</h1>
+          <p className={s.subtitle}>Use suas credenciais de administrador global.</p>
+
           <Field
             label="E-mail"
             type="email"
@@ -108,14 +108,10 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
             onChange={setEmail}
             autoComplete="username"
             autoFocus
+            placeholder="voce@crivo.com"
           />
-          <Field
-            label="Senha"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            autoComplete="current-password"
-          />
+
+          <PasswordField value={password} onChange={setPassword} />
 
           {mfaRequired && (
             <Field
@@ -124,23 +120,27 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (a: PlatformAdmin) 
               value={totp}
               onChange={setTotp}
               autoComplete="one-time-code"
+              inputMode="numeric"
+              placeholder="000000"
               autoFocus
             />
           )}
 
           {error && (
-            <p className="mt-1 mb-3 text-[12px] text-terra-claro" role="alert">
-              {error}
-            </p>
+            <div className={s.error} role="alert">
+              <span aria-hidden>⚠</span>
+              <span>{error}</span>
+            </div>
           )}
 
-          <Button type="submit" variant="terra" block disabled={loading || !email || !password}>
+          <button type="submit" disabled={loading || !email || !password} className={s.submit}>
             {loading ? "Entrando…" : "Entrar"}
-          </Button>
+          </button>
         </form>
 
-        <p className="mt-5 text-center text-[11px] text-text-on-dark-sec">
-          Acesso restrito a administradores globais da CRIVO™.
+        <p className={s.footer}>
+          <span aria-hidden>🔒</span>
+          Acesso restrito a administradores globais da CRIVO™
         </p>
       </div>
     </main>
@@ -154,6 +154,8 @@ function Field({
   onChange,
   autoComplete,
   autoFocus,
+  placeholder,
+  inputMode,
 }: {
   label: string;
   type: string;
@@ -161,20 +163,50 @@ function Field({
   onChange: (v: string) => void;
   autoComplete?: string;
   autoFocus?: boolean;
+  placeholder?: string;
+  inputMode?: "numeric" | "text";
 }) {
   return (
-    <label className="mb-4 block">
-      <span className="mb-1.5 block text-[11px] uppercase tracking-[0.12em] text-text-on-dark-sec">
-        {label}
-      </span>
+    <label className={s.field}>
+      <span className={s.label}>{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         autoFocus={autoFocus}
-        className="w-full rounded-[3px] border border-[rgba(242,240,236,0.18)] bg-[rgba(9,22,40,0.6)] px-3 py-2.5 text-[14px] text-off-white outline-none transition-colors focus:border-terra-dourado"
+        placeholder={placeholder}
+        inputMode={inputMode}
+        className={s.input}
       />
+    </label>
+  );
+}
+
+/** Campo de senha com mostrar/ocultar. */
+function PasswordField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [show, setShow] = useState(false);
+  return (
+    <label className={s.field}>
+      <span className={s.label}>Senha</span>
+      <div className={s.inputWrap}>
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete="current-password"
+          className={`${s.input} ${s.hasToggle}`}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          tabIndex={-1}
+          aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+          className={s.toggle}
+        >
+          {show ? "Ocultar" : "Mostrar"}
+        </button>
+      </div>
     </label>
   );
 }

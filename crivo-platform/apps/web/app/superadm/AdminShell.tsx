@@ -119,7 +119,19 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
                 <span>Super Admin · CRIVO</span>
               </div>
             </div>
-            <button className="icon-btn" onClick={onLogout} title="Sair">↶</button>
+            <button
+              type="button"
+              className="btn btn--outline-dark btn--sm"
+              onClick={onLogout}
+              title="Encerrar sessão"
+              style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 17l-5-5 5-5M5 12h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Sair
+            </button>
           </div>
         </header>
 
