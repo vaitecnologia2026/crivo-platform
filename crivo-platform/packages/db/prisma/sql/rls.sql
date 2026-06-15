@@ -36,7 +36,12 @@ DECLARE
                          'assessment_cycles','assessments','responses','icd_scores','leads',
                          'tenant_modules','usage_counters','tenant_branding','library_items',
                          'action_plans','action_items','evidences',
-                         'self_assessments','essential_records','pareceres'];
+                         'self_assessments','essential_records','pareceres',
+                         -- ICD/Decisões/Pocket v1 (commit backlog P0–P2) — data plane.
+                         'decisions','decision_categories','decision_icd_scores',
+                         'affected_audiences','icd_cycles','company_quarterly_icd',
+                         'leader_quarterly_icd','sustentation_actions',
+                         'pocket_sessions','pocket_reflections','pocket_ai_summaries'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
@@ -60,6 +65,17 @@ BEGIN
 END
 $$;
 
+-- 3b) decision_audiences é tabela de JUNÇÃO (decisionId, audienceId) SEM tenantId.
+--     O isolamento vem do PAI (decisions, já protegido no item 3): só enxerga
+--     vínculos cujo decisionId pertença a uma decisão do tenant corrente. A
+--     subconsulta também é filtrada pela RLS de decisions (defesa em profundidade).
+ALTER TABLE "decision_audiences" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "decision_audiences" FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON "decision_audiences";
+CREATE POLICY tenant_isolation ON "decision_audiences"
+  USING ("decisionId" IN (SELECT id FROM "decisions" WHERE "tenantId" = current_tenant()))
+  WITH CHECK ("decisionId" IN (SELECT id FROM "decisions" WHERE "tenantId" = current_tenant()));
+
 -- 4) CONTROL PLANE (F1): super_admins e tenants são GLOBAIS (sem RLS por
 --    tenant). Habilitamos RLS SEM policy e SEM FORCE: o owner (conexão admin,
 --    BYPASSRLS) acessa normalmente, mas crivo_app (não-owner, sujeito à RLS)
@@ -72,7 +88,11 @@ DECLARE
   -- contexto) → acesso só via owner, como o restante do control plane.
   -- products + platform_leads: catálogo de produtos e CRM do super admin são
   -- globais (funil comercial da CRIVO) → owner-only, como o resto do control plane.
-  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads','contracts','ai_settings'];
+  -- Extras do Super Admin (commit backlog) acessados SÓ via owner (prisma.admin),
+  -- inclusive /me/mentorias (owner + filtro tenantId no app): mentorias tem
+  -- tenantId mas é gerida pelo control plane — owner-only, não FORCE-RLS.
+  ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads','contracts','ai_settings',
+                              'action_templates','editable_texts','global_academy_content','preliminary_reports','mentorias'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
