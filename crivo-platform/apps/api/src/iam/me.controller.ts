@@ -51,6 +51,103 @@ export class MeController {
     return { role: user.role, name: user.name };
   }
 
+  /** #63 — People Analytics agregado (Briefing §10, Matriz §People Analytics).
+   *  Cruzamentos disponíveis com dados que o sistema já coleta:
+   *  - Evolução do ICD oficial por ciclo trimestral
+   *  - Decisões agrupadas por categoria + fator de pressão
+   *  - Uso do Pocket por momento e formato
+   *  - Plano de ação: contagens por status × origem
+   *  Indicadores importados (turnover/clima/absenteísmo) ficam para fase
+   *  futura — o front exibe placeholder honesto quando ausentes. */
+  @Get('analytics')
+  async myAnalytics(@CurrentUser() user: SessionUser): Promise<{
+    icdEvolution: Array<{ cycleName: string; quarter: number; year: number; score: number | null; suppressed: boolean; eligibleLeaders: number; closedAt: string | null }>;
+    decisionsByCategory: Array<{ category: string; count: number }>;
+    decisionsByPressure: Array<{ pressureFactor: string; count: number }>;
+    pocketUsage: { totalSessions: number; concluded: number; byMoment: Record<string, number> };
+    planSummary: { total: number; byStatus: Record<string, number>; byOrigin: Record<string, number> };
+  }> {
+    // ICD oficial trimestral (CompanyQuarterlyIcd) com info do ciclo.
+    const icdRows = await this.prisma.admin.companyQuarterlyIcd.findMany({
+      where: { tenantId: user.tenantId },
+      orderBy: { computedAt: 'desc' },
+      take: 12,
+      include: { cycle: { select: { name: true, quarter: true, year: true, closedAt: true } } },
+    });
+    const icdEvolution = icdRows.reverse().map((r) => ({
+      cycleName: r.cycle.name,
+      quarter: r.cycle.quarter,
+      year: r.cycle.year,
+      score: r.score,
+      suppressed: r.suppressed,
+      eligibleLeaders: r.eligibleLeaders,
+      closedAt: r.cycle.closedAt ? r.cycle.closedAt.toISOString() : null,
+    }));
+
+    // Decisões — usa RLS (forTenant) para Decision/PocketSession/ActionItem.
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const decByCategoryRaw = await tx.decision.groupBy({
+        by: ['categoryId'],
+        _count: { _all: true },
+      });
+      const categoryIds = decByCategoryRaw.map((r) => r.categoryId).filter((c): c is string => !!c);
+      const categories = categoryIds.length
+        ? await tx.decisionCategory.findMany({
+            where: { id: { in: categoryIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+      const catMap = new Map(categories.map((c) => [c.id, c.name]));
+      const decisionsByCategory = decByCategoryRaw
+        .map((r) => ({
+          category: r.categoryId ? (catMap.get(r.categoryId) ?? 'Sem categoria') : 'Sem categoria',
+          count: r._count._all,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const decByPressureRaw = await tx.decision.groupBy({
+        by: ['pressureFactor'],
+        _count: { _all: true },
+      });
+      const decisionsByPressure = decByPressureRaw
+        .filter((r) => r.pressureFactor !== null)
+        .map((r) => ({ pressureFactor: r.pressureFactor!, count: r._count._all }))
+        .sort((a, b) => b.count - a.count);
+
+      // Pocket — uso agregado.
+      const totalSessions = await tx.pocketSession.count();
+      const concluded = await tx.pocketSession.count({ where: { status: 'CONCLUIDA' } });
+      const byMomentRaw = await tx.pocketSession.groupBy({
+        by: ['momentOfUse'],
+        _count: { _all: true },
+      });
+      const byMoment: Record<string, number> = {};
+      for (const r of byMomentRaw) byMoment[r.momentOfUse] = r._count._all;
+      const pocketUsage = { totalSessions, concluded, byMoment };
+
+      // Plano de ação — agrega por status e origem.
+      const items = await tx.actionItem.findMany({
+        select: { status: true, origin: true },
+      });
+      const byStatus: Record<string, number> = {};
+      const byOrigin: Record<string, number> = {};
+      for (const it of items) {
+        byStatus[it.status] = (byStatus[it.status] ?? 0) + 1;
+        const o = it.origin ?? 'sem origem';
+        byOrigin[o] = (byOrigin[o] ?? 0) + 1;
+      }
+      const planSummary = { total: items.length, byStatus, byOrigin };
+
+      return {
+        icdEvolution,
+        decisionsByCategory,
+        decisionsByPressure,
+        pocketUsage,
+        planSummary,
+      };
+    });
+  }
+
   /** #62 — Catálogo GLOBAL da Academia CRIVO publicado pelo Super Admin.
    *  Qualquer usuário autenticado pode ler. Importação para LibraryItem
    *  fica em POST /library/import-global/:contentId. */

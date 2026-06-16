@@ -109,6 +109,26 @@ export function getMyRole(): Promise<{ role: string; name: string }> {
   return apiFetch<{ role: string; name: string }>('/me/role');
 }
 
+/** #63 — People Analytics agregado do tenant. */
+export interface AnalyticsData {
+  icdEvolution: Array<{
+    cycleName: string;
+    quarter: number;
+    year: number;
+    score: number | null;
+    suppressed: boolean;
+    eligibleLeaders: number;
+    closedAt: string | null;
+  }>;
+  decisionsByCategory: Array<{ category: string; count: number }>;
+  decisionsByPressure: Array<{ pressureFactor: string; count: number }>;
+  pocketUsage: { totalSessions: number; concluded: number; byMoment: Record<string, number> };
+  planSummary: { total: number; byStatus: Record<string, number>; byOrigin: Record<string, number> };
+}
+export function getMyAnalytics(): Promise<AnalyticsData> {
+  return apiFetch<AnalyticsData>('/me/analytics');
+}
+
 /** #62 — Catálogo global Academia CRIVO + importação para biblioteca do tenant. */
 export interface GlobalAcademyLite {
   id: string;
