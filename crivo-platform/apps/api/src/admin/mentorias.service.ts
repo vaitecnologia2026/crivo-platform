@@ -26,9 +26,13 @@ export class MentoriasService {
     if (Number.isNaN(scheduled.getTime())) {
       throw new BadRequestException('scheduledAt inválido.');
     }
+    // #67 — Normaliza tenantId para `organizations.id` (data plane).
+    // Aceita tanto `Tenant.id` (control plane, comum no painel super admin)
+    // quanto `Organization.id` direto. Falha se não resolver.
+    const organizationId = await this.resolveOrganizationId(dto.tenantId);
     const row = await this.prisma.admin.mentoria.create({
       data: {
-        tenantId: dto.tenantId,
+        tenantId: organizationId,
         title: dto.title,
         format: dto.format,
         mentorName: dto.mentorName,
@@ -55,6 +59,20 @@ export class MentoriasService {
   async remove(id: string): Promise<{ ok: true }> {
     await this.prisma.admin.mentoria.delete({ where: { id } });
     return { ok: true as const };
+  }
+
+  /** Resolve o input do super admin (pode ser Tenant.id OU Organization.id)
+   *  para o `organizations.id` (data plane) que a Mentoria precisa. */
+  private async resolveOrganizationId(input: string): Promise<string> {
+    // Tenta como Tenant.id (control plane).
+    const tenant = await this.prisma.admin.tenant.findUnique({ where: { id: input } });
+    if (tenant) return tenant.organizationId;
+    // Tenta como Organization.id direto.
+    const org = await this.prisma.admin.organization.findUnique({ where: { id: input } });
+    if (org) return org.id;
+    throw new BadRequestException(
+      'tenantId não corresponde a nenhuma empresa (nem Tenant nem Organization).',
+    );
   }
 }
 

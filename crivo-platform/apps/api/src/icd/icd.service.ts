@@ -156,7 +156,7 @@ export class IcdService {
           status: 'OPEN',
         },
       });
-      return cycle.id;
+      return { id: cycle.id };
     });
   }
 
