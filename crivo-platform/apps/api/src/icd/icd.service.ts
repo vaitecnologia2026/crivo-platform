@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
 import type { SubmitIcdDto } from './dto';
-import type { DominantPattern } from '@crivo/types';
+import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
 @Injectable()
 export class IcdService {
@@ -342,6 +342,20 @@ export class IcdService {
       const latestByLeader = new Map<string, (typeof scores)[number]>();
       for (const s of scores) if (!latestByLeader.has(s.leaderId)) latestByLeader.set(s.leaderId, s);
       const latest = [...latestByLeader.values()];
+
+      // Confidencialidade §11: piso de respondentes. Com menos de
+      // MIN_LEADERS_FOR_DISCLOSURE líderes avaliados, NÃO devolve agregados
+      // (média/distribuição/dimensões) — senão expõe o resultado individual
+      // disfarçado de "agregado". Mantém só as contagens + flag suppressed.
+      if (latest.length < MIN_LEADERS_FOR_DISCLOSURE) {
+        return {
+          ...empty,
+          totalAvaliacoes: scores.length,
+          totalLideres: latest.length,
+          suppressed: true,
+          minLeaders: MIN_LEADERS_FOR_DISCLOSURE,
+        };
+      }
 
       const icdMedio = Math.round(latest.reduce((sum, s) => sum + s.score, 0) / latest.length);
 

@@ -1435,6 +1435,9 @@ export function computeCompanyQuarterlyIcd(
 } {
   const suppression = applyIcdSuppression(leaderScores.map((l) => l.score));
 
+  // Confidencialidade §11: sob supressão (<5 líderes), NÃO expor a distribuição
+  // por faixa nem as médias por eixo — com 1–4 líderes o histograma é, na prática,
+  // dado individual. Tudo zerado; só `eligibleLeaders` (contagem) e `suppressed`.
   const distribution: Record<IcdMaturityBand, number> = {
     CRITICA: 0,
     DESENVOLVIMENTO: 0,
@@ -1443,13 +1446,11 @@ export function computeCompanyQuarterlyIcd(
     AVANCADA: 0,
     ELEVADA: 0,
   };
-  for (const l of leaderScores) {
-    const band = getIcdMaturityBand(l.score);
-    distribution[band.key] += 1;
-  }
-
   const axesAverage: IcdAxesScores = { CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 };
   if (!suppression.suppressed && leaderScores.length > 0) {
+    for (const l of leaderScores) {
+      distribution[getIcdMaturityBand(l.score).key] += 1;
+    }
     for (const axis of ICD_AXES) {
       const sum = leaderScores.reduce((acc, l) => acc + (l.axesAverage[axis] ?? 0), 0);
       axesAverage[axis] = Math.round(sum / leaderScores.length);

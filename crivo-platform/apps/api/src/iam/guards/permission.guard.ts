@@ -25,10 +25,13 @@ export class PermissionGuard implements CanActivate {
     if (!required || required.length === 0) return true;
 
     const req = ctx.switchToHttp().getRequest<Request & { user?: SessionUser }>();
-    const role = req.user?.role;
-    if (!role) throw new ForbiddenException('Permissão insuficiente');
+    const user = req.user;
+    if (!user?.role) throw new ForbiddenException('Permissão insuficiente');
 
-    const granted = await this.perms.effectiveForRole(role);
+    // #68: usa effectiveForUser (papel de sistema + TenantRoles customizados),
+    // a MESMA fonte anunciada em /me/permissions — o guard agora APLICA de fato
+    // as permissões dos papéis customizados (antes só checava o papel de sistema).
+    const granted = await this.perms.effectiveForUser(user.tenantId, user.id, user.role);
     if (!required.every((p) => granted.has(p))) {
       throw new ForbiddenException('Permissão insuficiente');
     }

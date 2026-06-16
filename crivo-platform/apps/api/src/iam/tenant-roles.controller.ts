@@ -55,7 +55,7 @@ export class TenantRolesController {
   @Post()
   @RequirePermission('users:edit')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateTenantRoleDto) {
-    return this.svc.create(user.tenantId, dto, { id: user.id, email: user.email });
+    return this.svc.create(user.tenantId, dto, { id: user.id, email: user.email, role: user.role });
   }
 
   @Patch(':id')
@@ -65,7 +65,7 @@ export class TenantRolesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTenantRoleDto,
   ) {
-    return this.svc.update(user.tenantId, id, dto, { id: user.id, email: user.email });
+    return this.svc.update(user.tenantId, id, dto, { id: user.id, email: user.email, role: user.role });
   }
 
   @Delete(':id')

@@ -92,7 +92,11 @@ DECLARE
   -- inclusive /me/mentorias (owner + filtro tenantId no app): mentorias tem
   -- tenantId mas é gerida pelo control plane — owner-only, não FORCE-RLS.
   ctrl_tables text[] := ARRAY['super_admins','tenants','audit_log','tenant_domains','products','platform_leads','contracts','ai_settings',
-                              'action_templates','editable_texts','global_academy_content','preliminary_reports','mentorias'];
+                              'action_templates','editable_texts','global_academy_content','preliminary_reports','mentorias',
+                              -- RBAC dinâmico (#68): papéis customizados e atribuições. Acessados SÓ via
+                              -- prisma.admin (owner) com filtro tenantId no app (tenant-roles.service,
+                              -- effectiveForUser) → owner-only; crivo_app não deve ler papéis de outros tenants.
+                              'tenant_roles','user_roles'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

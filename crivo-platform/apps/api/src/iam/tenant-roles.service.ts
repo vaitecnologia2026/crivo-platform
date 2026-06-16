@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../admin/audit.service';
 import { PermissionService } from './permission.service';
@@ -7,6 +13,8 @@ import { PermissionService } from './permission.service';
 export interface RbacActor {
   id?: string;
   email?: string;
+  /** Papel de sistema do ator — necessário p/ checar posse das permissões concedidas. */
+  role?: string;
 }
 
 export interface TenantRoleData {
@@ -65,6 +73,7 @@ export class TenantRolesService {
     if (!code) throw new BadRequestException('Code inválido (use letras minúsculas, números e _).');
 
     await this.validatePermissions(dto.permissions);
+    await this.assertCanGrant(tenantId, actor, dto.permissions);
 
     const exists = await this.prisma.admin.tenantRole.findFirst({
       where: { tenantId, code },
@@ -102,7 +111,10 @@ export class TenantRolesService {
       where: { id, tenantId },
     });
     if (!existing) throw new NotFoundException('Papel não encontrado.');
-    if (dto.permissions) await this.validatePermissions(dto.permissions);
+    if (dto.permissions) {
+      await this.validatePermissions(dto.permissions);
+      await this.assertCanGrant(tenantId, actor, dto.permissions);
+    }
 
     const row = await this.prisma.admin.tenantRole.update({
       where: { id },
@@ -236,6 +248,26 @@ export class TenantRolesService {
     const invalid = perms.filter((p) => !validSet.has(p));
     if (invalid.length > 0) {
       throw new BadRequestException(`Permissões inválidas: ${invalid.join(', ')}.`);
+    }
+  }
+
+  /**
+   * Anti-escalonamento de privilégio: o ator só pode conceder permissões que ele
+   * PRÓPRIO possui (papel de sistema + papéis customizados). Sem isto, quem tem
+   * `users:edit` criaria papéis com qualquer permissão do catálogo (ex.:
+   * `parecer:manage`, `branding:edit`) e os atribuiria a si mesmo — tornando
+   * `users:edit` uma chave-mestra.
+   */
+  private async assertCanGrant(tenantId: string, actor: RbacActor, perms: string[]) {
+    if (!actor.id || !actor.role) {
+      throw new ForbiddenException('Ator não identificado para conceder permissões.');
+    }
+    const own = await this.permissions.effectiveForUser(tenantId, actor.id, actor.role);
+    const tooHigh = perms.filter((p) => !own.has(p));
+    if (tooHigh.length > 0) {
+      throw new ForbiddenException(
+        `Você não pode conceder permissões que não possui: ${tooHigh.join(', ')}.`,
+      );
     }
   }
 }
