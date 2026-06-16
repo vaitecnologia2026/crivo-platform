@@ -1247,8 +1247,11 @@ model Decision {
   // Momento em que a decisão foi tomada (não o registro). Anexo §5.1.
   decidedAt DateTime @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // Soft-delete (#77): líderes podem "remover" decisões EM_REGISTRO/REGISTRADA,
+  // mas o registro fica para auditoria (§17). NULL = ativo; timestamp = removido.
+  deletedAt DateTime?
 
   audiences          DecisionAudience[]
   sustentationAction SustentationAction?
@@ -1258,6 +1261,7 @@ model Decision {
   @@index([tenantId])
   @@index([leaderId])
   @@index([decidedAt])
+  @@index([deletedAt])
   @@map("decisions")
 }
 

@@ -10,5 +10,12 @@ export function applyAppConfig(app: INestApplication) {
     .map((o) => o.trim())
     .filter(Boolean);
   app.enableCors({ origin: origins.length ? origins : true, credentials: true });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // remove campos que não estão nos DTOs
+      forbidNonWhitelisted: true, // recusa com 400 quando há campos extras (não silencia)
+      transform: true, // converte payload para a classe DTO (com defaults)
+      transformOptions: { enableImplicitConversion: true }, // boolean string → boolean em query
+    }),
+  );
 }

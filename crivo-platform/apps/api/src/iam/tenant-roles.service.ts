@@ -1,6 +1,13 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../admin/audit.service';
 import { PermissionService } from './permission.service';
+
+/** Quem está executando a ação (vem do JWT via @CurrentUser no controller). */
+export interface RbacActor {
+  id?: string;
+  email?: string;
+}
 
 export interface TenantRoleData {
   id: string;
@@ -38,6 +45,7 @@ export class TenantRolesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(tenantId: string): Promise<TenantRoleData[]> {
@@ -48,7 +56,11 @@ export class TenantRolesService {
     return rows.map(toData);
   }
 
-  async create(tenantId: string, dto: CreateTenantRoleInput): Promise<TenantRoleData> {
+  async create(
+    tenantId: string,
+    dto: CreateTenantRoleInput,
+    actor: RbacActor = {},
+  ): Promise<TenantRoleData> {
     const code = normalizeCode(dto.code);
     if (!code) throw new BadRequestException('Code inválido (use letras minúsculas, números e _).');
 
@@ -70,10 +82,22 @@ export class TenantRolesService {
         active: true,
       },
     });
+    await this.audit.record({
+      action: 'tenant.role.create',
+      actor,
+      tenantId,
+      target: row.id,
+      meta: { code: row.code, name: row.name, permissionsCount: dto.permissions.length },
+    });
     return toData(row);
   }
 
-  async update(tenantId: string, id: string, dto: UpdateTenantRoleInput): Promise<TenantRoleData> {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateTenantRoleInput,
+    actor: RbacActor = {},
+  ): Promise<TenantRoleData> {
     const existing = await this.prisma.admin.tenantRole.findFirst({
       where: { id, tenantId },
     });
@@ -89,16 +113,33 @@ export class TenantRolesService {
         active: dto.active,
       },
     });
+    await this.audit.record({
+      action: 'tenant.role.update',
+      actor,
+      tenantId,
+      target: id,
+      meta: {
+        code: existing.code,
+        changed: Object.keys(dto).filter((k) => (dto as Record<string, unknown>)[k] !== undefined),
+      },
+    });
     return toData(row);
   }
 
-  async remove(tenantId: string, id: string): Promise<{ ok: true }> {
+  async remove(tenantId: string, id: string, actor: RbacActor = {}): Promise<{ ok: true }> {
     const existing = await this.prisma.admin.tenantRole.findFirst({
       where: { id, tenantId },
     });
     if (!existing) throw new NotFoundException('Papel não encontrado.');
     // Cascade remove UserRole automaticamente via FK.
     await this.prisma.admin.tenantRole.delete({ where: { id } });
+    await this.audit.record({
+      action: 'tenant.role.delete',
+      actor,
+      tenantId,
+      target: id,
+      meta: { code: existing.code, name: existing.name },
+    });
     return { ok: true as const };
   }
 
@@ -107,7 +148,7 @@ export class TenantRolesService {
     tenantId: string,
     roleId: string,
     userId: string,
-    assignedBy?: string,
+    actor: RbacActor = {},
   ): Promise<{ ok: true }> {
     const role = await this.prisma.admin.tenantRole.findFirst({
       where: { id: roleId, tenantId },
@@ -120,19 +161,42 @@ export class TenantRolesService {
     }
     await this.prisma.admin.userRole.upsert({
       where: { userId_tenantRoleId: { userId, tenantRoleId: roleId } },
-      create: { userId, tenantRoleId: roleId, assignedBy: assignedBy ?? null },
-      update: { assignedBy: assignedBy ?? null },
+      create: { userId, tenantRoleId: roleId, assignedBy: actor.email ?? null },
+      update: { assignedBy: actor.email ?? null },
+    });
+    await this.audit.record({
+      action: 'tenant.role.assign',
+      actor,
+      tenantId,
+      target: roleId,
+      meta: { roleCode: role.code, userId, userEmail: user.email },
     });
     return { ok: true as const };
   }
 
-  async unassignFromUser(tenantId: string, roleId: string, userId: string): Promise<{ ok: true }> {
+  async unassignFromUser(
+    tenantId: string,
+    roleId: string,
+    userId: string,
+    actor: RbacActor = {},
+  ): Promise<{ ok: true }> {
     const role = await this.prisma.admin.tenantRole.findFirst({
       where: { id: roleId, tenantId },
     });
     if (!role) throw new NotFoundException('Papel não encontrado neste tenant.');
+    const user = await this.prisma.admin.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
     await this.prisma.admin.userRole.deleteMany({
       where: { userId, tenantRoleId: roleId },
+    });
+    await this.audit.record({
+      action: 'tenant.role.unassign',
+      actor,
+      tenantId,
+      target: roleId,
+      meta: { roleCode: role.code, userId, userEmail: user?.email ?? null },
     });
     return { ok: true as const };
   }

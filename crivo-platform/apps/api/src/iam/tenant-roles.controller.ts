@@ -55,7 +55,7 @@ export class TenantRolesController {
   @Post()
   @RequirePermission('users:edit')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateTenantRoleDto) {
-    return this.svc.create(user.tenantId, dto);
+    return this.svc.create(user.tenantId, dto, { id: user.id, email: user.email });
   }
 
   @Patch(':id')
@@ -65,7 +65,7 @@ export class TenantRolesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTenantRoleDto,
   ) {
-    return this.svc.update(user.tenantId, id, dto);
+    return this.svc.update(user.tenantId, id, dto, { id: user.id, email: user.email });
   }
 
   @Delete(':id')
@@ -74,7 +74,7 @@ export class TenantRolesController {
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
-    return this.svc.remove(user.tenantId, id);
+    return this.svc.remove(user.tenantId, id, { id: user.id, email: user.email });
   }
 
   @Post(':id/users/:userId')
@@ -84,7 +84,10 @@ export class TenantRolesController {
     @Param('id', new ParseUUIDPipe()) roleId: string,
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ) {
-    return this.svc.assignToUser(user.tenantId, roleId, userId, user.email);
+    return this.svc.assignToUser(user.tenantId, roleId, userId, {
+      id: user.id,
+      email: user.email,
+    });
   }
 
   @Delete(':id/users/:userId')
@@ -94,6 +97,9 @@ export class TenantRolesController {
     @Param('id', new ParseUUIDPipe()) roleId: string,
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ) {
-    return this.svc.unassignFromUser(user.tenantId, roleId, userId);
+    return this.svc.unassignFromUser(user.tenantId, roleId, userId, {
+      id: user.id,
+      email: user.email,
+    });
   }
 }

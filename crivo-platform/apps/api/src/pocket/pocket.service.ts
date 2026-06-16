@@ -67,9 +67,11 @@ export class PocketService {
       if (dto.decisionId) {
         const decision = await tx.decision.findUnique({
           where: { id: dto.decisionId },
-          select: { leaderId: true },
+          select: { leaderId: true, deletedAt: true },
         });
-        if (!decision) throw new BadRequestException('Decisão informada não existe.');
+        if (!decision || decision.deletedAt) {
+          throw new BadRequestException('Decisão informada não existe.');
+        }
         if (decision.leaderId !== userId) {
           throw new ForbiddenException(
             'Só é possível vincular a uma decisão sua (§13 — privacidade).',

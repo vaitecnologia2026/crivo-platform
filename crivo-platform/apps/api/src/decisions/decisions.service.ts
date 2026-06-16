@@ -142,7 +142,7 @@ export class DecisionsService {
     onlyMine: boolean,
   ): Promise<DecisionData[]> {
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const where: any = {};
+      const where: any = { deletedAt: null }; // soft-delete (#77)
       if (onlyMine) where.leaderId = userId;
       if (query.status) where.status = query.status;
       if (query.impact) where.impact = query.impact;
@@ -182,7 +182,7 @@ export class DecisionsService {
           sustentationAction: true,
         },
       });
-      if (!row) throw new NotFoundException('Decisão não encontrada.');
+      if (!row || row.deletedAt) throw new NotFoundException('Decisão não encontrada.');
       if (isLeaderOnly && row.leaderId !== userId) {
         throw new ForbiddenException('Você só pode visualizar suas próprias decisões.');
       }
@@ -270,7 +270,7 @@ export class DecisionsService {
   ): Promise<DecisionData> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.decision.findUnique({ where: { id: decisionId } });
-      if (!existing) throw new NotFoundException('Decisão não encontrada.');
+      if (!existing || existing.deletedAt) throw new NotFoundException('Decisão não encontrada.');
       if (existing.leaderId !== userId) {
         throw new ForbiddenException('Apenas o líder dono da decisão pode editá-la.');
       }
@@ -339,10 +339,13 @@ export class DecisionsService {
     });
   }
 
+  /** Soft-delete (#77). Preserva a linha para auditoria (§17): seta deletedAt
+   *  em vez de DELETE físico. Listas/leituras filtram `deletedAt: null`.
+   *  Mantém a regra: decisão AVALIADA_PELO_ICD não pode ser removida. */
   async remove(tenantId: string, userId: string, decisionId: string): Promise<{ ok: true }> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.decision.findUnique({ where: { id: decisionId } });
-      if (!existing) throw new NotFoundException('Decisão não encontrada.');
+      if (!existing || existing.deletedAt) throw new NotFoundException('Decisão não encontrada.');
       if (existing.leaderId !== userId) {
         throw new ForbiddenException('Apenas o líder dono pode remover a decisão.');
       }
@@ -351,7 +354,10 @@ export class DecisionsService {
           'Decisão já avaliada pelo ICD — exclusão bloqueada (auditoria).',
         );
       }
-      await tx.decision.delete({ where: { id: decisionId } });
+      await tx.decision.update({
+        where: { id: decisionId },
+        data: { deletedAt: new Date() },
+      });
       return { ok: true as const };
     });
   }
@@ -369,7 +375,7 @@ export class DecisionsService {
   ): Promise<DecisionIcdData> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const decision = await tx.decision.findUnique({ where: { id: decisionId } });
-      if (!decision) throw new NotFoundException('Decisão não encontrada.');
+      if (!decision || decision.deletedAt) throw new NotFoundException('Decisão não encontrada.');
       if (decision.leaderId !== userId) {
         throw new ForbiddenException('Apenas o líder dono pode avaliar a decisão.');
       }
@@ -434,9 +440,9 @@ export class DecisionsService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const decision = await tx.decision.findUnique({
         where: { id: decisionId },
-        select: { leaderId: true },
+        select: { leaderId: true, deletedAt: true },
       });
-      if (!decision) throw new NotFoundException('Decisão não encontrada.');
+      if (!decision || decision.deletedAt) throw new NotFoundException('Decisão não encontrada.');
       if (decision.leaderId !== userId) {
         throw new ForbiddenException('Você só pode visualizar o ICD das suas decisões.');
       }

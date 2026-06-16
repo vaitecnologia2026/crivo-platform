@@ -72,7 +72,9 @@ export class MeController {
       });
       const termsAccepted = !!me?.termsAcceptedAt && me.termsVersion === TERMS_VERSION;
 
-      const decisionCount = await tx.decision.count({ where: { leaderId: user.id } });
+      const decisionCount = await tx.decision.count({
+        where: { leaderId: user.id, deletedAt: null },
+      });
       const pocketDone = await tx.pocketSession.count({
         where: { leaderId: user.id, status: 'CONCLUIDA' },
       });
@@ -133,6 +135,7 @@ export class MeController {
     return this.prisma.forTenant(user.tenantId, async (tx) => {
       const decByCategoryRaw = await tx.decision.groupBy({
         by: ['categoryId'],
+        where: { deletedAt: null },
         _count: { _all: true },
       });
       const categoryIds = decByCategoryRaw.map((r) => r.categoryId).filter((c): c is string => !!c);
@@ -152,6 +155,7 @@ export class MeController {
 
       const decByPressureRaw = await tx.decision.groupBy({
         by: ['pressureFactor'],
+        where: { deletedAt: null },
         _count: { _all: true },
       });
       const decisionsByPressure = decByPressureRaw
