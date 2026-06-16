@@ -403,12 +403,12 @@ export default function DesignSystemPage() {
           </div>
           <div className="ds-btn-demo">
             <div className="ds-btn-cell ds-bg-light">
-              <button className="dsb dsb--terra">Solicitar diagnóstico</button>
+              <button className="dsb dsb--terra">Fazer diagnóstico inicial</button>
               <button className="dsb dsb--outline-dark">Falar com especialista</button>
               <span className="ds-logo-label">Sobre claro</span>
             </div>
             <div className="ds-btn-cell ds-bg-dark">
-              <button className="dsb dsb--terra">Solicitar diagnóstico</button>
+              <button className="dsb dsb--terra">Fazer diagnóstico inicial</button>
               <button className="dsb dsb--ghost">Falar com especialista</button>
               <span className="ds-logo-label">Sobre escuro</span>
             </div>

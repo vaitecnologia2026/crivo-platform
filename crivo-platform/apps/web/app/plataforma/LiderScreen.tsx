@@ -282,6 +282,14 @@ export function LiderScreen() {
           </ul>
         </div>
       )}
+
+      {/* Frase obrigatória de governança (Anexo ICD do Líder v1, §11). */}
+      <p className="dash-privacy" role="note">
+        <strong>Governança ICD · §11 — </strong>
+        O ICD do Líder é ferramenta de desenvolvimento e sustentação da liderança.
+        Não deve ser utilizado para ranking individual, punição, promoção,
+        avaliação de performance ou comparação nominal entre líderes.
+      </p>
     </>
   );
 }

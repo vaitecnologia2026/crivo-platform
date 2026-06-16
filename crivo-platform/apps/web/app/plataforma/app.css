@@ -210,10 +210,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   display: none;
   margin-top: 16px;
   padding: 12px 14px;
-  background: rgba(220, 80, 80, 0.12);
-  border: 1px solid rgba(220, 80, 80, 0.35);
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
   border-radius: 10px;
-  color: #ffb4b4;
+  color: var(--warn);
   font-size: 13px;
   text-align: center;
 }
@@ -225,15 +225,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line);
   color: var(--text-sec); font-size: 14px; text-align: center;
 }
-.dash-state--error { color: #ffb4b4; border-color: rgba(220, 80, 80, 0.35); }
+.dash-state--error { color: var(--danger); border-color: var(--danger-soft); }
 .dash-state .btn { margin-left: 8px; }
 .dash-dist { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 4px; }
 .dash-dist__item { font-size: 12px; color: var(--text-sec); }
 .dash-dist__item strong { color: var(--text); }
 .dash-score { font-variant-numeric: tabular-nums; }
-.dash-score.is-high { color: #5fbf8f; }
+.dash-score.is-high { color: var(--success); }
 .dash-score.is-mid { color: var(--gold); }
-.dash-score.is-low { color: #e0875f; }
+.dash-score.is-low { color: var(--gold-deep); }
 
 /* Breakdown de dimensões do ICD (IcdScreen) */
 .icd-dims { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; }
@@ -241,9 +241,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .icd-dim__top strong { font-variant-numeric: tabular-nums; }
 .icd-dim__bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
 .icd-dim__fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; background: var(--gold); }
-.icd-dim__fill.is-high { background: #5fbf8f; }
+.icd-dim__fill.is-high { background: var(--success); }
 .icd-dim__fill.is-mid { background: var(--gold); }
-.icd-dim__fill.is-low { background: #e0875f; }
+.icd-dim__fill.is-low { background: var(--gold-deep); }
 
 /* Select de estágio nos cards do CRM (CrmScreen) */
 .kb-stage {
@@ -1948,9 +1948,9 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 /* ==================== DASHBOARD EXECUTIVO (§7 — diagnóstico + plano) ==================== */
 /* Tom semáfórico do "Nível de Atenção Organizacional" (§10 faixas). */
 .dash-attn { font-family: var(--font-display); font-size: 24px; }
-.dash-attn--ok   { color: #5fbf8f; }
+.dash-attn--ok   { color: var(--success); }
 .dash-attn--alert{ color: var(--gold-deep); }
-.dash-attn--crit { color: #e0875f; }
+.dash-attn--crit { color: var(--gold-deep); }
 .dash-attn--na   { color: var(--text-mute); }
 
 /* Frase obrigatória §11 — rodapé sutil, sem competir com os cards. */

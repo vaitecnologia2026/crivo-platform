@@ -109,7 +109,7 @@ export class PreliminaryReportsService {
       // #60 — Rodapé do e-mail editável pelo Super Admin sem deploy.
       const footer = await this.texts.render(
         'EMAIL_PRELIMINARY_FOOTER',
-        'Este é um relatório preliminar gerado a partir do Diagnóstico Inicial CRIVO. Não substitui AEP/PGR nem Diagnóstico Essencial/Organizacional.',
+        'Este é um relatório preliminar gerado por IA a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
       );
       const send = await this.sendEmail({
         to: recipient,
@@ -148,7 +148,7 @@ export class PreliminaryReportsService {
     });
     const footer = await this.texts.render(
       'EMAIL_PRELIMINARY_FOOTER',
-      'Este é um relatório preliminar gerado a partir do Diagnóstico Inicial CRIVO. Não substitui AEP/PGR nem Diagnóstico Essencial/Organizacional.',
+      'Este é um relatório preliminar gerado por IA a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
     );
     const send = await this.sendEmail({
       to: sendTo,
