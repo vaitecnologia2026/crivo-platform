@@ -109,6 +109,19 @@ export function getMyRole(): Promise<{ role: string; name: string }> {
   return apiFetch<{ role: string; name: string }>('/me/role');
 }
 
+/** #65 — Onboarding checklist (5 marcos do primeiro uso). */
+export interface OnboardingStatus {
+  termsAccepted: boolean;
+  firstDecisionRegistered: boolean;
+  firstPocketCompleted: boolean;
+  firstCampaignCreated: boolean;
+  firstPlanValidated: boolean;
+  allDone: boolean;
+}
+export function getMyOnboardingStatus(): Promise<OnboardingStatus> {
+  return apiFetch<OnboardingStatus>('/me/onboarding-status');
+}
+
 /** #63 — People Analytics agregado do tenant. */
 export interface AnalyticsData {
   icdEvolution: Array<{

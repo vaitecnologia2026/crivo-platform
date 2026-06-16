@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
 import { listActionPlans } from "@/lib/api";
+import { OnboardingChecklist } from "./OnboardingChecklist";
 import {
   ACTION_STATUS_LABEL,
   getIcdMaturityBand,
@@ -116,6 +117,9 @@ export function DashboardScreen() {
 
       {status === "ok" && (
         <>
+          {/* #65 — Checklist de onboarding (some quando tudo está done). */}
+          <OnboardingChecklist />
+
           {/* ─── CARDS PRINCIPAIS (Diagnóstico + Plano de Ação) ─────────── */}
           <div className="kpi-grid">
             <div className="kpi">

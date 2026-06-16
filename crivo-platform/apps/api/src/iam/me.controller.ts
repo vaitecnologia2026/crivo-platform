@@ -51,6 +51,49 @@ export class MeController {
     return { role: user.role, name: user.name };
   }
 
+  /** #65 — Onboarding checklist do tenant. Retorna 5 marcos do primeiro
+   *  uso, para o Dashboard guiar o cliente nos primeiros passos. Some
+   *  do Dashboard quando `allDone` é true. */
+  @Get('onboarding-status')
+  async myOnboardingStatus(@CurrentUser() user: SessionUser): Promise<{
+    termsAccepted: boolean;
+    firstDecisionRegistered: boolean;
+    firstPocketCompleted: boolean;
+    firstCampaignCreated: boolean;
+    firstPlanValidated: boolean;
+    allDone: boolean;
+  }> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const me = await tx.user.findUnique({
+        where: { id: user.id },
+        select: { termsAcceptedAt: true, termsVersion: true },
+      });
+      const termsAccepted = !!me?.termsAcceptedAt && me.termsVersion === TERMS_VERSION;
+
+      const decisionCount = await tx.decision.count({ where: { leaderId: user.id } });
+      const pocketDone = await tx.pocketSession.count({
+        where: { leaderId: user.id, status: 'CONCLUIDA' },
+      });
+      const campaignCount = await tx.assessmentCycle.count();
+      const validatedPlan = await tx.actionPlan.count({ where: { validatedAt: { not: null } } });
+
+      const status = {
+        termsAccepted,
+        firstDecisionRegistered: decisionCount > 0,
+        firstPocketCompleted: pocketDone > 0,
+        firstCampaignCreated: campaignCount > 0,
+        firstPlanValidated: validatedPlan > 0,
+      };
+      const allDone =
+        status.termsAccepted &&
+        status.firstDecisionRegistered &&
+        status.firstPocketCompleted &&
+        status.firstCampaignCreated &&
+        status.firstPlanValidated;
+      return { ...status, allDone };
+    });
+  }
+
   /** #63 — People Analytics agregado (Briefing §10, Matriz §People Analytics).
    *  Cruzamentos disponíveis com dados que o sistema já coleta:
    *  - Evolução do ICD oficial por ciclo trimestral
