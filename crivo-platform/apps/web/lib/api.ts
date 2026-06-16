@@ -109,6 +109,58 @@ export function getMyRole(): Promise<{ role: string; name: string }> {
   return apiFetch<{ role: string; name: string }>('/me/role');
 }
 
+/** #68 — RBAC dinâmico: tenant-roles + usuários. */
+export interface TenantRoleData {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  isCustom: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface UserWithRoles {
+  id: string;
+  email: string;
+  name: string;
+  systemRole: string;
+  customRoles: { id: string; name: string; code: string }[];
+}
+
+export function listTenantRoles(): Promise<TenantRoleData[]> {
+  return apiFetch<TenantRoleData[]>('/tenant-roles');
+}
+export function listTenantUsers(): Promise<UserWithRoles[]> {
+  return apiFetch<UserWithRoles[]>('/tenant-roles/users');
+}
+export function createTenantRole(dto: {
+  code: string; name: string; description?: string; permissions: string[];
+}): Promise<TenantRoleData> {
+  return apiFetch<TenantRoleData>('/tenant-roles', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function updateTenantRole(id: string, dto: {
+  name?: string; description?: string | null; permissions?: string[]; active?: boolean;
+}): Promise<TenantRoleData> {
+  return apiFetch<TenantRoleData>(`/tenant-roles/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  });
+}
+export function removeTenantRole(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/tenant-roles/${id}`, { method: 'DELETE' });
+}
+export function assignTenantRole(roleId: string, userId: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/tenant-roles/${roleId}/users/${userId}`, { method: 'POST' });
+}
+export function unassignTenantRole(roleId: string, userId: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/tenant-roles/${roleId}/users/${userId}`, { method: 'DELETE' });
+}
+
 /** #65 — Onboarding checklist (5 marcos do primeiro uso). */
 export interface OnboardingStatus {
   termsAccepted: boolean;

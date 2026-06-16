@@ -175,6 +175,11 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="historico-root"></div>
       </section>
 
+      <!-- ============ PAPÉIS & PERMISSÕES (#68) ============ -->
+      <section class="route" data-route="papeis">
+        <div id="papeis-root"></div>
+      </section>
+
       <!-- ============ BIBLIOTECA & CURSOS ============ -->
       <section class="route" data-route="biblioteca">
         <div id="biblioteca-root"></div>

@@ -253,6 +253,50 @@ enum PreliminaryReportStatus {
   ERRO
 }
 
+// =====================================================================
+// RBAC DINÂMICO POR TENANT (#68) — papéis customizados por empresa.
+// User.role (enum) continua existindo como FALLBACK; um usuário também
+// pode receber 1..N TenantRole (multi-papel). PermissionService combina
+// ambos para resolver as permissões efetivas.
+// Vive no DATA PLANE (tem tenantId, sob RLS).
+// =====================================================================
+
+model TenantRole {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Slug curto e estável (ex: "lider_comercial"). Único por tenant.
+  code        String
+  name        String
+  description String?
+  // Lista de Permission.code (ex: "leads:view", "icd:submit"). Validada no service.
+  permissions String[]     @default([])
+  // Marca papéis criados via UI vs seed (não é o enum global Role, que é "system").
+  isCustom    Boolean      @default(true)
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  userRoles UserRole[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("tenant_roles")
+}
+
+model UserRole {
+  userId       String     @db.Uuid
+  tenantRoleId String     @db.Uuid
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantRole   TenantRole @relation(fields: [tenantRoleId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime   @default(now())
+  assignedBy   String? // e-mail/nome do operador que atribuiu
+
+  @@id([userId, tenantRoleId])
+  @@index([tenantRoleId])
+  @@map("user_roles")
+}
+
 // Mentoria (Matriz §Mentorias / Briefing §10). Formato e status controlados.
 enum MentoriaFormat {
   ONLINE
@@ -800,6 +844,7 @@ model Organization {
   PocketSession       PocketSession[]
   PocketReflection    PocketReflection[]
   PocketAiSummary     PocketAiSummary[]
+  TenantRole          TenantRole[]
 
   @@map("organizations")
 }
@@ -878,6 +923,7 @@ model User {
   decisionIcdScoresMine    DecisionIcdScore[]   @relation("LeaderDecisionIcdScores")
   leaderQuarterlyIcdScores LeaderQuarterlyIcd[] @relation("LeaderQuarterlyIcdScores")
   pocketSessions           PocketSession[]      @relation("LeaderPocketSessions")
+  userRoles                UserRole[] // #68 — multi-papel dinâmico
 
   // E-mail único POR tenant (mesmo e-mail pode existir em orgs diferentes)
   @@unique([tenantId, email])

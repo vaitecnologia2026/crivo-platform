@@ -9,6 +9,8 @@ import { PermissionGuard } from './guards/permission.guard';
 import { ModuleGuard } from './guards/module.guard';
 import { PermissionService } from './permission.service';
 import { ModuleService } from './module.service';
+import { TenantRolesController } from './tenant-roles.controller';
+import { TenantRolesService } from './tenant-roles.service';
 
 @Module({
   imports: [
@@ -31,7 +33,7 @@ import { ModuleService } from './module.service';
       },
     }),
   ],
-  controllers: [AuthController, MeController],
+  controllers: [AuthController, MeController, TenantRolesController],
   providers: [
     AuthService,
     AuthGuard,
@@ -40,6 +42,7 @@ import { ModuleService } from './module.service';
     ModuleGuard,
     PermissionService,
     ModuleService,
+    TenantRolesService,
   ],
   exports: [
     AuthService,

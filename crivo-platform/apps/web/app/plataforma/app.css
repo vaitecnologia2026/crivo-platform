@@ -1820,6 +1820,20 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
   .camp-form__grid { grid-template-columns: 1fr; }
 }
 
+/* ==================== RBAC DINÂMICO — Papéis & Permissões (#68) ==================== */
+.role-list, .user-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.role-item, .user-item { padding: 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); }
+.role-item.is-inactive { opacity: .55; background: transparent; }
+.role-item__head, .user-item__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.role-item__head strong { font-family: var(--font-display); font-size: 14px; }
+.role-item__desc { font-size: 12.5px; color: var(--text-sec); margin: 4px 0; }
+.role-item__perms { font-size: 12px; color: var(--text-sec); margin-bottom: 10px; }
+.role-item__perms code { font-family: var(--font-mono); font-size: 11px; }
+.role-item__actions { display: flex; gap: 12px; }
+.user-item__roles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.role-form .pill { transition: background .15s ease; font-size: 11.5px; }
+.role-form .pill:hover { opacity: .85; }
+
 /* ==================== MOBILE POLISH (#66) ==================== */
 /* Botão hambúrguer escondido em desktop, aparece em <=768px. */
 .topbar__menu {

@@ -28,4 +28,28 @@ export class PermissionService {
     this.cache.set(roleCode, set);
     return set;
   }
+
+  /** #68 — Permissões efetivas de um USUÁRIO: une o papel de sistema
+   *  (User.role enum) com TODOS os TenantRole customizados atribuídos via
+   *  UserRole. RBAC dinâmico aditivo: nunca remove permissão do papel
+   *  legado, só adiciona. Sem cache (precisa refletir mudanças de UserRole). */
+  async effectiveForUser(
+    tenantId: string,
+    userId: string,
+    systemRoleCode: string,
+  ): Promise<Set<string>> {
+    const base = await this.effectiveForRole(systemRoleCode);
+    const combined = new Set(base);
+    const userRoles = await this.prisma.admin.userRole.findMany({
+      where: {
+        userId,
+        tenantRole: { tenantId, active: true },
+      },
+      include: { tenantRole: { select: { permissions: true } } },
+    });
+    for (const ur of userRoles) {
+      for (const p of ur.tenantRole.permissions) combined.add(p);
+    }
+    return combined;
+  }
 }

@@ -182,6 +182,13 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Organização', icon: '⚙' },
       { label: 'Usuários', icon: '◌' },
+      {
+        route: 'papeis',
+        label: 'Papéis & Permissões',
+        icon: '▥',
+        perm: 'users:view',
+        breadcrumb: { path: 'Configurações', current: 'Papéis & Permissões' },
+      },
     ],
   },
 ];

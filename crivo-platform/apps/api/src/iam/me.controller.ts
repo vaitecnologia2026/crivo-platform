@@ -39,10 +39,12 @@ export class MeController {
     return [...(await this.modules.enabledFor(user.tenantId))];
   }
 
-  /** Permissões efetivas (modulo:acao) do papel do usuário — filtra o menu. */
+  /** Permissões efetivas (modulo:acao) do usuário — filtra o menu.
+   *  #68 — Une o papel de sistema (User.role) com TenantRoles customizados
+   *  via UserRole. RBAC dinâmico aditivo (legacy + custom). */
   @Get('permissions')
   async myPermissions(@CurrentUser() user: SessionUser): Promise<string[]> {
-    return [...(await this.permissions.effectiveForRole(user.role))];
+    return [...(await this.permissions.effectiveForUser(user.tenantId, user.id, user.role))];
   }
 
   /** Papel do usuário logado — define a HOME inicial e a área padrão (#51). */

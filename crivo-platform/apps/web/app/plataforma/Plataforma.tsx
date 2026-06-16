@@ -33,6 +33,7 @@ import { SoonScreen } from "./SoonScreen";
 import { HistoricoScreen } from "./HistoricoScreen";
 import { MentoriasScreen } from "./MentoriasScreen";
 import { AnalyticsScreen } from "./AnalyticsScreen";
+import { RolesScreen } from "./RolesScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
@@ -152,6 +153,7 @@ export function Plataforma() {
       if (name === "mentorias") mountIsland("mentorias-root", <MentoriasScreen />);
       if (name === "analytics") mountIsland("analytics-root", <AnalyticsScreen />);
       if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
+      if (name === "papeis") mountIsland("papeis-root", <RolesScreen />);
       const meta = routeMeta[name];
       if (meta) {
         if (bcPath) bcPath.textContent = meta.path;
