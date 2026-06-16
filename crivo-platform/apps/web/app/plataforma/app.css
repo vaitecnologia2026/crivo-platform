@@ -1820,6 +1820,96 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
   .camp-form__grid { grid-template-columns: 1fr; }
 }
 
+/* ==================== MOBILE POLISH (#66) ==================== */
+/* Botão hambúrguer escondido em desktop, aparece em <=768px. */
+.topbar__menu {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  background: transparent; border: 0;
+  color: var(--ink-700); font-size: 22px; cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.topbar__menu:hover { background: var(--line-soft); }
+
+@media (max-width: 768px) {
+  .topbar__menu { display: inline-flex; }
+
+  /* Layout do shell: sidebar vira drawer fora da tela. */
+  .screen--app.is-active {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; width: 280px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 200;
+    box-shadow: var(--shadow-3);
+  }
+  .sidebar.is-open { transform: translateX(0); }
+  /* Overlay escurecido (uma única regra; o ::after fica sobre o main) */
+  .sidebar.is-open::after {
+    content: ""; position: fixed; inset: 0;
+    left: 280px; right: 0; top: 0; bottom: 0;
+    background: rgba(11,31,51,0.45); z-index: -1;
+  }
+
+  /* Topbar mais compacta. */
+  .topbar { padding: 10px 14px; gap: 8px; }
+  .topbar__breadcrumb { font-size: 13px; gap: 6px; flex: 1; min-width: 0; }
+  .bc__path { display: none; }
+  .bc__sep { display: none; }
+  .bc__current { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar__actions { gap: 6px; }
+  .topbar__actions .icon-btn { padding: 6px 8px; }
+  .user-chip { display: none; }
+  .search { display: none; }
+
+  /* Conteúdo: route precisa de padding menor + grids viram 1 coluna. */
+  .route { padding: 18px 14px; }
+  .route__head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .route__actions { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+  .page-title { font-size: 20px; }
+  .page-sub { font-size: 12.5px; }
+
+  .grid--2, .grid--3, .grid--icd, .grid--leader,
+  .grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .kpi-grid { grid-template-columns: 1fr !important; gap: 12px; }
+  .kpi { padding: 14px; }
+  .kpi__value { font-size: 26px; }
+  .kpi__label { font-size: 11px; }
+
+  /* Cards mais econômicos. */
+  .card { padding: 14px; }
+  .card__head { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  /* Tabelas: scroll horizontal preserva conteúdo. */
+  .data-table {
+    display: block; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  .data-table thead, .data-table tbody, .data-table tr { display: table; width: 100%; table-layout: auto; }
+
+  /* Forms: campos em coluna. */
+  .prod-form__grid { grid-template-columns: 1fr !important; }
+  .camp-form__grid { grid-template-columns: 1fr !important; }
+  .camp-form__actions { justify-content: stretch; }
+  .camp-form__actions .btn { flex: 1; }
+  .camp-row-actions { gap: 8px; }
+}
+
+@media (max-width: 480px) {
+  .topbar { padding: 8px 10px; }
+  .route { padding: 14px 10px; }
+  .page-title { font-size: 18px; }
+  .kpi__value { font-size: 22px; }
+  .card { padding: 12px; }
+  .pocket-question { font-size: 18px; }
+  .btn { padding: 8px 12px; font-size: 12.5px; }
+  .btn--sm { padding: 6px 10px; font-size: 11.5px; }
+}
+
 /* ==================== ONBOARDING CHECKLIST (#65) ==================== */
 .onboarding { border-left: 4px solid var(--gold); }
 .onboarding-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }

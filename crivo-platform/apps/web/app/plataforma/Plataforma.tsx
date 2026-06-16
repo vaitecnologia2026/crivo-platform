@@ -287,6 +287,23 @@ export function Plataforma() {
     }
     if (chgPwdBtn) on(chgPwdBtn, "click", openChangePassword);
 
+    // #66 — Mobile drawer da sidebar. Toggle pelo botão hambúrguer; fecha
+    // automaticamente ao clicar num item da nav ou no overlay/main.
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const aside = document.querySelector(".sidebar");
+    if (sidebarToggle && aside) {
+      on(sidebarToggle, "click", (e) => {
+        e.stopPropagation();
+        aside.classList.toggle("is-open");
+      });
+      navItems.forEach((n) => on(n, "click", () => aside.classList.remove("is-open")));
+      // Fecha ao clicar fora (no main / overlay)
+      const mainEl = document.querySelector(".main");
+      if (mainEl) on(mainEl, "click", () => {
+        if (window.innerWidth <= 768) aside.classList.remove("is-open");
+      });
+    }
+
     navItems.forEach((item) =>
       on(item, "click", (e) => {
         e.preventDefault();

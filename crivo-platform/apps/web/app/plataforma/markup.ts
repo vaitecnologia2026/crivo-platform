@@ -83,6 +83,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
     <!-- Main -->
     <main class="main">
       <header class="topbar">
+        <button id="sidebarToggle" class="topbar__menu" type="button" aria-label="Abrir menu" title="Menu">☰</button>
         <div class="topbar__breadcrumb">
           <span class="bc__path" id="bcPath">Dashboard</span>
           <span class="bc__sep">/</span>
