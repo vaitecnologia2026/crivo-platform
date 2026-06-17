@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getMyModules, getMyPermissions, getMyBranding, getMyRole, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getToken, getMyModules, getMyPermissions, getMyBranding, setToken, clearToken } from "@/lib/api";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -184,6 +184,45 @@ export function Plataforma() {
       }
     });
 
+    // ---------- ENTRADA NA PLATAFORMA (login novo OU restauração de sessão) ----------
+    // Reutilizado pelo submit do login e pela restauração no F5. Carrega o acesso
+    // (módulos/permissões/branding) ANTES de decidir a HOME — assim a home-por-papel
+    // não cai numa tela de módulo que a empresa não tem (sem isto, com acesso=null o
+    // routeVisible é fail-open). Sem acesso confirmado, entra no DEFAULT_ROUTE.
+    const enterApp = async (role: string | null): Promise<void> => {
+      let accessLoaded = false;
+      try {
+        const [mods, perms, branding] = await Promise.all([
+          getMyModules(),
+          getMyPermissions(),
+          getMyBranding(),
+        ]);
+        enabledModules = new Set(mods);
+        permissions = new Set(perms);
+        applyModuleVisibility();
+        removeBranding?.();
+        removeBranding = applyBranding(branding);
+        accessLoaded = true;
+        routerLog.info(`módulos: ${mods.join(", ") || "—"} · permissões: ${perms.join(", ") || "—"}`);
+      } catch (err) {
+        // 401 (sessão expirada) já é tratado pelo apiFetch (limpa token + volta ao login).
+        routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
+      }
+      login.classList.remove("is-active");
+      app.classList.add("is-active");
+      const home = accessLoaded ? homeForRole(role) : DEFAULT_ROUTE;
+      if (home !== DEFAULT_ROUTE) setRoute(home);
+      else mountIsland("dash-root", <DashboardScreen />);
+      animateBars();
+    }
+
+    // Restaura a sessão no F5/reabertura: com token válido, entra direto (sem
+    // jogar o usuário de volta ao login). Token expirado → o 1º fetch 401 →
+    // apiFetch limpa e volta ao login.
+    if (getToken()) {
+      void enterApp(readCachedRole());
+    }
+
     // ---------- LOGIN FLOW (autenticação real via API) ----------
     const loginError = document.getElementById("loginError");
     on(loginForm, "submit", async (e) => {
@@ -210,37 +249,11 @@ export function Plataforma() {
           { redirectOn401: false }, // 401 aqui = credenciais inválidas, não sessão expirada
         );
         setToken(r.token);
-        login.classList.remove("is-active");
-        app.classList.add("is-active");
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
-        // Nav data-driven: oculta o que a empresa não tem no plano (módulo) e o
-        // que o papel não pode ver (permissão). Falha-aberto se a busca falhar —
-        // a API ainda gateia o acesso.
-        let homeRole: string | null = r.user.role ?? null;
+        const homeRole: string | null = r.user.role ?? null;
         if (homeRole) cacheRole(homeRole);
-        try {
-          const [mods, perms, branding] = await Promise.all([
-            getMyModules(),
-            getMyPermissions(),
-            getMyBranding(),
-          ]);
-          enabledModules = new Set(mods);
-          permissions = new Set(perms);
-          applyModuleVisibility();
-          removeBranding?.();
-          removeBranding = applyBranding(branding); // white-label: tokens --crivo-* por empresa
-          routerLog.info(`módulos: ${mods.join(", ") || "—"} · permissões: ${perms.join(", ") || "—"}`);
-        } catch (err) {
-          routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
-        }
-        // #51 — HOME inicial por papel; cai no dashboard se rota indisponível.
-        const home = homeForRole(homeRole);
-        if (home !== DEFAULT_ROUTE) {
-          setRoute(home);
-        } else {
-          mountIsland("dash-root", <DashboardScreen />); // Dashboard com dados reais
-        }
-        animateBars();
+        // Mesma entrada da restauração de sessão: carrega acesso → HOME por papel.
+        await enterApp(homeRole);
       } catch (err) {
         clearToken();
         authLog.warn("falha no login", err);

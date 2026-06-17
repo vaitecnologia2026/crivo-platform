@@ -32,27 +32,33 @@ export class DecisionsService {
   /** Garante que o tenant tem as categorias/audiências padrão criadas (idempotente).
    *  Chamado em qualquer leitura — custo mínimo após a primeira execução. */
   private async ensureDefaults(tenantId: string, tx: any) {
+    // Idempotente e seguro sob concorrência: createMany + skipDuplicates apoiado
+    // no @@unique([tenantId, slug]) — duas requisições do 1º acesso não duplicam
+    // (a 2ª insere só o que falta). O count é só atalho p/ pular após semeado.
     const catCount = await tx.decisionCategory.count({ where: { isDefault: true } });
     if (catCount === 0) {
-      for (const [i, c] of DEFAULT_DECISION_CATEGORIES.entries()) {
-        await tx.decisionCategory.create({
-          data: {
-            tenantId,
-            name: c.name,
-            slug: c.slug,
-            isDefault: true,
-            order: i,
-          },
-        });
-      }
+      await tx.decisionCategory.createMany({
+        data: DEFAULT_DECISION_CATEGORIES.map((c, i) => ({
+          tenantId,
+          name: c.name,
+          slug: c.slug,
+          isDefault: true,
+          order: i,
+        })),
+        skipDuplicates: true,
+      });
     }
     const audCount = await tx.affectedAudience.count();
     if (audCount === 0) {
-      for (const [i, a] of DEFAULT_AFFECTED_AUDIENCES.entries()) {
-        await tx.affectedAudience.create({
-          data: { tenantId, name: a.name, slug: a.slug, order: i },
-        });
-      }
+      await tx.affectedAudience.createMany({
+        data: DEFAULT_AFFECTED_AUDIENCES.map((a, i) => ({
+          tenantId,
+          name: a.name,
+          slug: a.slug,
+          order: i,
+        })),
+        skipDuplicates: true,
+      });
     }
   }
 
@@ -277,6 +283,14 @@ export class DecisionsService {
       if (existing.status === 'AVALIADA_PELO_ICD') {
         throw new BadRequestException(
           'Decisão já avaliada pelo ICD — não pode ser editada.',
+        );
+      }
+      // Integridade da máquina de estados: AVALIADA_PELO_ICD é definido
+      // EXCLUSIVAMENTE pelo cálculo do ICD (saveIcdScore). Não pode ser forjado
+      // pelo body genérico — senão marca-se "avaliada" sem nenhum score computado.
+      if (dto.status === 'AVALIADA_PELO_ICD') {
+        throw new BadRequestException(
+          'O status "Avaliada pelo ICD" é definido apenas pela avaliação ICD da decisão.',
         );
       }
 

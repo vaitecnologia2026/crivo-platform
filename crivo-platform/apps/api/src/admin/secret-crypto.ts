@@ -5,7 +5,14 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 // gravado em claro nem retornado pela API de leitura.
 
 function key(): Buffer {
-  const secret = process.env.AUTH_SECRET ?? 'crivo-dev-secret-change-me';
+  // Fail-fast: sem AUTH_SECRET forte, NÃO cifrar com chave pública (token de IA
+  // ficaria ~plaintext em repouso). Espelha a exigência do JwtModule no boot.
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      'AUTH_SECRET ausente ou fraco (mínimo 32 caracteres) — necessário para cifrar segredos em repouso.',
+    );
+  }
   return createHash('sha256').update(secret).digest();
 }
 
