@@ -387,10 +387,11 @@ Produza agora o Relatório Preliminar CRIVO conforme a estrutura definida.
 function renderEmailHtml(leadName: string, markdown: string, footer: string): string {
   // Renderização HTML simples — preserva quebras e parágrafos. Não usa lib
   // de markdown para manter o serviço sem dependências adicionais.
-  const escaped = markdown
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  // Escapa entradas controladas (leadName do formulário público, footer do
+  // super admin) p/ evitar injeção de HTML no e-mail.
+  const esc = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escaped = esc(markdown);
   const html = escaped
     .replace(/^# (.*)$/gm, '<h2 style="color:#0d1f3c">$1</h2>')
     .replace(/^## (.*)$/gm, '<h3 style="color:#0d1f3c">$1</h3>')
@@ -403,11 +404,11 @@ function renderEmailHtml(leadName: string, markdown: string, footer: string): st
   return `
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#1c2540;line-height:1.55">
-  <p>Olá, ${leadName.split(' ')[0]}.</p>
+  <p>Olá, ${esc(leadName.split(' ')[0] ?? '')}.</p>
   <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades.</p>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
   <div><p>${html}</p></div>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
-  <p style="font-size:12px;color:#727a8c">${footer}</p>
+  <p style="font-size:12px;color:#727a8c">${esc(footer)}</p>
 </body></html>`.trim();
 }

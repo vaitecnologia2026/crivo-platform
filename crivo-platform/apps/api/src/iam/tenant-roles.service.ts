@@ -174,7 +174,9 @@ export class TenantRolesService {
     await this.prisma.admin.userRole.upsert({
       where: { userId_tenantRoleId: { userId, tenantRoleId: roleId } },
       create: { userId, tenantRoleId: roleId, assignedBy: actor.email ?? null },
-      update: { assignedBy: actor.email ?? null },
+      // Reatribuição é idempotente: NÃO sobrescreve assignedBy (preserva quem
+      // concedeu originalmente — trilha de auditoria).
+      update: {},
     });
     await this.audit.record({
       action: 'tenant.role.assign',

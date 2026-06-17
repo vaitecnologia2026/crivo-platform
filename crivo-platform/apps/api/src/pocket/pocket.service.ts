@@ -231,22 +231,19 @@ export class PocketService {
       const parsed = safeParseJson(raw);
       if (!parsed?.synthesis || typeof parsed.synthesis !== 'string') return;
 
+      // A IA pode devolver tipos inesperados — só persiste string (senão null),
+      // evitando gravar objeto/array em colunas String.
+      const asStr = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+      const fields = {
+        synthesis: parsed.synthesis,
+        recommendation: asStr(parsed.recommendation),
+        nextStep: asStr(parsed.nextStep),
+        modelVersion: settings.model || 'gpt-4o-mini',
+      };
       await tx.pocketAiSummary.upsert({
         where: { sessionId },
-        create: {
-          tenantId,
-          sessionId,
-          synthesis: parsed.synthesis,
-          recommendation: parsed.recommendation ?? null,
-          nextStep: parsed.nextStep ?? null,
-          modelVersion: settings.model || 'gpt-4o-mini',
-        },
-        update: {
-          synthesis: parsed.synthesis,
-          recommendation: parsed.recommendation ?? null,
-          nextStep: parsed.nextStep ?? null,
-          modelVersion: settings.model || 'gpt-4o-mini',
-        },
+        create: { tenantId, sessionId, ...fields },
+        update: fields,
       });
     } catch (e) {
       this.log.warn(`Falha de IA para sessão ${sessionId}: ${e instanceof Error ? e.message : e}`);

@@ -9,7 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthGuard } from './guards/auth.guard';
 import { PermissionGuard } from './guards/permission.guard';
 import { RequirePermission } from './require-permission.decorator';
@@ -21,7 +21,7 @@ class CreateTenantRoleDto {
   @IsString() @MinLength(2) @MaxLength(60) code!: string;
   @IsString() @MinLength(2) @MaxLength(80) name!: string;
   @IsOptional() @IsString() @MaxLength(400) description?: string;
-  @IsArray() @IsString({ each: true }) permissions!: string[];
+  @IsArray() @ArrayNotEmpty() @IsString({ each: true }) permissions!: string[];
 }
 
 class UpdateTenantRoleDto {

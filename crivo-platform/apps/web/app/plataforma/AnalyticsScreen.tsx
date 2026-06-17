@@ -241,7 +241,7 @@ function IcdBars({ data }: { data: AnalyticsData["icdEvolution"] }) {
           const h = isSuppressed ? 4 : Math.max(6, ((d.score ?? 0) / max) * 100);
           const isLatest = i === data.length - 1;
           return (
-            <div key={`${d.year}-${d.quarter}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div key={`${d.year}-${d.quarter}-${i}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <div
                 title={isSuppressed
                   ? `${d.cycleName}: suprimido (<${MIN_LEADERS_FOR_DISCLOSURE} líderes elegíveis)`
