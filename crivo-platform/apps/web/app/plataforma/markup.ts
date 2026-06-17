@@ -21,6 +21,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
           <span class="brand__sub">Decision Intelligence</span>
         </span>
       </div>
+      <span class="login__pill">PORTAL EXECUTIVO</span>
       <h1 class="login__title">Bem-vindo de volta.</h1>
       <p class="login__sub">Acesse o sistema de coerência decisória, riscos psicossociais e desenvolvimento de liderança.</p>
 
@@ -45,6 +46,8 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <span>Não tem acesso?</span>
         <a href="#" class="link-gold">Falar com a CRIVO</a>
       </div>
+
+      <a href="https://crivo.vai-sistema.com/lp" class="login__back">← Voltar ao site</a>
     </div>
   </div>
 

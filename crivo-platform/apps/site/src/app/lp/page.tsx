@@ -768,8 +768,21 @@ export default function LandingPage() {
           </div>
 
           <div className="product-grid product-grid--auto">
-            <article className="product-card">
+            <article className="product-card product-card--free">
               <span className="product-card__level">01</span>
+              <h3>Diagnóstico Inicial</h3>
+              <span className="product-card__tag">Leitura preliminar · gratuito</span>
+              <p>
+                Primeira leitura sobre riscos invisíveis, liderança e pontos de atenção. Relatório Preliminar CRIVO™ por
+                e-mail em até 24h.
+              </p>
+              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
+                Fazer diagnóstico inicial
+              </a>
+            </article>
+
+            <article className="product-card">
+              <span className="product-card__level">02</span>
               <h3>CRIVO Diagnóstico™</h3>
               <span className="product-card__tag">Diagnóstico Organizacional</span>
               <p>
@@ -782,7 +795,7 @@ export default function LandingPage() {
             </article>
 
             <article className="product-card">
-              <span className="product-card__level">02</span>
+              <span className="product-card__level">03</span>
               <h3>CRIVO Liderança</h3>
               <span className="product-card__tag">Jornada de Liderança</span>
               <p>
@@ -796,7 +809,7 @@ export default function LandingPage() {
 
             <article className="product-card product-card--featured">
               <span className="badge-featured">Mais procurado</span>
-              <span className="product-card__level">03</span>
+              <span className="product-card__level">04</span>
               <h3>CRIVO Evolução</h3>
               <span className="product-card__tag">Mentoria &amp; Governança</span>
               <p>
@@ -809,7 +822,7 @@ export default function LandingPage() {
             </article>
 
             <article className="product-card">
-              <span className="product-card__level">04</span>
+              <span className="product-card__level">05</span>
               <h3>CRIVO Enterprise</h3>
               <span className="product-card__tag">Transformação Organizacional</span>
               <p>
@@ -822,7 +835,7 @@ export default function LandingPage() {
             </article>
 
             <article className="product-card">
-              <span className="product-card__level">05</span>
+              <span className="product-card__level">06</span>
               <h3>CRIVO Advisory</h3>
               <span className="product-card__tag">Conselho Estratégico</span>
               <p>
@@ -834,8 +847,25 @@ export default function LandingPage() {
             </article>
           </div>
 
+          <div className="strategic-tags">
+            <span className="strategic-tags__eyebrow">Soluções estratégicas CRIVO</span>
+            <p className="strategic-tags__lede">Agendas específicas para liderança, cultura e governança.</p>
+            <div className="strategic-tags__list">
+              <span className="strategic-tag">Transformação Cultural</span>
+              <span className="strategic-tag">Cultura Adaptável — Pessoas + IA</span>
+              <span className="strategic-tag">Governança de IA e Pessoas</span>
+              <span className="strategic-tag">Governança Comportamental</span>
+              <span className="strategic-tag">Custos Invisíveis</span>
+              <span className="strategic-tag">Palestras e Mentorias Executivas</span>
+            </div>
+          </div>
+
           <div className="trilha">
             <span className="trilha__eyebrow">Trilha da Liderança · base</span>
+            <p className="trilha__lede">
+              A liderança não recebe apenas conteúdo. Ela entra em uma jornada prática, acompanhada por app, mentoria,
+              Academia CRIVO, indicadores e plano de ação.
+            </p>
             <div className="trilha__grid">
               <div>
                 <strong>30–50</strong>
@@ -843,15 +873,15 @@ export default function LandingPage() {
               </div>
               <div>
                 <strong>6 meses</strong>
-                <span>sustentação opcional até 12</span>
+                <span>de jornada com sustentação até 12</span>
               </div>
               <div>
-                <strong>Semanal</strong>
-                <span>encontros com aplicação prática</span>
+                <strong>Semanal · quinzenal</strong>
+                <span>encontros recorrentes</span>
               </div>
               <div>
-                <strong>Evolutivo</strong>
-                <span>acompanhamento integrado a resultados</span>
+                <strong>App + indicadores + plano</strong>
+                <span>evolução acompanhada e mensurável</span>
               </div>
             </div>
           </div>
@@ -886,7 +916,13 @@ export default function LandingPage() {
                   <td className="compare__crivo">✓</td>
                 </tr>
                 <tr>
-                  <td>Diagnóstico organizacional</td>
+                  <td>Mapeamento de fatores psicossociais</td>
+                  <td>parcial</td>
+                  <td>parcial</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Diagnóstico organizacional estruturado</td>
                   <td>—</td>
                   <td>✓</td>
                   <td className="compare__crivo">✓</td>
@@ -898,25 +934,67 @@ export default function LandingPage() {
                   <td className="compare__crivo">✓</td>
                 </tr>
                 <tr>
-                  <td>Desenvolvimento de líderes</td>
+                  <td>Dashboard executivo com evolução longitudinal</td>
                   <td>—</td>
                   <td>parcial</td>
                   <td className="compare__crivo">✓</td>
                 </tr>
                 <tr>
-                  <td>Métrica proprietária de decisão (ICD)</td>
+                  <td>Portal Executivo logado e seguro (LGPD)</td>
                   <td>—</td>
                   <td>—</td>
                   <td className="compare__crivo">✓</td>
                 </tr>
                 <tr>
-                  <td>Leitura contínua e evolutiva</td>
+                  <td>App CRIVO de sustentação da rotina</td>
                   <td>—</td>
                   <td>—</td>
                   <td className="compare__crivo">✓</td>
                 </tr>
                 <tr>
-                  <td>Conselho estratégico (C-Level)</td>
+                  <td>Desenvolvimento e Trilha de Liderança</td>
+                  <td>—</td>
+                  <td>parcial</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Academia CRIVO (cursos, trilhas, conteúdos)</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Mentor CRIVO e Simulador de Decisão</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>ICD™ — Índice de Coerência Decisória (métrica proprietária)</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Pocket — preparo rápido para decisões e conversas</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Leitura contínua e evolutiva por ciclos</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Mentoria executiva e governança comportamental</td>
+                  <td>—</td>
+                  <td>parcial</td>
+                  <td className="compare__crivo">✓</td>
+                </tr>
+                <tr>
+                  <td>Conselho estratégico C-Level (Advisory)</td>
                   <td>—</td>
                   <td>—</td>
                   <td className="compare__crivo">✓</td>
@@ -999,6 +1077,76 @@ export default function LandingPage() {
             Em poucos minutos, identifique sinais iniciais de pressão organizacional, riscos psicossociais e
             fragilidades de liderança — com devolutiva por e-mail. Não substitui o CRIVO Diagnóstico™ completo.
           </p>
+
+          {/* Preview do Relatório Preliminar (estilo Lovable rev2) — 5 blocos com scores
+              ilustrativos + 3 pontos de atenção. Ajuda o lead a entender o que vai chegar
+              por e-mail depois do quiz. */}
+          <div className="preview-report">
+            <div className="preview-report__head">
+              <span className="preview-report__eyebrow">Relatório Preliminar · prévia</span>
+              <h3 className="preview-report__title">Leitura por bloco</h3>
+              <span className="preview-report__sub">Exemplo ilustrativo · escala 0–100</span>
+            </div>
+            <div className="preview-report__bars">
+              <div className="preview-bar">
+                <div className="preview-bar__label">
+                  <span>Estrutura e Rotina</span>
+                  <strong>72</strong>
+                </div>
+                <div className="preview-bar__track">
+                  <div className="preview-bar__fill" style={{ width: "72%" }} />
+                </div>
+              </div>
+              <div className="preview-bar">
+                <div className="preview-bar__label">
+                  <span>Liderança e Sustentação</span>
+                  <strong>58</strong>
+                </div>
+                <div className="preview-bar__track">
+                  <div className="preview-bar__fill preview-bar__fill--warn" style={{ width: "58%" }} />
+                </div>
+              </div>
+              <div className="preview-bar">
+                <div className="preview-bar__label">
+                  <span>Cultura e Segurança Psicológica</span>
+                  <strong>64</strong>
+                </div>
+                <div className="preview-bar__track">
+                  <div className="preview-bar__fill" style={{ width: "64%" }} />
+                </div>
+              </div>
+              <div className="preview-bar">
+                <div className="preview-bar__label">
+                  <span>Fatores Psicossociais (NR-1)</span>
+                  <strong>46</strong>
+                </div>
+                <div className="preview-bar__track">
+                  <div className="preview-bar__fill preview-bar__fill--warn" style={{ width: "46%" }} />
+                </div>
+              </div>
+              <div className="preview-bar">
+                <div className="preview-bar__label">
+                  <span>Governança</span>
+                  <strong>70</strong>
+                </div>
+                <div className="preview-bar__track">
+                  <div className="preview-bar__fill" style={{ width: "70%" }} />
+                </div>
+              </div>
+            </div>
+            <div className="preview-report__pontos">
+              <span className="preview-report__eyebrow">3 pontos de atenção</span>
+              <ol>
+                <li>Sustentação inconsistente da rotina pela liderança.</li>
+                <li>Indicadores psicossociais abaixo da zona saudável.</li>
+                <li>Falta de ritual de revisão decisória.</li>
+              </ol>
+              <p className="preview-report__legend">
+                Enviado por e-mail · PDF · zona saudável ≥ 60
+              </p>
+            </div>
+          </div>
+
           <DiagnosticoInicialQuiz />
         </div>
 
@@ -1158,9 +1306,11 @@ export default function LandingPage() {
               <summary>O que é o ICD™ e por que ele é diferente?</summary>
               <p>
                 O ICD™ — Índice de Coerência Decisória — é uma metodologia proprietária da CRIVO para apoiar líderes na
-                leitura da coerência decisória sob pressão. Não julga a decisão nem mede personalidade ou saúde mental.
-                São 8 perguntas sobre uma decisão real, 4 dimensões — os 4 Rs (Reatividade, Rigidez, Repercussão, Risco)
-                — score de 0 a 100 com zonas de leitura, e a tensão dominante.
+                leitura da coerência decisória em decisões reais. Não julga a decisão nem mede personalidade ou saúde
+                mental: mostra onde a decisão pode estar perdendo sustentação e impactando o resultado. São 8 afirmações
+                aplicadas a uma decisão real, 4 eixos — Clareza, Critério, Alinhamento e Decisão — score de 0 a 100 com
+                zonas de leitura e evolução trimestral. Dados individuais privados; visão agregada para a empresa, sem
+                ranking nominal.
               </p>
             </details>
             <details>
@@ -1280,6 +1430,26 @@ export default function LandingPage() {
             <p className="footer__tag">Decisão com critério é infraestrutura de qualidade e resultado.</p>
           </div>
           <div>
+            <h5>Institucional</h5>
+            <ul>
+              <li>
+                <a href="#hero">Início</a>
+              </li>
+              <li>
+                <a href="#quem-somos">Quem somos</a>
+              </li>
+              <li>
+                <a href="#como-nasceu">Como nasceu</a>
+              </li>
+              <li>
+                <a href="#riscos-ia">Novo ciclo de gestão</a>
+              </li>
+              <li>
+                <a href="#metodo">Método CRIVO</a>
+              </li>
+            </ul>
+          </div>
+          <div>
             <h5>Soluções</h5>
             <ul>
               <li>
@@ -1332,7 +1502,7 @@ export default function LandingPage() {
             </ul>
           </div>
           <div>
-            <h5>O2 Legacy &amp; Consulting</h5>
+            <h5>Contato</h5>
             <ul>
               <li>Rodrigo Oliveira · Cofundador</li>
               <li>Viviani Ostan · Cofundadora</li>
@@ -1345,8 +1515,11 @@ export default function LandingPage() {
                   target="_blank"
                   rel="noopener"
                 >
-                  WhatsApp · (11) 91853-1796
+                  WhatsApp executivo · (11) 91853-1796
                 </a>
+              </li>
+              <li>
+                <a href={PLATAFORMA_URL}>Área administrativa</a>
               </li>
             </ul>
           </div>

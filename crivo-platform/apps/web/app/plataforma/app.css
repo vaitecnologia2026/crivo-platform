@@ -158,6 +158,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: var(--azul-cobalto);
   margin-top: 3px;
 }
+.login__pill {
+  display: inline-block;
+  padding: 6px 14px;
+  margin-bottom: 18px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-deep, #C4894A);
+  background: rgba(196, 137, 74, 0.12);
+  border: 1px solid rgba(196, 137, 74, 0.36);
+  border-radius: 999px;
+}
 .login__title {
   font-family: var(--font-display);
   font-size: 32px;
@@ -278,6 +291,17 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: rgba(255, 255, 255, 0.6);
 }
 .login__footer span { margin-right: 8px; }
+
+.login__back {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  transition: color .18s;
+}
+.login__back:hover { color: var(--gold-deep, #C4894A); }
 
 .link-gold {
   color: var(--gold);
