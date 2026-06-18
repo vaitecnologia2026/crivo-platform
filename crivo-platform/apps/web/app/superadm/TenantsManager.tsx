@@ -16,11 +16,6 @@ import { ModulesModal } from "./ModulesModal";
 import { BrandingModal } from "./BrandingModal";
 import { ContractModal } from "./ContractModal";
 
-const STATUS_STYLE: Record<TenantStatus, string> = {
-  ACTIVE: "bg-[rgba(46,120,80,0.14)] text-[#2e7850] border-[rgba(46,120,80,0.3)]",
-  SUSPENDED: "bg-[rgba(196,137,74,0.14)] text-terra border-[rgba(196,137,74,0.35)]",
-  DELETED: "bg-[rgba(120,120,120,0.12)] text-text-sec border-line",
-};
 const STATUS_LABEL: Record<TenantStatus, string> = {
   ACTIVE: "Ativa",
   SUSPENDED: "Bloqueada",
@@ -76,17 +71,50 @@ export function TenantsManager({
       )}
 
       <div className={embedded ? "" : "mx-auto max-w-[1040px] px-6 py-8"}>
-        <div className="mb-6 flex items-center justify-between">
+        <div className="route__head">
           <div>
-            <h1 className="font-display text-2xl text-azul-profundo">Empresas-cliente</h1>
-            <p className="mt-1 text-[13px] text-text-sec">
-              {status === "ok" ? `${tenants.length} empresa(s)` : "Carregando…"}
+            <h1 className="page-title">Empresas-cliente</h1>
+            <p className="page-sub">
+              {status === "ok"
+                ? `${tenants.length} empresa(s) na plataforma CRIVO`
+                : "Carregando empresas-cliente…"}
             </p>
           </div>
           <Button variant="terra" size="sm" onClick={() => setShowForm((v) => !v)}>
             {showForm ? "Fechar" : "Nova empresa"}
           </Button>
         </div>
+
+        {status === "ok" && tenants.length > 0 && (
+          <div className="kpi-grid" style={{ marginBottom: 20 }}>
+            <div className="kpi">
+              <span className="kpi__label">Empresas</span>
+              <strong className="kpi__value">{tenants.length}</strong>
+              <span className="kpi__delta">total na base</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Ativas</span>
+              <strong className="kpi__value">
+                {tenants.filter((t) => t.status === "ACTIVE").length}
+              </strong>
+              <span className="kpi__delta">acesso liberado</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Bloqueadas</span>
+              <strong className="kpi__value">
+                {tenants.filter((t) => t.status === "SUSPENDED").length}
+              </strong>
+              <span className="kpi__delta">acesso suspenso</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Excluídas</span>
+              <strong className="kpi__value">
+                {tenants.filter((t) => t.status === "DELETED").length}
+              </strong>
+              <span className="kpi__delta">exclusão lógica</span>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <NewTenantForm
@@ -103,46 +131,48 @@ export function TenantsManager({
           <ProvisionedNotice result={provisioned} onClose={() => setProvisioned(null)} />
         )}
 
+        {status === "loading" && <p className="dash-state">Carregando empresas-cliente…</p>}
+
         {status === "error" && (
-          <div className="rounded-[4px] border border-line bg-white p-8 text-center">
-            <p className="text-[14px] text-text-sec">Não foi possível carregar as empresas.</p>
-            <button onClick={refresh} className="mt-3 text-[13px] text-terra underline-offset-4 hover:underline">
+          <div className="dash-state dash-state--error">
+            Não foi possível carregar as empresas.
+            <button onClick={refresh} className="dash-state__retry">
               Tentar novamente
             </button>
           </div>
         )}
 
         {status === "ok" && (
-          <div className="overflow-hidden rounded-[6px] border border-line bg-white">
-            <table className="w-full text-left text-[13px]">
-              <thead className="border-b border-line bg-paper-dim text-[11px] uppercase tracking-[0.08em] text-text-sec">
+          <div className="card">
+            <table className="data-table data-table--tenants">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 font-medium">Empresa</th>
-                  <th className="px-4 py-3 font-medium">Slug</th>
-                  <th className="px-4 py-3 font-medium">Plano</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Criada</th>
-                  <th className="px-4 py-3 font-medium text-right">Ações</th>
+                  <th>Empresa</th>
+                  <th>Slug</th>
+                  <th>Plano</th>
+                  <th>Status</th>
+                  <th>Criada</th>
+                  <th style={{ textAlign: "right" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {tenants.map((t) => (
-                  <tr key={t.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-3 font-medium text-azul-profundo">{t.name}</td>
-                    <td className="px-4 py-3 text-text-sec">{t.slug}</td>
-                    <td className="px-4 py-3 text-text-sec">{PLAN_LABELS[t.plan]}</td>
-                    <td className="px-4 py-3">
+                  <tr key={t.id}>
+                    <td><strong>{t.name}</strong></td>
+                    <td className="cell-mute">{t.slug}</td>
+                    <td className="cell-mute">{PLAN_LABELS[t.plan]}</td>
+                    <td>
                       <span
-                        className={`inline-block rounded-full border px-2.5 py-0.5 text-[11px] ${STATUS_STYLE[t.status]}`}
+                        className={`pattern-tag${t.status === "ACTIVE" ? "" : " pattern-tag--alert"}`}
                       >
                         {STATUS_LABEL[t.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-text-sec">
+                    <td className="cell-mute">
                       {new Date(t.createdAt).toLocaleDateString("pt-BR")}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-3 text-[12px]">
+                    <td>
+                      <div className="row-actions">
                         {t.status !== "DELETED" && (
                           <ActionLink onClick={() => setContractOf(t)}>Contrato</ActionLink>
                         )}
@@ -156,11 +186,11 @@ export function TenantsManager({
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
                             Bloquear
                           </ActionLink>
-                        ) : (
+                        ) : t.status === "SUSPENDED" ? (
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "activate")}>
                             Reativar
                           </ActionLink>
-                        )}
+                        ) : null}
                         {t.status !== "DELETED" && (
                           <ActionLink danger disabled={busyId === t.id} onClick={() => act(t.id, "delete")}>
                             Excluir
@@ -172,7 +202,7 @@ export function TenantsManager({
                 ))}
                 {tenants.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-text-sec">
+                    <td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-sec)" }}>
                       Nenhuma empresa ainda. Crie a primeira em “Nova empresa”.
                     </td>
                   </tr>
@@ -216,7 +246,7 @@ function ActionLink({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`underline-offset-4 hover:underline disabled:opacity-40 ${danger ? "text-terra-escura" : "text-azul-cobalto"}`}
+      className={`row-action${danger ? " row-action--danger" : ""}`}
     >
       {children}
     </button>

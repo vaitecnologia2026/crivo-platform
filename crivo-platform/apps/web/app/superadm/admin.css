@@ -38,3 +38,45 @@
 .adm .page-title {
   letter-spacing: -0.01em;
 }
+
+/* Células secundárias (slug, plano, data) — tom suave. */
+.adm .data-table td.cell-mute { color: var(--text-sec); font-weight: 400; }
+
+/* Ações por linha — botões-texto discretos, alinhados à direita. */
+.adm .data-table td:last-child { text-align: right; }
+.adm .row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.adm .row-action {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--azul-cobalto);
+  transition: color 0.15s ease;
+}
+.adm .row-action:hover:not(:disabled) { color: var(--ink-700); text-decoration: underline; text-underline-offset: 3px; }
+.adm .row-action:disabled { opacity: 0.4; cursor: default; }
+.adm .row-action--danger { color: var(--gold-deep); }
+.adm .row-action--danger:hover:not(:disabled) { color: var(--danger); }
+
+/* Link "tentar novamente" dentro do estado de erro. */
+.adm .dash-state__retry {
+  display: inline-block;
+  margin-left: 10px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--gold-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
