@@ -802,14 +802,37 @@ th.compare__crivo { color: var(--terra) !important; }
 /* Vértice do CTA final pulsa sutilmente */
 .vertice-final circle:first-of-type { animation: vPulse 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 
-/* ===== Reveal on scroll (estado inicial; .is-in revela) ===== */
-.reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+/* ===== Reveal on scroll — entrada suave + leve escala (moderno) ===== */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px) scale(0.985);
+  transition: opacity .7s var(--ease), transform .7s var(--ease);
+  will-change: opacity, transform;
+}
 .reveal.is-in { opacity: 1; transform: none; }
+
+/* Float contínuo e sutil nos mockups de produto (dão "vida" sem distrair).
+   Só começa depois que o elemento entra (evita conflito com o reveal). */
+@keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.reveal.laptop, .reveal.phone { animation: none; }
+.reveal.is-in.laptop { animation: floatY 7.5s ease-in-out .3s infinite; }
+.reveal.is-in.phone { animation: floatY 6.8s ease-in-out .5s infinite; }
+
+/* Lede de destaque (frase de reforço de O Problema). */
+.lede--accent {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--terra);
+  margin-top: -8px;
+  max-width: 760px;
+}
 
 /* Respeita preferência de movimento reduzido */
 @media (prefers-reduced-motion: reduce) {
   .vertice-hero line, .vertice-hero circle, .vertice-final circle:first-of-type { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .reveal { opacity: 1 !important; transform: none !important; }
+  .laptop, .phone,
+  .reveal.is-in.laptop, .reveal.is-in.phone { animation: none !important; }
 }
 
 /* =========================================================

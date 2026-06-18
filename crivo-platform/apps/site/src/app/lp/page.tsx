@@ -118,6 +118,9 @@ export default function LandingPage() {
             A maioria das empresas investe em estratégia, processos e tecnologia. Poucas desenvolvem a liderança que
             sustenta decisões, comportamentos e execução sob pressão.
           </p>
+          <p className="lede lede--accent">
+            Toda transformação passa pela liderança. Mas liderança sem sustentação vira gargalo, risco e custo invisível.
+          </p>
 
           <div className="pain-grid">
             <article className="pain-card">

@@ -161,6 +161,9 @@ export function LpEffects() {
       ".frente", ".ladder__step", ".nr1-col", ".feature", ".faq details",
       ".compare", ".trilha", ".data-wall",
       ".mvv-card", ".journey-step", ".portal-feature", ".dash-card", ".app-feature", ".diag-card",
+      // Seções novas (notebook, celular, ecossistema, KPIs, preview):
+      ".eco-tile", ".dash-kpi", ".strategic-tag", ".laptop", ".phone",
+      ".preview-report", ".app-chips li",
     ].join(",");
 
     if (!reduce) {
@@ -182,7 +185,7 @@ export function LpEffects() {
       });
       document
         .querySelectorAll(
-          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare",
+          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare, .eco-cards, .dash-kpis, .strategic-tags__list, .app-chips",
         )
         .forEach((grid) => {
           Array.from(grid.children).forEach((child, i) => {
