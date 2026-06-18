@@ -139,11 +139,6 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="relatorios-root"></div>
       </section>
 
-      <!-- ============ CRM · PIPELINE ============ -->
-      <section class="route" data-route="crm">
-        <div id="crm-root"></div>
-      </section>
-
       <!-- ============ DIAGNÓSTICO ESSENCIAL ============ -->
       <section class="route" data-route="essencial">
         <div id="essencial-root"></div>

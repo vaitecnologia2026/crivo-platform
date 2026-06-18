@@ -54,20 +54,10 @@ export function homeForRole(role: string | null | undefined): string {
   return DEFAULT_ROUTE_BY_ROLE[role] ?? DEFAULT_ROUTE;
 }
 
+// §16 do Briefing: o CRM é ferramenta INTERNA da CRIVO (funil/leads/propostas)
+// e NÃO deve aparecer como produto/entrega no portal do cliente. Ele vive só no
+// Super Admin (control plane, CrmSection). Por isso não há grupo "Comercial" aqui.
 export const NAV: NavGroup[] = [
-  {
-    title: 'Comercial · CRIVO',
-    items: [
-      {
-        route: 'crm',
-        label: 'CRM · Pipeline de Leads',
-        icon: '◧',
-        module: 'crm',
-        perm: 'leads:view',
-        breadcrumb: { path: 'Comercial', current: 'Pipeline de Leads' },
-      },
-    ],
-  },
   {
     title: 'Geral',
     items: [

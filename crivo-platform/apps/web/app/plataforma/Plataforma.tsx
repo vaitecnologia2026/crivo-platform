@@ -20,7 +20,6 @@ function clearCachedRole() {
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { IcdScreen } from "./IcdScreen";
-import { CrmScreen } from "./CrmScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
 import { BibliotecaScreen } from "./BibliotecaScreen";
@@ -141,7 +140,7 @@ export function Plataforma() {
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
-      if (name === "crm") mountIsland("crm-root", <CrmScreen />);
+      // §16: CRM é interno da CRIVO (Super Admin), fora do portal do cliente.
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);
       if (name === "biblioteca") mountIsland("biblioteca-root", <BibliotecaScreen />);

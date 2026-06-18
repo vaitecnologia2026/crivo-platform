@@ -44,16 +44,24 @@ export class DocumentsService {
         include: { items: { include: { evidences: true } } },
       }),
     );
-    return { contract, company: org?.name ?? 'Empresa', plans };
+    // Histórico de ciclos trimestrais (para o relatório de evolução, §15).
+    const cycles = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.icdCycle.findMany({
+        orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+        include: { companyResult: true },
+      }),
+    );
+    return { contract, company: org?.name ?? 'Empresa', plans, cycles };
   }
 
   /** Documentos disponíveis conforme método + saída técnica do contrato. */
   async available(tenantId: string): Promise<DocumentDescriptor[]> {
-    const { contract, plans } = await this.context(tenantId);
+    const { contract, plans, cycles } = await this.context(tenantId);
     const method = contract?.method ?? null;
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
+    const hasCycleHistory = cycles.some((c) => c.companyResult);
 
     const docs: DocumentDescriptor[] = [];
     const add = (type: string, available: boolean, reason?: string) =>
@@ -69,12 +77,18 @@ export class DocumentsService {
     }
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
     add('relatorio_executivo', true);
+    // Relatório de evolução (§15): trajetória do ICD ao longo dos ciclos.
+    add(
+      'relatorio_evolucao',
+      hasCycleHistory,
+      hasCycleHistory ? undefined : 'Requer ao menos um ciclo trimestral de ICD consolidado',
+    );
     return docs;
   }
 
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
   async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
-    const { contract, company, plans } = await this.context(tenantId);
+    const { contract, company, plans, cycles } = await this.context(tenantId);
     if (!DOCUMENT_TYPE_LABEL[type]) throw new BadRequestException('Tipo de documento inválido');
 
     const method = contract?.method ?? null;
@@ -143,6 +157,30 @@ export class DocumentsService {
       sections.unshift({
         heading: 'Síntese executiva',
         body: 'Síntese para diretoria/RH: prioridades, riscos e decisões a partir do diagnóstico e do plano de ação.',
+      });
+    }
+    if (type === 'relatorio_evolucao') {
+      const rows = cycles
+        .filter((c) => c.companyResult)
+        .map((c) => {
+          const r = c.companyResult!;
+          return [
+            `${c.year} · Q${c.quarter}`,
+            r.suppressed ? 'Suprimido (<5)' : String(r.score ?? '—'),
+            String(r.eligibleLeaders),
+            new Date(r.computedAt).toLocaleDateString('pt-BR'),
+          ];
+        });
+      sections.unshift({
+        heading: 'Evolução do ICD (ciclos trimestrais)',
+        body:
+          'Trajetória do Índice de Coerência Decisória da liderança ao longo dos ciclos. ' +
+          'Recortes com menos de 5 líderes elegíveis são suprimidos por confidencialidade (§11). ' +
+          'O ICD é ferramenta de desenvolvimento e sustentação da liderança — não de avaliação individual.',
+        table: {
+          columns: ['Ciclo', 'ICD (0–100)', 'Líderes elegíveis', 'Consolidado em'],
+          data: rows.length ? rows : [['—', '—', '—', '—']],
+        },
       });
     }
 

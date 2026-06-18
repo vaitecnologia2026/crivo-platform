@@ -808,6 +808,7 @@ export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   inventario_pgr: 'Inventário / anexo para PGR',
   relatorio_tecnico: 'Relatório técnico',
   relatorio_executivo: 'Relatório executivo',
+  relatorio_evolucao: 'Relatório de evolução',
   plano_acao: 'Plano de Ação',
   parecer_consultivo: 'Parecer Consultivo CRIVO',
 };
