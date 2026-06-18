@@ -94,19 +94,19 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ===================== NAV ===================== */
-/* Nav CLARO (referência Lovable do cliente) — não iniciar a página em azul. */
+/* Nav AZUL (pedido do cliente) — barra do menu em azul-profundo sobre o
+   hero claro. Logo e links em tom claro. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   padding: 16px 0;
-  background: rgba(247, 244, 239, 0.9);
+  background: rgba(13, 31, 60, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-dark);
   transition: background 0.3s ease;
 }
-/* Marca em tom escuro sobre o nav claro (footer continua claro). */
-.nav .vertice { color: var(--azul-profundo); }
-.nav .brand__name { color: var(--azul-profundo); }
+.nav .vertice { color: var(--off-white); }
+.nav .brand__name { color: var(--off-white); }
 .nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .nav__actions { display: flex; align-items: center; gap: 10px; }
 @media (max-width: 720px) { .nav__actions .btn--ghost { display: none; } }
@@ -115,10 +115,10 @@ img, svg { display: block; max-width: 100%; }
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: var(--text-dark-sec);
+  color: var(--prata);
   transition: color 0.2s ease;
 }
-.nav__links a:hover { color: var(--azul-profundo); }
+.nav__links a:hover { color: var(--off-white); }
 .nav__links .link-platform {
   color: var(--terra-dourado);
   font-weight: 400;
