@@ -111,6 +111,13 @@ export const NAV: NavGroup[] = [
         perm: 'icd:submit',
         breadcrumb: { path: 'Aplicação', current: 'Instrumentos Diagnósticos' },
       },
+      {
+        route: 'psicossocial',
+        label: 'Questionário Psicossocial',
+        icon: '☷',
+        module: 'campanhas',
+        breadcrumb: { path: 'Diagnóstico', current: 'Questionário Psicossocial' },
+      },
     ],
   },
   {

@@ -633,6 +633,32 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   display: flex; align-items: center; gap: 12px;
 }
 
+/* Controle segmentado (abas Responder/Resultados — Questionário Psicossocial). */
+.seg {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  background: var(--line-soft);
+  border-radius: 999px;
+}
+.seg__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-600);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.seg__btn.is-active {
+  background: var(--surface, #fff);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 .select-pill {
   display: inline-flex;
   align-items: center;

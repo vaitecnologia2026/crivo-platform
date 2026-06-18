@@ -841,6 +841,7 @@ model Organization {
   selfAssessments  SelfAssessment[]
   essentialRecords EssentialRecord[]
   pareceres        Parecer[]
+  psychosocialResponses PsychosocialResponse[]
 
   // Anexo ICD do Líder v1 — Registro de Decisão (task #45).
   decisionCategories  DecisionCategory[]
@@ -1015,6 +1016,26 @@ model Response {
 
   @@index([tenantId])
   @@map("responses")
+}
+
+// Resposta ao Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico
+// AMPLO por colaborador). ANÔNIMA por design (§11/§14): NÃO há vínculo com User.
+// Guarda só tenant + setor + respostas + score agregável. Confidencialidade é
+// garantida na agregação (supressão < 5 respondentes por recorte).
+model PsychosocialResponse {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sector      String? // setor/área (RH, Comercial…); null = não informado
+  answers     Json // [{ questionId, value }] — 12 itens, escala 1–5
+  score       Int // 0–100 (proteção geral; maior = menor risco)
+  level       String // BAIXO | MODERADO | ALTO | CRITICO
+  byDimension Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
+  submittedAt DateTime     @default(now())
+
+  @@index([tenantId])
+  @@index([sector])
+  @@map("psychosocial_responses")
 }
 
 // =====================================================================

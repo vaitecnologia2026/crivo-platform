@@ -33,6 +33,7 @@ import { HistoricoScreen } from "./HistoricoScreen";
 import { MentoriasScreen } from "./MentoriasScreen";
 import { AnalyticsScreen } from "./AnalyticsScreen";
 import { CustoScreen } from "./CustoScreen";
+import { PsicossocialScreen } from "./PsicossocialScreen";
 import { RolesScreen } from "./RolesScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
@@ -148,6 +149,7 @@ export function Plataforma() {
       if (name === "relatorios") mountIsland("relatorios-root", <PlanoAcaoScreen />);
       if (name === "essencial") mountIsland("essencial-root", <DiagnosticoEssencialScreen />);
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
+      if (name === "psicossocial") mountIsland("psicossocial-root", <PsicossocialScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       if (name === "pocket") mountIsland("pocket-root", <PocketScreen />);
       if (name === "mentorias") mountIsland("mentorias-root", <MentoriasScreen />);

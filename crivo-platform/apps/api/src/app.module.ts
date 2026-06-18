@@ -18,6 +18,7 @@ import { CopilotoModule } from './copiloto/copiloto.module';
 import { DecisionsModule } from './decisions/decisions.module';
 import { IcdCyclesModule } from './icd-cycles/icd-cycles.module';
 import { PocketModule } from './pocket/pocket.module';
+import { PsychosocialModule } from './psychosocial/psychosocial.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -40,6 +41,7 @@ import { HealthController } from './health/health.controller';
     DecisionsModule,
     IcdCyclesModule,
     PocketModule,
+    PsychosocialModule,
   ],
   controllers: [HealthController],
   providers: [

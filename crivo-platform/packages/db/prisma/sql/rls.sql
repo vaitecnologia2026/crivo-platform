@@ -41,7 +41,9 @@ DECLARE
                          'decisions','decision_categories','decision_icd_scores',
                          'affected_audiences','icd_cycles','company_quarterly_icd',
                          'leader_quarterly_icd','sustentation_actions',
-                         'pocket_sessions','pocket_reflections','pocket_ai_summaries'];
+                         'pocket_sessions','pocket_reflections','pocket_ai_summaries',
+                         -- Questionário Psicossocial amplo (Briefing §6) — anônimo por tenant.
+                         'psychosocial_responses'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

@@ -16,6 +16,11 @@ import {
   POCKET_QUESTIONS,
   // Catálogos
   ICD_QUESTIONS,
+  // Psicossocial (Briefing §6)
+  computePsychosocial,
+  psychosocialLevel,
+  PSYCHOSOCIAL_QUESTIONS,
+  PSYCHOSOCIAL_DIMENSIONS,
 } from "./index";
 
 // ============================================================
@@ -289,5 +294,56 @@ describe("Catálogos oficiais", () => {
   it("nenhuma pergunta do Pocket termina com ? (são afirmações reflexivas, mas perguntas no Pocket TÊM ?)", () => {
     // Pocket §6 — as 10 são perguntas reflexivas, USAM ?
     expect(POCKET_QUESTIONS.every((q) => q.text.endsWith("?"))).toBe(true);
+  });
+});
+
+// ============================================================
+// Questionário Psicossocial Organizacional (Briefing §6)
+// ============================================================
+
+describe("computePsychosocial (Briefing §6)", () => {
+  const all = (v: number) =>
+    PSYCHOSOCIAL_QUESTIONS.map((q) => ({ questionId: q.id, value: v }));
+
+  it("tem 12 perguntas, 2 por dimensão (6 dimensões)", () => {
+    expect(PSYCHOSOCIAL_QUESTIONS).toHaveLength(12);
+    for (const d of PSYCHOSOCIAL_DIMENSIONS) {
+      expect(PSYCHOSOCIAL_QUESTIONS.filter((q) => q.dimension === d)).toHaveLength(2);
+    }
+  });
+
+  it("tudo no máximo (5) → proteção 100 e risco BAIXO", () => {
+    const r = computePsychosocial(all(5));
+    expect(r.score).toBe(100);
+    expect(r.level).toBe("BAIXO");
+    for (const d of PSYCHOSOCIAL_DIMENSIONS) expect(r.byDimension[d]).toBe(100);
+  });
+
+  it("tudo no mínimo (1) → proteção 0 e risco CRITICO", () => {
+    const r = computePsychosocial(all(1));
+    expect(r.score).toBe(0);
+    expect(r.level).toBe("CRITICO");
+  });
+
+  it("identifica a dimensão de maior risco (menor proteção)", () => {
+    const answers = all(5).map((a) =>
+      // rebaixa as duas perguntas de 'relacoes' (ids 11,12) ao mínimo
+      a.questionId === 11 || a.questionId === 12 ? { ...a, value: 1 } : a,
+    );
+    const r = computePsychosocial(answers);
+    expect(r.topRisk).toBe("relacoes");
+    expect(r.byDimension.relacoes).toBe(0);
+  });
+
+  it("rejeita resposta ausente ou fora da escala", () => {
+    expect(() => computePsychosocial(all(5).slice(0, 11))).toThrow();
+    expect(() => computePsychosocial(all(7))).toThrow();
+  });
+
+  it("bandas de nível por score", () => {
+    expect(psychosocialLevel(75)).toBe("BAIXO");
+    expect(psychosocialLevel(60)).toBe("MODERADO");
+    expect(psychosocialLevel(40)).toBe("ALTO");
+    expect(psychosocialLevel(10)).toBe("CRITICO");
   });
 });

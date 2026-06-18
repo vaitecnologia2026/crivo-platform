@@ -21,6 +21,10 @@ import type {
   ParecerData,
   PocketReflectionData,
   PocketSessionData,
+  PsychosocialQuestion,
+  PsychosocialResult,
+  PsychosocialDimension,
+  PsychosocialRiskLevel,
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
@@ -505,4 +509,46 @@ export function completePocketSession(id: string): Promise<PocketSessionData> {
 }
 export function removePocketSession(id: string): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>(`/pocket/sessions/${id}`, { method: 'DELETE' });
+}
+
+// ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico amplo) ──
+
+type SectorAggregate = {
+  sector: string;
+  respondents: number;
+  suppressed: boolean;
+  score?: number;
+  level?: PsychosocialRiskLevel;
+  byDimension?: Record<PsychosocialDimension, number>;
+  topRisk?: PsychosocialDimension;
+};
+export type PsychosocialResults = {
+  minRespondents: number;
+  totalRespondents: number;
+  overall:
+    | { suppressed: true }
+    | {
+        suppressed: false;
+        score: number;
+        level: PsychosocialRiskLevel;
+        byDimension: Record<PsychosocialDimension, number>;
+        topRisk: PsychosocialDimension;
+      };
+  sectors: SectorAggregate[];
+};
+
+export function getPsychosocialQuestions(): Promise<PsychosocialQuestion[]> {
+  return apiFetch<PsychosocialQuestion[]>('/psychosocial/questions');
+}
+export function submitPsychosocial(dto: {
+  sector?: string;
+  answers: { questionId: number; value: number }[];
+}): Promise<{ ok: true; result: PsychosocialResult }> {
+  return apiFetch<{ ok: true; result: PsychosocialResult }>('/psychosocial/submit', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function getPsychosocialResults(): Promise<PsychosocialResults> {
+  return apiFetch<PsychosocialResults>('/psychosocial/results');
 }

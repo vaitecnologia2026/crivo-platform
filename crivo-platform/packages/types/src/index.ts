@@ -443,6 +443,102 @@ export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult 
   return { score, level, byDimension, topAttention };
 }
 
+// ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO) ──
+// Instrumento por COLABORADOR (anônimo, agregado por setor), DISTINTO do ICD
+// (líder/coerência decisória) e do Pré-Diagnóstico (autoavaliação de maturidade).
+// Lê a percepção de fatores psicossociais reconhecidos (referência: ISO 45003 /
+// contexto NR-1). 6 dimensões × 2 afirmações, escala Likert 1–5. Afirmações
+// POSITIVAS (proteção): maior valor = MENOR risco psicossocial. v1 — revisável
+// com o cliente (nº de dimensões, redação e itens podem ser calibrados).
+export const PSYCHOSOCIAL_DIMENSIONS = [
+  'demandas',
+  'controle',
+  'apoio',
+  'reconhecimento',
+  'clareza',
+  'relacoes',
+] as const;
+export type PsychosocialDimension = (typeof PSYCHOSOCIAL_DIMENSIONS)[number];
+
+export const PSYCHOSOCIAL_DIMENSION_LABEL: Record<PsychosocialDimension, string> = {
+  demandas: 'Demandas e ritmo de trabalho',
+  controle: 'Autonomia e participação',
+  apoio: 'Apoio (liderança e colegas)',
+  reconhecimento: 'Reconhecimento e desenvolvimento',
+  clareza: 'Clareza de papel e justiça',
+  relacoes: 'Relações e segurança psicológica',
+};
+
+export interface PsychosocialQuestion {
+  id: number;
+  dimension: PsychosocialDimension;
+  text: string;
+}
+
+/** 12 perguntas (2 por dimensão), escala 1–5. Afirmações positivas: maior = mais protetor (menor risco). */
+export const PSYCHOSOCIAL_QUESTIONS: PsychosocialQuestion[] = [
+  { id: 1, dimension: 'demandas', text: 'Consigo realizar meu trabalho sem sobrecarga frequente.' },
+  { id: 2, dimension: 'demandas', text: 'O volume e o ritmo de trabalho são sustentáveis no dia a dia.' },
+  { id: 3, dimension: 'controle', text: 'Tenho autonomia para organizar como faço minhas tarefas.' },
+  { id: 4, dimension: 'controle', text: 'Minha opinião é considerada em decisões que afetam meu trabalho.' },
+  { id: 5, dimension: 'apoio', text: 'Recebo apoio da minha liderança quando preciso.' },
+  { id: 6, dimension: 'apoio', text: 'Posso contar com meus colegas diante de dificuldades.' },
+  { id: 7, dimension: 'reconhecimento', text: 'Meu trabalho é reconhecido de forma justa.' },
+  { id: 8, dimension: 'reconhecimento', text: 'Vejo perspectivas de desenvolvimento e crescimento na empresa.' },
+  { id: 9, dimension: 'clareza', text: 'Sei com clareza o que se espera do meu papel.' },
+  { id: 10, dimension: 'clareza', text: 'As regras e decisões da empresa são aplicadas de forma justa.' },
+  { id: 11, dimension: 'relacoes', text: 'Sinto-me seguro(a) para falar de problemas sem medo de retaliação.' },
+  { id: 12, dimension: 'relacoes', text: 'O ambiente é livre de assédio e desrespeito.' },
+];
+
+export const PSYCHOSOCIAL_RISK_LEVELS = ['BAIXO', 'MODERADO', 'ALTO', 'CRITICO'] as const;
+export type PsychosocialRiskLevel = (typeof PSYCHOSOCIAL_RISK_LEVELS)[number];
+
+export const PSYCHOSOCIAL_RISK_LABEL: Record<PsychosocialRiskLevel, string> = {
+  BAIXO: 'Risco baixo',
+  MODERADO: 'Risco moderado',
+  ALTO: 'Risco alto',
+  CRITICO: 'Risco crítico',
+};
+
+export interface PsychosocialResult {
+  score: number; // 0–100 (proteção geral; MAIOR = melhor / menor risco)
+  level: PsychosocialRiskLevel;
+  byDimension: Record<PsychosocialDimension, number>; // 0–100 por dimensão
+  topRisk: PsychosocialDimension; // dimensão de menor proteção (maior risco)
+}
+
+/** Nível de risco a partir do score de proteção (0–100). Maior proteção = menor risco. */
+export function psychosocialLevel(score: number): PsychosocialRiskLevel {
+  return score >= 75 ? 'BAIXO' : score >= 55 ? 'MODERADO' : score >= 35 ? 'ALTO' : 'CRITICO';
+}
+
+/** Calcula o resultado do questionário psicossocial. Pura — usável no front e no back. */
+export function computePsychosocial(answers: IcdAnswer[]): PsychosocialResult {
+  const byId = new Map(answers.map((a) => [a.questionId, a.value]));
+  const raw = {
+    demandas: [], controle: [], apoio: [], reconhecimento: [], clareza: [], relacoes: [],
+  } as Record<PsychosocialDimension, number[]>;
+  for (const q of PSYCHOSOCIAL_QUESTIONS) {
+    const v = byId.get(q.id);
+    if (v == null || !Number.isFinite(v) || v < 1 || v > 5) {
+      throw new Error(`Resposta inválida ou ausente para a questão ${q.id}`);
+    }
+    raw[q.dimension].push(((v - 1) / 4) * 100);
+  }
+  const byDimension = {} as Record<PsychosocialDimension, number>;
+  for (const d of PSYCHOSOCIAL_DIMENSIONS) {
+    byDimension[d] = Math.round(raw[d].reduce((s, x) => s + x, 0) / raw[d].length);
+  }
+  const score = Math.round(
+    PSYCHOSOCIAL_DIMENSIONS.reduce((s, d) => s + byDimension[d], 0) / PSYCHOSOCIAL_DIMENSIONS.length,
+  );
+  const topRisk = PSYCHOSOCIAL_DIMENSIONS.reduce((min, d) =>
+    byDimension[d] < byDimension[min] ? d : min,
+  );
+  return { score, level: psychosocialLevel(score), byDimension, topRisk };
+}
+
 // ── Produtos (núcleo product-driven — Super Admin) ──
 // Tudo nasce de um Produto: preço, limites, módulos, instrumento de diagnóstico
 // (perguntas editáveis) e IA por produto. Espelha o model Product (control plane).
