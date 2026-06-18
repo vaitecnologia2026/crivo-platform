@@ -1,4 +1,13 @@
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Role } from '@crivo/db';
 
 export class CreateUserDto {
@@ -19,6 +28,12 @@ export class CreateUserDto {
   @MinLength(8)
   @MaxLength(200)
   password?: string;
+
+  // Telas (rotas) liberadas para o usuário. Ausente/null = sem restrição.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  screenAccess?: string[] | null;
 }
 
 export class UpdateUserDto {
@@ -29,4 +44,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  screenAccess?: string[] | null;
 }

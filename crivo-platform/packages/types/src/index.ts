@@ -81,6 +81,8 @@ export interface UserSummary {
   name: string;
   role: Role;
   active: boolean;
+  /** Telas (rotas) que o usuário pode acessar; null = sem restrição (papel/módulo decidem). */
+  screenAccess: string[] | null;
   createdAt: string;
 }
 
@@ -89,11 +91,19 @@ export interface CreateUserRequest {
   email: string;
   role: Role;
   password?: string; // gerado quando ausente (retornado uma única vez)
+  screenAccess?: string[] | null;
 }
 
 export interface UpdateUserRequest {
   role?: Role;
   active?: boolean;
+  screenAccess?: string[] | null;
+}
+
+/** Uso de assentos (limite de usuários ativos) — limite vem do Produto da empresa. */
+export interface UserSeats {
+  active: number;
+  max: number | null; // null = ilimitado
 }
 
 export interface CreateUserResult {

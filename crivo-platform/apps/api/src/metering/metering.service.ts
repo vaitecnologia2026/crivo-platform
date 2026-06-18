@@ -51,14 +51,35 @@ export class MeteringService {
     }
   }
 
-  /** Barra (422) se criar mais um usuário ativo estouraria o limite do plano. */
+  /**
+   * Limite de usuários ativos da empresa (null = ilimitado). O Produto da
+   * empresa (control plane) tem prioridade — é onde o super admin define
+   * "quantos usuários a empresa pode criar" (maxUsers; 0 = ilimitado). Sem
+   * produto, cai no limite do plano (PLAN_LIMITS).
+   */
+  async userLimit(tenantId: string): Promise<number | null> {
+    const tenant = await this.prisma.admin.tenant.findUnique({
+      where: { organizationId: tenantId },
+      select: { productId: true, plan: true },
+    });
+    if (tenant?.productId) {
+      const product = await this.prisma.admin.product.findUnique({
+        where: { id: tenant.productId },
+        select: { maxUsers: true },
+      });
+      if (product) return product.maxUsers > 0 ? product.maxUsers : null; // 0 = ilimitado
+    }
+    return PLAN_LIMITS[(tenant?.plan ?? 'BASE') as Plan].maxUsers;
+  }
+
+  /** Barra (422) se criar mais um usuário ativo estouraria o limite da empresa. */
   async assertUserQuota(tx: PrismaClient, tenantId: string): Promise<void> {
-    const max = PLAN_LIMITS[await this.planOf(tx, tenantId)].maxUsers;
+    const max = await this.userLimit(tenantId);
     if (max === null) return; // ilimitado
     const count = await tx.user.count({ where: { active: true } });
     if (count >= max) {
       throw new UnprocessableEntityException(
-        `Limite do plano atingido: ${max} usuários ativos. Faça upgrade para adicionar mais.`,
+        `Limite de usuários atingido: ${max} ativos. Aumente o limite no produto da empresa (Super Admin).`,
       );
     }
   }

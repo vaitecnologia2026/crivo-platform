@@ -19,6 +19,13 @@ export class UsersController {
     return this.users.list(user.tenantId);
   }
 
+  /** Uso de assentos: usuários ativos atuais + limite (do produto da empresa). */
+  @Get('seats')
+  @RequirePermission('users:view')
+  seats(@CurrentUser() user: SessionUser) {
+    return this.users.seats(user.tenantId);
+  }
+
   /** Cria um usuário (senha gerada e retornada 1× se ausente). Respeita maxUsers. */
   @Post()
   @RequirePermission('users:create')

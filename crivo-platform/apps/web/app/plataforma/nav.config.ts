@@ -185,7 +185,13 @@ export const NAV: NavGroup[] = [
     title: 'Configurações',
     items: [
       { label: 'Organização', icon: '⚙' },
-      { label: 'Usuários', icon: '◌' },
+      {
+        route: 'usuarios',
+        label: 'Usuários',
+        icon: '◌',
+        perm: 'users:view',
+        breadcrumb: { path: 'Configurações', current: 'Usuários & Equipe' },
+      },
       {
         route: 'papeis',
         label: 'Papéis & Permissões',
@@ -196,6 +202,18 @@ export const NAV: NavGroup[] = [
     ],
   },
 ];
+
+/**
+ * Catálogo de TELAS atribuíveis a um usuário (checklist de acesso por usuário).
+ * São os itens de nav com rota — exceto Configurações (gestão), que fica restrita
+ * a quem tem permissão de admin. Agrupado para a UI.
+ */
+export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] = NAV.flatMap(
+  (g) =>
+    g.title === 'Configurações'
+      ? []
+      : g.items.filter((i) => i.route).map((i) => ({ route: i.route!, label: i.label, group: g.title })),
+);
 
 /** Acesso por rota (módulo + permissão de ver) — alimenta o filtro da nav. */
 export const routeAccess: Record<string, { module: string; perm?: string }> = Object.fromEntries(

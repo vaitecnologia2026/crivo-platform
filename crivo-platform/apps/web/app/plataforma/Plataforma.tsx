@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getToken, getMyModules, getMyPermissions, getMyBranding, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, setToken, clearToken } from "@/lib/api";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -34,6 +34,7 @@ import { MentoriasScreen } from "./MentoriasScreen";
 import { AnalyticsScreen } from "./AnalyticsScreen";
 import { CustoScreen } from "./CustoScreen";
 import { PsicossocialScreen } from "./PsicossocialScreen";
+import { UsuariosScreen } from "./UsuariosScreen";
 import { RolesScreen } from "./RolesScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
@@ -96,6 +97,8 @@ export function Plataforma() {
     // null = ainda não carregado → mostra tudo (a API ainda gateia o acesso).
     let enabledModules: Set<string> | null = null;
     let permissions: Set<string> | null = null;
+    // Telas liberadas para ESTE usuário (checklist por usuário). null = sem restrição.
+    let allowedScreens: Set<string> | null = null;
     let removeBranding: (() => void) | null = null; // desfaz os overrides de tema (F5)
     cleanups.push(() => removeBranding?.());
     const routeVisible = (route: string) => {
@@ -103,6 +106,10 @@ export function Plataforma() {
       if (!access) return true; // rota sem mapeamento (ex.: links soltos)
       if (enabledModules && !enabledModules.has(access.module)) return false; // módulo/plano
       if (access.perm && permissions && !permissions.has(access.perm)) return false; // papel/RBAC
+      // Acesso por tela por usuário: se houver restrição, só libera rotas na lista.
+      // 'usuarios'/'papeis' (gestão) seguem gateadas só por permissão, não pela lista.
+      if (allowedScreens && route !== "usuarios" && route !== "papeis" && !allowedScreens.has(route))
+        return false;
       return true;
     };
 
@@ -156,6 +163,7 @@ export function Plataforma() {
       if (name === "analytics") mountIsland("analytics-root", <AnalyticsScreen />);
       if (name === "custo") mountIsland("custo-root", <CustoScreen />);
       if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
+      if (name === "usuarios") mountIsland("usuarios-root", <UsuariosScreen />);
       if (name === "papeis") mountIsland("papeis-root", <RolesScreen />);
       const meta = routeMeta[name];
       if (meta) {
@@ -195,13 +203,15 @@ export function Plataforma() {
     const enterApp = async (role: string | null): Promise<void> => {
       let accessLoaded = false;
       try {
-        const [mods, perms, branding] = await Promise.all([
+        const [mods, perms, screens, branding] = await Promise.all([
           getMyModules(),
           getMyPermissions(),
+          getMyScreens(),
           getMyBranding(),
         ]);
         enabledModules = new Set(mods);
         permissions = new Set(perms);
+        allowedScreens = screens && screens.length ? new Set(screens) : null;
         applyModuleVisibility();
         removeBranding?.();
         removeBranding = applyBranding(branding);

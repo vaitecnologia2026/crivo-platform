@@ -923,6 +923,9 @@ model User {
   passwordHash    String
   role            Role         @default(COLABORADOR)
   active          Boolean      @default(true)
+  // Telas que o usuário pode acessar no portal (lista de rotas, ex.: ["dashboard","icd"]).
+  // null = sem restrição (vê tudo que papel/módulo permitem). Controla a nav (F6).
+  screenAccess    Json?
   // Aceite de termos/LGPD no 1º acesso (Briefing · Matriz §Confidencialidade).
   termsAcceptedAt DateTime?
   termsVersion    String?

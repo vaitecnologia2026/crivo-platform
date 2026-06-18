@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { LpEffects } from "./LpEffects";
 import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
+import { SiteNav } from "../_site/SiteNav";
+import { SiteFooter } from "../_site/SiteFooter";
+import { PLATAFORMA_URL } from "../_site/site.config";
 import "./lp.css";
 
 export const metadata: Metadata = {
@@ -9,113 +12,13 @@ export const metadata: Metadata = {
     "Consultoria estratégica de transformação organizacional com tecnologia aplicada. A CRIVO™ revela sinais invisíveis, prioriza ações, desenvolve lideranças e sustenta a evolução com método, dados, plano de ação e evidências.",
 };
 
-// Plataforma React (apps/web). Configurável por env: defina
-// NEXT_PUBLIC_PLATAFORMA_URL=https://app.crivolegacy.com.br quando o subdomínio
-// estiver no ar. Fallback: preview atual da Vercel.
-const PLATAFORMA_URL =
-  process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://crivo-web.vercel.app/";
-
-function VerticeMark({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 44" fill="none" aria-hidden="true">
-      <line x1="5" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <line x1="43" y1="37" x2="24" y2="6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <line x1="5" y1="37" x2="17" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <line x1="31" y1="37" x2="43" y2="37" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
-      <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
-    </svg>
-  );
-}
-
 export default function LandingPage() {
   return (
     <>
       <LpEffects />
 
-      {/* ===================== NAV ===================== */}
-      {/* Header azul-marinho (REGRA MÃE do briefing final): barra fina navy,
-          menu Início | Soluções | Método CRIVO | Plataforma | Conteúdos | Sobre
-          com submenus, + 2 botões fixos. O hero abaixo é claro/off-white. */}
-      <header className="nav" id="nav">
-        <div className="container nav__inner">
-          <a href="#hero" className="brand">
-            <VerticeMark className="vertice" />
-            <span className="brand__text">
-              <span className="brand__name">CRIVO</span>
-              <span className="brand__sub">Decision Intelligence</span>
-            </span>
-          </a>
-          <nav className="nav__links" aria-label="Navegação principal">
-            <a href="#hero" className="nav__top">Início</a>
-
-            <div className="nav__item">
-              <a href="#solucoes" className="nav__top nav__top--drop">Soluções</a>
-              <div className="nav__menu" role="menu">
-                <a href="#diagnostico">Diagnóstico Inicial</a>
-                <a href="#nr1">Fatores Psicossociais e NR-1</a>
-                <a href="#solucoes">Liderança e Cultura</a>
-                <a href="#riscos-ia">Governança de IA e Pessoas</a>
-                <a href="#solucoes">Evolução e Sustentação</a>
-                <a href="#solucoes">Enterprise e Advisory</a>
-                <a href="#solucoes">Projetos Especiais</a>
-              </div>
-            </div>
-
-            <div className="nav__item">
-              <a href="#metodo" className="nav__top nav__top--drop">Método CRIVO</a>
-              <div className="nav__menu" role="menu">
-                <a href="#metodo">Método CRIVO</a>
-                <a href="#icd">ICD — Índice de Coerência Decisória</a>
-                <a href="#icd">Radar da Decisão</a>
-                <a href="#riscos-ia">Governança Comportamental</a>
-                <a href="#jornada">Evidências e evolução</a>
-              </div>
-            </div>
-
-            <div className="nav__item">
-              <a href="#portal" className="nav__top nav__top--drop">Plataforma</a>
-              <div className="nav__menu" role="menu">
-                <a href="#portal">Portal Executivo</a>
-                <a href="#dashboard">Dashboard Executivo</a>
-                <a href="#app">App CRIVO</a>
-                <a href="#app">Pocket CRIVO</a>
-                <a href="#ecossistema">Academia CRIVO</a>
-                <a href={PLATAFORMA_URL}>Área logada</a>
-              </div>
-            </div>
-
-            <div className="nav__item">
-              <a href="#ecossistema" className="nav__top nav__top--drop">Conteúdos</a>
-              <div className="nav__menu" role="menu">
-                <a href="#ebook">E-book</a>
-                <a href="#ecossistema">Materiais gratuitos</a>
-                <a href="#faq">FAQ</a>
-                <a href="#ecossistema">Artigos e eventos</a>
-              </div>
-            </div>
-
-            <div className="nav__item">
-              <a href="#quem-somos" className="nav__top nav__top--drop">Sobre</a>
-              <div className="nav__menu" role="menu">
-                <a href="#quem-somos">Quem somos</a>
-                <a href="#como-nasceu">Como nasceu a CRIVO</a>
-                <a href="#como-nasceu">Fundadores</a>
-                <a href="#quem-somos">Missão, visão e valores</a>
-                <a href="#diagnostico">Contato</a>
-              </div>
-            </div>
-          </nav>
-          <div className="nav__actions">
-            <a href="#diagnostico" className="btn btn--terra btn--sm">
-              Fazer Diagnóstico Inicial
-            </a>
-            <a href={PLATAFORMA_URL} className="btn btn--ghost btn--sm">
-              Acessar Portal
-            </a>
-          </div>
-        </div>
-      </header>
+      {/* Header compartilhado (navy + submenus). Ver app/_site/SiteNav.tsx */}
+      <SiteNav />
 
       {/* ===================== HERO 1 ===================== */}
       {/* Hero 1 — claro/off-white, Foto 1 (equipe executiva caminhando).
@@ -1735,85 +1638,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== FOOTER ===================== */}
-      <footer className="footer">
-        <div className="container footer__grid">
-          <div>
-            <div className="brand brand--footer">
-              <VerticeMark className="vertice" />
-              <span className="brand__text">
-                <span className="brand__name">CRIVO</span>
-                <span className="brand__sub">Decision Intelligence</span>
-              </span>
-            </div>
-            <p className="footer__tag">Decisão com critério é infraestrutura de qualidade e resultado.</p>
-          </div>
-          <div>
-            <h5>Soluções</h5>
-            <ul>
-              <li><a href="#diagnostico">Diagnóstico Inicial</a></li>
-              <li><a href="#solucoes">CRIVO Diagnóstico™</a></li>
-              <li><a href="#solucoes">CRIVO Liderança</a></li>
-              <li><a href="#solucoes">CRIVO Evolução</a></li>
-              <li><a href="#solucoes">CRIVO Enterprise</a></li>
-              <li><a href="#solucoes">CRIVO Advisory</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5>Plataforma</h5>
-            <ul>
-              <li><a href="#portal">Portal Executivo</a></li>
-              <li><a href="#dashboard">Dashboard Executivo</a></li>
-              <li><a href="#app">App CRIVO</a></li>
-              <li><a href="#app">Pocket CRIVO</a></li>
-              <li><a href="#ecossistema">Academia CRIVO</a></li>
-              <li><a href={PLATAFORMA_URL}>Área logada</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5>Conteúdos</h5>
-            <ul>
-              <li><a href="#ebook">E-book</a></li>
-              <li><a href="#ecossistema">Materiais gratuitos</a></li>
-              <li><a href="#faq">FAQ</a></li>
-              <li><a href="#ecossistema">Artigos e eventos</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5>Sobre</h5>
-            <ul>
-              <li><a href="#quem-somos">Quem somos</a></li>
-              <li><a href="#como-nasceu">Como nasceu a CRIVO</a></li>
-              <li><a href="#como-nasceu">Fundadores</a></li>
-              <li><a href="#quem-somos">Missão, visão e valores</a></li>
-              <li><a href="#riscos-ia">Governança de IA e Pessoas</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5>Contato</h5>
-            <ul>
-              <li>Rodrigo Oliveira · Cofundador</li>
-              <li>Viviani Ostan · Cofundadora</li>
-              <li><a href="mailto:contato@crivolegacy.com.br">contato@crivolegacy.com.br</a></li>
-              <li>
-                <a
-                  href="https://wa.me/5511918531796?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20CRIVO"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  WhatsApp executivo · (11) 91853-1796
-                </a>
-              </li>
-              <li><a href={PLATAFORMA_URL}>Área logada</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer__legal">
-          <div className="container">
-            © 2026 CRIVO™ — Decision Intelligence System · O2 Legacy &amp; Consulting · Confidencial · LGPD
-          </div>
-        </div>
-      </footer>
+      {/* Rodapé compartilhado. Ver app/_site/SiteFooter.tsx */}
+      <SiteFooter />
     </>
   );
 }

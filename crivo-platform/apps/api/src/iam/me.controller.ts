@@ -53,6 +53,18 @@ export class MeController {
     return { role: user.role, name: user.name };
   }
 
+  /** Telas liberadas para o usuário (null = sem restrição) — filtra o menu por usuário. */
+  @Get('screens')
+  async myScreens(@CurrentUser() user: SessionUser): Promise<string[] | null> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const u = await tx.user.findUnique({
+        where: { id: user.id },
+        select: { screenAccess: true },
+      });
+      return Array.isArray(u?.screenAccess) ? (u!.screenAccess as string[]) : null;
+    });
+  }
+
   /** #65 — Onboarding checklist do tenant. Retorna 5 marcos do primeiro
    *  uso, para o Dashboard guiar o cliente nos primeiros passos. Some
    *  do Dashboard quando `allDone` é true. */

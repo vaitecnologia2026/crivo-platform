@@ -25,6 +25,11 @@ import type {
   PsychosocialResult,
   PsychosocialDimension,
   PsychosocialRiskLevel,
+  UserSummary,
+  CreateUserRequest,
+  UpdateUserRequest,
+  CreateUserResult,
+  UserSeats,
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
@@ -551,6 +556,25 @@ export function submitPsychosocial(dto: {
 }
 export function getPsychosocialResults(): Promise<PsychosocialResults> {
   return apiFetch<PsychosocialResults>('/psychosocial/results');
+}
+
+// ── Gestão de usuários / equipe (telas por usuário + limite por produto) ──
+
+export function listUsers(): Promise<UserSummary[]> {
+  return apiFetch<UserSummary[]>('/users');
+}
+export function getUserSeats(): Promise<UserSeats> {
+  return apiFetch<UserSeats>('/users/seats');
+}
+export function createUser(dto: CreateUserRequest): Promise<CreateUserResult> {
+  return apiFetch<CreateUserResult>('/users', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateUser(id: string, dto: UpdateUserRequest): Promise<UserSummary> {
+  return apiFetch<UserSummary>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+/** Telas liberadas para o usuário logado (null = sem restrição) — filtra a nav. */
+export function getMyScreens(): Promise<string[] | null> {
+  return apiFetch<string[] | null>('/me/screens');
 }
 export function getPsychosocialLink(): Promise<{ slug: string | null }> {
   return apiFetch<{ slug: string | null }>('/psychosocial/link');
