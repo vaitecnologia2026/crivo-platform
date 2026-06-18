@@ -106,6 +106,23 @@ export interface UserSeats {
   max: number | null; // null = ilimitado
 }
 
+/** Dados cadastrais da empresa (autoatendimento na tela "Organização"). */
+export interface OrganizationData {
+  name: string;
+  legalName: string | null;
+  taxId: string | null;
+  website: string | null;
+  phone: string | null;
+  plan: string;
+}
+export interface UpdateOrganizationRequest {
+  name?: string;
+  legalName?: string | null;
+  taxId?: string | null;
+  website?: string | null;
+  phone?: string | null;
+}
+
 export interface CreateUserResult {
   user: UserSummary;
   /** Senha temporária — só quando gerada pelo sistema. */

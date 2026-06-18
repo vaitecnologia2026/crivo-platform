@@ -184,7 +184,13 @@ export const NAV: NavGroup[] = [
   {
     title: 'Configurações',
     items: [
-      { label: 'Organização', icon: '⚙' },
+      {
+        route: 'organizacao',
+        label: 'Organização',
+        icon: '⚙',
+        perm: 'branding:edit',
+        breadcrumb: { path: 'Configurações', current: 'Organização' },
+      },
       {
         route: 'usuarios',
         label: 'Usuários',

@@ -30,6 +30,8 @@ import type {
   UpdateUserRequest,
   CreateUserResult,
   UserSeats,
+  OrganizationData,
+  UpdateOrganizationRequest,
   SelfAssessmentData,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
@@ -291,6 +293,18 @@ export function changeMyPassword(currentPassword: string, newPassword: string): 
 /** Identidade visual (white-label) da empresa do usuário logado. */
 export function getMyBranding(): Promise<TenantBrandingData> {
   return apiFetch<TenantBrandingData>('/me/branding');
+}
+/** Salva a identidade visual (self-service, exige branding:edit). */
+export function updateMyBranding(dto: Partial<TenantBrandingData>): Promise<TenantBrandingData> {
+  return apiFetch<TenantBrandingData>('/me/branding', { method: 'PUT', body: JSON.stringify(dto) });
+}
+
+// ── Organização (dados cadastrais + plano — autoatendimento) ──
+export function getMyOrganization(): Promise<OrganizationData> {
+  return apiFetch<OrganizationData>('/me/organization');
+}
+export function updateMyOrganization(dto: UpdateOrganizationRequest): Promise<OrganizationData> {
+  return apiFetch<OrganizationData>('/me/organization', { method: 'PUT', body: JSON.stringify(dto) });
 }
 
 // ── Aceite de termos/LGPD ──

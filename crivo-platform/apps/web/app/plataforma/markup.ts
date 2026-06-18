@@ -184,6 +184,11 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="historico-root"></div>
       </section>
 
+      <!-- ============ ORGANIZAÇÃO ============ -->
+      <section class="route" data-route="organizacao">
+        <div id="organizacao-root"></div>
+      </section>
+
       <!-- ============ USUÁRIOS & EQUIPE ============ -->
       <section class="route" data-route="usuarios">
         <div id="usuarios-root"></div>

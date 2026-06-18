@@ -6,9 +6,15 @@ import { CurrentUser } from './current-user.decorator';
 import { ModuleService } from './module.service';
 import { PermissionService } from './permission.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateBrandingDto } from '../admin/dto';
+import { UpdateBrandingDto, UpdateOrganizationDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
-import { TERMS_VERSION, type SessionUser, type TenantBrandingData, type TermsStatus } from '@crivo/types';
+import {
+  TERMS_VERSION,
+  type SessionUser,
+  type TenantBrandingData,
+  type TermsStatus,
+  type OrganizationData,
+} from '@crivo/types';
 
 /** Converte a linha (ou ausência) no contrato compartilhado (nulls). */
 function toBrandingData(b: TenantBranding | null): TenantBrandingData {
@@ -370,6 +376,55 @@ export class MeController {
         update: { ...dto },
       });
       return toBrandingData(b);
+    });
+  }
+
+  /** Dados cadastrais + plano da própria empresa (tela "Organização"). */
+  @Get('organization')
+  myOrganization(@CurrentUser() user: SessionUser): Promise<OrganizationData> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const o = await tx.organization.findUnique({ where: { id: user.tenantId } });
+      return {
+        name: o?.name ?? '',
+        legalName: o?.legalName ?? null,
+        taxId: o?.taxId ?? null,
+        website: o?.website ?? null,
+        phone: o?.phone ?? null,
+        plan: o?.plan ?? 'BASE',
+      };
+    });
+  }
+
+  /**
+   * Self-service: o admin edita os dados cadastrais da própria empresa. Gateado
+   * por `branding:edit` (capacidade de admin da empresa) e escrito sob RLS.
+   */
+  @Put('organization')
+  @UseGuards(AuthGuard, PermissionGuard)
+  @RequirePermission('branding:edit')
+  updateOrganization(
+    @CurrentUser() user: SessionUser,
+    @Body() dto: UpdateOrganizationDto,
+  ): Promise<OrganizationData> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const o = await tx.organization.update({
+        where: { id: user.tenantId },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(dto.legalName !== undefined ? { legalName: dto.legalName?.trim() || null } : {}),
+          ...(dto.taxId !== undefined ? { taxId: dto.taxId?.trim() || null } : {}),
+          ...(dto.website !== undefined ? { website: dto.website?.trim() || null } : {}),
+          ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
+        },
+      });
+      return {
+        name: o.name,
+        legalName: o.legalName,
+        taxId: o.taxId,
+        website: o.website,
+        phone: o.phone,
+        plan: o.plan,
+      };
     });
   }
 }

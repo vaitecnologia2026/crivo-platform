@@ -111,3 +111,21 @@ export class UpdateBrandingDto {
   @IsOptional() @IsString() @MaxLength(280)
   footerText?: string;
 }
+
+// Dados cadastrais da empresa (autoatendimento — tela "Organização" do portal).
+export class UpdateOrganizationDto {
+  @IsOptional() @IsString() @MaxLength(200)
+  name?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  legalName?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  taxId?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  website?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  phone?: string;
+}

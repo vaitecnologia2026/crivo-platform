@@ -35,6 +35,7 @@ import { AnalyticsScreen } from "./AnalyticsScreen";
 import { CustoScreen } from "./CustoScreen";
 import { PsicossocialScreen } from "./PsicossocialScreen";
 import { UsuariosScreen } from "./UsuariosScreen";
+import { OrganizacaoScreen } from "./OrganizacaoScreen";
 import { RolesScreen } from "./RolesScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
@@ -163,6 +164,7 @@ export function Plataforma() {
       if (name === "analytics") mountIsland("analytics-root", <AnalyticsScreen />);
       if (name === "custo") mountIsland("custo-root", <CustoScreen />);
       if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
+      if (name === "organizacao") mountIsland("organizacao-root", <OrganizacaoScreen />);
       if (name === "usuarios") mountIsland("usuarios-root", <UsuariosScreen />);
       if (name === "papeis") mountIsland("papeis-root", <RolesScreen />);
       const meta = routeMeta[name];
