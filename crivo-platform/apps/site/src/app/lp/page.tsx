@@ -634,7 +634,7 @@ export default function LandingPage() {
 
       {/* ===================== APP CRIVO ===================== */}
       <section className="section section--dark" id="app">
-        <div className="container split">
+        <div className="container split split--app">
           <div className="split__left">
             <span className="eyebrow eyebrow--terra">App CRIVO</span>
             <h2 className="h2 h2--light">A transformação que acontece na rotina do líder.</h2>
@@ -642,40 +642,57 @@ export default function LandingPage() {
               O Portal mostra onde a organização precisa atuar. O app ajuda a liderança a sustentar a mudança todos os
               dias — conectado à jornada CRIVO, aos planos de ação e aos indicadores agregados.
             </p>
+            <ul className="app-chips" aria-label="Recursos do App CRIVO">
+              <li>Meu Estado</li>
+              <li>CRIVO Pocket</li>
+              <li>Radar da Decisão · ICD™</li>
+              <li>Simulador de Decisão</li>
+              <li>Mentor CRIVO</li>
+              <li>Academia CRIVO</li>
+              <li>Dashboard do Líder</li>
+            </ul>
             <p className="lgpd-note">
               <strong>Portal ↔ App.</strong> Uma jornada integrada: o que o líder desenvolve no app reflete na leitura
               organizacional do Portal — e vice-versa.
             </p>
           </div>
+
+          {/* Mockup de celular (pedido do cliente no áudio: app na rotina,
+              "bom dia, líder" + Pocket). UI ilustrativa desenhada em CSS. */}
           <div className="split__right">
-            <div className="app-features">
-              <div className="app-feature">
-                <strong>Meu Estado</strong>
-                <span>Check-in da coerência decisória no dia a dia.</span>
-              </div>
-              <div className="app-feature">
-                <strong>CRIVO Pocket</strong>
-                <span>Microaprendizados aplicados à liderança.</span>
-              </div>
-              <div className="app-feature">
-                <strong>Radar da Decisão · ICD™</strong>
-                <span>Leitura contínua da coerência decisória sob pressão.</span>
-              </div>
-              <div className="app-feature">
-                <strong>Simulador de Decisão</strong>
-                <span>Ensaie decisões difíceis antes de agir.</span>
-              </div>
-              <div className="app-feature">
-                <strong>Mentor Operacional · Mentor CRIVO</strong>
-                <span>Apoio reflexivo e operacional à decisão.</span>
-              </div>
-              <div className="app-feature">
-                <strong>Academia CRIVO</strong>
-                <span>Cursos, trilhas, vídeos e materiais aplicados.</span>
-              </div>
-              <div className="app-feature">
-                <strong>Dashboard do Líder</strong>
-                <span>Evolução e plano de desenvolvimento do líder.</span>
+            <div className="phone" role="img" aria-label="Tela do App CRIVO: saudação ao líder, Meu Estado, Pocket e Radar da Decisão">
+              <span className="phone__notch" aria-hidden="true" />
+              <div className="phone__screen">
+                <div className="phone__bar" aria-hidden="true">
+                  <span>9:41</span>
+                  <span className="phone__brand">CRIVO</span>
+                  <span>▤ ▦ ▮</span>
+                </div>
+                <div className="phone__greet">
+                  <span className="phone__hello">Bom dia, líder</span>
+                  <span className="phone__date">Terça-feira · prepare a primeira decisão do dia</span>
+                </div>
+                <div className="phone__card phone__card--state">
+                  <div>
+                    <span className="phone__tag">Meu Estado</span>
+                    <span className="phone__sub">Zona de coerência funcional</span>
+                  </div>
+                  <div className="phone__ring"><strong>74</strong></div>
+                </div>
+                <div className="phone__card">
+                  <span className="phone__tag">CRIVO Pocket™</span>
+                  <span className="phone__sub">Prepare-se para a decisão de hoje →</span>
+                </div>
+                <div className="phone__card">
+                  <span className="phone__tag">Radar da Decisão · ICD™</span>
+                  <span className="phone__sub">3 decisões para avaliar esta semana</span>
+                </div>
+                <div className="phone__nav" aria-hidden="true">
+                  <span className="is-active">Hoje</span>
+                  <span>Decisões</span>
+                  <span>Academia</span>
+                  <span>Perfil</span>
+                </div>
               </div>
             </div>
           </div>
