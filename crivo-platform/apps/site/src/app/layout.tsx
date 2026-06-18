@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lora, Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Lora, Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const lora = Lora({
@@ -7,6 +7,14 @@ const lora = Lora({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   style: ["normal", "italic"],
+});
+
+// Display moderna (geométrica) — títulos da LP/marketing. Ar "tech/IA/dashboard"
+// premium, mantendo as cores e o logo (wordmark segue em Cormorant).
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const poppins = Poppins({
@@ -49,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // injetam atributos no <html> antes do React hidratar — suprime apenas o
       // aviso de mismatch deste elemento, não da árvore.
       suppressHydrationWarning
-      className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jakarta.variable} ${jetbrains.variable}`}
+      className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable}`}
     >
       <body>{children}</body>
     </html>

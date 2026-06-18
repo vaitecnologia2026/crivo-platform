@@ -39,7 +39,9 @@
   --text-light-sec: var(--prata);
 
   /* Fontes via next/font (variáveis definidas no <html> pelo layout) */
-  --font-display: var(--font-lora), "Lora", Georgia, serif;
+  /* Display moderna geométrica (briefing PM) — ar tech/IA premium. */
+  --font-display: var(--font-space), "Space Grotesk", "Poppins", system-ui, sans-serif;
+  --font-serif: var(--font-lora), "Lora", Georgia, serif; /* acento serifado opcional */
   --font-body: var(--font-poppins), "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-word: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
 
@@ -1595,4 +1597,93 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (max-width: 760px) {
   .lp-photo--band { aspect-ratio: 16 / 9; margin: 40px 0 4px; }
   .lp-photo--portrait { aspect-ratio: 3 / 2; }
+}
+
+/* ============================================================
+   SISTEMA VISUAL PREMIUM (briefing PM — "orquestra visual")
+   Profundidade de fundo · cards sofisticados · botões · ritmo.
+   Mantém 100% das cores, conteúdo e rotas. Só eleva a percepção.
+   ============================================================ */
+
+/* --- Display moderna (Space Grotesk): tracking + acento sem itálico --- */
+.display { letter-spacing: -0.025em; }
+.h2 { letter-spacing: -0.02em; }
+.display .terra-text, .h2 .terra-text { font-style: normal; font-weight: 600; }
+
+/* --- Profundidade de fundo (sutil, nas cores da marca) --- */
+.section--dark {
+  background:
+    radial-gradient(58% 46% at 10% 1%, rgba(74, 111, 165, 0.13) 0%, transparent 60%),
+    radial-gradient(46% 40% at 95% 102%, rgba(168, 105, 61, 0.09) 0%, transparent 58%),
+    var(--azul-profundo);
+}
+.section--light {
+  background:
+    radial-gradient(54% 38% at 88% 0%, rgba(168, 105, 61, 0.05) 0%, transparent 56%),
+    linear-gradient(180deg, var(--off-white) 0%, #F1ECE4 100%);
+}
+.section--accent {
+  background:
+    radial-gradient(52% 52% at 50% -2%, rgba(74, 111, 165, 0.2) 0%, transparent 60%),
+    linear-gradient(170deg, #102A52 0%, var(--azul-profundo) 100%);
+}
+
+/* malha fina “tech” nas seções escuras — profundidade sem competir com o texto */
+.section--dark::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(139, 175, 212, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 175, 212, 0.045) 1px, transparent 1px);
+  background-size: 60px 60px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 0%, transparent 78%);
+}
+.section > .container,
+.section > .container--narrow { position: relative; z-index: 1; }
+
+/* --- Cards sofisticados: hover lift + sombra + anel sutil --- */
+.pain-card, .metodo-card, .product-card, .deliver-card, .eco-tile,
+.risco-card, .mvv-card, .diag-card {
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.4s ease,
+    border-color 0.4s ease, background-color 0.4s ease;
+}
+.pain-card:hover, .metodo-card:hover, .product-card:hover, .deliver-card:hover,
+.eco-tile:hover, .risco-card:hover, .mvv-card:hover, .diag-card:hover {
+  transform: translateY(-5px);
+}
+.section--light .pain-card:hover, .section--light .metodo-card:hover,
+.section--light .product-card:hover, .section--light .eco-tile:hover,
+.section--light .mvv-card:hover, .section--light .diag-card:hover {
+  box-shadow: 0 24px 52px -26px rgba(13, 31, 60, 0.3);
+  border-color: rgba(168, 105, 61, 0.45);
+}
+.section--dark .deliver-card:hover, .section--dark .risco-card:hover,
+.section--dark .mvv-card:hover {
+  box-shadow: 0 26px 64px -30px rgba(0, 0, 0, 0.62);
+  border-color: rgba(196, 137, 74, 0.5);
+}
+.product-card--featured { box-shadow: 0 26px 64px -32px rgba(168, 105, 61, 0.5); }
+
+/* --- Botões premium (gradiente + glow nas cores atuais) --- */
+.btn--terra {
+  background: linear-gradient(180deg, var(--terra-claro) 0%, var(--terra) 62%);
+  box-shadow: 0 8px 24px -10px rgba(168, 105, 61, 0.5);
+}
+.btn--terra:hover {
+  background: linear-gradient(180deg, var(--terra) 0%, var(--terra-escura) 100%);
+  box-shadow: 0 16px 36px -10px rgba(168, 105, 61, 0.62);
+  transform: translateY(-2px);
+}
+
+/* --- Mockups com leve elevação no hover (laptop/celular) --- */
+.laptop, .phone { transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.laptop:hover, .phone:hover { transform: translateY(-6px); }
+
+/* --- Reduced motion: sem transforms --- */
+@media (prefers-reduced-motion: reduce) {
+  .pain-card, .metodo-card, .product-card, .deliver-card, .eco-tile, .risco-card,
+  .mvv-card, .diag-card, .laptop, .phone, .btn--terra { transition: none; }
+  .pain-card:hover, .metodo-card:hover, .product-card:hover, .deliver-card:hover,
+  .eco-tile:hover, .risco-card:hover, .mvv-card:hover, .diag-card:hover,
+  .laptop:hover, .phone:hover, .btn--terra:hover { transform: none; }
 }
