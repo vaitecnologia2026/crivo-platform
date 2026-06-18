@@ -60,7 +60,7 @@ export function HeroBanners() {
           href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
           target="_blank"
           rel="noopener"
-          className="btn btn--ghost"
+          className="btn btn--outline-dark"
         >
           Falar com especialista
         </a>

@@ -141,10 +141,10 @@ export function LpEffects() {
     if (nav) {
       const onScroll = () => {
         if (window.scrollY > 40) {
-          nav.style.background = "rgba(10, 14, 26, 0.95)";
-          nav.style.boxShadow = "0 8px 32px rgba(0, 0, 0, 0.3)";
+          nav.style.background = "rgba(247, 244, 239, 0.96)";
+          nav.style.boxShadow = "0 8px 28px rgba(13, 31, 60, 0.10)";
         } else {
-          nav.style.background = "rgba(10, 14, 26, 0.85)";
+          nav.style.background = "rgba(247, 244, 239, 0.9)";
           nav.style.boxShadow = "none";
         }
       };

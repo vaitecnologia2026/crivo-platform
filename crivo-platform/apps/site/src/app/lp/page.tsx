@@ -54,7 +54,7 @@ export default function LandingPage() {
             <a href="#nr1">NR-1</a>
           </nav>
           <div className="nav__actions">
-            <a href={DESIGN_SYSTEM_URL} className="btn btn--ghost btn--sm">
+            <a href={DESIGN_SYSTEM_URL} className="btn btn--outline-dark btn--sm">
               Manual de marca
             </a>
             <a href={PLATAFORMA_URL} className="btn btn--terra btn--sm">
@@ -65,24 +65,30 @@ export default function LandingPage() {
       </header>
 
       {/* ===================== HERO ===================== */}
+      {/* Hero CLARO com card fotográfico à direita (referência Lovable do cliente):
+          não iniciar a página em azul escuro; a foto vem emoldurada, não em
+          fundo de tela cheia. */}
       <section id="hero" className="hero">
-        {/* Camada fotográfica (rev2 — cliente pediu foto executiva no hero).
-            Decorativa, alt="" porque o conteúdo informativo está no texto. */}
-        <div className="hero__photo" role="presentation" aria-hidden="true" />
-        <div className="hero__bg"></div>
         <div className="container hero__inner">
           <HeroBanners />
 
           <div className="hero__visual">
-            <svg className="vertice-hero" viewBox="0 0 240 220" fill="none" aria-hidden="true">
-              <line x1="34" y1="178" x2="120" y2="32" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-              <line x1="206" y1="178" x2="120" y2="32" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-              <line x1="34" y1="178" x2="88" y2="178" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-              <line x1="152" y1="178" x2="206" y2="178" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-              <circle cx="120" cy="32" r="11" fill="#C4894A" />
-              <circle cx="120" cy="32" r="4.8" fill="#F2F0EC" />
-            </svg>
-            <span className="vertice-hero__label">O ponto de decisão · o ICD</span>
+            <figure className="hero-card">
+              <span className="hero-card__tag">Inteligência Decisória</span>
+              <div
+                className="hero-card__photo"
+                style={{ backgroundImage: "url('/imagens/hero-executivos.jpg')" }}
+                role="img"
+                aria-label="Líderes executivos em ambiente corporativo"
+              />
+              <figcaption className="hero-card__bar">
+                <span className="hero-card__brand">Decision Intelligence</span>
+                <span className="hero-card__meta">Liderança · cultura · performance</span>
+                <span className="hero-card__live">
+                  <i aria-hidden="true" /> LIVE
+                </span>
+              </figcaption>
+            </figure>
           </div>
         </div>
 
