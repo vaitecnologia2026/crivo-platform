@@ -776,6 +776,37 @@ export interface CreateEvidenceRequest {
   note?: string;
 }
 
+// ── Sugestão automática de ações (Briefing §8) ──
+// A partir da tensão dominante (4 Rs) do diagnóstico, sugere ações do catálogo
+// (ActionTemplate) das categorias afins. Heurística por categoria — fallback no
+// catálogo completo. Respeita a supressão §14 (sem leitura agregada < 5 líderes).
+
+/** Tensão dominante (4 Rs) → categorias de ActionTemplate mais relevantes. */
+export const TENSION_TO_TEMPLATE_CATEGORIES: Record<DominantPattern, string[]> = {
+  REATIVIDADE: ['Pessoas', 'Cultura'],
+  RIGIDEZ: ['Cultura', 'Operação'],
+  REPERCUSSAO: ['Cultura', 'Cliente'],
+  RISCO: ['Operação', 'Compliance'],
+  EQUILIBRADO: [],
+};
+
+export interface SuggestedActionTemplate {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  suggestedResponsible: string | null;
+  expectedEvidence: string | null;
+  defaultReviewDays: number;
+}
+
+export interface SuggestedActionsData {
+  /** Tensão dominante identificada (null = sem leitura agregada suficiente). */
+  tension: DominantPattern | null;
+  reason: string;
+  templates: SuggestedActionTemplate[];
+}
+
 // ── Configuração de IA (Super Admin · auditoria 2.3.1) ──
 
 export const AI_MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1', 'o4-mini'] as const;

@@ -224,6 +224,16 @@ export interface ActionTemplateLite {
 export function getMyActionTemplates(): Promise<ActionTemplateLite[]> {
   return apiFetch<ActionTemplateLite[]>('/me/action-templates');
 }
+
+/** §8 — Ações sugeridas automaticamente pela tensão dominante do diagnóstico. */
+export interface SuggestedActions {
+  tension: string | null;
+  reason: string;
+  templates: ActionTemplateLite[];
+}
+export function getSuggestedActions(): Promise<SuggestedActions> {
+  return apiFetch<SuggestedActions>('/action-plans/suggested-actions');
+}
 export function addActionItemFromTemplate(planId: string, templateId: string): Promise<ActionItemData> {
   return apiFetch<ActionItemData>(`/action-plans/${planId}/items-from-template/${templateId}`, {
     method: 'POST',

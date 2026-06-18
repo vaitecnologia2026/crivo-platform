@@ -13,6 +13,8 @@ import {
   addActionItem,
   addActionItemFromTemplate,
   getMyActionTemplates,
+  getSuggestedActions,
+  type SuggestedActions,
   addEvidence,
   uploadEvidence,
   downloadEvidenceFile,
@@ -272,12 +274,18 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
+  const [showSuggested, setShowSuggested] = useState(false);
+  const [suggested, setSuggested] = useState<SuggestedActions | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
   async function loadTemplates() {
     if (templates) return;
     try { setTemplates(await getMyActionTemplates()); } catch { setTemplates([]); }
+  }
+  async function loadSuggested() {
+    if (suggested) return;
+    try { setSuggested(await getSuggestedActions()); } catch { setSuggested({ tension: null, reason: "", templates: [] }); }
   }
 
   async function importTemplate(tplId: string) {
@@ -307,14 +315,56 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         <span style={{ fontSize: 12, color: "var(--text-sec)" }}>
           Criar ação personalizada ou importar do catálogo CRIVO.
         </span>
-        <button
-          type="button"
-          className="btn btn--ghost-dark btn--sm"
-          onClick={() => { setShowTemplates((s) => !s); loadTemplates(); }}
-        >
-          {showTemplates ? "Fechar catálogo" : "◈ Importar do catálogo"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn--terra btn--sm"
+            onClick={() => { setShowSuggested((s) => !s); loadSuggested(); }}
+          >
+            {showSuggested ? "Fechar sugestões" : "✦ Sugeridas pelo diagnóstico"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost-dark btn--sm"
+            onClick={() => { setShowTemplates((s) => !s); loadTemplates(); }}
+          >
+            {showTemplates ? "Fechar catálogo" : "◈ Importar do catálogo"}
+          </button>
+        </div>
       </div>
+
+      {showSuggested && (
+        <div style={{ marginBottom: 14, padding: 12, background: "var(--bg-elev)", borderRadius: 6, border: "1px solid var(--gold-soft, var(--line))" }}>
+          {suggested === null && <p className="card__sub">Lendo o diagnóstico…</p>}
+          {suggested && (
+            <>
+              <p className="card__sub" style={{ marginBottom: 10, fontSize: 12 }}>
+                {suggested.reason || "Sem ações modelo cadastradas no Super Admin ainda."}
+              </p>
+              {suggested.templates.length === 0 ? (
+                <p className="card__sub" style={{ fontSize: 11 }}>Cadastre ações modelo no Super Admin (Biblioteca de Ações) para receber sugestões.</p>
+              ) : (
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 280, overflow: "auto" }}>
+                  {suggested.templates.map((t) => (
+                    <li key={t.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--line-soft)" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ fontSize: 13 }}>{t.title}</strong>
+                        <div className="card__sub" style={{ fontSize: 11 }}>
+                          {t.category} · revisão em {t.defaultReviewDays}d
+                          {t.suggestedResponsible && ` · ${t.suggestedResponsible}`}
+                        </div>
+                      </div>
+                      <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => importTemplate(t.id)} disabled={importingId === t.id}>
+                        {importingId === t.id ? "Importando…" : "+ usar"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {showTemplates && (
         <div style={{ marginBottom: 14, padding: 12, background: "var(--bg-elev)", borderRadius: 6, border: "1px solid var(--line)" }}>

@@ -1,15 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  ActionItemData,
-  ActionPlanData,
-  ActionStatus,
-  CreateActionItemRequest,
-  CreateActionPlanRequest,
-  CreateEvidenceRequest,
-  EvidenceData,
-  UpdateActionItemRequest,
+import {
+  MIN_LEADERS_FOR_DISCLOSURE,
+  TENSION_TO_TEMPLATE_CATEGORIES,
+  type ActionItemData,
+  type ActionPlanData,
+  type ActionStatus,
+  type CreateActionItemRequest,
+  type CreateActionPlanRequest,
+  type CreateEvidenceRequest,
+  type DominantPattern,
+  type EvidenceData,
+  type SuggestedActionsData,
+  type UpdateActionItemRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+
+const TENSION_LABEL: Record<DominantPattern, string> = {
+  REATIVIDADE: 'Reatividade',
+  RIGIDEZ: 'Rigidez',
+  REPERCUSSAO: 'Repercussão',
+  RISCO: 'Risco',
+  EQUILIBRADO: 'Equilibrado',
+};
 
 type ActorName = string;
 
@@ -237,6 +249,53 @@ export class ActionPlansService {
         data: Buffer.from(ev.file.data),
       };
     });
+  }
+
+  /** §8 — Sugestão AUTOMÁTICA de ações a partir do diagnóstico: a tensão dominante
+   *  da liderança (4 Rs) prioriza ActionTemplates das categorias afins; fallback no
+   *  catálogo completo. Respeita §14: sem tensão se < 5 líderes (não vaza agregado). */
+  async suggestedActions(tenantId: string): Promise<SuggestedActionsData> {
+    const tension = await this.prisma.forTenant(tenantId, async (tx) => {
+      const scores = await tx.icdScore.findMany({
+        orderBy: { computedAt: 'desc' },
+        select: { leaderId: true, dominantPattern: true },
+      });
+      const latest = new Map<string, string>();
+      for (const s of scores) if (!latest.has(s.leaderId)) latest.set(s.leaderId, s.dominantPattern);
+      if (latest.size < MIN_LEADERS_FOR_DISCLOSURE) return null; // §14 — supressão
+      const counts: Record<string, number> = {};
+      for (const p of latest.values()) if (p !== 'EQUILIBRADO') counts[p] = (counts[p] ?? 0) + 1;
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      return (top ? top[0] : null) as DominantPattern | null;
+    });
+
+    const all = await this.prisma.admin.actionTemplate.findMany({
+      where: { active: true },
+      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+    });
+    const cats = tension ? TENSION_TO_TEMPLATE_CATEGORIES[tension] : [];
+    const matched = cats.length ? all.filter((t) => cats.includes(t.category)) : [];
+    const chosen = matched.length ? matched : all;
+
+    const reason = !tension
+      ? 'Catálogo completo — sem leitura agregada suficiente (mín. 5 respondentes) para priorizar por tensão.'
+      : matched.length
+        ? `Priorizadas para a tensão dominante da liderança: ${TENSION_LABEL[tension]}.`
+        : `Tensão dominante: ${TENSION_LABEL[tension]} — catálogo completo (sem ação modelo na categoria afim).`;
+
+    return {
+      tension,
+      reason,
+      templates: chosen.map((t) => ({
+        id: t.id,
+        title: t.title,
+        category: t.category,
+        description: t.description,
+        suggestedResponsible: t.suggestedResponsible,
+        expectedEvidence: t.expectedEvidence,
+        defaultReviewDays: t.defaultReviewDays,
+      })),
+    };
   }
 
   // ── mappers ──

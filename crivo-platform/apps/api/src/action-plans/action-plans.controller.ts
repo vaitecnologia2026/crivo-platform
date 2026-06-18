@@ -62,6 +62,12 @@ export class ActionPlansController {
     return this.plans.list(user.tenantId);
   }
 
+  /** §8 — Ações sugeridas automaticamente a partir do diagnóstico (tensão dominante). */
+  @Get('suggested-actions')
+  suggestedActions(@CurrentUser() user: SessionUser) {
+    return this.plans.suggestedActions(user.tenantId);
+  }
+
   @Post()
   createPlan(@CurrentUser() user: SessionUser, @Body() dto: CreateActionPlanDto) {
     return this.plans.createPlan(user.tenantId, dto);
