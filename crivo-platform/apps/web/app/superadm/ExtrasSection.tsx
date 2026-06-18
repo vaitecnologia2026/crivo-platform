@@ -48,7 +48,7 @@ export function ExtrasSection() {
         </div>
       </div>
 
-      <div className="mb-4 flex gap-1 border-b border-line">
+      <div className="adm-tabs">
         {([
           ["mentorias", "Mentorias"],
           ["acoes", "Biblioteca de Ações"],
@@ -58,11 +58,7 @@ export function ExtrasSection() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2 text-[13px] font-medium border-b-2 transition ${
-              tab === key
-                ? "border-terra text-azul-profundo"
-                : "border-transparent text-text-sec hover:text-text"
-            }`}
+            className={`adm-tab${tab === key ? " is-active" : ""}`}
           >
             {label}
           </button>
@@ -131,7 +127,7 @@ function MentoriasTab() {
     <div>
       <div className="mb-3 flex justify-between items-center">
         <p className="text-[13px] text-text-sec">Agenda de mentorias por cliente.</p>
-        <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] font-medium text-white" onClick={() => setShowNew((s) => !s)}>
+        <button className="btn btn--terra btn--sm" onClick={() => setShowNew((s) => !s)}>
           {showNew ? "Cancelar" : "+ Nova mentoria"}
         </button>
       </div>
@@ -183,7 +179,7 @@ function MentoriasTab() {
             </label>
           )}
           <div className="col-span-full flex justify-end gap-2">
-            <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={submit} disabled={busy}>
+            <button className="btn btn--terra btn--sm" onClick={submit} disabled={busy}>
               {busy ? "Salvando…" : "Criar mentoria"}
             </button>
           </div>
@@ -191,8 +187,8 @@ function MentoriasTab() {
       )}
 
       {error && <p className="mb-3 rounded-[3px] border border-[#c2625b] bg-[#fdf5f4] p-2 text-[12px] text-[#9c4c46]">{error}</p>}
-      {rows === null ? <p className="text-[13px] text-text-sec">Carregando…</p> : rows.length === 0 ? (
-        <p className="text-[13px] text-text-sec">Nenhuma mentoria registrada.</p>
+      {rows === null ? <p className="adm-empty">Carregando…</p> : rows.length === 0 ? (
+        <p className="adm-empty">Nenhuma mentoria registrada.</p>
       ) : (
         <table className="data-table">
           <thead><tr><th>Título</th><th>Cliente</th><th>Mentor</th><th>Participante</th><th>Formato</th><th>Quando</th><th>Status</th></tr></thead>
@@ -252,7 +248,7 @@ function ActionTemplatesTab() {
     <div>
       <div className="mb-3 flex justify-between items-center">
         <p className="text-[13px] text-text-sec">Catálogo global de ações modelo. O cliente importa para o próprio plano.</p>
-        <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={() => setShowNew(s => !s)}>
+        <button className="btn btn--terra btn--sm" onClick={() => setShowNew(s => !s)}>
           {showNew ? "Cancelar" : "+ Nova ação modelo"}
         </button>
       </div>
@@ -284,7 +280,7 @@ function ActionTemplatesTab() {
             <input type="number" min={1} max={365} className="rounded-[3px] border border-line bg-white px-2 py-1.5 text-[13px] text-text" value={form.defaultReviewDays} onChange={(e) => setForm({...form, defaultReviewDays: parseInt(e.target.value) || 30})} />
           </label>
           <div className="col-span-full flex justify-end">
-            <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={submit} disabled={busy}>
+            <button className="btn btn--terra btn--sm" onClick={submit} disabled={busy}>
               {busy ? "Salvando…" : "Criar ação modelo"}
             </button>
           </div>
@@ -292,8 +288,8 @@ function ActionTemplatesTab() {
       )}
 
       {error && <p className="mb-3 rounded-[3px] border border-[#c2625b] bg-[#fdf5f4] p-2 text-[12px] text-[#9c4c46]">{error}</p>}
-      {rows === null ? <p className="text-[13px] text-text-sec">Carregando…</p> : rows.length === 0 ? (
-        <p className="text-[13px] text-text-sec">Nenhuma ação modelo cadastrada.</p>
+      {rows === null ? <p className="adm-empty">Carregando…</p> : rows.length === 0 ? (
+        <p className="adm-empty">Nenhuma ação modelo cadastrada.</p>
       ) : (
         <table className="data-table">
           <thead><tr><th>Título</th><th>Categoria</th><th>Responsável</th><th>Evidência</th><th>Revisão</th><th>Ativa</th></tr></thead>
@@ -355,7 +351,7 @@ function EditableTextsTab() {
     <div>
       <div className="mb-3 flex justify-between items-center">
         <p className="text-[13px] text-text-sec">Copy do produto editável sem deploy. Versionado automaticamente.</p>
-        <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={() => setShowNew(s => !s)}>
+        <button className="btn btn--terra btn--sm" onClick={() => setShowNew(s => !s)}>
           {showNew ? "Cancelar" : "+ Nova chave"}
         </button>
       </div>
@@ -377,14 +373,14 @@ function EditableTextsTab() {
             <textarea rows={6} className="rounded-[3px] border border-line bg-white px-2 py-1.5 text-[13px] text-text font-body" value={newContent} onChange={(e) => setNewContent(e.target.value)} />
           </label>
           <div className="flex justify-end">
-            <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={createNew}>Criar</button>
+            <button className="btn btn--terra btn--sm" onClick={createNew}>Criar</button>
           </div>
         </div>
       )}
 
       {error && <p className="mb-3 rounded-[3px] border border-[#c2625b] bg-[#fdf5f4] p-2 text-[12px] text-[#9c4c46]">{error}</p>}
-      {rows === null ? <p className="text-[13px] text-text-sec">Carregando…</p> : rows.length === 0 ? (
-        <p className="text-[13px] text-text-sec">Nenhum texto cadastrado.</p>
+      {rows === null ? <p className="adm-empty">Carregando…</p> : rows.length === 0 ? (
+        <p className="adm-empty">Nenhum texto cadastrado.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {rows.map((t) => (
@@ -396,7 +392,7 @@ function EditableTextsTab() {
                 </div>
                 {editingKey === t.key ? (
                   <div className="flex gap-2">
-                    <button className="rounded-[3px] border border-terra bg-terra px-3 py-1 text-[11px] text-white" onClick={() => saveEdit(t.key, t.category)}>Salvar</button>
+                    <button className="btn btn--terra btn--sm" onClick={() => saveEdit(t.key, t.category)}>Salvar</button>
                     <button className="rounded-[3px] border border-line bg-white px-3 py-1 text-[11px] text-text-sec" onClick={() => setEditingKey(null)}>Cancelar</button>
                   </div>
                 ) : (
@@ -467,7 +463,7 @@ function GlobalAcademyTab() {
     <div>
       <div className="mb-3 flex justify-between items-center">
         <p className="text-[13px] text-text-sec">Catálogo global da Academia CRIVO. Curado pelo Super Admin.</p>
-        <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={() => setShowNew(s => !s)}>
+        <button className="btn btn--terra btn--sm" onClick={() => setShowNew(s => !s)}>
           {showNew ? "Cancelar" : "+ Novo conteúdo"}
         </button>
       </div>
@@ -506,7 +502,7 @@ function GlobalAcademyTab() {
             <span>Publicado (visível aos clientes)</span>
           </label>
           <div className="col-span-full flex justify-end">
-            <button className="rounded-[3px] border border-terra bg-terra px-3 py-1.5 text-[12px] text-white" onClick={submit} disabled={busy}>
+            <button className="btn btn--terra btn--sm" onClick={submit} disabled={busy}>
               {busy ? "Salvando…" : "Criar conteúdo"}
             </button>
           </div>
@@ -514,8 +510,8 @@ function GlobalAcademyTab() {
       )}
 
       {error && <p className="mb-3 rounded-[3px] border border-[#c2625b] bg-[#fdf5f4] p-2 text-[12px] text-[#9c4c46]">{error}</p>}
-      {rows === null ? <p className="text-[13px] text-text-sec">Carregando…</p> : rows.length === 0 ? (
-        <p className="text-[13px] text-text-sec">Nenhum conteúdo cadastrado.</p>
+      {rows === null ? <p className="adm-empty">Carregando…</p> : rows.length === 0 ? (
+        <p className="adm-empty">Nenhum conteúdo cadastrado.</p>
       ) : (
         <table className="data-table">
           <thead><tr><th>Título</th><th>Tipo</th><th>Categoria</th><th>URL</th><th>Publicado</th></tr></thead>

@@ -32,61 +32,62 @@ export function RbacSection() {
             empresa serão adicionados na próxima fatia (TenantRole).
           </p>
         </div>
+        <span className="adm-readonly" title="Catálogo de referência — sem edição nesta tela">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          Somente leitura
+        </span>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="adm-chips">
         {ROLES.map((r) => (
           <button
             key={r}
             onClick={() => setActiveRole(r)}
-            className={`px-3 py-1.5 text-[12px] font-medium rounded-[3px] border ${
-              activeRole === r
-                ? "border-terra bg-terra text-white"
-                : "border-line bg-white text-text-sec hover:border-terra"
-            }`}
+            className={`adm-chip${activeRole === r ? " is-active" : ""}`}
           >
             {ROLE_LABELS[r]}
           </button>
         ))}
       </div>
 
-      <div className="rounded-[6px] border border-line bg-white">
-        <div className="border-b border-line p-3">
-          <h3 className="font-display text-base text-azul-profundo">
-            Permissões do papel: <strong>{ROLE_LABELS[activeRole]}</strong>
-          </h3>
-          <p className="text-[12px] text-text-sec">
-            {activePerms.size} permissão(ões) de {PERMISSIONS.length} no catálogo.
-          </p>
+      <div className="card">
+        <div className="card__head">
+          <div>
+            <h3>
+              Permissões do papel: <strong>{ROLE_LABELS[activeRole]}</strong>
+            </h3>
+            <span className="card__sub">
+              {activePerms.size} de {PERMISSIONS.length} permissões do catálogo liberadas para este papel.
+            </span>
+          </div>
         </div>
-        <div className="p-3 overflow-x-auto">
-          <table className="w-full data-table">
-            <thead>
-              <tr>
-                <th>Módulo</th>
-                <th>Permissão</th>
-                <th>Liberada?</th>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th>Permissão</th>
+              <th>Liberada?</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grid.map((g) => (
+              <tr key={g.code}>
+                <td><code className="cell-code">{g.module}</code></td>
+                <td>{g.label}</td>
+                <td>
+                  {activePerms.has(g.code) ? (
+                    <span className="pattern-tag">✓ Liberada</span>
+                  ) : (
+                    <span className="cell-na">—</span>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {grid.map((g) => (
-                <tr key={g.code}>
-                  <td className="font-mono text-[12px] text-azul-profundo">{g.module}</td>
-                  <td>{g.label}</td>
-                  <td>
-                    {activePerms.has(g.code) ? (
-                      <span className="rounded-full bg-[rgba(46,120,80,0.14)] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#2e7850]">
-                        ✓ liberada
-                      </span>
-                    ) : (
-                      <span className="text-[12px] text-text-mute">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

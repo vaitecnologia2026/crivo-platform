@@ -90,37 +90,28 @@ export function ModulesModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,31,51,0.45)] p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-[560px] overflow-hidden rounded-[8px] border border-line bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Cabeçalho */}
-        <div className="flex items-start justify-between border-b border-line px-6 py-4">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__head">
           <div>
-            <h2 className="font-display text-lg text-azul-profundo">Módulos · {tenant.name}</h2>
+            <h2>Módulos · {tenant.name}</h2>
             <p className="mt-0.5 text-[12px] text-text-sec">
               Módulos acima do plano ficam indisponíveis.
             </p>
           </div>
-          <button onClick={onClose} className="text-[13px] text-text-sec hover:underline">
+          <button onClick={onClose} className="btn btn--outline-dark btn--sm">
             Fechar
           </button>
         </div>
 
-        <div className="max-h-[64vh] overflow-y-auto px-6 py-4">
-          {load === "loading" && <p className="py-8 text-center text-[13px] text-text-sec">Carregando…</p>}
+        <div className="modal__body">
+          {load === "loading" && <p className="adm-empty">Carregando módulos…</p>}
           {load === "error" && (
-            <p className="py-8 text-center text-[13px] text-text-sec">
-              Não foi possível carregar os módulos.
-            </p>
+            <p className="adm-empty">Não foi possível carregar os módulos.</p>
           )}
 
           {error && (
-            <div className="mb-4 rounded-[4px] border border-[rgba(196,137,74,0.4)] bg-[rgba(196,137,74,0.1)] px-3 py-2 text-[12px] text-terra-escura">
+            <div className="dash-state dash-state--error" style={{ marginBottom: 16 }}>
               {error}
             </div>
           )}
@@ -128,16 +119,14 @@ export function ModulesModal({
           {load === "ok" && (
             <>
               {/* Plano + uso */}
-              <div className="mb-4 flex flex-wrap items-end justify-between gap-4 rounded-[6px] border border-line bg-paper-dim px-4 py-3">
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] uppercase tracking-[0.1em] text-text-sec">
-                    Plano
-                  </span>
+              <div className="mod-planbar">
+                <label className="mod-planbar__plan">
+                  <span className="mod-planbar__label">Plano</span>
                   <select
                     value={plan}
                     disabled={busy === "__plan__"}
                     onChange={(e) => changePlan(e.target.value as Plan)}
-                    className="rounded-[3px] border border-line bg-white px-3 py-2 text-[14px] text-text outline-none focus:border-terra disabled:opacity-50"
+                    className="mod-select"
                   >
                     {PLANS.map((p) => (
                       <option key={p} value={p}>
@@ -147,27 +136,29 @@ export function ModulesModal({
                   </select>
                 </label>
                 {usage && (
-                  <div className="text-[12px] text-text-sec">
-                    <span className="block text-[11px] uppercase tracking-[0.1em]">Uso · {usage.period}</span>
-                    {usage.metrics.map((mt) => (
-                      <span key={mt.metric} className="mr-3 inline-block">
-                        {mt.metric}: <strong className="text-azul-profundo">{mt.value}</strong>
-                        {mt.limit !== null ? ` / ${mt.limit}` : " / ∞"}
-                      </span>
-                    ))}
+                  <div className="mod-planbar__usage">
+                    <span className="mod-planbar__label">Uso · {usage.period}</span>
+                    <div>
+                      {usage.metrics.map((mt) => (
+                        <span key={mt.metric} className="mod-usage__metric">
+                          {mt.metric}: <strong>{mt.value}</strong>
+                          {mt.limit !== null ? ` / ${mt.limit}` : " / ∞"}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              <ul className="divide-y divide-line">
+              <ul className="mod-list">
                 {modules.map((m) => (
-                  <li key={m.code} className="flex items-center justify-between gap-4 py-3">
+                  <li key={m.code} className="mod-item">
                     <div>
-                      <p className="text-[14px] font-medium text-azul-profundo">{m.name}</p>
-                      <p className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-text-sec">
+                      <p className="mod-item__name">{m.name}</p>
+                      <p className="mod-item__cat">
                         {m.category}
                         {!m.availableForPlan && (
-                          <span className="ml-2 normal-case tracking-normal text-terra-escura">
+                          <span className="mod-item__req">
                             requer plano {PLAN_LABELS[m.minPlan]}
                           </span>
                         )}
@@ -204,15 +195,9 @@ function Toggle({
       aria-checked={on}
       disabled={disabled}
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-        on ? "bg-[#2e7850]" : "bg-line"
-      }`}
+      className={`sw${on ? " is-on" : ""}`}
     >
-      <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          on ? "translate-x-[22px]" : "translate-x-0.5"
-        }`}
-      />
+      <span className="sw__dot" />
     </button>
   );
 }
