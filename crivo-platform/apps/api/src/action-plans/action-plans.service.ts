@@ -187,6 +187,54 @@ export class ActionPlansService {
     });
   }
 
+  /** Evidência com ARQUIVO (upload). Metadados em Evidence, bytes em EvidenceFile. */
+  async addFileEvidence(
+    tenantId: string,
+    itemId: string,
+    meta: { kind: string; title: string; note?: string },
+    file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+  ): Promise<EvidenceData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const item = await tx.actionItem.findUnique({ where: { id: itemId } });
+      if (!item) throw new NotFoundException('Ação não encontrada');
+      const ev = await tx.evidence.create({
+        data: {
+          tenantId,
+          itemId,
+          kind: meta.kind.trim(),
+          title: meta.title.trim() || file.originalname,
+          note: meta.note ?? null,
+          fileName: file.originalname,
+          fileMime: file.mimetype,
+          fileSize: file.size,
+        },
+      });
+      await tx.evidenceFile.create({
+        data: { tenantId, evidenceId: ev.id, data: file.buffer },
+      });
+      return this.toEvidence(ev);
+    });
+  }
+
+  /** Bytes do arquivo de uma evidência (download). Sob RLS — só do próprio tenant. */
+  async getEvidenceFile(
+    tenantId: string,
+    evidenceId: string,
+  ): Promise<{ fileName: string; fileMime: string; data: Buffer }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const ev = await tx.evidence.findUnique({
+        where: { id: evidenceId },
+        include: { file: true },
+      });
+      if (!ev || !ev.file) throw new NotFoundException('Arquivo não encontrado');
+      return {
+        fileName: ev.fileName ?? 'evidencia',
+        fileMime: ev.fileMime ?? 'application/octet-stream',
+        data: Buffer.from(ev.file.data),
+      };
+    });
+  }
+
   // ── mappers ──
   private toPlan(p: {
     id: string; title: string; source: string | null; validatedAt: Date | null;
@@ -226,7 +274,8 @@ export class ActionPlansService {
 
   private toEvidence(e: {
     id: string; itemId: string | null; kind: string; title: string; url: string | null;
-    note: string | null; createdAt: Date;
+    note: string | null; fileName?: string | null; fileMime?: string | null;
+    fileSize?: number | null; createdAt: Date;
   }): EvidenceData {
     return {
       id: e.id,
@@ -235,6 +284,9 @@ export class ActionPlansService {
       title: e.title,
       url: e.url,
       note: e.note,
+      fileName: e.fileName ?? null,
+      fileMime: e.fileMime ?? null,
+      fileSize: e.fileSize ?? null,
       createdAt: e.createdAt.toISOString(),
     };
   }

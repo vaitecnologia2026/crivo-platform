@@ -12,6 +12,8 @@ import {
   addActionItemFromTemplate,
   getMyActionTemplates,
   addEvidence,
+  uploadEvidence,
+  downloadEvidenceFile,
   createActionPlan,
   listActionPlans,
   updateActionItem,
@@ -194,16 +196,34 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   );
 }
 
+function fmtSize(bytes: number | null): string {
+  if (!bytes) return "";
+  return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][number]; onChanged: () => void }) {
   const [kind, setKind] = useState("documento");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   async function add(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    try { await addEvidence(item.id, { kind, title: title.trim(), url: url || undefined }); setTitle(""); setUrl(""); onChanged(); }
+    try {
+      if (file) {
+        // §9 — upload de arquivo (prioridade sobre o link quando há arquivo).
+        await uploadEvidence(item.id, file, { kind, title: title.trim() || file.name });
+      } else {
+        await addEvidence(item.id, { kind, title: title.trim(), url: url || undefined });
+      }
+      setTitle(""); setUrl(""); setFile(null); onChanged();
+    }
     catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
+  }
+  async function baixar(ev: ActionPlanData["items"][number]["evidences"][number]) {
+    try { await downloadEvidenceFile(ev.id, ev.fileName ?? ev.title); }
+    catch (err) { alert(err instanceof Error ? err.message : "Falha ao baixar"); }
   }
   return (
     <div style={{ padding: "12px 6px" }}>
@@ -211,10 +231,14 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
       <ul className="lib-list" style={{ marginBottom: 10 }}>
         {item.evidences.map((ev) => (
           <li key={ev.id} className="lib-row">
-            <span className="lib-ic">▤</span>
+            <span className="lib-ic">{ev.fileName ? "📎" : "▤"}</span>
             <div>
               <strong>{ev.title}</strong>
-              <span>{ev.kind}{ev.url ? " · " : ""}{ev.url && <a href={ev.url} target="_blank" rel="noopener">abrir</a>}</span>
+              <span>
+                {ev.kind}
+                {ev.fileName && <> · <button type="button" className="lib-act" onClick={() => baixar(ev)}>baixar {ev.fileName} ({fmtSize(ev.fileSize)})</button></>}
+                {ev.url && <> · <a href={ev.url} target="_blank" rel="noopener">abrir</a></>}
+              </span>
             </div>
           </li>
         ))}
@@ -225,12 +249,17 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
           <select value={kind} onChange={(e) => setKind(e.target.value)}>{EVIDENCE_KINDS.map((k) => (<option key={k}>{k}</option>))}</select>
         </label>
         <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Título</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Ex.: Ata da reunião 12/06" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Ata da reunião 12/06" />
         </label>
-        <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Link (opcional)</span>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+        <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Arquivo (até 8 MB)</span>
+          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
-        <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !title.trim()}>Anexar</button>
+        <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>ou Link</span>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" disabled={!!file} />
+        </label>
+        <button type="submit" className="btn btn--terra btn--sm" disabled={saving || (!file && !title.trim() && !url)}>
+          {saving ? "Enviando…" : file ? "Enviar arquivo" : "Anexar"}
+        </button>
       </form>
     </div>
   );

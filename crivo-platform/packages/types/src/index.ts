@@ -697,6 +697,11 @@ export interface EvidenceData {
   title: string;
   url: string | null;
   note: string | null;
+  /** Metadados do arquivo enviado (quando a evidência é um upload, não um link).
+   *  Os bytes não trafegam aqui — baixados sob demanda em /evidences/:id/file. */
+  fileName: string | null;
+  fileMime: string | null;
+  fileSize: number | null;
   createdAt: string;
 }
 

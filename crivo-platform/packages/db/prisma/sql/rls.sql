@@ -35,7 +35,7 @@ DECLARE
   tables text[] := ARRAY['organizations','companies','units','teams','users','team_members',
                          'assessment_cycles','assessments','responses','icd_scores','leads',
                          'tenant_modules','usage_counters','tenant_branding','library_items',
-                         'action_plans','action_items','evidences',
+                         'action_plans','action_items','evidences','evidence_files',
                          'self_assessments','essential_records','pareceres',
                          -- ICD/Decisões/Pocket v1 (commit backlog P0–P2) — data plane.
                          'decisions','decision_categories','decision_icd_scores',

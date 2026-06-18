@@ -1114,13 +1114,35 @@ model Evidence {
   item      ActionItem?  @relation(fields: [itemId], references: [id], onDelete: SetNull)
   kind      String // ata | reuniao | print | foto | documento | comunicado | lista | treinamento | link
   title     String
-  url       String? // link ou caminho do arquivo
+  url       String? // link/referência (quando a evidência é um link)
   note      String?
+  // Metadados do upload (quando a evidência é um arquivo, não um link). Os BYTES
+  // ficam em EvidenceFile (tabela separada), p/ a linha de evidência permanecer
+  // leve em listagens. fileName preenchido ⇒ há arquivo.
+  fileName  String?
+  fileMime  String?
+  fileSize  Int? // tamanho em bytes
+  file      EvidenceFile?
   createdAt DateTime     @default(now())
 
   @@index([tenantId])
   @@index([itemId])
   @@map("evidences")
+}
+
+// Bytes do arquivo de uma evidência (1:1 com Evidence). Tabela separada para que
+// os bytes NUNCA tragem em listagens de evidência — só são lidos no download.
+// Data plane (RLS por tenant). Documentos pequenos (atas, prints, PDFs).
+model EvidenceFile {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  evidenceId String   @unique @db.Uuid
+  evidence   Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  data       Bytes
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("evidence_files")
 }
 
 // =====================================================================

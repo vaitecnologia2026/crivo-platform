@@ -331,6 +331,55 @@ export function addEvidence(itemId: string, dto: CreateEvidenceRequest): Promise
   });
 }
 
+/** §9 — Evidência por UPLOAD de arquivo (multipart). Não usa apiFetch (que força
+ *  JSON); o browser define o boundary do multipart. */
+export async function uploadEvidence(
+  itemId: string,
+  file: File,
+  meta: { kind: string; title: string; note?: string },
+): Promise<EvidenceData> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('kind', meta.kind);
+  fd.append('title', meta.title);
+  if (meta.note) fd.append('note', meta.note);
+  const token = getToken();
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}/action-plans/items/${itemId}/evidences/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+      signal: AbortSignal.timeout(60000),
+    });
+  } catch {
+    throw new Error('Falha no upload. Verifique sua conexão e tente novamente.');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Falha no upload');
+  }
+  return res.json() as Promise<EvidenceData>;
+}
+
+/** §9 — Baixa o arquivo de uma evidência (autenticado) e dispara o download. */
+export async function downloadEvidenceFile(id: string, fileName: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${apiBase()}/action-plans/evidences/${id}/file`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Falha ao baixar o arquivo');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ── Documentos (Briefing §15) ──
 
 export function listDocuments(): Promise<DocumentDescriptor[]> {
