@@ -582,51 +582,104 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== DASHBOARD ===================== */}
+      {/* Notebook com dashboard real (spec do cliente: "explicar menos, mostrar
+          mais" — visual executivo de gráficos). UI ilustrativa em CSS/SVG. */}
       <section className="section section--light" id="dashboard">
         <div className="container">
           <span className="eyebrow">Dashboard executivo</span>
           <h2 className="h2">Dados que viram decisão — em uma leitura.</h2>
           <p className="lede">
-            O dashboard transforma respostas em inteligência organizacional. Tudo o que a liderança precisa para decidir
-            com critério, monitorar riscos e comprovar a evolução.
+            Login seguro, dashboards inteligentes, plano de ação estruturado e indicadores que mostram o que importa.
+            Tudo integrado para transformar dados em decisões e acompanhar a evolução com confiança.
           </p>
 
-          <div className="dash-grid">
-            <div className="dash-card">
-              <strong>Índice Geral CRIVO</strong>
-              <span>Síntese dos fatores humanos, culturais e organizacionais</span>
+          <div className="laptop" role="img" aria-label="Dashboard executivo CRIVO: Índice Geral 78, taxa de adesão 84%, fatores psicossociais, áreas críticas e liderança">
+            <div className="laptop__screen">
+              <div className="dashshot">
+                <div className="dashshot__bar" aria-hidden="true">
+                  <span className="dashshot__brand">CRIVO</span>
+                  <span className="dashshot__crumb">Dashboard Executivo · Empresa Demo</span>
+                  <span className="dashshot__dots"><i /><i /><i /></span>
+                </div>
+                <div className="dashshot__grid">
+                  <div className="ds-tile ds-tile--index">
+                    <span className="ds-tile__label">Índice Geral CRIVO</span>
+                    <p className="ds-index"><strong>78</strong><span>/100</span></p>
+                    <span className="ds-pill ds-pill--ok">Saúde organizacional · Boa</span>
+                  </div>
+                  <div className="ds-tile ds-tile--wide">
+                    <span className="ds-tile__label">Evolução do índice</span>
+                    <svg className="ds-line" viewBox="0 0 240 84" preserveAspectRatio="none" aria-hidden="true">
+                      <polyline points="4,64 38,58 72,62 106,46 140,50 174,34 208,38 236,22" />
+                      <circle cx="236" cy="22" r="3.5" />
+                    </svg>
+                    <div className="ds-line__axis"><span>jan</span><span>jun</span></div>
+                  </div>
+                  <div className="ds-tile">
+                    <span className="ds-tile__label">Taxa de adesão</span>
+                    <p className="ds-big">84%</p>
+                    <span className="ds-tile__sub">Participação geral · +12 p.p.</span>
+                  </div>
+                  <div className="ds-tile">
+                    <span className="ds-tile__label">Áreas críticas</span>
+                    <ul className="ds-areas">
+                      <li>Carga de trabalho <em className="ds-tag ds-tag--high">Alto</em></li>
+                      <li>Relações de trabalho <em className="ds-tag ds-tag--mid">Médio</em></li>
+                      <li>Reconhecimento <em className="ds-tag ds-tag--mid">Médio</em></li>
+                    </ul>
+                  </div>
+                  <div className="ds-tile">
+                    <span className="ds-tile__label">Fatores psicossociais</span>
+                    <div className="ds-donut-wrap">
+                      <span className="ds-donut" aria-hidden="true" />
+                      <ul className="ds-legend">
+                        <li><i className="is-high" /> Alto 36%</li>
+                        <li><i className="is-mid" /> Médio 48%</li>
+                        <li><i className="is-low" /> Baixo 16%</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="ds-tile">
+                    <span className="ds-tile__label">Liderança e cultura</span>
+                    <div className="ds-meter"><span>Segurança psicológica</span><i style={{ width: "74%" }} /><b>74</b></div>
+                    <div className="ds-meter"><span>Coerência de liderança</span><i style={{ width: "71%" }} /><b>71</b></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="dash-card">
-              <strong>Evolução dos indicadores</strong>
-              <span>Tendência ao longo do tempo</span>
+            <div className="laptop__base" aria-hidden="true" />
+          </div>
+
+          {/* 4 cards de apoio abaixo do notebook */}
+          <div className="dash-kpis">
+            <div className="dash-kpi">
+              <span className="dash-kpi__label">Plano de ação</span>
+              <strong className="dash-kpi__num">32</strong>
+              <span className="dash-kpi__sub">ações em andamento</span>
+              <div className="dash-kpi__bar"><i style={{ width: "64%" }} /></div>
+              <span className="dash-kpi__foot">18 concluídas · 14 em andamento · 4 atrasadas</span>
             </div>
-            <div className="dash-card">
-              <strong>Taxa de adesão</strong>
-              <span>Participação por área e campanha</span>
+            <div className="dash-kpi">
+              <span className="dash-kpi__label">Evidências</span>
+              <strong className="dash-kpi__num">112</strong>
+              <span className="dash-kpi__sub">registradas</span>
+              <span className="dash-kpi__foot dash-kpi__foot--up">+18 esta semana</span>
             </div>
-            <div className="dash-card">
-              <strong>Áreas críticas</strong>
-              <span>Prioridades de atuação</span>
+            <div className="dash-kpi">
+              <span className="dash-kpi__label">Riscos psicossociais</span>
+              <div className="dash-heat" aria-hidden="true">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <span key={i} className={`dash-heat__c dash-heat__c--${[1,2,3,2,3,4,3,4,4][i]}`} />
+                ))}
+              </div>
+              <span className="dash-kpi__foot">probabilidade × impacto</span>
             </div>
-            <div className="dash-card">
-              <strong>Fatores psicossociais</strong>
-              <span>Leitura estruturada dos riscos relacionados ao trabalho</span>
-            </div>
-            <div className="dash-card">
-              <strong>Liderança e cultura</strong>
-              <span>Padrões de liderança, segurança psicológica e coerência</span>
-            </div>
-            <div className="dash-card">
-              <strong>Plano de ação</strong>
-              <span>Status, responsáveis e prazos</span>
-            </div>
-            <div className="dash-card">
-              <strong>Evidências</strong>
-              <span>Documentação e acompanhamento da jornada</span>
-            </div>
-            <div className="dash-card">
-              <strong>Relatório executivo</strong>
-              <span>Síntese para C-Level e conselho</span>
+            <div className="dash-kpi">
+              <span className="dash-kpi__label">Tendências</span>
+              <div className="dash-bars" aria-hidden="true">
+                <i style={{ height: "40%" }} /><i style={{ height: "70%" }} /><i style={{ height: "92%" }} />
+              </div>
+              <span className="dash-kpi__foot">atenção · estável · melhora</span>
             </div>
           </div>
         </div>
@@ -669,29 +722,34 @@ export default function LandingPage() {
                   <span>▤ ▦ ▮</span>
                 </div>
                 <div className="phone__greet">
-                  <span className="phone__hello">Bom dia, líder</span>
-                  <span className="phone__date">Terça-feira · prepare a primeira decisão do dia</span>
+                  <span className="phone__hello">Bom dia, Líder.</span>
+                  <span className="phone__date">Como está sua coerência hoje?</span>
                 </div>
-                <div className="phone__card phone__card--state">
-                  <div>
-                    <span className="phone__tag">Meu Estado</span>
-                    <span className="phone__sub">Zona de coerência funcional</span>
-                  </div>
-                  <div className="phone__ring"><strong>74</strong></div>
+                <div className="phone__state">
+                  <div className="phone__ring phone__ring--lg"><strong>78</strong><em>Coerência</em></div>
+                  <span className="phone__checkin">Último check-in: hoje, 07:30</span>
+                  <span className="phone__btn">Fazer check-in</span>
+                </div>
+                <span className="phone__label">Em destaque</span>
+                <div className="phone__card">
+                  <span className="phone__tag">◎ Radar da Decisão</span>
+                  <span className="phone__sub">2 sinais críticos detectados</span>
                 </div>
                 <div className="phone__card">
-                  <span className="phone__tag">CRIVO Pocket™</span>
-                  <span className="phone__sub">Prepare-se para a decisão de hoje →</span>
+                  <span className="phone__tag">◳ CRIVO Pocket</span>
+                  <span className="phone__sub">Novo microaprendizado disponível</span>
                 </div>
-                <div className="phone__card">
-                  <span className="phone__tag">Radar da Decisão · ICD™</span>
-                  <span className="phone__sub">3 decisões para avaliar esta semana</span>
+                <span className="phone__label">Seu plano</span>
+                <div className="phone__card phone__card--plan">
+                  <span className="phone__sub">Próximo passo sugerido</span>
+                  <span className="phone__tag">Simulador de Decisão →</span>
                 </div>
                 <div className="phone__nav" aria-hidden="true">
-                  <span className="is-active">Hoje</span>
-                  <span>Decisões</span>
-                  <span>Academia</span>
-                  <span>Perfil</span>
+                  <span className="is-active">Início</span>
+                  <span>Estado</span>
+                  <span>Pocket</span>
+                  <span>Plano</span>
+                  <span>Mais</span>
                 </div>
               </div>
             </div>
