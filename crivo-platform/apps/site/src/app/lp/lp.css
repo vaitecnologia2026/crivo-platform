@@ -1687,3 +1687,7 @@ th.compare__crivo { color: var(--terra) !important; }
   .eco-tile:hover, .risco-card:hover, .mvv-card:hover, .diag-card:hover,
   .laptop:hover, .phone:hover, .btn--terra:hover { transform: none; }
 }
+
+/* --- Páginas internas: hero de topo limpa o header fixo --- */
+.page-hero { padding-top: 148px; padding-bottom: 72px; }
+@media (max-width: 760px) { .page-hero { padding-top: 116px; } }
