@@ -21,21 +21,21 @@ export function SiteFooter() {
           <h5>Soluções</h5>
           <ul>
             <li><Link href="/lp#diagnostico">Diagnóstico Inicial</Link></li>
-            <li><Link href="/lp#solucoes">CRIVO Diagnóstico™</Link></li>
-            <li><Link href="/lp#solucoes">CRIVO Liderança</Link></li>
-            <li><Link href="/lp#solucoes">CRIVO Evolução</Link></li>
-            <li><Link href="/lp#solucoes">CRIVO Enterprise</Link></li>
-            <li><Link href="/lp#solucoes">CRIVO Advisory</Link></li>
+            <li><Link href="/solucoes">CRIVO Diagnóstico™</Link></li>
+            <li><Link href="/solucoes">CRIVO Liderança</Link></li>
+            <li><Link href="/solucoes">CRIVO Evolução</Link></li>
+            <li><Link href="/solucoes">CRIVO Enterprise</Link></li>
+            <li><Link href="/solucoes">CRIVO Advisory</Link></li>
           </ul>
         </div>
         <div>
           <h5>Plataforma</h5>
           <ul>
-            <li><Link href="/lp#portal">Portal Executivo</Link></li>
-            <li><Link href="/lp#dashboard">Dashboard Executivo</Link></li>
-            <li><Link href="/lp#app">App CRIVO</Link></li>
-            <li><Link href="/lp#app">Pocket CRIVO</Link></li>
-            <li><Link href="/lp#ecossistema">Academia CRIVO</Link></li>
+            <li><Link href="/plataforma#portal">Portal Executivo</Link></li>
+            <li><Link href="/plataforma#dashboard">Dashboard Executivo</Link></li>
+            <li><Link href="/plataforma#app">App CRIVO</Link></li>
+            <li><Link href="/plataforma#app">Pocket CRIVO</Link></li>
+            <li><Link href="/plataforma#ecossistema">Academia CRIVO</Link></li>
             <li><a href={PLATAFORMA_URL}>Área logada</a></li>
           </ul>
         </div>
@@ -43,9 +43,9 @@ export function SiteFooter() {
           <h5>Conteúdos</h5>
           <ul>
             <li><Link href="/lp#ebook">E-book</Link></li>
-            <li><Link href="/lp#ecossistema">Materiais gratuitos</Link></li>
+            <li><Link href="/plataforma#ecossistema">Materiais gratuitos</Link></li>
             <li><Link href="/lp#faq">FAQ</Link></li>
-            <li><Link href="/lp#ecossistema">Artigos e eventos</Link></li>
+            <li><Link href="/plataforma#ecossistema">Artigos e eventos</Link></li>
           </ul>
         </div>
         <div>

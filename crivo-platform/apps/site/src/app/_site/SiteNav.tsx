@@ -2,10 +2,9 @@ import Link from "next/link";
 import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
 
-// Navegação principal compartilhada (header azul-marinho + submenus em hover).
-// Config-driven: os hrefs usam alvos absolutos (/lp#secao ou /rota) p/ funcionar
-// a partir de QUALQUER página. À medida que as páginas internas forem entrando,
-// basta trocar o href do item de topo de "/lp#x" para "/x".
+// Navegação principal compartilhada (header azul-marinho + submenus em hover no
+// desktop; menu hambúrguer no mobile via checkbox-hack, sem JS).
+// Itens de topo apontam para as páginas internas; sub-itens para seções (rota#secao).
 type NavItem = { label: string; href: string };
 type NavTop = { label: string; href: string; items?: NavItem[] };
 
@@ -13,48 +12,48 @@ const NAV: NavTop[] = [
   { label: "Início", href: "/lp" },
   {
     label: "Soluções",
-    href: "/lp#solucoes",
+    href: "/solucoes",
     items: [
       { label: "Diagnóstico Inicial", href: "/lp#diagnostico" },
       { label: "Fatores Psicossociais e NR-1", href: "/lp#nr1" },
-      { label: "Liderança e Cultura", href: "/lp#solucoes" },
+      { label: "Liderança e Cultura", href: "/solucoes" },
       { label: "Governança de IA e Pessoas", href: "/lp#riscos-ia" },
-      { label: "Evolução e Sustentação", href: "/lp#solucoes" },
-      { label: "Enterprise e Advisory", href: "/lp#solucoes" },
-      { label: "Projetos Especiais", href: "/lp#solucoes" },
+      { label: "Evolução e Sustentação", href: "/solucoes" },
+      { label: "Enterprise e Advisory", href: "/solucoes" },
+      { label: "Projetos Especiais", href: "/solucoes" },
     ],
   },
   {
     label: "Método CRIVO",
-    href: "/lp#metodo",
+    href: "/metodo",
     items: [
-      { label: "Método CRIVO", href: "/lp#metodo" },
-      { label: "ICD — Índice de Coerência Decisória", href: "/lp#icd" },
-      { label: "Radar da Decisão", href: "/lp#icd" },
+      { label: "Método CRIVO", href: "/metodo" },
+      { label: "ICD — Índice de Coerência Decisória", href: "/metodo#icd" },
+      { label: "Radar da Decisão", href: "/metodo#icd" },
       { label: "Governança Comportamental", href: "/lp#riscos-ia" },
-      { label: "Evidências e evolução", href: "/lp#jornada" },
+      { label: "Evidências e evolução", href: "/metodo#jornada" },
     ],
   },
   {
     label: "Plataforma",
-    href: "/lp#portal",
+    href: "/plataforma",
     items: [
-      { label: "Portal Executivo", href: "/lp#portal" },
-      { label: "Dashboard Executivo", href: "/lp#dashboard" },
-      { label: "App CRIVO", href: "/lp#app" },
-      { label: "Pocket CRIVO", href: "/lp#app" },
-      { label: "Academia CRIVO", href: "/lp#ecossistema" },
+      { label: "Portal Executivo", href: "/plataforma#portal" },
+      { label: "Dashboard Executivo", href: "/plataforma#dashboard" },
+      { label: "App CRIVO", href: "/plataforma#app" },
+      { label: "Pocket CRIVO", href: "/plataforma#app" },
+      { label: "Academia CRIVO", href: "/plataforma#ecossistema" },
       { label: "Área logada", href: PLATAFORMA_URL },
     ],
   },
   {
     label: "Conteúdos",
-    href: "/lp#ecossistema",
+    href: "/lp#ebook",
     items: [
       { label: "E-book", href: "/lp#ebook" },
-      { label: "Materiais gratuitos", href: "/lp#ecossistema" },
+      { label: "Materiais gratuitos", href: "/plataforma#ecossistema" },
       { label: "FAQ", href: "/lp#faq" },
-      { label: "Artigos e eventos", href: "/lp#ecossistema" },
+      { label: "Artigos e eventos", href: "/plataforma#ecossistema" },
     ],
   },
   {
@@ -71,7 +70,6 @@ const NAV: NavTop[] = [
 ];
 
 function NavLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
-  // Externo (portal) abre com <a>; interno usa <Link> (SPA).
   if (href.startsWith("http")) {
     return (
       <a href={href} className={className}>
@@ -97,6 +95,10 @@ export function SiteNav() {
             <span className="brand__sub">Decision Intelligence</span>
           </span>
         </Link>
+
+        {/* checkbox-hack do menu mobile (sem JS) */}
+        <input type="checkbox" id="navToggle" className="nav__toggle" aria-hidden="true" />
+
         <nav className="nav__links" aria-label="Navegação principal">
           {NAV.map((top) =>
             top.items ? (
@@ -119,6 +121,7 @@ export function SiteNav() {
             ),
           )}
         </nav>
+
         <div className="nav__actions">
           <Link href="/lp#diagnostico" className="btn btn--terra btn--sm">
             Fazer Diagnóstico Inicial
@@ -126,6 +129,11 @@ export function SiteNav() {
           <a href={PLATAFORMA_URL} className="btn btn--ghost btn--sm">
             Acessar Portal
           </a>
+          <label htmlFor="navToggle" className="nav__burger" aria-label="Abrir menu" title="Menu">
+            <span />
+            <span />
+            <span />
+          </label>
         </div>
       </div>
     </header>

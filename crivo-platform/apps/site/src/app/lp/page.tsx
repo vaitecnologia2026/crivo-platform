@@ -336,482 +336,61 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== MÉTODO ===================== */}
-      <section className="section section--light" id="metodo">
+      {/* ===================== MÉTODO + ICD (teaser → /metodo) ===================== */}
+      <section className="section section--light" id="metodo-teaser">
         <div className="container">
-          <span className="eyebrow">Metodologia</span>
-          <h2 className="h2">Método, sustentação e inteligência organizacional contínua.</h2>
+          <span className="eyebrow">Método CRIVO + ICD</span>
+          <h2 className="h2">Um método para decidir, sustentar e evoluir.</h2>
           <p className="lede">
-            O Método CRIVO transforma percepção, responsabilidade, integração, valores e organização em práticas de
-            liderança, decisões mais coerentes e evolução mensurável da cultura.
+            A estrutura C-R-I-V-O transforma percepção, responsabilidade, integração, valores e organização em decisões
+            mais coerentes — e o ICD™ mede a coerência decisória da liderança sob pressão (Clareza · Critério ·
+            Alinhamento · Sustentação).
           </p>
-
           <div className="metodo-grid">
-            <div className="metodo-card">
-              <span className="metodo-card__letter">C</span>
-              <h3>Consciência</h3>
-              <p>Ler o contexto, reconhecer pressões e ampliar a clareza antes de decidir.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">R</span>
-              <h3>Responsabilidade</h3>
-              <p>Assumir escolhas, consequências e compromissos de execução.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">I</span>
-              <h3>Integração</h3>
-              <p>Conectar pessoas, áreas, comunicação e prioridades.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">V</span>
-              <h3>Valores</h3>
-              <p>Decidir com critério, propósito e coerência cultural.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">O</span>
-              <h3>Organização</h3>
-              <p>Transformar decisões em rotina, plano de ação, acompanhamento e resultado.</p>
-            </div>
+            <div className="metodo-card"><span className="metodo-card__letter">C</span><h3>Consciência</h3></div>
+            <div className="metodo-card"><span className="metodo-card__letter">R</span><h3>Responsabilidade</h3></div>
+            <div className="metodo-card"><span className="metodo-card__letter">I</span><h3>Integração</h3></div>
+            <div className="metodo-card"><span className="metodo-card__letter">V</span><h3>Valores</h3></div>
+            <div className="metodo-card"><span className="metodo-card__letter">O</span><h3>Organização</h3></div>
           </div>
-        </div>
-      </section>
-
-      {/* ===================== ICD ===================== */}
-      <section className="section section--dark" id="icd">
-        <div className="container">
-          <span className="eyebrow eyebrow--terra">Diferencial proprietário</span>
-          <h2 className="h2 h2--light h2--center">ICD — Índice de Coerência Decisória</h2>
-          <p className="lede lede--light">
-            O ICD™ é uma metodologia proprietária da CRIVO para apoiar líderes na leitura da{" "}
-            <strong>coerência decisória sob pressão</strong>. Não julga a decisão nem mede personalidade: mostra onde a
-            decisão pode estar perdendo sustentação.
-          </p>
-
-          <div className="icd-how">
-            <div className="icd-step">
-              <span className="icd-step__num">8</span>
-              <strong>perguntas</strong>
-              <span>Aplicadas a uma decisão real, específica e recente.</span>
-            </div>
-            <div className="icd-step">
-              <span className="icd-step__num">4</span>
-              <strong>eixos</strong>
-              <span>Clareza · Critério · Alinhamento · Sustentação</span>
-            </div>
-            <div className="icd-step">
-              <span className="icd-step__num">0–100</span>
-              <strong>score</strong>
-              <span>Com zonas de leitura. Quanto mais alto, maior a coerência decisória.</span>
-            </div>
-            <div className="icd-step">
-              <span className="icd-step__num">1</span>
-              <strong>tensão dominante</strong>
-              <span>O eixo que mais pesa na decisão sob pressão (entre os 4 eixos).</span>
-            </div>
-          </div>
-
-          <div className="grid grid--3 icd-delivers">
-            <div className="deliver-card">
-              <span className="deliver-card__tag">Para o líder</span>
-              <p>Clareza sobre o padrão que governa suas decisões — e os caminhos de desenvolvimento.</p>
-            </div>
-            <div className="deliver-card">
-              <span className="deliver-card__tag">Para a empresa</span>
-              <p>
-                Leitura agregada da coerência decisória da liderança por ciclos e áreas elegíveis — com evolução no
-                tempo e preservando a confidencialidade.
-              </p>
-            </div>
-            <div className="deliver-card">
-              <span className="deliver-card__tag">Para o RH</span>
-              <p>Evidência de impacto e cruzamento com clima e turnover — sempre com dados agregados e protegidos.</p>
-            </div>
-          </div>
-
-          {/* Diagrama radial do ICD — diferencial proprietário (referência do cliente):
-              índice central + 4 eixos Clareza/Critério/Alinhamento/Sustentação. */}
-          <div
-            className="icd-radial"
-            role="img"
-            aria-label="Diagrama do ICD: índice central de Coerência Decisória com quatro eixos — Clareza, Critério, Alinhamento e Sustentação"
-          >
-            <svg className="icd-radial__lines" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <circle cx="200" cy="200" r="150" className="icd-radial__ring" />
-              <line x1="200" y1="200" x2="200" y2="58" />
-              <line x1="200" y1="200" x2="342" y2="200" />
-              <line x1="200" y1="200" x2="200" y2="342" />
-              <line x1="200" y1="200" x2="58" y2="200" />
-            </svg>
-            <span className="icd-radial__core">
-              <strong>ICD</strong>
-              <em>Coerência Decisória</em>
-            </span>
-            <span className="icd-radial__node icd-radial__node--t">
-              <b>Clareza</b>
-              <i>do que se decide</i>
-            </span>
-            <span className="icd-radial__node icd-radial__node--r">
-              <b>Critério</b>
-              <i>como se decide</i>
-            </span>
-            <span className="icd-radial__node icd-radial__node--b">
-              <b>Alinhamento</b>
-              <i>com quem se decide</i>
-            </span>
-            <span className="icd-radial__node icd-radial__node--l">
-              <b>Sustentação</b>
-              <i>depois de decidir</i>
-            </span>
-          </div>
-
           <div className="cta-inline">
-            <a href={PLATAFORMA_URL} className="btn btn--terra">
-              Conhecer o Radar da Decisão →
+            <a href="/metodo" className="btn btn--outline-dark">
+              Conhecer o Método CRIVO e o ICD →
             </a>
           </div>
         </div>
       </section>
 
-      {/* ===================== JORNADA ===================== */}
-      <section className="section section--light" id="jornada">
+      {/* ===================== PLATAFORMA (teaser → /plataforma) ===================== */}
+      <section className="section section--dark" id="plataforma-teaser">
         <div className="container">
-          <span className="eyebrow">A jornada CRIVO</span>
-          <h2 className="h2">Do diagnóstico à sustentação da mudança.</h2>
-          <p className="lede">
-            Uma jornada de transformação clara: leitura inicial, diagnóstico, dashboard, plano de ação, desenvolvimento
-            da liderança e evolução contínua — no Portal Executivo e no app CRIVO. O diagnóstico mostra onde atuar; a
-            liderança sustenta a mudança na rotina.
+          <span className="eyebrow eyebrow--terra">Plataforma CRIVO</span>
+          <h2 className="h2 h2--light h2--center">
+            Portal Executivo, App CRIVO e Academia — em uma jornada integrada.
+          </h2>
+          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 40px" }}>
+            O Portal organiza a visão executiva; o App sustenta a mudança na rotina do líder; a Academia desenvolve
+            competências. Tudo agregado e protegido pela LGPD.
           </p>
-
-          <ol className="journey">
-            <li className="journey-step">
-              <span className="journey-step__num">01</span>
-              <strong>E-book</strong>
-              <span>Material técnico de entrada sobre NR-1 e liderança.</span>
-            </li>
-            <li className="journey-step">
-              <span className="journey-step__num">02</span>
-              <strong>Diagnóstico inicial</strong>
-              <span>Leitura preliminar gratuita do risco decisório.</span>
-            </li>
-            <li className="journey-step">
-              <span className="journey-step__num">03</span>
-              <strong>Conversa estratégica</strong>
-              <span>Análise com um especialista CRIVO.</span>
-            </li>
-            <li className="journey-step">
-              <span className="journey-step__num">04</span>
-              <strong>Diagnóstico contratado</strong>
-              <span>Diagnóstico completo e oficial da organização.</span>
-            </li>
-            <li className="journey-step journey-step--hl">
-              <span className="journey-step__num">05</span>
-              <strong>Portal Executivo</strong>
-              <span>Acesso logado para gerir o diagnóstico.</span>
-            </li>
-            <li className="journey-step journey-step--hl">
-              <span className="journey-step__num">06</span>
-              <strong>Dashboard</strong>
-              <span>ICD, indicadores e mapa de riscos em tempo real.</span>
-            </li>
-            <li className="journey-step">
-              <span className="journey-step__num">07</span>
-              <strong>Plano de ação</strong>
-              <span>Estratégia com método, prioridade e prazo.</span>
-            </li>
-            <li className="journey-step journey-step--hl">
-              <span className="journey-step__num">08</span>
-              <strong>App CRIVO</strong>
-              <span>Transformação na rotina dos líderes.</span>
-            </li>
-            <li className="journey-step">
-              <span className="journey-step__num">09</span>
-              <strong>Acompanhamento</strong>
-              <span>Leitura evolutiva e desenvolvimento contínuo.</span>
-            </li>
-          </ol>
-        </div>
-      </section>
-
-      {/* ===================== PORTAL EXECUTIVO ===================== */}
-      <section className="section section--dark" id="portal">
-        <div className="container split">
-          <div className="split__left">
-            <span className="eyebrow eyebrow--terra">Portal Executivo CRIVO</span>
-            <h2 className="h2 h2--light">A visão executiva da sua organização, em um ambiente logado e seguro.</h2>
-            <p className="body--light">
-              Empresas contratantes acessam um <strong>ambiente seguro</strong> para organizar diagnósticos, acompanhar
-              dashboards, gerir planos de ação e monitorar a evolução da jornada CRIVO.
-            </p>
-            <blockquote className="pull-quote">
-              &ldquo;O Portal organiza a visão executiva da empresa. O app sustenta a transformação na rotina dos
-              líderes.&rdquo;
-            </blockquote>
-            <p className="lgpd-note">
-              <strong>LGPD &amp; confidencialidade.</strong> A empresa visualiza dados organizacionais e por grupo — sem
-              exposição indevida de respostas individuais sensíveis. Tudo agregado e protegido.
-            </p>
-          </div>
-          <div className="split__right">
-            <div className="portal-features">
-              <div className="portal-feature">
-                <span>▴</span> Cadastrar áreas e estrutura organizacional
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Criar campanhas e disparar links de pesquisa
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Acompanhar a adesão em tempo real
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Visualizar dashboards do diagnóstico e indicadores agregados de liderança
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Acessar o mapa de riscos psicossociais
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Gerir o plano de ação e as evidências
-              </div>
-              <div className="portal-feature">
-                <span>▴</span> Gerar relatórios executivos
-              </div>
+          <div className="grid grid--3 icd-delivers">
+            <div className="deliver-card">
+              <span className="deliver-card__tag">Portal Executivo</span>
+              <p>Diagnósticos, campanhas, dashboards, plano de ação e evidências em ambiente seguro.</p>
+            </div>
+            <div className="deliver-card">
+              <span className="deliver-card__tag">App CRIVO · Pocket</span>
+              <p>Meu Estado, Radar da Decisão (ICD™), Pocket e Dashboard do líder — na rotina.</p>
+            </div>
+            <div className="deliver-card">
+              <span className="deliver-card__tag">Academia CRIVO</span>
+              <p>Cursos, trilhas, conteúdos e inteligência contínua para a liderança.</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ===================== DASHBOARD ===================== */}
-      {/* Notebook com dashboard real (spec do cliente: "explicar menos, mostrar
-          mais" — visual executivo de gráficos). UI ilustrativa em CSS/SVG. */}
-      <section className="section section--light" id="dashboard">
-        <div className="container">
-          <span className="eyebrow">Dashboard executivo</span>
-          <h2 className="h2">Dados que viram decisão — em uma leitura.</h2>
-          <p className="lede">
-            Login seguro, dashboards inteligentes, plano de ação estruturado e indicadores que mostram o que importa.
-            Tudo integrado para transformar dados em decisões e acompanhar a evolução com confiança.
-          </p>
-
-          <div className="laptop" role="img" aria-label="Dashboard executivo CRIVO: Índice Geral 78, taxa de adesão 84%, fatores psicossociais, áreas críticas e liderança">
-            <div className="laptop__screen">
-              <div className="dashshot">
-                <div className="dashshot__bar" aria-hidden="true">
-                  <span className="dashshot__brand">CRIVO</span>
-                  <span className="dashshot__crumb">Dashboard Executivo · Empresa Demo</span>
-                  <span className="dashshot__dots"><i /><i /><i /></span>
-                </div>
-                <div className="dashshot__grid">
-                  <div className="ds-tile ds-tile--index">
-                    <span className="ds-tile__label">Índice Geral CRIVO</span>
-                    <p className="ds-index"><strong>78</strong><span>/100</span></p>
-                    <span className="ds-pill ds-pill--ok">Saúde organizacional · Boa</span>
-                  </div>
-                  <div className="ds-tile ds-tile--wide">
-                    <span className="ds-tile__label">Evolução do índice</span>
-                    <svg className="ds-line" viewBox="0 0 240 84" preserveAspectRatio="none" aria-hidden="true">
-                      <polyline points="4,64 38,58 72,62 106,46 140,50 174,34 208,38 236,22" />
-                      <circle cx="236" cy="22" r="3.5" />
-                    </svg>
-                    <div className="ds-line__axis"><span>jan</span><span>jun</span></div>
-                  </div>
-                  <div className="ds-tile">
-                    <span className="ds-tile__label">Taxa de adesão</span>
-                    <p className="ds-big">84%</p>
-                    <span className="ds-tile__sub">Participação geral · +12 p.p.</span>
-                  </div>
-                  <div className="ds-tile">
-                    <span className="ds-tile__label">Áreas críticas</span>
-                    <ul className="ds-areas">
-                      <li>Carga de trabalho <em className="ds-tag ds-tag--high">Alto</em></li>
-                      <li>Relações de trabalho <em className="ds-tag ds-tag--mid">Médio</em></li>
-                      <li>Reconhecimento <em className="ds-tag ds-tag--mid">Médio</em></li>
-                    </ul>
-                  </div>
-                  <div className="ds-tile">
-                    <span className="ds-tile__label">Fatores psicossociais</span>
-                    <div className="ds-donut-wrap">
-                      <span className="ds-donut" aria-hidden="true" />
-                      <ul className="ds-legend">
-                        <li><i className="is-high" /> Alto 36%</li>
-                        <li><i className="is-mid" /> Médio 48%</li>
-                        <li><i className="is-low" /> Baixo 16%</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="ds-tile">
-                    <span className="ds-tile__label">Liderança e cultura</span>
-                    <div className="ds-meter"><span>Segurança psicológica</span><i style={{ width: "74%" }} /><b>74</b></div>
-                    <div className="ds-meter"><span>Coerência de liderança</span><i style={{ width: "71%" }} /><b>71</b></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="laptop__base" aria-hidden="true" />
+          <div className="cta-inline">
+            <a href="/plataforma" className="btn btn--terra">
+              Conhecer a Plataforma · Portal, App e Academia →
+            </a>
           </div>
-
-          {/* 4 cards de apoio abaixo do notebook */}
-          <div className="dash-kpis">
-            <div className="dash-kpi">
-              <span className="dash-kpi__label">Plano de ação</span>
-              <strong className="dash-kpi__num">32</strong>
-              <span className="dash-kpi__sub">ações em andamento</span>
-              <div className="dash-kpi__bar"><i style={{ width: "64%" }} /></div>
-              <span className="dash-kpi__foot">18 concluídas · 14 em andamento · 4 atrasadas</span>
-            </div>
-            <div className="dash-kpi">
-              <span className="dash-kpi__label">Evidências</span>
-              <strong className="dash-kpi__num">112</strong>
-              <span className="dash-kpi__sub">registradas</span>
-              <span className="dash-kpi__foot dash-kpi__foot--up">+18 esta semana</span>
-            </div>
-            <div className="dash-kpi">
-              <span className="dash-kpi__label">Riscos psicossociais</span>
-              <div className="dash-heat" aria-hidden="true">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <span key={i} className={`dash-heat__c dash-heat__c--${[1,2,3,2,3,4,3,4,4][i]}`} />
-                ))}
-              </div>
-              <span className="dash-kpi__foot">probabilidade × impacto</span>
-            </div>
-            <div className="dash-kpi">
-              <span className="dash-kpi__label">Tendências</span>
-              <div className="dash-bars" aria-hidden="true">
-                <i style={{ height: "40%" }} /><i style={{ height: "70%" }} /><i style={{ height: "92%" }} />
-              </div>
-              <span className="dash-kpi__foot">atenção · estável · melhora</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== APP CRIVO ===================== */}
-      <section className="section section--dark" id="app">
-        <div className="container split split--app">
-          <div className="split__left">
-            <span className="eyebrow eyebrow--terra">App CRIVO</span>
-            <h2 className="h2 h2--light">A transformação que acontece na rotina do líder.</h2>
-            <p className="body--light">
-              O Portal mostra onde a organização precisa atuar. O app ajuda a liderança a sustentar a mudança todos os
-              dias — conectado à jornada CRIVO, aos planos de ação e aos indicadores agregados.
-            </p>
-            <ul className="app-chips" aria-label="Recursos do App CRIVO">
-              <li>Meu Estado</li>
-              <li>CRIVO Pocket</li>
-              <li>Radar da Decisão · ICD™</li>
-              <li>Simulador de Decisão</li>
-              <li>Mentor CRIVO</li>
-              <li>Academia CRIVO</li>
-              <li>Dashboard do Líder</li>
-            </ul>
-            <p className="lgpd-note">
-              <strong>Portal ↔ App.</strong> Uma jornada integrada: o que o líder desenvolve no app reflete na leitura
-              organizacional do Portal — e vice-versa.
-            </p>
-          </div>
-
-          {/* Mockup de celular (pedido do cliente no áudio: app na rotina,
-              "bom dia, líder" + Pocket). UI ilustrativa desenhada em CSS. */}
-          <div className="split__right">
-            <div className="phone" role="img" aria-label="Tela do App CRIVO: saudação ao líder, Meu Estado, Pocket e Radar da Decisão">
-              <span className="phone__notch" aria-hidden="true" />
-              <div className="phone__screen">
-                <div className="phone__bar" aria-hidden="true">
-                  <span>9:41</span>
-                  <span className="phone__brand">CRIVO</span>
-                  <span>▤ ▦ ▮</span>
-                </div>
-                <div className="phone__greet">
-                  <span className="phone__hello">Bom dia, Líder.</span>
-                  <span className="phone__date">Como está sua coerência hoje?</span>
-                </div>
-                <div className="phone__state">
-                  <div className="phone__ring phone__ring--lg"><strong>78</strong><em>Coerência</em></div>
-                  <span className="phone__checkin">Último check-in: hoje, 07:30</span>
-                  <span className="phone__btn">Fazer check-in</span>
-                </div>
-                <span className="phone__label">Em destaque</span>
-                <div className="phone__card">
-                  <span className="phone__tag">◎ Radar da Decisão</span>
-                  <span className="phone__sub">2 sinais críticos detectados</span>
-                </div>
-                <div className="phone__card">
-                  <span className="phone__tag">◳ CRIVO Pocket</span>
-                  <span className="phone__sub">Novo microaprendizado disponível</span>
-                </div>
-                <span className="phone__label">Seu plano</span>
-                <div className="phone__card phone__card--plan">
-                  <span className="phone__sub">Próximo passo sugerido</span>
-                  <span className="phone__tag">Simulador de Decisão →</span>
-                </div>
-                <div className="phone__nav" aria-hidden="true">
-                  <span className="is-active">Início</span>
-                  <span>Estado</span>
-                  <span>Pocket</span>
-                  <span>Plano</span>
-                  <span>Mais</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== ECOSSISTEMA · ACADEMIA ===================== */}
-      <section className="section section--light" id="ecossistema">
-        <div className="container">
-          <span className="eyebrow">Ecossistema &amp; Recursos CRIVO</span>
-          <h2 className="h2">Recursos que ampliam sua evolução.</h2>
-          <p className="lede">
-            Conteúdos, trilhas e inteligência prática que fortalecem lideranças e organizam o conhecimento em ação.
-          </p>
-
-          <div className="eco-cards">
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 4 3 9l9 5 9-5-9-5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M7 11.5V16c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-              </span>
-              <h3>Academia CRIVO</h3>
-              <p>Cursos e formações para líderes e times, com aplicação prática.</p>
-            </article>
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="m10 9.5 5 2.5-5 2.5v-5Z" fill="currentColor"/></svg>
-              </span>
-              <h3>Conteúdos e vídeos</h3>
-              <p>Vídeos, aulas e microconteúdos para aplicar hoje.</p>
-            </article>
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>
-              </span>
-              <h3>Trilhas e materiais</h3>
-              <p>Jornadas e materiais estruturados por tema e nível de liderança.</p>
-            </article>
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M13 3v5h5M9.5 13h5M9.5 16.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-              </span>
-              <h3>Artigos e guias</h3>
-              <p>Artigos, guias e checklists para uso no dia a dia.</p>
-            </article>
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="m16 10 5-3v10l-5-3v-4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>
-              </span>
-              <h3>Webinars / Cases</h3>
-              <p>Webinars, casos reais e entrevistas com especialistas.</p>
-            </article>
-            <article className="eco-tile">
-              <span className="eco-tile__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 16l3.5-4 3 2.5L20 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </span>
-              <h3>Inteligência contínua</h3>
-              <p>Relatórios, análises e insights para decisões cada vez melhores.</p>
-            </article>
-          </div>
-
-          <p className="eco-foot">
-            O Ecossistema e os Recursos tornam o conhecimento acessível, organizado e sempre atualizado.
-          </p>
         </div>
       </section>
 
@@ -825,49 +404,6 @@ export default function LandingPage() {
             cada momento da organização — da entrada (NR-1 e diagnóstico inicial) à transformação cultural, governança
             de IA e performance.
           </p>
-
-          <div className="ladder ladder--8">
-            <div className="ladder__step ladder__step--free">
-              <span className="ladder__tag ladder__tag--free">Grátis</span>
-              <strong>Diagnóstico Inicial</strong>
-              <span>Entrada · leitura preliminar</span>
-            </div>
-            <div className="ladder__step ladder__step--s1">
-              <span className="ladder__tag">01</span>
-              <strong>Diagnóstico Essencial</strong>
-              <span>Pequenas empresas · AEP/PGR</span>
-            </div>
-            <div className="ladder__step ladder__step--s1">
-              <span className="ladder__tag">02</span>
-              <strong>Diagnóstico Organizacional</strong>
-              <span>Campanha · dashboards · inventário</span>
-            </div>
-            <div className="ladder__step ladder__step--s2">
-              <span className="ladder__tag">03</span>
-              <strong>Liderança</strong>
-              <span>Jornada · app · mentorias</span>
-            </div>
-            <div className="ladder__step ladder__step--s2">
-              <span className="ladder__tag">04</span>
-              <strong>Evolução</strong>
-              <span>Mentoria &amp; governança · ciclos</span>
-            </div>
-            <div className="ladder__step ladder__step--s3">
-              <span className="ladder__tag">05</span>
-              <strong>Enterprise</strong>
-              <span>Transformação organizacional</span>
-            </div>
-            <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">06</span>
-              <strong>Advisory</strong>
-              <span>Conselho C-Level</span>
-            </div>
-            <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">+</span>
-              <strong>Projetos Especiais</strong>
-              <span>Escopo customizado</span>
-            </div>
-          </div>
 
           <div className="product-grid product-grid--auto">
             <article className="product-card product-card--free">
@@ -949,169 +485,11 @@ export default function LandingPage() {
             </article>
           </div>
 
-          <div className="strategic-tags">
-            <span className="strategic-tags__eyebrow">Soluções estratégicas CRIVO</span>
-            <p className="strategic-tags__lede">Agendas específicas para liderança, cultura e governança.</p>
-            <div className="strategic-tags__list">
-              <span className="strategic-tag">Transformação Cultural</span>
-              <span className="strategic-tag">Cultura Adaptável — Pessoas + IA</span>
-              <span className="strategic-tag">Governança de IA e Pessoas</span>
-              <span className="strategic-tag">Governança Comportamental</span>
-              <span className="strategic-tag">Custos Invisíveis</span>
-              <span className="strategic-tag">Palestras e Mentorias Executivas</span>
-            </div>
+          <div className="cta-inline">
+            <a href="/solucoes" className="btn btn--outline-dark">
+              Ver todas as soluções, trilha e comparativo CRIVO →
+            </a>
           </div>
-
-          <div className="lp-photo lp-photo--band lp-photo--band-light" aria-hidden="true">
-            <span style={{ backgroundImage: "url('/imagens/trilha-mentoria.jpg')" }} />
-          </div>
-
-          <div className="trilha">
-            <span className="trilha__eyebrow">Trilha da Liderança · base</span>
-            <p className="trilha__lede">
-              A liderança não recebe apenas conteúdo. Ela entra em uma jornada prática, acompanhada por app, mentoria,
-              Academia CRIVO, indicadores e plano de ação.
-            </p>
-            <div className="trilha__grid">
-              <div>
-                <strong>30–50</strong>
-                <span>líderes por ciclo</span>
-              </div>
-              <div>
-                <strong>6 meses</strong>
-                <span>de jornada com sustentação até 12</span>
-              </div>
-              <div>
-                <strong>Semanal · quinzenal</strong>
-                <span>encontros recorrentes</span>
-              </div>
-              <div>
-                <strong>App + indicadores + plano</strong>
-                <span>evolução acompanhada e mensurável</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== AUTORIDADE ===================== */}
-      <section className="section section--light" id="autoridade">
-        <div className="container">
-          <span className="eyebrow">Diferencial CRIVO</span>
-          <h2 className="h2">Uma abordagem que conecta o que muitas empresas tratam de forma fragmentada.</h2>
-          <p className="lede">
-            Liderança, decisão, cultura, experiência do colaborador, riscos psicossociais, inteligência organizacional,
-            transformação e sustentação da performance — em um método integrado.
-          </p>
-
-          <div className="compare">
-            <table className="compare__table">
-              <thead>
-                <tr>
-                  <th>Capacidade</th>
-                  <th>Soluções focadas em NR-1</th>
-                  <th>Consultorias pontuais</th>
-                  <th className="compare__crivo">CRIVO</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Questionário NR-1</td>
-                  <td>✓</td>
-                  <td>✓</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Mapeamento de fatores psicossociais</td>
-                  <td>parcial</td>
-                  <td>parcial</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Diagnóstico organizacional estruturado</td>
-                  <td>—</td>
-                  <td>✓</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Plano de ação executável (PDCA)</td>
-                  <td>—</td>
-                  <td>parcial</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Dashboard executivo com evolução longitudinal</td>
-                  <td>—</td>
-                  <td>parcial</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Portal Executivo logado e seguro (LGPD)</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>App CRIVO de sustentação da rotina</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Desenvolvimento e Trilha de Liderança</td>
-                  <td>—</td>
-                  <td>parcial</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Academia CRIVO (cursos, trilhas, conteúdos)</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Mentor CRIVO e Simulador de Decisão</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>ICD™ — Índice de Coerência Decisória (métrica proprietária)</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Pocket — preparo rápido para decisões e conversas</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Leitura contínua e evolutiva por ciclos</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Mentoria executiva e governança comportamental</td>
-                  <td>—</td>
-                  <td>parcial</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-                <tr>
-                  <td>Conselho estratégico C-Level (Advisory)</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td className="compare__crivo">✓</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p className="transition-quote transition-quote--light">
-            &ldquo;Não tratamos apenas o risco. Atuamos na liderança que sustenta cultura, decisões e resultados.&rdquo;
-          </p>
         </div>
       </section>
 
