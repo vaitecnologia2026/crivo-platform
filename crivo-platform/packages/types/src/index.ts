@@ -705,6 +705,16 @@ export interface EvidenceData {
   createdAt: string;
 }
 
+/** Classificação de risco do fator psicossocial (inventário/PGR §6/§15). */
+export const INVENTORY_RISK_LEVELS = ['BAIXO', 'MEDIO', 'ALTO', 'CRITICO'] as const;
+export type InventoryRiskLevel = (typeof INVENTORY_RISK_LEVELS)[number];
+export const INVENTORY_RISK_LABEL: Record<InventoryRiskLevel, string> = {
+  BAIXO: 'Baixo',
+  MEDIO: 'Médio',
+  ALTO: 'Alto',
+  CRITICO: 'Crítico',
+};
+
 export interface ActionItemData {
   id: string;
   planId: string;
@@ -716,6 +726,9 @@ export interface ActionItemData {
   status: ActionStatus;
   expectedEvidence: string | null;
   reviewDate: string | null;
+  /** Inventário §6/§15: grupos expostos + classificação de risco do fator. */
+  exposedGroup: string | null;
+  riskLevel: string | null;
   createdAt: string;
   evidences: EvidenceData[];
 }
@@ -741,6 +754,8 @@ export interface CreateActionItemRequest {
   responsible?: string;
   dueDate?: string | null;
   expectedEvidence?: string;
+  exposedGroup?: string;
+  riskLevel?: string;
 }
 export interface UpdateActionItemRequest {
   point?: string;
@@ -751,6 +766,8 @@ export interface UpdateActionItemRequest {
   status?: ActionStatus;
   expectedEvidence?: string;
   reviewDate?: string | null;
+  exposedGroup?: string;
+  riskLevel?: string;
 }
 export interface CreateEvidenceRequest {
   kind: string;

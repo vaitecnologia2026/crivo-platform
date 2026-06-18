@@ -1,5 +1,6 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ActionStatus } from '@crivo/db';
+import { INVENTORY_RISK_LEVELS } from '@crivo/types';
 
 export class CreateActionPlanDto {
   @IsString() @MaxLength(200)
@@ -27,6 +28,12 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   expectedEvidence?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  exposedGroup?: string;
+
+  @IsOptional() @IsIn(INVENTORY_RISK_LEVELS as unknown as string[])
+  riskLevel?: string;
 }
 
 export class UpdateActionItemDto {
@@ -53,6 +60,12 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsString()
   reviewDate?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  exposedGroup?: string;
+
+  @IsOptional() @IsIn(INVENTORY_RISK_LEVELS as unknown as string[])
+  riskLevel?: string;
 }
 
 export class CreateEvidenceDto {

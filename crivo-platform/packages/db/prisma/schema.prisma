@@ -1088,14 +1088,19 @@ model ActionItem {
   org              Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   planId           String       @db.Uuid
   plan             ActionPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
-  point            String // ponto identificado
+  point            String // ponto identificado (= fator psicossocial, para o inventário §6/§15)
   origin           String? // origem do ponto (autoavaliação/escuta/questionário/observação/parecer)
-  action           String // ação proposta
+  action           String // ação proposta (= medida de controle no inventário)
   responsible      String? // responsável (empresa)
   dueDate          DateTime?
   status           ActionStatus @default(SUGERIDA)
   expectedEvidence String? // evidência esperada
   reviewDate       DateTime? // data de revisão de efetividade
+  // Inventário de fatores psicossociais (apoio ao PGR §6/§15): dimensões que
+  // estruturam o ponto como fator de risco. exposedGroup = grupos expostos;
+  // riskLevel = classificação (BAIXO|MEDIO|ALTO|CRITICO).
+  exposedGroup     String?
+  riskLevel        String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

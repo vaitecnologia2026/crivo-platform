@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   DOCUMENT_TYPE_LABEL,
+  INVENTORY_RISK_LABEL,
   RESPONSIBILITY_NOTE,
   type DocumentDescriptor,
   type DocumentSection,
@@ -138,11 +139,26 @@ export class DocumentsService {
 
     // Seções específicas por tipo.
     if (type === 'inventario_pgr') {
+      const invItems = validatedPlan?.items ?? [];
       sections.unshift({
         heading: 'Inventário de fatores psicossociais (apoio ao PGR)',
         body:
-          'Relação dos fatores psicossociais identificados, fontes/circunstâncias, grupos expostos, ' +
-          'medidas de controle e classificação de risco — para integração ao GRO/PGR pelo responsável técnico.',
+          'Relação dos fatores psicossociais identificados, com fonte/origem, grupos expostos, ' +
+          'medida de controle e classificação de risco — para integração ao GRO/PGR pelo responsável técnico. ' +
+          'Derivado dos pontos do plano de ação.',
+        table: {
+          columns: ['Fator / ponto', 'Origem', 'Grupos expostos', 'Medida de controle', 'Risco', 'Responsável'],
+          data: invItems.length
+            ? invItems.map((i) => [
+                i.point,
+                i.origin ?? '—',
+                i.exposedGroup ?? '—',
+                i.action,
+                i.riskLevel ? (INVENTORY_RISK_LABEL[i.riskLevel as keyof typeof INVENTORY_RISK_LABEL] ?? i.riskLevel) : '—',
+                i.responsible ?? '—',
+              ])
+            : [['—', '—', '—', '—', '—', '—']],
+        },
       });
     }
     if (type === 'relatorio_preliminar') {

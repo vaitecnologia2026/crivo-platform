@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   ACTION_STATUSES,
   ACTION_STATUS_LABEL,
+  INVENTORY_RISK_LEVELS,
+  INVENTORY_RISK_LABEL,
   type ActionPlanData,
   type ActionStatus,
 } from "@crivo/types";
@@ -266,7 +268,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "" });
+  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", riskLevel: "" });
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
@@ -294,6 +296,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         point: f.point.trim(), action: f.action.trim(),
         origin: f.origin || undefined, responsible: f.responsible || undefined,
         dueDate: f.dueDate || null, expectedEvidence: f.expectedEvidence || undefined,
+        exposedGroup: f.exposedGroup || undefined, riskLevel: f.riskLevel || undefined,
       });
       onAdded();
     } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
@@ -364,6 +367,15 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         </label>
         <label className="prod-field"><span>Evidência esperada</span>
           <input value={f.expectedEvidence} onChange={(e) => set("expectedEvidence")(e.target.value)} placeholder="Ex.: ata, comunicado…" />
+        </label>
+        <label className="prod-field"><span>Grupos expostos (inventário/PGR)</span>
+          <input value={f.exposedGroup} onChange={(e) => set("exposedGroup")(e.target.value)} placeholder="Ex.: turno B, líderes intermediários…" />
+        </label>
+        <label className="prod-field"><span>Classificação de risco</span>
+          <select value={f.riskLevel} onChange={(e) => set("riskLevel")(e.target.value)}>
+            <option value="">—</option>
+            {INVENTORY_RISK_LEVELS.map((r) => (<option key={r} value={r}>{INVENTORY_RISK_LABEL[r]}</option>))}
+          </select>
         </label>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
