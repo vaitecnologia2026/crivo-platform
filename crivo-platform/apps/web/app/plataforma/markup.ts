@@ -169,6 +169,11 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="analytics-root"></div>
       </section>
 
+      <!-- ============ CUSTO INVISÍVEL ============ -->
+      <section class="route" data-route="custo">
+        <div id="custo-root"></div>
+      </section>
+
       <!-- ============ HISTÓRICO & AUDITORIA (placeholder) ============ -->
       <section class="route" data-route="historico">
         <div id="historico-root"></div>

@@ -32,6 +32,7 @@ import { SoonScreen } from "./SoonScreen";
 import { HistoricoScreen } from "./HistoricoScreen";
 import { MentoriasScreen } from "./MentoriasScreen";
 import { AnalyticsScreen } from "./AnalyticsScreen";
+import { CustoScreen } from "./CustoScreen";
 import { RolesScreen } from "./RolesScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
@@ -151,6 +152,7 @@ export function Plataforma() {
       if (name === "pocket") mountIsland("pocket-root", <PocketScreen />);
       if (name === "mentorias") mountIsland("mentorias-root", <MentoriasScreen />);
       if (name === "analytics") mountIsland("analytics-root", <AnalyticsScreen />);
+      if (name === "custo") mountIsland("custo-root", <CustoScreen />);
       if (name === "historico") mountIsland("historico-root", <HistoricoScreen />);
       if (name === "papeis") mountIsland("papeis-root", <RolesScreen />);
       const meta = routeMeta[name];

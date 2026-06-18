@@ -170,6 +170,7 @@ export const MODULES = [
   { code: 'campanhas', name: 'Campanhas de Diagnóstico', category: 'diagnostico', minPlan: 'ENTERPRISE' },
   { code: 'analytics', name: 'People Analytics avançado', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'historico', name: 'Histórico & Auditoria', category: 'analytics', minPlan: 'ENTERPRISE' },
+  { code: 'custo', name: 'Custo Invisível', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'parecer', name: 'Parecer', category: 'advisory', minPlan: 'ADVISORY' },
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];

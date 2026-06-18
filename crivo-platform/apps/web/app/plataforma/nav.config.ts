@@ -159,6 +159,13 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Indicadores', current: 'People Analytics' },
       },
       {
+        route: 'custo',
+        label: 'Custo Invisível',
+        icon: '◇',
+        module: 'custo',
+        breadcrumb: { path: 'Indicadores', current: 'Custo Invisível' },
+      },
+      {
         route: 'historico',
         label: 'Histórico & Auditoria',
         icon: '⊞',
