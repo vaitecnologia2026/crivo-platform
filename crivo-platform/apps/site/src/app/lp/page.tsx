@@ -66,6 +66,9 @@ export default function LandingPage() {
 
       {/* ===================== HERO ===================== */}
       <section id="hero" className="hero">
+        {/* Camada fotográfica (rev2 — cliente pediu foto executiva no hero).
+            Decorativa, alt="" porque o conteúdo informativo está no texto. */}
+        <div className="hero__photo" role="presentation" aria-hidden="true" />
         <div className="hero__bg"></div>
         <div className="container hero__inner">
           <HeroBanners />
@@ -216,6 +219,9 @@ export default function LandingPage() {
             <blockquote className="pull-quote">
               &ldquo;A CRIVO™ transforma sinais invisíveis em clareza, liderança e evolução sustentável.&rdquo;
             </blockquote>
+            <div className="lp-photo lp-photo--portrait" aria-hidden="true">
+              <span style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }} />
+            </div>
           </div>
           <div className="split__right">
             <div className="frente">
@@ -420,8 +426,8 @@ export default function LandingPage() {
             </div>
             <div className="icd-step">
               <span className="icd-step__num">4</span>
-              <strong>dimensões — os 4 Rs</strong>
-              <span>Reatividade · Rigidez · Repercussão · Risco</span>
+              <strong>eixos</strong>
+              <span>Clareza · Critério · Alinhamento · Decisão</span>
             </div>
             <div className="icd-step">
               <span className="icd-step__num">0–100</span>
@@ -431,7 +437,7 @@ export default function LandingPage() {
             <div className="icd-step">
               <span className="icd-step__num">1</span>
               <strong>tensão dominante</strong>
-              <span>O R que mais pesa na decisão sob pressão (entre os 4 Rs).</span>
+              <span>O eixo que mais pesa na decisão sob pressão (entre os 4 eixos).</span>
             </div>
           </div>
 
@@ -451,6 +457,10 @@ export default function LandingPage() {
               <span className="deliver-card__tag">Para o RH</span>
               <p>Evidência de impacto e cruzamento com clima e turnover — sempre com dados agregados e protegidos.</p>
             </div>
+          </div>
+
+          <div className="lp-photo lp-photo--band lp-photo--band-dark" aria-hidden="true">
+            <span style={{ backgroundImage: "url('/imagens/icd-deliberacao.jpg')" }} />
           </div>
 
           <div className="cta-inline">
@@ -858,6 +868,10 @@ export default function LandingPage() {
               <span className="strategic-tag">Custos Invisíveis</span>
               <span className="strategic-tag">Palestras e Mentorias Executivas</span>
             </div>
+          </div>
+
+          <div className="lp-photo lp-photo--band lp-photo--band-light" aria-hidden="true">
+            <span style={{ backgroundImage: "url('/imagens/trilha-mentoria.jpg')" }} />
           </div>
 
           <div className="trilha">

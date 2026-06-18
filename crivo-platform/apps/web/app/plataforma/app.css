@@ -19,7 +19,7 @@
   --gold-glow: rgba(168, 105, 61, 0.32);
 
   /* App neutral — off-white e neutros sofisticados */
-  --bg: #F2F0EC;          /* off-white */
+  --bg: #F7F4EF;          /* off-white — match Lovable rev2 */
   --bg-elev: #FBFAF8;
   --bg-sidebar: #0D1F3C;
   --bg-topbar: #FBFAF8;
@@ -94,12 +94,22 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .screen--login.is-active { display: flex; }
 
+/* Camada fotográfica do login (rev2 — cliente pediu foto executiva).
+   Fica abaixo do overlay azul-noturno (.login__bg) e do painel de vidro. */
+.login__photo {
+  position: absolute; inset: 0; z-index: 0;
+  background-image: url('/imagens/login-bg.jpg');
+  background-size: cover;
+  background-position: center 35%;
+  background-repeat: no-repeat;
+  filter: brightness(0.5) saturate(0.9);
+}
 .login__bg {
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 20% 30%, rgba(168,105,61,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 70%, rgba(36,48,73,0.6) 0%, transparent 55%),
-    linear-gradient(180deg, var(--ink-900) 0%, var(--ink-800) 100%);
+    radial-gradient(ellipse at 20% 30%, rgba(168,105,61,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 70%, rgba(36,48,73,0.66) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(13,31,60,0.74) 0%, rgba(16,22,39,0.86) 100%);
   z-index: 0;
 }
 .login__bg::after {

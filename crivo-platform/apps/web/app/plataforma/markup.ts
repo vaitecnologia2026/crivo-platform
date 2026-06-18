@@ -5,6 +5,7 @@ import { renderNavHtml } from "./nav.config";
 
 export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ==================== -->
   <div id="login" class="screen screen--login is-active">
+    <div class="login__photo" aria-hidden="true"></div>
     <div class="login__bg"></div>
     <div class="login__panel">
       <div class="login__brand brand__lockup">
