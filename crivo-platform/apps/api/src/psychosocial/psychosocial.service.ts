@@ -1,14 +1,28 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import {
   computePsychosocial,
   MIN_LEADERS_FOR_DISCLOSURE,
   psychosocialLevel,
   PSYCHOSOCIAL_DIMENSIONS,
+  PSYCHOSOCIAL_QUESTIONS,
   type PsychosocialDimension,
   type PsychosocialRiskLevel,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitPsychosocialDto } from './dto';
+
+/** Slug curto e legível: base do nome + sufixo aleatório (colisão ~nula). */
+function makeSlug(orgName: string): string {
+  const base = orgName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24) || 'empresa';
+  return `${base}-${randomBytes(3).toString('hex')}`;
+}
 
 /**
  * Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO por
@@ -47,6 +61,63 @@ export class PsychosocialService {
       // Devolve só o resultado próprio (anônimo) — nenhum identificador é guardado.
       return { ok: true as const, result };
     });
+  }
+
+  // ── Link público anônimo (Briefing §6) ────────────────────────────────────
+
+  /** Slug público atual da empresa (null se ainda não gerado). */
+  async getLink(tenantId: string): Promise<{ slug: string | null }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const org = await tx.organization.findUnique({
+        where: { id: tenantId },
+        select: { psychosocialSlug: true },
+      });
+      return { slug: org?.psychosocialSlug ?? null };
+    });
+  }
+
+  /** Gera (idempotente) o slug público da empresa. Retorna o existente se já houver. */
+  async ensureLink(tenantId: string): Promise<{ slug: string }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const org = await tx.organization.findUnique({
+        where: { id: tenantId },
+        select: { name: true, psychosocialSlug: true },
+      });
+      if (!org) throw new NotFoundException('Empresa não encontrada.');
+      if (org.psychosocialSlug) return { slug: org.psychosocialSlug };
+      // Tenta algumas vezes para o caso (raríssimo) de colisão no unique.
+      for (let i = 0; i < 5; i++) {
+        const slug = makeSlug(org.name);
+        try {
+          await tx.organization.update({ where: { id: tenantId }, data: { psychosocialSlug: slug } });
+          return { slug };
+        } catch {
+          // colisão de unique — tenta outro sufixo
+        }
+      }
+      throw new BadRequestException('Não foi possível gerar o link. Tente novamente.');
+    });
+  }
+
+  /** Resolve um slug público → nome da empresa + perguntas (sem auth, sem dados internos). */
+  async getPublicBySlug(slug: string) {
+    // Bypass RLS: endpoint público, sem tenant no contexto.
+    const org = await this.prisma.admin.organization.findUnique({
+      where: { psychosocialSlug: slug },
+      select: { name: true },
+    });
+    if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
+    return { tenantName: org.name, questions: PSYCHOSOCIAL_QUESTIONS };
+  }
+
+  /** Submissão pública anônima via slug. Resolve o tenant e grava sob a RLS dele. */
+  async submitPublic(slug: string, dto: SubmitPsychosocialDto) {
+    const org = await this.prisma.admin.organization.findUnique({
+      where: { psychosocialSlug: slug },
+      select: { id: true },
+    });
+    if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
+    return this.submit(org.id, dto);
   }
 
   /**

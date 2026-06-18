@@ -5,6 +5,8 @@ import {
   getPsychosocialQuestions,
   submitPsychosocial,
   getPsychosocialResults,
+  getPsychosocialLink,
+  ensurePsychosocialLink,
   type PsychosocialResults,
 } from "@/lib/api";
 import {
@@ -233,6 +235,100 @@ function Resultados() {
     return (
       <div className="dash-state">Apenas RH e gestão podem ver os resultados agregados.</div>
     );
+
+  return (
+    <>
+      <LinkPanel />
+      <ResultadosBody data={data} status={status} />
+    </>
+  );
+}
+
+// Painel de geração/cópia do link público anônimo (Briefing §6).
+function LinkPanel() {
+  const [slug, setSlug] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    getPsychosocialLink()
+      .then((r) => setSlug(r.slug))
+      .catch(() => setSlug(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const url =
+    slug && typeof window !== "undefined" ? `${window.location.origin}/q/${slug}` : "";
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const r = await ensurePsychosocialLink();
+      setSlug(r.slug);
+    } finally {
+      setGenerating(false);
+    }
+  }
+  function copy() {
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card__head">
+        <div>
+          <h3>Link público anônimo</h3>
+          <span className="card__sub">
+            Compartilhe com os colaboradores (e‑mail, mural, QR Code). Eles respondem sem login.
+          </span>
+        </div>
+      </div>
+      {loading ? (
+        <p className="card__sub">Carregando…</p>
+      ) : slug ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              flex: 1,
+              minWidth: 240,
+              padding: "10px 12px",
+              border: "1px solid var(--line)",
+              borderRadius: 10,
+              fontSize: 13,
+              background: "var(--surface,#fff)",
+            }}
+          />
+          <button className="btn btn--gold btn--sm" onClick={copy}>
+            {copied ? "Copiado ✓" : "Copiar"}
+          </button>
+          <a className="btn btn--ghost btn--sm" href={url} target="_blank" rel="noreferrer">
+            Abrir
+          </a>
+        </div>
+      ) : (
+        <button className="btn btn--gold btn--sm" onClick={generate} disabled={generating}>
+          {generating ? "Gerando…" : "Gerar link público"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ResultadosBody({
+  data,
+  status,
+}: {
+  data: PsychosocialResults | null;
+  status: "loading" | "error" | "forbidden" | "ok";
+}) {
   if (status === "error" || !data)
     return <div className="dash-state dash-state--error">Não foi possível carregar os resultados.</div>;
 

@@ -35,4 +35,18 @@ export class PsychosocialController {
   results(@CurrentUser() user: SessionUser) {
     return this.psychosocial.results(user.tenantId);
   }
+
+  /** Link público atual da empresa (null se não gerado) — só gestão/RH. */
+  @Get('link')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  getLink(@CurrentUser() user: SessionUser) {
+    return this.psychosocial.getLink(user.tenantId);
+  }
+
+  /** Gera (idempotente) o link público anônimo da empresa — só gestão/RH. */
+  @Post('link')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  ensureLink(@CurrentUser() user: SessionUser) {
+    return this.psychosocial.ensureLink(user.tenantId);
+  }
 }

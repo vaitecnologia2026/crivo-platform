@@ -552,3 +552,39 @@ export function submitPsychosocial(dto: {
 export function getPsychosocialResults(): Promise<PsychosocialResults> {
   return apiFetch<PsychosocialResults>('/psychosocial/results');
 }
+export function getPsychosocialLink(): Promise<{ slug: string | null }> {
+  return apiFetch<{ slug: string | null }>('/psychosocial/link');
+}
+export function ensurePsychosocialLink(): Promise<{ slug: string }> {
+  return apiFetch<{ slug: string }>('/psychosocial/link', { method: 'POST' });
+}
+
+// Endpoints PÚBLICOS (sem auth) — usados pela página anônima /q/[slug].
+export async function getPublicPsychosocial(
+  slug: string,
+): Promise<{ tenantName: string; questions: PsychosocialQuestion[] }> {
+  const res = await fetch(`${apiBase()}/public/psychosocial/${encodeURIComponent(slug)}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Link inválido');
+  }
+  return res.json();
+}
+export async function submitPublicPsychosocial(
+  slug: string,
+  dto: { sector?: string; answers: { questionId: number; value: number }[] },
+): Promise<{ ok: true; result: PsychosocialResult }> {
+  const res = await fetch(`${apiBase()}/public/psychosocial/${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Falha ao enviar');
+  }
+  return res.json();
+}
