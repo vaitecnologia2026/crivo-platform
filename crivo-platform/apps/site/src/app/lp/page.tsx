@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 // estiver no ar. Fallback: preview atual da Vercel.
 const PLATAFORMA_URL =
   process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://crivo-web.vercel.app/";
-const DESIGN_SYSTEM_URL = "/design-system";
 
 function VerticeMark({ className }: { className?: string }) {
   return (
@@ -54,9 +53,6 @@ export default function LandingPage() {
             <a href="#nr1">NR-1</a>
           </nav>
           <div className="nav__actions">
-            <a href={DESIGN_SYSTEM_URL} className="btn btn--outline-dark btn--sm">
-              Manual de marca
-            </a>
             <a href={PLATAFORMA_URL} className="btn btn--terra btn--sm">
               Acessar sistema
             </a>
