@@ -34,6 +34,43 @@ export class PlatformLeadsService {
   }
 
   /**
+   * PÚBLICO — lead da LP SEM diagnóstico (form de contato / e-book). Cria direto
+   * no funil do CRM (platform_leads) como NOVO. Rate-limited no controller.
+   */
+  async intakeLead(dto: {
+    name?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    segment?: string;
+    employeesCount?: string;
+    origin?: string;
+    notes?: string;
+  }): Promise<{ ok: true; id: string }> {
+    const name = dto.name?.trim() || dto.company?.trim() || dto.email?.trim();
+    if (!name) throw new BadRequestException('Informe ao menos nome, empresa ou e-mail.');
+    const lead = await this.prisma.admin.platformLead.create({
+      data: {
+        name,
+        company: dto.company?.trim() || null,
+        email: dto.email?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        segment: dto.segment?.trim() || null,
+        employeesCount: dto.employeesCount?.trim() || null,
+        origin: dto.origin?.trim() || 'lp',
+        notes: dto.notes?.trim() || null,
+        stage: 'NOVO',
+      },
+    });
+    await this.audit.record({
+      action: 'lead.intake',
+      target: dto.email?.trim() || name,
+      meta: { origin: dto.origin ?? 'lp', kind: 'form' },
+    });
+    return { ok: true, id: lead.id };
+  }
+
+  /**
    * PÚBLICO — porta de entrada do funil. Recebe o form + respostas do
    * Diagnóstico Inicial, calcula o resultado preliminar e cria o lead NOVO no
    * CRM do super admin, vinculado ao produto de captura (PRÉ-DIAGNÓSTICO).

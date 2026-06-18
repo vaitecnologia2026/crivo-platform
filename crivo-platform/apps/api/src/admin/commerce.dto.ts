@@ -162,6 +162,34 @@ class DiagnosticAnswerDto {
   value!: number;
 }
 
+// Lead da LP SEM diagnóstico (formulários de contato / e-book). Cai direto no
+// funil do CRM (platform_leads) como NOVO. Espelha CreateDiagnosticLeadDto, sem answers.
+export class CreateSimpleLeadDto {
+  @IsString() @MaxLength(160)
+  name!: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  company?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  email?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  phone?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  segment?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  employeesCount?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  origin?: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  notes?: string;
+}
+
 export class CreateDiagnosticLeadDto {
   @IsString() @MaxLength(160)
   name!: string;

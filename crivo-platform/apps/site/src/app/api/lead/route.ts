@@ -29,8 +29,9 @@ async function sendWebhook(url: string, data: Lead): Promise<boolean> {
   }
 }
 
-// Cria o lead direto no pipeline da plataforma (endpoint público de intake).
-async function sendIntake(apiUrl: string, secret: string, data: Lead, email: string): Promise<boolean> {
+// Cria o lead direto no funil do CRM (endpoint público /public/lead — sem segredo,
+// rate-limited na API). Basta PLATFORM_API_URL configurado no site.
+async function sendIntake(apiUrl: string, data: Lead, email: string): Promise<boolean> {
   const s = (v: unknown) => (v == null || v === "" ? undefined : String(v));
   const notes = [
     data.colaboradores && `Colaboradores: ${data.colaboradores}`,
@@ -39,15 +40,16 @@ async function sendIntake(apiUrl: string, secret: string, data: Lead, email: str
     .filter(Boolean)
     .join(" · ");
   try {
-    const r = await fetch(`${apiUrl}/leads/intake`, {
+    const r = await fetch(`${apiUrl}/public/lead`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-intake-secret": secret },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: s(data.nome) ?? s(data.name) ?? "Lead sem nome",
         company: s(data.empresa),
         email,
-        whatsapp: s(data.whatsapp),
+        phone: s(data.whatsapp),
         segment: s(data.segmento),
+        employeesCount: s(data.colaboradores),
         origin: s(data.origem) ?? "lp",
         notes: notes || undefined,
       }),
@@ -100,10 +102,9 @@ export async function POST(req: Request) {
   const webhook = process.env.LEAD_WEBHOOK_URL;
   const resendKey = process.env.RESEND_API_KEY;
   const platformApi = process.env.PLATFORM_API_URL;
-  const intakeSecret = process.env.LEAD_INTAKE_SECRET;
 
   const tasks: Promise<boolean>[] = [];
-  if (platformApi && intakeSecret) tasks.push(sendIntake(platformApi, intakeSecret, data, email));
+  if (platformApi) tasks.push(sendIntake(platformApi, data, email));
   if (webhook) tasks.push(sendWebhook(webhook, data));
   if (resendKey) tasks.push(sendEmail(resendKey, data, email));
 
