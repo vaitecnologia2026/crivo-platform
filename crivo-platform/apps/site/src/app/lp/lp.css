@@ -94,40 +94,60 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ===================== NAV ===================== */
-/* Nav CLARO (áudio do cliente: "ficou muito azulão" — quebra com cor clara,
-   como na referência do Lovable). Menu off-white, marca/links escuros,
-   blues ficam para as seções mais profundas (Método, NR-1, ICD). */
+/* Header AZUL-MARINHO (REGRA MÃE do briefing final): barra fina navy, marca e
+   links claros, submenus em hover. O hero abaixo permanece claro/off-white —
+   o "muito azulão" do áudio era sobre hero de tela cheia, não o header. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  padding: 16px 0;
-  background: rgba(247, 244, 239, 0.9);
+  padding: 14px 0;
+  background: rgba(13, 31, 60, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--line);
-  transition: background 0.3s ease;
+  border-bottom: 1px solid rgba(139, 175, 212, 0.16);
+  transition: background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
 }
-.nav .vertice { color: var(--azul-profundo); }
-.nav .brand__name { color: var(--azul-profundo); }
-.nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.nav .vertice { color: var(--off-white); }
+.nav .brand__name { color: var(--off-white); }
+.nav .brand__sub { color: var(--azul-claro); }
+.nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .nav__actions { display: flex; align-items: center; gap: 10px; }
-@media (max-width: 720px) { .nav__actions .btn--ghost { display: none; } }
-.nav__links { display: flex; gap: 30px; align-items: center; }
-.nav__links a {
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--text-dark-sec);
-  transition: color 0.2s ease;
+@media (max-width: 760px) { .nav__actions .btn--ghost { display: none; } }
+.nav__links { display: flex; gap: 4px; align-items: center; }
+.nav__links > a, .nav__top {
+  font-size: 13px; font-weight: 400; letter-spacing: 0.03em;
+  color: rgba(247, 244, 239, 0.82);
+  transition: color 0.2s ease, background 0.2s ease;
+  padding: 8px 12px; border-radius: var(--r);
+  cursor: pointer; white-space: nowrap;
 }
-.nav__links a:hover { color: var(--azul-profundo); }
-.nav__links .link-platform {
-  color: var(--terra-dourado);
-  font-weight: 400;
-  padding-left: 24px;
-  border-left: 1px solid var(--line-dark);
+.nav__links > a:hover, .nav__top:hover { color: #fff; }
+.nav__top--drop::after {
+  content: "▾"; font-size: 9px; margin-left: 6px; opacity: 0.55; vertical-align: middle;
 }
-.nav__links .link-platform:hover { color: var(--terra-claro); }
-@media (max-width: 940px) { .nav__links { display: none; } }
+
+/* Submenus (hover/focus) */
+.nav__item { position: relative; }
+.nav__menu {
+  position: absolute; top: calc(100% + 12px); left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  min-width: 248px; padding: 10px;
+  background: #0F2549; border: 1px solid rgba(139, 175, 212, 0.18);
+  border-radius: var(--r-lg); box-shadow: 0 24px 60px rgba(5, 14, 30, 0.5);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav__menu::before { content: ""; position: absolute; top: -14px; left: 0; right: 0; height: 14px; }
+.nav__item:hover .nav__menu, .nav__item:focus-within .nav__menu {
+  opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0);
+}
+.nav__menu a {
+  font-size: 13px; font-weight: 300; color: rgba(247, 244, 239, 0.78);
+  padding: 9px 12px; border-radius: var(--r); white-space: nowrap;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.nav__menu a:hover { background: rgba(168, 105, 61, 0.18); color: #fff; }
+@media (max-width: 1080px) { .nav__links { display: none; } }
 
 /* ===================== BUTTONS ===================== */
 .btn {
@@ -316,6 +336,95 @@ img, svg { display: block; max-width: 100%; }
 }
 .trust__item span { font-size: 12px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.4; }
 @media (max-width: 700px) { .hero__trust { grid-template-columns: repeat(2, 1fr); gap: 20px; } }
+
+/* ===================== HERO — extras (briefing final) ===================== */
+/* Hero 1: linha de apoio + frase-âncora. */
+.hero__support {
+  font-size: clamp(17px, 1.5vw, 21px);
+  font-weight: 400;
+  color: var(--azul-medio);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.hero__phrase {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(17px, 1.5vw, 20px);
+  color: var(--terra);
+  margin: 0 0 26px;
+}
+
+/* Hero 2 — navy, foto à esquerda (alterna claro → azul, REGRA 7). */
+.hero--2 {
+  min-height: auto;
+  padding: 112px 0;
+  background:
+    radial-gradient(ellipse at 22% 18%, rgba(196, 137, 74, 0.10) 0%, transparent 52%),
+    linear-gradient(180deg, #0c1d39 0%, var(--azul-profundo) 100%);
+  color: var(--text-light);
+}
+.hero__inner--rev { grid-template-columns: 1fr 1.4fr; }
+.hero--2 .hero__copy .display { color: var(--off-white); }
+.hero--2 .hero__support--light { color: var(--azul-gelo); }
+.hero--2 .hero__sub--light { color: var(--text-light-sec); margin-bottom: 30px; }
+.hero--2 .hero__phrase--light { color: var(--terra-claro); }
+.hero--2 .hero__micro--light { color: var(--azul-claro); }
+.hero-card--dark {
+  background: #0a1830;
+  border-color: rgba(139, 175, 212, 0.18);
+  box-shadow: 0 36px 90px -40px rgba(0, 0, 0, 0.7);
+}
+@media (max-width: 880px) {
+  .hero__inner--rev { grid-template-columns: 1fr; }
+  .hero--2 .hero__visual { order: 2; }
+}
+
+/* ===================== ICD — diagrama radial (4 eixos) ===================== */
+.icd-radial {
+  position: relative;
+  width: min(440px, 88vw);
+  aspect-ratio: 1 / 1;
+  margin: 10px auto 46px;
+}
+.icd-radial__lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.icd-radial__lines line { stroke: rgba(196, 137, 74, 0.5); stroke-width: 1.4; }
+.icd-radial__ring { fill: none; stroke: rgba(139, 175, 212, 0.22); stroke-width: 1.2; stroke-dasharray: 3 7; }
+.icd-radial__core {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 30%; aspect-ratio: 1 / 1; border-radius: 999px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  background: radial-gradient(circle at 50% 34%, #15315c 0%, #0a1c38 100%);
+  border: 1px solid rgba(196, 137, 74, 0.45);
+  box-shadow: 0 0 0 6px rgba(13, 31, 60, 0.45), 0 18px 48px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+.icd-radial__core strong {
+  font-family: var(--font-word); font-size: clamp(22px, 4.4vw, 32px);
+  letter-spacing: 0.14em; color: var(--off-white); line-height: 1;
+}
+.icd-radial__core em {
+  font-style: normal; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--terra-claro); margin-top: 5px;
+}
+.icd-radial__node {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 27%; aspect-ratio: 1 / 1; border-radius: 999px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  background: rgba(15, 37, 73, 0.92);
+  border: 1px solid rgba(139, 175, 212, 0.28);
+  padding: 6px;
+}
+.icd-radial__node b {
+  font-family: var(--font-display); font-weight: 500; font-size: clamp(12px, 2.3vw, 16px);
+  color: var(--off-white); line-height: 1.08;
+}
+.icd-radial__node i {
+  font-style: normal; font-size: 8.5px; color: var(--text-light-sec); margin-top: 3px; line-height: 1.25;
+}
+.icd-radial__node--t { top: 15%; left: 50%; }
+.icd-radial__node--r { top: 50%; left: 85%; }
+.icd-radial__node--b { top: 85%; left: 50%; }
+.icd-radial__node--l { top: 50%; left: 15%; }
 
 /* ===================== SECTIONS ===================== */
 .section { padding: 120px 0; position: relative; }
@@ -676,7 +785,7 @@ th.compare__crivo { color: var(--terra) !important; }
 /* ===================== FOOTER ===================== */
 .footer { background: var(--preto-tecnico); color: var(--text-light-sec); padding: 80px 0 0; }
 .footer__grid {
-  display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1.2fr; gap: 40px;
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.1fr; gap: 36px;
   padding-bottom: 52px; border-bottom: 1px solid var(--line-dark);
 }
 @media (max-width: 1100px) { .footer__grid { grid-template-columns: 1.4fr 1fr 1fr; gap: 32px; } }

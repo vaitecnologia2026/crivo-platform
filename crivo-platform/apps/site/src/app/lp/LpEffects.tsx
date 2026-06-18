@@ -141,10 +141,10 @@ export function LpEffects() {
     if (nav) {
       const onScroll = () => {
         if (window.scrollY > 40) {
-          nav.style.background = "rgba(247, 244, 239, 0.96)";
-          nav.style.boxShadow = "0 8px 28px rgba(13, 31, 60, 0.10)";
+          nav.style.background = "rgba(11, 26, 51, 0.97)";
+          nav.style.boxShadow = "0 10px 30px rgba(5, 14, 30, 0.34)";
         } else {
-          nav.style.background = "rgba(247, 244, 239, 0.9)";
+          nav.style.background = "rgba(13, 31, 60, 0.92)";
           nav.style.boxShadow = "none";
         }
       };
@@ -164,6 +164,8 @@ export function LpEffects() {
       // Seções novas (notebook, celular, ecossistema, KPIs, preview):
       ".eco-tile", ".dash-kpi", ".strategic-tag", ".laptop", ".phone",
       ".preview-report", ".app-chips li",
+      // Briefing final: diagrama radial do ICD:
+      ".icd-radial",
     ].join(",");
 
     if (!reduce) {

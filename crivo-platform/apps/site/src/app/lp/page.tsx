@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { LpEffects } from "./LpEffects";
-import { HeroBanners } from "./HeroBanners";
 import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
 import "./lp.css";
 
 export const metadata: Metadata = {
   title: "CRIVO™ — Decision Intelligence System",
   description:
-    "Plataforma de inteligência organizacional e desenvolvimento da liderança. A CRIVO identifica riscos humanos, custos invisíveis e padrões de liderança que afetam cultura, execução e resultados — transformando diagnóstico em plano de ação, desenvolvimento e evolução sustentável.",
+    "Consultoria estratégica de transformação organizacional com tecnologia aplicada. A CRIVO™ revela sinais invisíveis, prioriza ações, desenvolve lideranças e sustenta a evolução com método, dados, plano de ação e evidências.",
 };
 
 // Plataforma React (apps/web). Configurável por env: defina
@@ -35,6 +34,9 @@ export default function LandingPage() {
       <LpEffects />
 
       {/* ===================== NAV ===================== */}
+      {/* Header azul-marinho (REGRA MÃE do briefing final): barra fina navy,
+          menu Início | Soluções | Método CRIVO | Plataforma | Conteúdos | Sobre
+          com submenus, + 2 botões fixos. O hero abaixo é claro/off-white. */}
       <header className="nav" id="nav">
         <div className="container nav__inner">
           <a href="#hero" className="brand">
@@ -44,30 +46,115 @@ export default function LandingPage() {
               <span className="brand__sub">Decision Intelligence</span>
             </span>
           </a>
-          <nav className="nav__links">
-            <a href="#problema">O Problema</a>
-            <a href="#metodo">Método</a>
-            <a href="#icd">ICD</a>
-            <a href="#app">App CRIVO</a>
-            <a href="#ecossistema">Ecossistema</a>
-            <a href="#solucoes">Soluções</a>
-            <a href="#nr1">NR-1</a>
+          <nav className="nav__links" aria-label="Navegação principal">
+            <a href="#hero" className="nav__top">Início</a>
+
+            <div className="nav__item">
+              <a href="#solucoes" className="nav__top nav__top--drop">Soluções</a>
+              <div className="nav__menu" role="menu">
+                <a href="#diagnostico">Diagnóstico Inicial</a>
+                <a href="#nr1">Fatores Psicossociais e NR-1</a>
+                <a href="#solucoes">Liderança e Cultura</a>
+                <a href="#riscos-ia">Governança de IA e Pessoas</a>
+                <a href="#solucoes">Evolução e Sustentação</a>
+                <a href="#solucoes">Enterprise e Advisory</a>
+                <a href="#solucoes">Projetos Especiais</a>
+              </div>
+            </div>
+
+            <div className="nav__item">
+              <a href="#metodo" className="nav__top nav__top--drop">Método CRIVO</a>
+              <div className="nav__menu" role="menu">
+                <a href="#metodo">Método CRIVO</a>
+                <a href="#icd">ICD — Índice de Coerência Decisória</a>
+                <a href="#icd">Radar da Decisão</a>
+                <a href="#riscos-ia">Governança Comportamental</a>
+                <a href="#jornada">Evidências e evolução</a>
+              </div>
+            </div>
+
+            <div className="nav__item">
+              <a href="#portal" className="nav__top nav__top--drop">Plataforma</a>
+              <div className="nav__menu" role="menu">
+                <a href="#portal">Portal Executivo</a>
+                <a href="#dashboard">Dashboard Executivo</a>
+                <a href="#app">App CRIVO</a>
+                <a href="#app">Pocket CRIVO</a>
+                <a href="#ecossistema">Academia CRIVO</a>
+                <a href={PLATAFORMA_URL}>Área logada</a>
+              </div>
+            </div>
+
+            <div className="nav__item">
+              <a href="#ecossistema" className="nav__top nav__top--drop">Conteúdos</a>
+              <div className="nav__menu" role="menu">
+                <a href="#ebook">E-book</a>
+                <a href="#ecossistema">Materiais gratuitos</a>
+                <a href="#faq">FAQ</a>
+                <a href="#ecossistema">Artigos e eventos</a>
+              </div>
+            </div>
+
+            <div className="nav__item">
+              <a href="#quem-somos" className="nav__top nav__top--drop">Sobre</a>
+              <div className="nav__menu" role="menu">
+                <a href="#quem-somos">Quem somos</a>
+                <a href="#como-nasceu">Como nasceu a CRIVO</a>
+                <a href="#como-nasceu">Fundadores</a>
+                <a href="#quem-somos">Missão, visão e valores</a>
+                <a href="#diagnostico">Contato</a>
+              </div>
+            </div>
           </nav>
           <div className="nav__actions">
-            <a href={PLATAFORMA_URL} className="btn btn--terra btn--sm">
-              Acessar sistema
+            <a href="#diagnostico" className="btn btn--terra btn--sm">
+              Fazer Diagnóstico Inicial
+            </a>
+            <a href={PLATAFORMA_URL} className="btn btn--ghost btn--sm">
+              Acessar Portal
             </a>
           </div>
         </div>
       </header>
 
-      {/* ===================== HERO ===================== */}
-      {/* Hero CLARO com card fotográfico à direita (referência Lovable do cliente):
-          não iniciar a página em azul escuro; a foto vem emoldurada, não em
-          fundo de tela cheia. */}
-      <section id="hero" className="hero">
+      {/* ===================== HERO 1 ===================== */}
+      {/* Hero 1 — claro/off-white, Foto 1 (equipe executiva caminhando).
+          Copy aprovada no briefing final. Sem NR-1, sem "riscos humanos". */}
+      <section id="hero" className="hero hero--1">
         <div className="container hero__inner">
-          <HeroBanners />
+          <div className="hero__copy">
+            <span className="eyebrow eyebrow--terra">
+              Transformação Organizacional · Liderança · Cultura · Governança
+            </span>
+            <h1 className="display">
+              Transformação organizacional começa pela forma como a liderança{" "}
+              <span className="terra-text">decide e sustenta comportamentos</span>.
+            </h1>
+            <p className="hero__support">
+              Estratégia ganha força quando líderes transformam intenção em rotina, decisões em alinhamento e
+              comportamento em cultura.
+            </p>
+            <p className="hero__sub">
+              Somos uma consultoria estratégica de transformação organizacional com tecnologia aplicada. Ajudamos
+              empresas a revelar sinais invisíveis, priorizar ações, desenvolver lideranças e sustentar evolução com
+              método, dados, plano de ação e evidências.
+            </p>
+            <p className="hero__phrase">Decidir melhor. Sustentar melhor. Evoluir com evidência.</p>
+            <div className="hero__ctas">
+              <a href="#diagnostico" className="btn btn--terra">
+                Fazer Diagnóstico Inicial
+              </a>
+              <a
+                href="https://wa.me/5511918531796?text=Quero%20agendar%20uma%20conversa%20estrat%C3%A9gica%20com%20a%20CRIVO"
+                target="_blank"
+                rel="noopener"
+                className="btn btn--outline-dark"
+              >
+                Agendar Conversa Estratégica
+              </a>
+            </div>
+            <p className="hero__micro">Leitura preliminar gratuita · Confidencial · Resposta em até 24h úteis</p>
+          </div>
 
           <div className="hero__visual">
             <figure className="hero-card">
@@ -76,7 +163,7 @@ export default function LandingPage() {
                 className="hero-card__photo"
                 style={{ backgroundImage: "url('/imagens/hero-executivos.jpg')" }}
                 role="img"
-                aria-label="Líderes executivos em ambiente corporativo"
+                aria-label="Equipe executiva caminhando em ambiente corporativo"
               />
               <figcaption className="hero-card__bar">
                 <span className="hero-card__brand">Decision Intelligence</span>
@@ -109,14 +196,79 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== PROBLEMA ===================== */}
-      <section className="section section--light" id="problema">
+      {/* ===================== HERO 2 ===================== */}
+      {/* Hero 2 — navy, Foto 3 (reunião executiva). Copy aprovada.
+          Alterna claro→azul (REGRA 7). Pessoas · Decisões · Tecnologia · IA. Sem NR-1. */}
+      <section id="hero2" className="hero hero--2 section--dark">
+        <div className="container hero__inner hero__inner--rev">
+          <div className="hero__visual">
+            <figure className="hero-card hero-card--dark">
+              <span className="hero-card__tag">Decisão em ambientes complexos</span>
+              <div
+                className="hero-card__photo"
+                style={{ backgroundImage: "url('/imagens/icd-deliberacao.jpg')" }}
+                role="img"
+                aria-label="Reunião executiva de liderança"
+              />
+              <figcaption className="hero-card__bar">
+                <span className="hero-card__brand">Pessoas + IA</span>
+                <span className="hero-card__meta">Cultura · tecnologia · governança</span>
+                <span className="hero-card__live">
+                  <i aria-hidden="true" /> CRIVO
+                </span>
+              </figcaption>
+            </figure>
+          </div>
+          <div className="hero__copy">
+            <span className="eyebrow eyebrow--terra">
+              Pessoas · Decisões · Tecnologia · Inteligência Artificial
+            </span>
+            <h2 className="display h2--light">
+              A próxima vantagem competitiva será a <span className="terra-text">qualidade das decisões</span> em
+              ambientes complexos.
+            </h2>
+            <p className="hero__support hero__support--light">
+              Pessoas, tecnologia e Inteligência Artificial estão acelerando a gestão. A governança transforma
+              velocidade em direção, dados em prioridade e mudança em evolução sustentável.
+            </p>
+            <p className="hero__sub hero__sub--light">
+              A CRIVO™ prepara lideranças e organizações para decidir melhor em ambientes complexos, alinhando cultura,
+              tecnologia, responsabilidade e execução em uma mesma agenda de evolução.
+            </p>
+            <p className="hero__phrase hero__phrase--light">
+              Tecnologia acelera. Liderança dá direção. Governança sustenta.
+            </p>
+            <div className="hero__ctas">
+              <a href="#solucoes" className="btn btn--terra">
+                Conhecer Soluções CRIVO
+              </a>
+              <a
+                href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO"
+                target="_blank"
+                rel="noopener"
+                className="btn btn--ghost"
+              >
+                Falar com Especialista
+              </a>
+            </div>
+            <p className="hero__micro hero__micro--light">
+              Para empresas que precisam transformar complexidade em clareza, prioridade e execução.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== DESAFIOS DA TRANSFORMAÇÃO ===================== */}
+      {/* Antes "O Problema" — renomeado no briefing final. Cards executivos,
+          pouco texto, com respiro. Termo "riscos humanos" removido. */}
+      <section className="section section--light" id="desafios">
         <div className="container">
-          <span className="eyebrow">O Problema</span>
-          <h2 className="h2">Empresas crescem até o limite da sua liderança.</h2>
+          <span className="eyebrow">Desafios da Transformação</span>
+          <h2 className="h2">O crescimento cobra uma nova forma de liderar, decidir e sustentar a execução.</h2>
           <p className="lede">
-            A maioria das empresas investe em estratégia, processos e tecnologia. Poucas desenvolvem a liderança que
-            sustenta decisões, comportamentos e execução sob pressão.
+            À medida que a empresa cresce, aumentam a complexidade, a pressão decisória e a necessidade de alinhamento.
+            A CRIVO ajuda a identificar sinais invisíveis que afetam liderança, cultura, execução e resultados — antes
+            que se tornem custos recorrentes.
           </p>
           <p className="lede lede--accent">
             Toda transformação passa pela liderança. Mas liderança sem sustentação vira gargalo, risco e custo invisível.
@@ -125,7 +277,7 @@ export default function LandingPage() {
           <div className="pain-grid">
             <article className="pain-card">
               <span className="pain-card__num">01</span>
-              <h3>Decisões reativas sob pressão</h3>
+              <h3>Pressão decisória</h3>
               <p>
                 Sob pressão e urgência, líderes decidem no modo automático — e colhem retrabalho, conflito e
                 inconsistência.
@@ -133,23 +285,26 @@ export default function LandingPage() {
             </article>
             <article className="pain-card">
               <span className="pain-card__num">02</span>
-              <h3>Crescimento sem sustentação humana</h3>
+              <h3>Crescimento sem sustentação</h3>
               <p>
-                A empresa acelera, mas a liderança não acompanha. O líder vira gargalo. O time não executa sem validação
-                constante.
+                A empresa acelera, mas a liderança não acompanha. O líder vira gargalo e o time não executa sem
+                validação constante.
               </p>
             </article>
             <article className="pain-card">
               <span className="pain-card__num">03</span>
-              <h3>Riscos invisíveis que viram passivo</h3>
-              <p>Clima tóxico, burnout, turnover e adoecimento corroem produtividade, cultura e resultado — e raramente são monitorados.</p>
+              <h3>Custos invisíveis</h3>
+              <p>
+                Clima deteriorado, afastamentos, conflito e turnover corroem produtividade, cultura e resultado — e
+                raramente são monitorados.
+              </p>
             </article>
             <article className="pain-card">
               <span className="pain-card__num">04</span>
-              <h3>NR-1 como sintoma de algo maior</h3>
+              <h3>Governança e execução</h3>
               <p>
-                A regulação chegou, mas o problema não é compliance: é a forma como a liderança decide, cobra e se
-                comporta.
+                Decisões, planos de ação e responsabilidades sem ritual de acompanhamento se perdem entre a intenção e a
+                rotina.
               </p>
             </article>
           </div>
@@ -165,12 +320,14 @@ export default function LandingPage() {
         <div className="container">
           <span className="eyebrow eyebrow--terra">NR-1 · porta de entrada</span>
           <h2 className="h2 h2--light h2--center">
-            A NR-1 tornou obrigatório um problema que já impactava cultura, liderança e resultado.
+            A NR-1 tornou visível uma parte do desafio. A evolução acontece quando diagnóstico vira ação, evidência e
+            sustentação.
           </h2>
           <p className="lede lede--light">
-            A atualização da NR-1 ampliou a atenção das empresas sobre fatores psicossociais relacionados ao trabalho.
-            Mas o desafio vai além da conformidade: envolve a forma como a organização lidera, decide, cobra, comunica e
-            sustenta a rotina. A porta de entrada pode ser a NR-1 — a transformação acontece na liderança.
+            A NR-1 é porta de entrada, não o limite da CRIVO. A atualização ampliou a atenção das empresas sobre fatores
+            psicossociais — mas o desafio vai além da conformidade: envolve a forma como a organização lidera, decide,
+            cobra, comunica e sustenta a rotina. A entrega conecta fatores psicossociais, plano de ação, responsáveis,
+            prazos, evidências, liderança e acompanhamento.
           </p>
 
           <div className="nr1-split">
@@ -251,7 +408,7 @@ export default function LandingPage() {
               <span className="frente__ic">▴</span>
               <div>
                 <strong>Inteligência Organizacional</strong>
-                <span>Diagnóstico estruturado de riscos humanos, fatores psicossociais, custos invisíveis e sinais que afetam clima, performance e continuidade.</span>
+                <span>Diagnóstico estruturado de riscos organizacionais, fatores psicossociais, custos invisíveis e sinais que afetam clima, performance e continuidade.</span>
               </div>
             </div>
             <div className="frente">
@@ -433,7 +590,7 @@ export default function LandingPage() {
             <div className="icd-step">
               <span className="icd-step__num">4</span>
               <strong>eixos</strong>
-              <span>Clareza · Critério · Alinhamento · Decisão</span>
+              <span>Clareza · Critério · Alinhamento · Sustentação</span>
             </div>
             <div className="icd-step">
               <span className="icd-step__num">0–100</span>
@@ -465,8 +622,40 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="lp-photo lp-photo--band lp-photo--band-dark" aria-hidden="true">
-            <span style={{ backgroundImage: "url('/imagens/icd-deliberacao.jpg')" }} />
+          {/* Diagrama radial do ICD — diferencial proprietário (referência do cliente):
+              índice central + 4 eixos Clareza/Critério/Alinhamento/Sustentação. */}
+          <div
+            className="icd-radial"
+            role="img"
+            aria-label="Diagrama do ICD: índice central de Coerência Decisória com quatro eixos — Clareza, Critério, Alinhamento e Sustentação"
+          >
+            <svg className="icd-radial__lines" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <circle cx="200" cy="200" r="150" className="icd-radial__ring" />
+              <line x1="200" y1="200" x2="200" y2="58" />
+              <line x1="200" y1="200" x2="342" y2="200" />
+              <line x1="200" y1="200" x2="200" y2="342" />
+              <line x1="200" y1="200" x2="58" y2="200" />
+            </svg>
+            <span className="icd-radial__core">
+              <strong>ICD</strong>
+              <em>Coerência Decisória</em>
+            </span>
+            <span className="icd-radial__node icd-radial__node--t">
+              <b>Clareza</b>
+              <i>do que se decide</i>
+            </span>
+            <span className="icd-radial__node icd-radial__node--r">
+              <b>Critério</b>
+              <i>como se decide</i>
+            </span>
+            <span className="icd-radial__node icd-radial__node--b">
+              <b>Alinhamento</b>
+              <i>com quem se decide</i>
+            </span>
+            <span className="icd-radial__node icd-radial__node--l">
+              <b>Sustentação</b>
+              <i>depois de decidir</i>
+            </span>
           </div>
 
           <div className="cta-inline">
@@ -1368,6 +1557,15 @@ export default function LandingPage() {
                 placeholder="Ex.: turnover na liderança, conflitos entre áreas, decisões sob pressão…"
               />
             </div>
+            <div className="field">
+              <label htmlFor="governanca">Como a empresa acompanha decisões, planos de ação e responsabilidades hoje?</label>
+              <textarea
+                id="governanca"
+                name="governanca"
+                rows={2}
+                placeholder="Ex.: rituais de acompanhamento, responsáveis, prazos, evidências, uso de IA, comitês, indicadores ou dificuldades atuais."
+              />
+            </div>
 
             <button type="submit" className="btn btn--terra btn--block">
               Fazer diagnóstico inicial →
@@ -1393,10 +1591,19 @@ export default function LandingPage() {
             <details>
               <summary>O que a CRIVO faz na prática?</summary>
               <p>
-                A CRIVO é uma plataforma de inteligência organizacional e desenvolvimento da liderança. Ajuda a empresa a
-                identificar riscos humanos, custos invisíveis e padrões de liderança que afetam cultura, execução e
-                resultados — transformando diagnóstico em plano de ação, desenvolvimento da liderança e evolução
-                acompanhada (Portal, app, indicadores e parecer consultivo).
+                A CRIVO é uma consultoria estratégica de transformação organizacional com tecnologia aplicada. Ajuda a
+                empresa a identificar riscos organizacionais, custos invisíveis e padrões de liderança que afetam
+                cultura, execução e resultados — transformando diagnóstico em plano de ação, desenvolvimento da liderança
+                e evolução acompanhada (Portal, app, indicadores e parecer consultivo).
+              </p>
+            </details>
+            <details>
+              <summary>Como a CRIVO apoia governança, liderança e IA na prática?</summary>
+              <p>
+                Conectando decisão, cultura e tecnologia em uma mesma agenda. A CRIVO estrutura rituais de
+                acompanhamento (responsáveis, prazos, evidências), desenvolve a liderança para decidir com critério sob
+                pressão e prepara cultura e pessoas para o uso responsável da Inteligência Artificial — com método,
+                indicadores agregados e plano de ação no Portal e no app.
               </p>
             </details>
             <details>
@@ -1420,9 +1627,9 @@ export default function LandingPage() {
                 O ICD™ — Índice de Coerência Decisória — é uma metodologia proprietária da CRIVO para apoiar líderes na
                 leitura da coerência decisória em decisões reais. Não julga a decisão nem mede personalidade ou saúde
                 mental: mostra onde a decisão pode estar perdendo sustentação e impactando o resultado. São 8 afirmações
-                aplicadas a uma decisão real, 4 eixos — Clareza, Critério, Alinhamento e Decisão — score de 0 a 100 com
-                zonas de leitura e evolução trimestral. Dados individuais privados; visão agregada para a empresa, sem
-                ranking nominal.
+                aplicadas a uma decisão real, 4 eixos — Clareza, Critério, Alinhamento e Sustentação — score de 0 a 100
+                com zonas de leitura e evolução trimestral. Dados individuais privados; visão agregada para a empresa,
+                sem ranking nominal.
               </p>
             </details>
             <details>
@@ -1542,75 +1749,44 @@ export default function LandingPage() {
             <p className="footer__tag">Decisão com critério é infraestrutura de qualidade e resultado.</p>
           </div>
           <div>
-            <h5>Institucional</h5>
-            <ul>
-              <li>
-                <a href="#hero">Início</a>
-              </li>
-              <li>
-                <a href="#quem-somos">Quem somos</a>
-              </li>
-              <li>
-                <a href="#como-nasceu">Como nasceu</a>
-              </li>
-              <li>
-                <a href="#riscos-ia">Novo ciclo de gestão</a>
-              </li>
-              <li>
-                <a href="#metodo">Método CRIVO</a>
-              </li>
-            </ul>
-          </div>
-          <div>
             <h5>Soluções</h5>
             <ul>
-              <li>
-                <a href="#diagnostico">Diagnóstico Inicial</a>
-              </li>
-              <li>
-                <a href="#solucoes">CRIVO Diagnóstico™</a>
-              </li>
-              <li>
-                <a href="#solucoes">CRIVO Liderança</a>
-              </li>
-              <li>
-                <a href="#solucoes">CRIVO Evolução</a>
-              </li>
-              <li>
-                <a href="#solucoes">CRIVO Enterprise</a>
-              </li>
-              <li>
-                <a href="#solucoes">CRIVO Advisory</a>
-              </li>
+              <li><a href="#diagnostico">Diagnóstico Inicial</a></li>
+              <li><a href="#solucoes">CRIVO Diagnóstico™</a></li>
+              <li><a href="#solucoes">CRIVO Liderança</a></li>
+              <li><a href="#solucoes">CRIVO Evolução</a></li>
+              <li><a href="#solucoes">CRIVO Enterprise</a></li>
+              <li><a href="#solucoes">CRIVO Advisory</a></li>
             </ul>
           </div>
           <div>
-            <h5>Sistema</h5>
+            <h5>Plataforma</h5>
             <ul>
-              <li>
-                <a href="#solucoes">CRIVO Diagnóstico™</a>
-              </li>
-              <li>
-                <a href="#portal">Portal Executivo</a>
-              </li>
-              <li>
-                <a href="#app">App CRIVO</a>
-              </li>
-              <li>
-                <a href="#ecossistema">Academia CRIVO</a>
-              </li>
-              <li>
-                <a href="#icd">Radar da Decisão · ICD™</a>
-              </li>
-              <li>
-                <a href="#dashboard">Dashboard</a>
-              </li>
-              <li>
-                <a href="#nr1">NR-1</a>
-              </li>
-              <li>
-                <a href={PLATAFORMA_URL}>Plataforma</a>
-              </li>
+              <li><a href="#portal">Portal Executivo</a></li>
+              <li><a href="#dashboard">Dashboard Executivo</a></li>
+              <li><a href="#app">App CRIVO</a></li>
+              <li><a href="#app">Pocket CRIVO</a></li>
+              <li><a href="#ecossistema">Academia CRIVO</a></li>
+              <li><a href={PLATAFORMA_URL}>Área logada</a></li>
+            </ul>
+          </div>
+          <div>
+            <h5>Conteúdos</h5>
+            <ul>
+              <li><a href="#ebook">E-book</a></li>
+              <li><a href="#ecossistema">Materiais gratuitos</a></li>
+              <li><a href="#faq">FAQ</a></li>
+              <li><a href="#ecossistema">Artigos e eventos</a></li>
+            </ul>
+          </div>
+          <div>
+            <h5>Sobre</h5>
+            <ul>
+              <li><a href="#quem-somos">Quem somos</a></li>
+              <li><a href="#como-nasceu">Como nasceu a CRIVO</a></li>
+              <li><a href="#como-nasceu">Fundadores</a></li>
+              <li><a href="#quem-somos">Missão, visão e valores</a></li>
+              <li><a href="#riscos-ia">Governança de IA e Pessoas</a></li>
             </ul>
           </div>
           <div>
@@ -1618,9 +1794,7 @@ export default function LandingPage() {
             <ul>
               <li>Rodrigo Oliveira · Cofundador</li>
               <li>Viviani Ostan · Cofundadora</li>
-              <li>
-                <a href="mailto:contato@crivolegacy.com.br">contato@crivolegacy.com.br</a>
-              </li>
+              <li><a href="mailto:contato@crivolegacy.com.br">contato@crivolegacy.com.br</a></li>
               <li>
                 <a
                   href="https://wa.me/5511918531796?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20CRIVO"
@@ -1630,9 +1804,7 @@ export default function LandingPage() {
                   WhatsApp executivo · (11) 91853-1796
                 </a>
               </li>
-              <li>
-                <a href={PLATAFORMA_URL}>Área administrativa</a>
-              </li>
+              <li><a href={PLATAFORMA_URL}>Área logada</a></li>
             </ul>
           </div>
         </div>
