@@ -5,7 +5,7 @@
     "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @crivo/types build && pnpm --filter @crivo/db generate && pnpm --filter @crivo/db build && pnpm --filter @crivo/api build"
   },
   "deploy": {
-    "startCommand": "node apps/api/dist/main.js",
+    "startCommand": "pnpm --filter @crivo/db migrate:deploy && node apps/api/dist/main.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
