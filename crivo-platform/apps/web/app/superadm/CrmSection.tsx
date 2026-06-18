@@ -11,10 +11,16 @@ import {
 import { convertLead, listLeads, listProducts, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 
-// Colunas do funil (Print 2 do Portal PDF). PERDIDO sai do board (continua no
-// banco) — movido via o seletor de estágio do card.
-const BOARD: PlatformLeadStage[] = ["NOVO", "PRE_DIAGNOSTICO", "REUNIAO", "PROPOSTA", "FECHADO"];
-const ALL_STAGES: PlatformLeadStage[] = [...BOARD, "PERDIDO"];
+// Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
+// PERDIDO sai do board (continua no banco) — movido via o seletor do card.
+// PRE_DIAGNOSTICO/REUNIAO (legado) são dobrados na coluna OPORTUNIDADE.
+const BOARD: PlatformLeadStage[] = [
+  "NOVO", "OPORTUNIDADE", "PROPOSTA", "FECHADO", "CONTRATO", "ONBOARDING",
+  "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL",
+];
+const ALL_STAGES: PlatformLeadStage[] = [...BOARD, "PRE_DIAGNOSTICO", "REUNIAO", "PERDIDO"];
+// Estágios legados que aparecem dentro de "Oportunidade" no board.
+const FOLD_INTO_OPORTUNIDADE: PlatformLeadStage[] = ["PRE_DIAGNOSTICO", "REUNIAO"];
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
@@ -62,13 +68,17 @@ export function CrmSection() {
   const byStage = useMemo(() => {
     const map = new Map<PlatformLeadStage, PlatformLeadSummary[]>();
     for (const s of ALL_STAGES) map.set(s, []);
-    for (const l of leads ?? []) map.get(l.stage)?.push(l);
+    for (const l of leads ?? []) {
+      // Leads em estágios legados aparecem na coluna Oportunidade.
+      const col = FOLD_INTO_OPORTUNIDADE.includes(l.stage) ? "OPORTUNIDADE" : l.stage;
+      map.get(col)?.push(l);
+    }
     return map;
   }, [leads]);
 
   const total = leads?.length ?? 0;
   const fechados = byStage.get("FECHADO")?.length ?? 0;
-  const reunioes = byStage.get("REUNIAO")?.length ?? 0;
+  const reunioes = byStage.get("OPORTUNIDADE")?.length ?? 0;
   const conv = total ? Math.round((fechados / total) * 100) : 0;
 
   return (

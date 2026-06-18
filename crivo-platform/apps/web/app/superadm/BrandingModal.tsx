@@ -110,32 +110,24 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,31,51,0.45)] p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[88vh] w-full max-w-[600px] overflow-hidden rounded-[8px] border border-line bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between border-b border-line px-6 py-4">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__head">
           <div>
-            <h2 className="font-display text-lg text-azul-profundo">Marca · {tenant.name}</h2>
+            <h2>Marca · {tenant.name}</h2>
             <p className="mt-0.5 text-[12px] text-text-sec">Identidade visual e domínios próprios (white-label).</p>
           </div>
-          <button onClick={onClose} className="text-[13px] text-text-sec hover:underline">
+          <button onClick={onClose} className="btn btn--outline-dark btn--sm">
             Fechar
           </button>
         </div>
 
-        <div className="max-h-[68vh] overflow-y-auto px-6 py-4">
-          {load === "loading" && <p className="py-8 text-center text-[13px] text-text-sec">Carregando…</p>}
-          {load === "error" && (
-            <p className="py-8 text-center text-[13px] text-text-sec">Não foi possível carregar.</p>
-          )}
+        <div className="modal__body">
+          {load === "loading" && <p className="adm-empty">Carregando marca…</p>}
+          {load === "error" && <p className="adm-empty">Não foi possível carregar.</p>}
 
           {error && (
-            <div className="mb-4 rounded-[4px] border border-[rgba(196,137,74,0.4)] bg-[rgba(196,137,74,0.1)] px-3 py-2 text-[12px] text-terra-escura">
+            <div className="dash-state dash-state--error" style={{ marginBottom: 16 }}>
               {error}
             </div>
           )}
@@ -171,16 +163,11 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
                       <span className="font-mono text-azul-profundo">
                         {d.domain}
                         {d.primary && (
-                          <span className="ml-2 rounded-full bg-[rgba(46,120,80,0.14)] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#2e7850]">
-                            canônico
-                          </span>
+                          <span className="pattern-tag" style={{ marginLeft: 8 }}>canônico</span>
                         )}
                         <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${
-                            d.verified
-                              ? "bg-[rgba(46,120,80,0.14)] text-[#2e7850]"
-                              : "bg-[rgba(196,135,74,0.16)] text-[#7b4f2e]"
-                          }`}
+                          className={`pattern-tag${d.verified ? "" : " pattern-tag--alert"}`}
+                          style={{ marginLeft: 8 }}
                         >
                           {d.verified ? "verificado" : "pendente"}
                         </span>

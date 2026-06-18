@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
 
@@ -38,6 +38,7 @@ export function QuestionarioScreen() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [result, setResult] = useState<IcdResult | null>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -63,10 +64,24 @@ export function QuestionarioScreen() {
 
   const answeredCount = questions.filter((q) => answers[q.id]).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
-  const canSubmit = Boolean(leaderId) && allAnswered && submitState !== "submitting";
 
   async function submit() {
-    if (!canSubmit) return;
+    if (submitState === "submitting") return;
+    // Botão sempre responde: guia o usuário em vez de ficar "morto".
+    if (!leaderId) {
+      selectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      selectRef.current?.focus();
+      return;
+    }
+    if (!allAnswered) {
+      const firstUnanswered = questions.find((q) => !answers[q.id]);
+      if (firstUnanswered) {
+        document
+          .getElementById(`q-${firstUnanswered.id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
     setSubmitState("submitting");
     try {
       const r = await apiFetch<IcdResult>("/icd/assessments", {
@@ -130,12 +145,16 @@ export function QuestionarioScreen() {
         </div>
         <div className="route__actions">
           <select
+            ref={selectRef}
             className="kb-stage"
             value={leaderId}
             onChange={(e) => setLeaderId(e.target.value)}
             aria-label="Selecione o líder avaliado"
+            disabled={leaders.length === 0}
           >
-            <option value="">Selecione o líder…</option>
+            <option value="">
+              {leaders.length === 0 ? "Nenhum líder cadastrado" : "Selecione o líder…"}
+            </option>
             {leaders.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name} ({l.role})
@@ -145,9 +164,15 @@ export function QuestionarioScreen() {
         </div>
       </div>
 
+      {leaders.length === 0 && (
+        <div className="dash-state dash-state--error" style={{ marginBottom: 16 }}>
+          Para aplicar o ICD, cadastre líderes na estrutura da empresa primeiro.
+        </div>
+      )}
+
       <div className="q-list">
         {questions.map((q, i) => (
-          <div className="card q-item" key={q.id}>
+          <div className="card q-item" key={q.id} id={`q-${q.id}`}>
             <p className="q-item__text">
               <span className="q-item__num">{i + 1}.</span> {q.text}
             </p>
@@ -172,14 +197,20 @@ export function QuestionarioScreen() {
         {submitState === "error" && (
           <span className="dash-state--error">Falha ao enviar. Tente novamente.</span>
         )}
-        <button className="btn btn--gold btn--block" onClick={submit} disabled={!canSubmit}>
+        <button
+          className="btn btn--gold btn--block"
+          onClick={submit}
+          disabled={submitState === "submitting" || leaders.length === 0}
+        >
           {submitState === "submitting"
             ? "Calculando ICD…"
-            : !leaderId
-              ? "Selecione um líder"
-              : !allAnswered
-                ? `Responda todas (${answeredCount}/${questions.length})`
-                : "Calcular e registrar ICD →"}
+            : leaders.length === 0
+              ? "Nenhum líder cadastrado"
+              : !leaderId
+                ? "Selecione um líder ↑"
+                : !allAnswered
+                  ? `Responda todas (${answeredCount}/${questions.length})`
+                  : "Calcular e registrar ICD →"}
         </button>
       </div>
     </>

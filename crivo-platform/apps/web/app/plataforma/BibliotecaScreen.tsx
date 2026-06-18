@@ -27,6 +27,7 @@ export function BibliotecaScreen() {
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [canManage, setCanManage] = useState(false);
   const [editing, setEditing] = useState<Editing>(null);
+  const [preview, setPreview] = useState<PreviewItem | null>(null);
 
   async function load() {
     setStatus("loading");
@@ -72,7 +73,7 @@ export function BibliotecaScreen() {
       )}
 
       {/* #62 — Catálogo global CRIVO (visível a quem pode gerenciar). */}
-      {status === "ok" && canManage && <GlobalCatalogPanel onImported={load} existingUrls={new Set((data ?? []).map(d => d.url).filter(Boolean) as string[])} />}
+      {status === "ok" && canManage && <GlobalCatalogPanel onImported={load} onPreview={setPreview} existingUrls={new Set((data ?? []).map(d => d.url).filter(Boolean) as string[])} />}
 
       {status === "ok" && data && data.length === 0 && (
         <div className="card"><div className="card__head"><div>
@@ -89,7 +90,7 @@ export function BibliotecaScreen() {
               <h4>{item.title}</h4>
               {item.description && <p>{item.description}</p>}
               <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6 }}>
-                {item.url && <a className="link-gold" href={item.url} target="_blank" rel="noreferrer">Acessar →</a>}
+                <button className="link-gold" onClick={() => setPreview(item)}>Acessar →</button>
                 {canManage && (
                   <>
                     <button className="lib-act" onClick={() => setEditing(item)}>Editar</button>
@@ -109,7 +110,52 @@ export function BibliotecaScreen() {
           onSaved={async () => { setEditing(null); await load(); }}
         />
       )}
+
+      {preview && <ContentPreviewModal item={preview} onClose={() => setPreview(null)} />}
     </>
+  );
+}
+
+/** Forma mínima de um conteúdo para a prévia (serve para LibraryItem e catálogo global). */
+type PreviewItem = { title: string; kind: string; description?: string | null; url?: string | null; category?: string | null };
+
+/** Prévia do conteúdo da Academia. Sempre abre algo ao clicar "Acessar" —
+ *  evita link externo morto. Se houver URL válida, oferece abrir em nova aba. */
+function ContentPreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => void }) {
+  const label = LIBRARY_KIND_LABEL[item.kind as LibraryKind] ?? item.kind;
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <div>
+            <span className="card__eyebrow">{label}{item.category ? ` · ${item.category}` : ""}</span>
+            <h2 style={{ marginTop: 4 }}>{item.title}</h2>
+          </div>
+          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+        </header>
+        <div className="modal__body">
+          <p style={{ color: "var(--text-sec)", lineHeight: 1.6 }}>
+            {item.description || "Conteúdo do acervo CRIVO. A versão completa fica disponível no link do material."}
+          </p>
+        </div>
+        <div className="modal__foot">
+          <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Fechar</button>
+          {item.url ? (
+            <a
+              className="btn btn--terra btn--sm"
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{ textDecoration: "none" }}
+            >
+              Abrir conteúdo ↗
+            </a>
+          ) : (
+            <span className="card__sub" style={{ alignSelf: "center" }}>Link em breve</span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -171,7 +217,7 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
 
 // ── #62 — Catálogo global Academia CRIVO (Super Admin) ────────────────
 
-function GlobalCatalogPanel({ onImported, existingUrls }: { onImported: () => void; existingUrls: Set<string> }) {
+function GlobalCatalogPanel({ onImported, onPreview, existingUrls }: { onImported: () => void; onPreview: (i: PreviewItem) => void; existingUrls: Set<string> }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<GlobalAcademyLite[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -223,7 +269,7 @@ function GlobalCatalogPanel({ onImported, existingUrls }: { onImported: () => vo
                     <h4>{it.title}</h4>
                     {it.description && <p>{it.description}</p>}
                     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
-                      {it.url && <a className="link-gold" href={it.url} target="_blank" rel="noreferrer">Acessar →</a>}
+                      <button className="link-gold" onClick={() => onPreview(it)}>Acessar →</button>
                       {already ? (
                         <span className="card__sub" style={{ fontSize: 11 }}>✓ já está na sua biblioteca</span>
                       ) : (

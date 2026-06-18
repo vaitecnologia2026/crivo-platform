@@ -81,12 +81,22 @@ enum ProductStatus {
 // Estágio do lead no funil comercial da CRIVO (CRM do Super Admin). Espelha o
 // Kanban do Portal PDF (Print 2): NOVO → PRÉ-DIAGNÓSTICO → REUNIÃO → PROPOSTA →
 // FECHADO (+ PERDIDO). Distinto de LeadStage (pipeline interno do tenant).
+// Ciclo comercial completo (PDF §4.2 CRM Interno): da captação ao pós-venda.
+// Valores antigos (PRE_DIAGNOSTICO/REUNIAO) mantidos p/ compatibilidade de dados.
 enum PlatformLeadStage {
   NOVO
   PRE_DIAGNOSTICO
   REUNIAO
+  OPORTUNIDADE
   PROPOSTA
   FECHADO
+  CONTRATO
+  ONBOARDING
+  IMPLANTACAO
+  ENTREGA
+  SUSTENTACAO
+  RENOVACAO
+  UPSELL
   PERDIDO
 }
 
