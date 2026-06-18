@@ -48,7 +48,8 @@ export default function LandingPage() {
             <a href="#problema">O Problema</a>
             <a href="#metodo">Método</a>
             <a href="#icd">ICD</a>
-            <a href="#portal">Portal</a>
+            <a href="#app">App CRIVO</a>
+            <a href="#ecossistema">Ecossistema</a>
             <a href="#solucoes">Soluções</a>
             <a href="#nr1">NR-1</a>
           </nav>
@@ -760,43 +761,60 @@ export default function LandingPage() {
       {/* ===================== ECOSSISTEMA · ACADEMIA ===================== */}
       <section className="section section--light" id="ecossistema">
         <div className="container">
-          <span className="eyebrow">Ecossistema CRIVO</span>
-          <h2 className="h2">Um ecossistema contínuo de desenvolvimento organizacional.</h2>
+          <span className="eyebrow">Ecossistema &amp; Recursos CRIVO</span>
+          <h2 className="h2">Recursos que ampliam sua evolução.</h2>
           <p className="lede">
-            A jornada não termina no diagnóstico nem no app. Ela continua no Portal do Líder e na Academia CRIVO — com
-            conteúdos, trilhas, treinamentos, dashboards e inteligência contínua.
+            Conteúdos, trilhas e inteligência prática que fortalecem lideranças e organizam o conhecimento em ação.
           </p>
 
-          <div className="eco-grid">
-            <div className="eco-card eco-card--main">
-              <span className="eco-card__tag">Portal do Líder · Academia CRIVO</span>
-              <h3>Academia CRIVO de Liderança e Cultura</h3>
-              <p>
-                Vídeos, cursos, trilhas, artigos, guias, checklists, gravações de mentorias e materiais práticos —
-                conectados ao plano de ação, à mentoria e à evolução.
-              </p>
-              <ul className="eco-list">
-                <li>Dashboards</li>
-                <li>Conteúdos &amp; vídeos</li>
-                <li>Cursos &amp; trilhas</li>
-                <li>Biblioteca estratégica</li>
-                <li>Artigos &amp; guias</li>
-                <li>Analytics &amp; inteligência contínua</li>
-              </ul>
-            </div>
-            <div className="eco-side">
-              <div className="eco-card">
-                <span className="eco-card__tag">Integrações</span>
-                <h4>LinkedIn · YouTube</h4>
-                <p>Conteúdos e produção da CRIVO integrados ao Portal do Líder — quando tecnicamente viável.</p>
-              </div>
-              <div className="eco-card">
-                <span className="eco-card__tag">Roadmap</span>
-                <h4>Plataforma em evolução contínua</h4>
-                <p>Login executivo, conteúdos, cursos, dashboards e jornadas integradas.</p>
-              </div>
-            </div>
+          <div className="eco-cards">
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 4 3 9l9 5 9-5-9-5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M7 11.5V16c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </span>
+              <h3>Academia CRIVO</h3>
+              <p>Cursos e formações para líderes e times, com aplicação prática.</p>
+            </article>
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="m10 9.5 5 2.5-5 2.5v-5Z" fill="currentColor"/></svg>
+              </span>
+              <h3>Conteúdos e vídeos</h3>
+              <p>Vídeos, aulas e microconteúdos para aplicar hoje.</p>
+            </article>
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>
+              </span>
+              <h3>Trilhas e materiais</h3>
+              <p>Jornadas e materiais estruturados por tema e nível de liderança.</p>
+            </article>
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M13 3v5h5M9.5 13h5M9.5 16.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              </span>
+              <h3>Artigos e guias</h3>
+              <p>Artigos, guias e checklists para uso no dia a dia.</p>
+            </article>
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="m16 10 5-3v10l-5-3v-4Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg>
+              </span>
+              <h3>Webinars / Cases</h3>
+              <p>Webinars, casos reais e entrevistas com especialistas.</p>
+            </article>
+            <article className="eco-tile">
+              <span className="eco-tile__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 16l3.5-4 3 2.5L20 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+              <h3>Inteligência contínua</h3>
+              <p>Relatórios, análises e insights para decisões cada vez melhores.</p>
+            </article>
           </div>
+
+          <p className="eco-foot">
+            O Ecossistema e os Recursos tornam o conhecimento acessível, organizado e sempre atualizado.
+          </p>
         </div>
       </section>
 

@@ -1202,6 +1202,30 @@ th.compare__crivo { color: var(--terra) !important; }
 .eco-list li { position: relative; padding-left: 16px; font-size: 13px; color: var(--text-light-sec); }
 .eco-list li::before { content: "▴"; position: absolute; left: 0; color: var(--terra-dourado); }
 .eco-side { display: flex; flex-direction: column; gap: 20px; }
+
+/* Ecossistema · 6 cards (spec do cliente) */
+.eco-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+@media (max-width: 820px) { .eco-cards { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .eco-cards { grid-template-columns: 1fr; } }
+.eco-tile {
+  background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 24px 22px;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.eco-tile:hover {
+  border-color: rgba(196,137,74,0.4); transform: translateY(-3px);
+  box-shadow: 0 18px 40px -26px rgba(13,31,60,0.3);
+}
+.eco-tile__ic {
+  display: inline-flex; width: 46px; height: 46px; align-items: center; justify-content: center;
+  border-radius: 10px; background: rgba(196,137,74,0.12); color: var(--terra); margin-bottom: 16px;
+}
+.eco-tile__ic svg { width: 24px; height: 24px; }
+.eco-tile h3 { font-family: var(--font-display); font-size: 19px; font-weight: 500; color: var(--azul-profundo); margin: 0 0 7px; }
+.eco-tile p { font-size: 13.5px; font-weight: 300; line-height: 1.55; color: var(--text-dark-sec); margin: 0; }
+.eco-foot {
+  margin: 28px 0 0; text-align: center; font-family: var(--font-display); font-style: italic;
+  font-size: 16px; color: rgba(13,31,60,0.7);
+}
 @media (max-width: 820px) {
   .eco-grid { grid-template-columns: 1fr; }
   .eco-list { grid-template-columns: 1fr; }
