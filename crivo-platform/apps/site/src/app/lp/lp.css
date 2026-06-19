@@ -2044,3 +2044,48 @@ th.compare__crivo { color: var(--terra) !important; }
   font-size: 13px; font-weight: 700; color: var(--terra-claro); letter-spacing: 0.04em; margin-bottom: 8px;
 }
 .risco-card h3 { font-size: 18px; margin-bottom: 10px; }
+
+/* ============================================================
+   MÉTODO CRIVO (print Pág. 05) — fluxo C-R-I-V-O + ciclo
+   ============================================================ */
+.crivo-flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; position: relative; margin-top: 40px; }
+@media (max-width: 900px) { .crivo-flow { grid-template-columns: 1fr 1fr 1fr; } }
+@media (max-width: 560px) { .crivo-flow { grid-template-columns: 1fr 1fr; } }
+/* linha que conecta os círculos-letra (visível nos vãos entre os cards) */
+.crivo-flow::before { content: ""; position: absolute; top: 56px; left: 10%; right: 10%; height: 1px; background: rgba(196, 137, 74, 0.4); z-index: 0; }
+@media (max-width: 900px) { .crivo-flow::before { display: none; } }
+
+.crivo-step {
+  position: relative; z-index: 1; background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 28px 18px 22px; text-align: center;
+  transition: transform 0.35s var(--ease), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.crivo-step:hover { transform: translateY(-5px); border-color: rgba(196, 137, 74, 0.4); box-shadow: 0 22px 48px -26px rgba(13, 31, 60, 0.3); }
+.crivo-step__letter {
+  width: 56px; height: 56px; border-radius: 999px; border: 1.6px solid var(--terra); color: var(--terra); background: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 24px; font-weight: 600; margin-bottom: 18px;
+}
+.crivo-step h3 { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--azul-profundo); margin-bottom: 10px; }
+.crivo-step p { font-size: 13px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.55; margin-bottom: 18px; }
+.crivo-step__ic { display: inline-flex; color: var(--azul-cobalto); opacity: 0.85; }
+.crivo-step__ic svg { width: 26px; height: 26px; }
+
+/* Ciclo "Do método à evolução" — faixa navy */
+.metodo-cycle {
+  margin-top: 40px; background: linear-gradient(160deg, #0f2545, var(--azul-profundo));
+  border: 1px solid rgba(139, 175, 212, 0.16); border-radius: 18px; padding: 34px 32px; text-align: center;
+}
+.metodo-cycle__h { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--terra-claro); margin-bottom: 26px; }
+.metodo-cycle__steps { display: flex; align-items: flex-start; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.cycle-step { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 120px; }
+.cycle-step__ic {
+  width: 54px; height: 54px; border-radius: 999px; background: rgba(139, 175, 212, 0.1);
+  border: 1px solid rgba(139, 175, 212, 0.2); color: var(--off-white);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.cycle-step__ic svg { width: 24px; height: 24px; }
+.cycle-step strong { font-family: var(--font-display); font-size: 13.5px; font-weight: 500; color: var(--off-white); max-width: 112px; line-height: 1.3; }
+.cycle-arrow { color: var(--terra-claro); font-size: 20px; align-self: center; }
+@media (max-width: 760px) { .cycle-arrow { transform: rotate(90deg); } .metodo-cycle__steps { flex-direction: column; align-items: center; } }
+.metodo-cycle__foot { margin-top: 24px; font-family: var(--font-display); font-style: italic; font-size: 14px; color: var(--text-light-sec); }

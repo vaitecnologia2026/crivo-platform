@@ -31,42 +31,95 @@ export default function MetodoPage() {
         </div>
       </section>
 
-      {/* ===================== MÉTODO ===================== */}
+      {/* ===================== MÉTODO (print Pág. 05) ===================== */}
       <section className="section section--light" id="metodo">
         <div className="container">
           <span className="eyebrow">Metodologia</span>
-          <h2 className="h2">Método, sustentação e inteligência organizacional contínua.</h2>
+          <h2 className="h2">Método CRIVO: clareza para decidir, sustentar e evoluir.</h2>
           <p className="lede">
-            O Método CRIVO transforma percepção, responsabilidade, integração, valores e organização em práticas de
-            liderança, decisões mais coerentes e evolução mensurável da cultura.
+            O CRIVO traduz percepção, responsabilidade, integração, valores e organização em prática de liderança,
+            qualidade de decisão e evolução cultural mensurável.
           </p>
 
-          <div className="metodo-grid">
-            <div className="metodo-card">
-              <span className="metodo-card__letter">C</span>
+          {/* 5 etapas C-R-I-V-O conectadas (círculo-letra + ícone no rodapé) */}
+          <div className="crivo-flow">
+            <article className="crivo-step">
+              <span className="crivo-step__letter">C</span>
               <h3>Consciência</h3>
-              <p>Ler o contexto, reconhecer pressões e ampliar a clareza antes de decidir.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">R</span>
+              <p>Ler o contexto e reconhecer pressões para ampliar a clareza antes de decidir.</p>
+              <span className="crivo-step__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" strokeWidth="1.5" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" /></svg>
+              </span>
+            </article>
+            <article className="crivo-step">
+              <span className="crivo-step__letter">R</span>
               <h3>Responsabilidade</h3>
               <p>Assumir escolhas, consequências e compromissos de execução.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">I</span>
+              <span className="crivo-step__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              </span>
+            </article>
+            <article className="crivo-step">
+              <span className="crivo-step__letter">I</span>
               <h3>Integração</h3>
-              <p>Conectar pessoas, áreas, comunicação e prioridades.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">V</span>
+              <p>Conectar pessoas, áreas, comunicação e prioridades com alinhamento.</p>
+              <span className="crivo-step__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M3.5 18c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="17" cy="8" r="2.3" stroke="currentColor" strokeWidth="1.5" /><path d="M16.5 13c2.2.3 4 2.1 4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </span>
+            </article>
+            <article className="crivo-step">
+              <span className="crivo-step__letter">V</span>
               <h3>Valores</h3>
               <p>Decidir com critério, propósito e coerência cultural.</p>
-            </div>
-            <div className="metodo-card">
-              <span className="metodo-card__letter">O</span>
+              <span className="crivo-step__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              </span>
+            </article>
+            <article className="crivo-step">
+              <span className="crivo-step__letter">O</span>
               <h3>Organização</h3>
               <p>Transformar decisões em rotina, plano de ação, acompanhamento e resultado.</p>
+              <span className="crivo-step__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M10 5h10M10 12h10M10 19h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M4 5l1.4 1.4L8 4M4 12l1.4 1.4L8 11M4 19l1.4 1.4L8 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
+            </article>
+          </div>
+
+          {/* DO MÉTODO À EVOLUÇÃO — ciclo contínuo */}
+          <div className="metodo-cycle">
+            <span className="metodo-cycle__h">Do método à evolução</span>
+            <div className="metodo-cycle__steps">
+              <div className="cycle-step">
+                <span className="cycle-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" /><circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.5" /><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                </span>
+                <strong>Qualidade de decisão</strong>
+              </div>
+              <span className="cycle-arrow" aria-hidden="true">→</span>
+              <div className="cycle-step">
+                <span className="cycle-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.5" /><path d="M9 4V3h6v1M9 10h6M9 14h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                </span>
+                <strong>Plano de ação</strong>
+              </div>
+              <span className="cycle-arrow" aria-hidden="true">→</span>
+              <div className="cycle-step">
+                <span className="cycle-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.5 5.5l2 2M16.5 16.5l2 2M18.5 5.5l-2 2M7.5 16.5l-2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                </span>
+                <strong>Rotina e execução</strong>
+              </div>
+              <span className="cycle-arrow" aria-hidden="true">→</span>
+              <div className="cycle-step">
+                <span className="cycle-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 16l3.5-4 3 2.5L20 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+                <strong>Evolução mensurável</strong>
+              </div>
             </div>
+            <p className="metodo-cycle__foot">
+              Um ciclo contínuo que fortalece a liderança, sustenta a cultura e gera resultados.
+            </p>
           </div>
         </div>
       </section>
