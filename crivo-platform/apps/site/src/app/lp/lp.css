@@ -45,7 +45,7 @@
   --font-body: var(--font-poppins), "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-word: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
 
-  --maxw: 1240px;
+  --maxw: 1280px;
   --maxw-narrow: 860px;
 
   --r: 3px;
@@ -280,12 +280,12 @@ img, svg { display: block; max-width: 100%; }
 .hero__inner {
   position: relative; z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
-  gap: 56px;
+  grid-template-columns: 1fr 1.28fr;
+  gap: 48px;
   align-items: center;
   flex-grow: 1;
 }
-.hero__copy { max-width: 620px; }
+.hero__copy { max-width: 600px; }
 /* Título escuro sobre o hero claro (a classe .display segue clara nas seções dark). */
 .hero .display { color: var(--azul-profundo); }
 .hero__sub {
@@ -326,9 +326,9 @@ img, svg { display: block; max-width: 100%; }
   padding: 6px 12px; border-radius: 999px;
 }
 .hero-card__photo {
-  aspect-ratio: 4 / 3.9;
+  aspect-ratio: 4 / 4.05;
   background-size: cover;
-  background-position: center 28%;
+  background-position: center 26%;
   background-repeat: no-repeat;
 }
 .hero-card__bar {
@@ -1871,12 +1871,13 @@ th.compare__crivo { color: var(--terra) !important; }
 /* Peek do produto (ICD) sobreposto à foto do hero */
 .hero__visual { position: relative; }
 .hero-float {
-  position: absolute; left: -24px; bottom: 40px; z-index: 3;
-  width: 232px; padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.84);
+  position: absolute; left: -34px; bottom: -26px; z-index: 3;
+  width: 258px; padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(13, 31, 60, 0.08); border-radius: 14px;
-  box-shadow: 0 26px 60px -24px rgba(13, 31, 60, 0.42);
+  border: 1px solid rgba(196, 137, 74, 0.28); border-top: 3px solid var(--terra);
+  border-radius: 16px;
+  box-shadow: 0 34px 70px -22px rgba(13, 31, 60, 0.55);
   animation: floatY 8.5s ease-in-out infinite;
 }
 .hero-float__label {
