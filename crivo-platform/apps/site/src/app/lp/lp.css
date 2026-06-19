@@ -2273,6 +2273,47 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (max-width: 620px) { .ebook-after { flex-direction: column; text-align: center; } }
 
 /* ============================================================
+   Modal do Diagnóstico Inicial — "tela sobre a tela" (premium)
+   ============================================================ */
+.diag-modal {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: rgba(8, 18, 36, 0.74);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: diagFade 0.25s ease;
+}
+@keyframes diagFade { from { opacity: 0; } to { opacity: 1; } }
+.diag-modal__card {
+  position: relative; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
+  background: var(--off-white); border-radius: 20px;
+  border: 1px solid rgba(196, 137, 74, 0.22); border-top: 4px solid var(--terra);
+  box-shadow: 0 50px 120px -28px rgba(0, 0, 0, 0.62);
+  padding: 38px 34px 34px;
+  animation: diagPop 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes diagPop { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
+.diag-modal__close {
+  position: absolute; top: 16px; right: 16px; z-index: 2;
+  width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--line);
+  background: #fff; color: var(--azul-profundo); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+.diag-modal__close svg { width: 18px; height: 18px; }
+.diag-modal__close:hover { background: var(--azul-profundo); color: var(--off-white); transform: rotate(90deg); }
+/* dentro do modal o quiz não precisa do próprio card — o modal já é o card */
+.diag-modal .diag-quiz { background: transparent; padding: 0; margin: 0; border-radius: 0; }
+@media (max-width: 560px) {
+  .diag-modal { padding: 0; align-items: flex-end; }
+  .diag-modal__card { max-width: 100%; max-height: 94vh; border-radius: 20px 20px 0 0; padding: 30px 20px 24px; }
+}
+
+/* CTA que abre o modal (na seção #diagnostico) */
+.diag-open { text-align: center; margin-top: 6px; }
+.diag-open__note { display: block; margin-top: 13px; font-family: var(--font-display); font-style: italic; font-size: 13px; color: var(--text-light-sec); }
+.btn--lg { padding: 17px 40px; font-size: 15px; letter-spacing: 0.04em; }
+
+/* ============================================================
    Soluções — portfólio modular + Diferenciais (print Pág. 07)
    ============================================================ */
 .sol-core { display: flex; justify-content: center; margin: 40px 0 0; }

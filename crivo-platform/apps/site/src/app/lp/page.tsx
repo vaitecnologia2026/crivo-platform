@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { LpEffects } from "./LpEffects";
-import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import {
@@ -535,7 +534,13 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <DiagnosticoInicialQuiz />
+          {/* CTA → abre o modal do diagnóstico (DiagnosticoModal intercepta #diagnostico) */}
+          <div className="diag-open">
+            <a href="#diagnostico" className="btn btn--terra btn--lg">
+              Fazer Diagnóstico Inicial →
+            </a>
+            <span className="diag-open__note">Leva ~2 minutos · resultado na hora · confidencial</span>
+          </div>
         </div>
 
         {/* Material complementar — E-book entregue APÓS o diagnóstico (print Pág. 03) */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
+import { DiagnosticoModal } from "../lp/DiagnosticoModal";
 
 // Navegação principal compartilhada (header azul-marinho + submenus em hover no
 // desktop; menu hambúrguer no mobile via checkbox-hack, sem JS).
@@ -55,6 +56,7 @@ export function SiteNav() {
   const isActive = (href: string) => !href.includes("#") && href !== "/lp" ? href === pathname : href === "/lp" && pathname === "/lp";
 
   return (
+    <>
     <header className="nav" id="nav">
       <div className="container nav__inner">
         <Link href="/lp" className="brand">
@@ -110,5 +112,7 @@ export function SiteNav() {
         </div>
       </div>
     </header>
+    <DiagnosticoModal />
+    </>
   );
 }
