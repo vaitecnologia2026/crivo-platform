@@ -30,7 +30,7 @@ export class UsersController {
   @Post()
   @RequirePermission('users:create')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateUserDto) {
-    return this.users.create(user.tenantId, dto);
+    return this.users.create(user.tenantId, dto, user.role);
   }
 
   /** Atualiza papel / (des)ativa um usuário. */
@@ -41,6 +41,6 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.users.update(user.tenantId, id, dto);
+    return this.users.update(user.tenantId, id, dto, user.role);
   }
 }

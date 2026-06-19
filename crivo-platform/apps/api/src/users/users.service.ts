@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, type User } from '@crivo/db';
@@ -32,6 +32,19 @@ function normalizeScreens(v: unknown): string[] | null {
   return list.length ? Array.from(new Set(list)) : null;
 }
 
+/** Cargos administrativos elevados — só quem já os tem pode concedê-los. */
+const ELEVATED_ROLES: ReadonlySet<string> = new Set(['ADMIN', 'CEO']);
+
+/** Anti-escalonamento de privilégio: impede que quem tem users:create/edit
+ *  promova alguém (ou a si mesmo) a ADMIN/CEO sem ser ADMIN/CEO. */
+function assertCanAssignRole(actorRole: string, targetRole: string | undefined): void {
+  if (targetRole && ELEVATED_ROLES.has(targetRole) && !ELEVATED_ROLES.has(actorRole)) {
+    throw new ForbiddenException(
+      'Apenas Administrador ou CEO podem atribuir os cargos Administrador ou CEO.',
+    );
+  }
+}
+
 /**
  * Gestão de usuários da empresa (time). Tudo escopado por tenant (RLS via
  * forTenant) — uma empresa só enxerga/edita os próprios usuários. A criação
@@ -51,7 +64,12 @@ export class UsersService {
     });
   }
 
-  async create(tenantId: string, dto: CreateUserRequest): Promise<CreateUserResult> {
+  async create(
+    tenantId: string,
+    dto: CreateUserRequest,
+    actorRole: string,
+  ): Promise<CreateUserResult> {
+    assertCanAssignRole(actorRole, dto.role);
     const email = dto.email.toLowerCase().trim();
     const generated = !dto.password;
     const password = dto.password ?? generatePassword();
@@ -84,10 +102,22 @@ export class UsersService {
     return { active, max };
   }
 
-  update(tenantId: string, id: string, dto: UpdateUserRequest): Promise<UserSummary> {
+  update(
+    tenantId: string,
+    id: string,
+    dto: UpdateUserRequest,
+    actorRole: string,
+  ): Promise<UserSummary> {
+    assertCanAssignRole(actorRole, dto.role);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.user.findFirst({ where: { id } });
       if (!existing) throw new NotFoundException('Usuário não encontrado');
+      // Não permitir que um não-elevado rebaixe/mexa num ADMIN/CEO existente.
+      if (ELEVATED_ROLES.has(existing.role) && !ELEVATED_ROLES.has(actorRole)) {
+        throw new ForbiddenException(
+          'Apenas Administrador ou CEO podem alterar usuários com cargo Administrador ou CEO.',
+        );
+      }
       // Reativar respeita a quota do plano (criar "capacidade" de volta).
       if (dto.active === true && !existing.active) {
         await this.metering.assertUserQuota(tx, tenantId);
