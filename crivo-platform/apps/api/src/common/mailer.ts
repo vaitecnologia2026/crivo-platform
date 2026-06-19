@@ -46,7 +46,17 @@ function smtpTransport(): Transporter | null {
   if (!cached || cached.key !== key) {
     cached = {
       key,
-      transport: nodemailer.createTransport({ host, port, secure, auth: { user, pass } }),
+      // Timeouts curtos: alguns hosts (ex.: Railway/PaaS) bloqueiam SMTP de saída
+      // (465/587). Sem timeout, o envio trava ~2min. Falha rápido → cai no Resend.
+      transport: nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 12000,
+      }),
     };
   }
   return cached.transport;
@@ -73,8 +83,10 @@ export async function sendMail(
   input: SendMailInput,
   opts?: { resendFrom?: string },
 ): Promise<SendMailResult> {
-  // 1) SMTP (Hostinger)
+  // 1) SMTP (Hostinger). Em falha (ex.: porta bloqueada no Railway), NÃO retorna
+  //    o erro: cai pro Resend abaixo se houver RESEND_API_KEY.
   const transport = smtpTransport();
+  let smtpFail: SendMailResult | null = null;
   if (transport) {
     try {
       await transport.sendMail({
@@ -88,12 +100,12 @@ export async function sendMail(
       return { ok: true, provider: 'smtp' };
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Falha SMTP.';
-      log.warn(`SMTP falhou ao enviar para ${input.to}: ${reason}`);
-      return { ok: false, provider: 'smtp', reason };
+      log.warn(`SMTP falhou ao enviar para ${input.to}: ${reason} — tentando Resend.`);
+      smtpFail = { ok: false, provider: 'smtp', reason };
     }
   }
 
-  // 2) Resend (fallback HTTP)
+  // 2) Resend (HTTP) — provider primário sem SMTP, ou fallback se o SMTP falhou.
   const apiKey = process.env.RESEND_API_KEY;
   if (apiKey) {
     const from = opts?.resendFrom ?? process.env.RESEND_FROM ?? 'CRIVO <noreply@crivolegacy.com.br>';
@@ -125,7 +137,10 @@ export async function sendMail(
     }
   }
 
-  // 3) Stub
+  // 3) SMTP falhou e não há Resend → devolve o erro do SMTP.
+  if (smtpFail) return smtpFail;
+
+  // 4) Stub — nenhum provider configurado.
   return {
     ok: false,
     provider: 'stub',

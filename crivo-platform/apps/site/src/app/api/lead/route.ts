@@ -83,7 +83,16 @@ async function sendEmailSmtp(data: Lead, email: string): Promise<boolean> {
   const from = process.env.SMTP_FROM ?? `CRIVO Leads <${user}>`;
   const { to, subject, html } = leadEmailParts(data);
   try {
-    const transport = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    const transport = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      // Falha rápido se a porta SMTP estiver bloqueada (PaaS) — não trava a request.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 12000,
+    });
     await transport.sendMail({ from, to, replyTo: email, subject, html });
     return true;
   } catch {
