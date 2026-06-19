@@ -2145,3 +2145,51 @@ th.compare__crivo { color: var(--terra) !important; }
   color: var(--terra-claro); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px;
 }
 .deliver-card__ic svg { width: 22px; height: 22px; }
+
+/* ============================================================
+   Soluções — portfólio modular + Diferenciais (print Pág. 07)
+   ============================================================ */
+.sol-core { display: flex; justify-content: center; margin: 40px 0 0; }
+.sol-core__pill {
+  font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--terra-dourado); padding: 11px 28px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(168, 105, 61, 0.1), rgba(168, 105, 61, 0.035));
+  border: 1px solid rgba(168, 105, 61, 0.3);
+}
+.sol-bus { display: block; width: 100%; max-width: 1100px; height: 30px; margin: 0 auto 6px; }
+.sol-bus path { fill: none; stroke: rgba(168, 105, 61, 0.28); stroke-width: 1.1; }
+
+.sol-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 4px; }
+@media (max-width: 1024px) { .sol-grid { grid-template-columns: repeat(3, 1fr); } .sol-bus { display: none; } }
+@media (max-width: 680px) { .sol-grid { grid-template-columns: 1fr; } }
+
+.sol-card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 24px 18px 18px; display: flex; flex-direction: column; align-items: center; text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.sol-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-2); border-color: rgba(168, 105, 61, 0.4); }
+.sol-card__ic {
+  width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-dourado); background: rgba(168, 105, 61, 0.1); border: 1px solid rgba(168, 105, 61, 0.22); margin-bottom: 14px;
+}
+.sol-card__ic svg { width: 23px; height: 23px; }
+.sol-card h3 { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--azul-profundo); margin-bottom: 5px; line-height: 1.2; }
+.sol-card__tag { font-family: var(--font-display); font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--terra-dourado); margin-bottom: 11px; }
+.sol-card p { font-size: 12.5px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.5; flex: 1 0 auto; margin-bottom: 14px; }
+.sol-card__more { font-family: var(--font-display); font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: var(--azul-profundo); display: inline-flex; align-items: center; gap: 6px; }
+.sol-card__more span { color: var(--terra-dourado); transition: transform 0.2s ease; }
+.sol-card:hover .sol-card__more span { transform: translateX(4px); }
+
+/* Diferenciais CRIVO — 4 colunas icônicas (seção dark) */
+.dif-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; margin-top: 30px; }
+@media (max-width: 880px) { .dif-grid { grid-template-columns: repeat(2, 1fr); gap: 24px 20px; } }
+@media (max-width: 520px) { .dif-grid { grid-template-columns: 1fr; } }
+.dif-col { text-align: left; }
+.dif-col__ic {
+  width: 46px; height: 46px; border-radius: var(--r-lg); display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-claro); background: rgba(196, 137, 74, 0.12); border: 1px solid rgba(196, 137, 74, 0.3); margin-bottom: 14px;
+}
+.dif-col__ic svg { width: 23px; height: 23px; }
+.dif-col strong { display: block; font-family: var(--font-display); font-size: 16.5px; font-weight: 600; color: var(--off-white); margin-bottom: 8px; }
+.dif-col p { font-size: 13px; font-weight: 300; color: var(--text-light-sec); line-height: 1.55; }

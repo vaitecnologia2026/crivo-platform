@@ -166,6 +166,8 @@ export function LpEffects() {
       ".preview-report", ".app-chips li",
       // Briefing final: diagrama radial do ICD:
       ".icd-radial",
+      // Print Pág. 07: portfólio de soluções + diferenciais:
+      ".sol-card", ".dif-col",
     ].join(",");
 
     if (!reduce) {
@@ -187,7 +189,7 @@ export function LpEffects() {
       });
       document
         .querySelectorAll(
-          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare, .eco-cards, .dash-kpis, .strategic-tags__list, .app-chips",
+          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare, .eco-cards, .dash-kpis, .strategic-tags__list, .app-chips, .sol-grid, .dif-grid",
         )
         .forEach((grid) => {
           Array.from(grid.children).forEach((child, i) => {

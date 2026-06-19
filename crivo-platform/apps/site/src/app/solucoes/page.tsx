@@ -8,8 +8,129 @@ import "../lp/lp.css";
 export const metadata: Metadata = {
   title: "Soluções CRIVO — do Diagnóstico Inicial ao Advisory",
   description:
-    "Diagnóstico Inicial, CRIVO Diagnóstico, Liderança, Evolução, Enterprise e Advisory — para cada momento da organização, um nível de atuação.",
+    "Transformação organizacional como eixo que conecta diagnóstico, liderança, cultura, dados e sustentação. Diagnóstico Inicial, CRIVO Diagnóstico, Liderança, Evolução, Enterprise e Advisory.",
 };
+
+/* ícones de traço (stroke) — sem emoji, no estilo da marca */
+const IcSearch = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="11" cy="11" r="6.2" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M20 20l-4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+const IcChart = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 20h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <path d="M7 20v-6M12 20V6M17 20v-9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+const IcPeople = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <path d="M16 5.4a3 3 0 0 1 0 5.6M17 14c2.1.4 3.7 2.3 3.7 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+const IcCycle = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 11a8 8 0 0 1 13.5-5.2L20 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M20 13a8 8 0 0 1-13.5 5.2L4 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M20 4v4h-4M4 20v-4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IcBuilding = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="5" y="3.5" width="14" height="17" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M9 7.5h2M13 7.5h2M9 11h2M13 11h2M9 14.5h2M13 14.5h2M10 20.5v-3h4v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+const IcStar = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 3.5l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.4 9.7l5.8-.9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+  </svg>
+);
+const IcNodes = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="6" cy="6" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    <circle cx="18" cy="6" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    <circle cx="12" cy="18" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M8 6h8M7.6 8l3.4 8M16.4 8l-3.4 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+const IcTrendUp = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IcShield = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const PORTFOLIO = [
+  {
+    ic: <IcSearch />,
+    nome: "Diagnóstico Inicial",
+    tag: "Entrada · Leitura Preliminar",
+    desc: "Leitura rápida de riscos invisíveis, liderança e pontos de atenção. Relatório Preliminar CRIVO™ em até 24h.",
+  },
+  {
+    ic: <IcChart />,
+    nome: "CRIVO Diagnóstico™",
+    tag: "Diagnóstico Organizacional",
+    desc: "Diagnóstico estruturado com fatores psicossociais, liderança, cultura e evidências. Dashboard e plano de ação.",
+  },
+  {
+    ic: <IcPeople />,
+    nome: "CRIVO Liderança",
+    tag: "Jornada de Liderança",
+    desc: "Trilhas, mentorias e app (Radar da Decisão, Academia CRIVO) para desenvolver líderes com foco no que importa.",
+  },
+  {
+    ic: <IcCycle />,
+    nome: "CRIVO Evolução",
+    tag: "Mentoria & Governança",
+    desc: "Mentoria em grupo, governança comportamental e Radar da Decisão evolutivo, com devolutivas estruturadas.",
+  },
+  {
+    ic: <IcBuilding />,
+    nome: "CRIVO Enterprise",
+    tag: "Transformação Organizacional",
+    desc: "Jornada completa de transformação: PDCA, mentoria, workshops e sustentação. Ideal para M&A e crescimento.",
+  },
+  {
+    ic: <IcStar />,
+    nome: "CRIVO Advisory",
+    tag: "Conselho Estratégico",
+    desc: "Conselheiro para C-Level e fundadores. Visão estratégica de governança, cultura e sucessão.",
+  },
+];
+
+const DIFERENCIAIS = [
+  {
+    ic: <IcNodes />,
+    titulo: "Visão integrada",
+    desc: "Não tratamos temas isolados. Conectamos liderança, cultura, riscos, dados e performance em um método único.",
+  },
+  {
+    ic: <IcTrendUp />,
+    titulo: "Base em ciência e dados",
+    desc: "Diagnóstico com evidências psicossociais e comportamentais aplicadas à realidade do negócio.",
+  },
+  {
+    ic: <IcCycle />,
+    titulo: "Sustentação que gera resultado",
+    desc: "Do plano à rotina: app, dashboards, mentorias e trilhas para manter a evolução e a disciplina organizacional.",
+  },
+  {
+    ic: <IcShield />,
+    titulo: "Segurança e conformidade",
+    desc: "Plataforma segura, LGPD by design e aderente às exigências da NR-1.",
+  },
+];
 
 export default function SolucoesPage() {
   return (
@@ -22,152 +143,53 @@ export default function SolucoesPage() {
         <div className="container">
           <span className="eyebrow eyebrow--terra">Soluções &amp; Serviços</span>
           <h1 className="display h2--light">
-            Para cada momento da organização, um <span className="terra-text">nível de atuação</span>.
+            Soluções para <span className="terra-text">cada momento</span> da organização.
           </h1>
-          <p className="lede lede--light" style={{ maxWidth: 760 }}>
-            Da entrada (NR-1 e diagnóstico inicial) à transformação cultural, governança de IA e performance —
-            diagnóstico, plano de ação, desenvolvimento da liderança, app, dados e acompanhamento.
+          <p className="lede lede--light" style={{ maxWidth: 820 }}>
+            Transformação organizacional como eixo que conecta diagnóstico, liderança, cultura, dados e sustentação —
+            para gerar resultados consistentes e duradouros.
           </p>
         </div>
       </section>
 
-      {/* ===================== SOLUÇÕES ===================== */}
+      {/* ===================== PORTFÓLIO (print Pág. 07) ===================== */}
       <section className="section section--light" id="solucoes">
         <div className="container">
-          <span className="eyebrow">Soluções &amp; Serviços</span>
-          <h2 className="h2">Para cada momento da organização, um nível de atuação.</h2>
-          <p className="lede">
-            A CRIVO combina diagnóstico, plano de ação, desenvolvimento da liderança, app, dados e acompanhamento para
-            cada momento da organização — da entrada (NR-1 e diagnóstico inicial) à transformação cultural, governança
-            de IA e performance.
+          <span className="eyebrow" style={{ justifyContent: "center" }}>
+            Portfólio modular
+          </span>
+          <h2 className="h2 h2--center">Um nível de atuação para cada estágio.</h2>
+          <p className="lede" style={{ textAlign: "center", margin: "0 auto 8px", maxWidth: 820 }}>
+            Do diagnóstico ao conselho estratégico — cada solução é um degrau da mesma jornada de transformação.
           </p>
 
-          <div className="ladder ladder--8">
-            <div className="ladder__step ladder__step--free">
-              <span className="ladder__tag ladder__tag--free">Grátis</span>
-              <strong>Diagnóstico Inicial</strong>
-              <span>Entrada · leitura preliminar</span>
-            </div>
-            <div className="ladder__step ladder__step--s1">
-              <span className="ladder__tag">01</span>
-              <strong>Diagnóstico Essencial</strong>
-              <span>Pequenas empresas · AEP/PGR</span>
-            </div>
-            <div className="ladder__step ladder__step--s1">
-              <span className="ladder__tag">02</span>
-              <strong>Diagnóstico Organizacional</strong>
-              <span>Campanha · dashboards · inventário</span>
-            </div>
-            <div className="ladder__step ladder__step--s2">
-              <span className="ladder__tag">03</span>
-              <strong>Liderança</strong>
-              <span>Jornada · app · mentorias</span>
-            </div>
-            <div className="ladder__step ladder__step--s2">
-              <span className="ladder__tag">04</span>
-              <strong>Evolução</strong>
-              <span>Mentoria &amp; governança · ciclos</span>
-            </div>
-            <div className="ladder__step ladder__step--s3">
-              <span className="ladder__tag">05</span>
-              <strong>Enterprise</strong>
-              <span>Transformação organizacional</span>
-            </div>
-            <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">06</span>
-              <strong>Advisory</strong>
-              <span>Conselho C-Level</span>
-            </div>
-            <div className="ladder__step ladder__step--s4">
-              <span className="ladder__tag">+</span>
-              <strong>Projetos Especiais</strong>
-              <span>Escopo customizado</span>
-            </div>
+          {/* núcleo: transformação organizacional como eixo */}
+          <div className="sol-core">
+            <span className="sol-core__pill">Transformação Organizacional</span>
+          </div>
+          <svg className="sol-bus" viewBox="0 0 1200 44" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M600 0 V14 M100 14 H1100 M100 14 V40 M300 14 V40 M500 14 V40 M700 14 V40 M900 14 V40 M1100 14 V40" />
+          </svg>
+
+          <div className="sol-grid">
+            {PORTFOLIO.map((p) => (
+              <article className="sol-card" key={p.nome}>
+                <span className="sol-card__ic" aria-hidden="true">
+                  {p.ic}
+                </span>
+                <h3>{p.nome}</h3>
+                <span className="sol-card__tag">{p.tag}</span>
+                <p>{p.desc}</p>
+                <a href="/lp#diagnostico" className="sol-card__more">
+                  Saiba mais <span aria-hidden="true">→</span>
+                </a>
+              </article>
+            ))}
           </div>
 
-          <div className="product-grid product-grid--auto">
-            <article className="product-card product-card--free">
-              <span className="product-card__level">01</span>
-              <h3>Diagnóstico Inicial</h3>
-              <span className="product-card__tag">Leitura preliminar · gratuito</span>
-              <p>
-                Primeira leitura sobre riscos invisíveis, liderança e pontos de atenção. Relatório Preliminar CRIVO™ por
-                e-mail em até 24h.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--outline-dark btn--block">
-                Fazer diagnóstico inicial
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">02</span>
-              <h3>CRIVO Diagnóstico™</h3>
-              <span className="product-card__tag">Diagnóstico Organizacional</span>
-              <p>
-                Diagnóstico oficial estruturado: fatores psicossociais, liderança, cultura, dashboard, plano de ação e
-                evidências. Aplicado e gerido no Portal Executivo.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">03</span>
-              <h3>CRIVO Liderança</h3>
-              <span className="product-card__tag">Jornada de Liderança</span>
-              <p>
-                Jornada aplicada à rotina: trilhas, mentorias, app (Radar da Decisão, Academia CRIVO) e desenvolvimento
-                contínuo. Turmas de até 50 líderes.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card product-card--featured">
-              <span className="badge-featured">Mais procurado</span>
-              <span className="product-card__level">04</span>
-              <h3>CRIVO Evolução</h3>
-              <span className="product-card__tag">Mentoria &amp; Governança</span>
-              <p>
-                Mentoria em grupo, governança comportamental, liderança sob pressão, Radar da Decisão evolutivo e
-                devolutivas estruturadas. Aprofundamento contínuo.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--terra btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">05</span>
-              <h3>CRIVO Enterprise</h3>
-              <span className="product-card__tag">Transformação Organizacional</span>
-              <p>
-                Diagnóstico completo, PDCA, workshops, mentoria individual e sustentação cultural. Ideal para M&amp;A,
-                profissionalização ou crescimento acelerado.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">06</span>
-              <h3>CRIVO Advisory</h3>
-              <span className="product-card__tag">Conselho Estratégico</span>
-              <p>
-                Conselheiro para C-Level e fundadores. Sustentação contínua com visão de governança e sucessão.
-              </p>
-              <a href="/lp#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-          </div>
-
+          {/* agendas estratégicas */}
           <div className="strategic-tags">
-            <span className="strategic-tags__eyebrow">Soluções estratégicas CRIVO</span>
-            <p className="strategic-tags__lede">Agendas específicas para liderança, cultura e governança.</p>
+            <span className="strategic-tags__eyebrow">Agendas estratégicas</span>
             <div className="strategic-tags__list">
               <span className="strategic-tag">Transformação Cultural</span>
               <span className="strategic-tag">Cultura Adaptável — Pessoas + IA</span>
@@ -177,47 +199,39 @@ export default function SolucoesPage() {
               <span className="strategic-tag">Palestras e Mentorias Executivas</span>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="lp-photo lp-photo--band lp-photo--band-light" aria-hidden="true">
-            <span style={{ backgroundImage: "url('/imagens/trilha-mentoria.jpg')" }} />
-          </div>
-
-          <div className="trilha">
-            <span className="trilha__eyebrow">Trilha da Liderança · base</span>
-            <p className="trilha__lede">
-              A liderança não recebe apenas conteúdo. Ela entra em uma jornada prática, acompanhada por app, mentoria,
-              Academia CRIVO, indicadores e plano de ação.
-            </p>
-            <div className="trilha__grid">
-              <div>
-                <strong>30–50</strong>
-                <span>líderes por ciclo</span>
-              </div>
-              <div>
-                <strong>6 meses</strong>
-                <span>de jornada com sustentação até 12</span>
-              </div>
-              <div>
-                <strong>Semanal · quinzenal</strong>
-                <span>encontros recorrentes</span>
-              </div>
-              <div>
-                <strong>App + indicadores + plano</strong>
-                <span>evolução acompanhada e mensurável</span>
-              </div>
-            </div>
+      {/* ===================== DIFERENCIAIS CRIVO (seção própria) ===================== */}
+      <section className="section section--dark" id="diferenciais">
+        <div className="container">
+          <span className="eyebrow eyebrow--terra">Diferenciais CRIVO</span>
+          <h2 className="h2 h2--light">O que conecta o que muitas empresas tratam de forma fragmentada.</h2>
+          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 8px", maxWidth: 820 }}>
+            Liderança, cultura, riscos, dados e performance em um único método — do diagnóstico à sustentação.
+          </p>
+          <div className="dif-grid">
+            {DIFERENCIAIS.map((d) => (
+              <article className="dif-col" key={d.titulo}>
+                <span className="dif-col__ic" aria-hidden="true">
+                  {d.ic}
+                </span>
+                <strong>{d.titulo}</strong>
+                <p>{d.desc}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ===================== DIFERENCIAL / COMPARATIVO ===================== */}
-      <section className="section section--light" id="autoridade">
+      {/* ===================== COMPARATIVO DETALHADO (leitura premium) ===================== */}
+      <section className="section section--light" id="comparativo">
         <div className="container">
-          <span className="eyebrow">Diferencial CRIVO</span>
-          <h2 className="h2">Uma abordagem que conecta o que muitas empresas tratam de forma fragmentada.</h2>
+          <span className="eyebrow">Comparativo</span>
+          <h2 className="h2">CRIVO × abordagens fragmentadas, lado a lado.</h2>
           <p className="lede">
-            Liderança, decisão, cultura, experiência do colaborador, riscos psicossociais, inteligência organizacional,
-            transformação e sustentação da performance — em um método integrado.
+            Para quem quer o detalhe: o que soluções focadas em NR-1 e consultorias pontuais entregam — e o que só a
+            CRIVO sustenta em um método integrado.
           </p>
 
           <div className="compare">
