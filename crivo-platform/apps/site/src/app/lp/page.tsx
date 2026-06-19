@@ -181,55 +181,47 @@ export default function LandingPage() {
           pouco texto, com respiro. Termo "riscos humanos" removido. */}
       <section className="section section--light" id="desafios">
         <div className="container">
-          <span className="eyebrow">Desafios da Transformação</span>
-          <h2 className="h2">O crescimento cobra uma nova forma de liderar, decidir e sustentar a execução.</h2>
+          <span className="eyebrow">O Problema</span>
+          <h2 className="h2">Empresas crescem até o limite da sua liderança.</h2>
           <p className="lede">
-            À medida que a empresa cresce, aumentam a complexidade, a pressão decisória e a necessidade de alinhamento.
-            A CRIVO ajuda a identificar sinais invisíveis que afetam liderança, cultura, execução e resultados — antes
-            que se tornem custos recorrentes.
-          </p>
-          <p className="lede lede--accent">
-            Toda transformação passa pela liderança. Mas liderança sem sustentação vira gargalo, risco e custo invisível.
+            Estratégia, processo e tecnologia só geram desempenho sustentável quando a liderança sustenta decisões,
+            comportamentos e execução — mesmo sob pressão.
           </p>
 
           <div className="pain-grid">
             <article className="pain-card">
+              <span className="pain-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+              </span>
               <span className="pain-card__num">01</span>
               <h3>Pressão decisória</h3>
-              <p>
-                Sob pressão e urgência, líderes decidem no modo automático — e colhem retrabalho, conflito e
-                inconsistência.
-              </p>
+              <p>Líderes decidem sob pressão e aumentam retrabalho, conflito e inconsistência.</p>
             </article>
             <article className="pain-card">
+              <span className="pain-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
               <span className="pain-card__num">02</span>
               <h3>Crescimento sem sustentação</h3>
-              <p>
-                A empresa acelera, mas a liderança não acompanha. O líder vira gargalo e o time não executa sem
-                validação constante.
-              </p>
+              <p>O negócio cresce mais rápido do que o sistema de liderança consegue sustentar.</p>
             </article>
             <article className="pain-card">
+              <span className="pain-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M10.6 5.1A9.6 9.6 0 0 1 12 5c5 0 9 4.6 9 7 0 1-.8 2.3-2 3.5M6.2 6.2C3.9 7.7 3 9.7 3 12c0 .9 4 7 9 7 1.4 0 2.7-.4 3.8-1.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              </span>
               <span className="pain-card__num">03</span>
               <h3>Custos invisíveis</h3>
-              <p>
-                Clima deteriorado, afastamentos, conflito e turnover corroem produtividade, cultura e resultado — e
-                raramente são monitorados.
-              </p>
+              <p>Clima, turnover, burnout e atritos corroem produtividade e resultado.</p>
             </article>
             <article className="pain-card">
+              <span className="pain-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+              </span>
               <span className="pain-card__num">04</span>
-              <h3>Governança e execução</h3>
-              <p>
-                Decisões, planos de ação e responsabilidades sem ritual de acompanhamento se perdem entre a intenção e a
-                rotina.
-              </p>
+              <h3>NR-1 tornou o tema visível</h3>
+              <p>Compliance é apenas a superfície de um problema organizacional mais amplo.</p>
             </article>
           </div>
-
-          <p className="transition-quote">
-            &ldquo;O problema não é a estratégia. É a qualidade da decisão que a executa.&rdquo;
-          </p>
         </div>
       </section>
 
