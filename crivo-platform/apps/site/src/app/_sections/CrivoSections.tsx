@@ -3,7 +3,6 @@
 // quanto nas páginas dedicadas (/metodo, /plataforma, /solucoes).
 // Assim "Híbrido" (Home completa + páginas separadas) não vira duplicação:
 // um print futuro corrige a seção aqui e reflete nos dois lugares.
-import { PLATAFORMA_URL } from "../_site/site.config";
 
 /* ============================================================
    MÉTODO CRIVO (print Pág. 05)
@@ -109,90 +108,70 @@ export function IcdSection() {
   return (
     <section className="section section--dark" id="icd">
       <div className="container">
-        <div className="icd-pro-grid">
-          <div className="icd-pro-txt">
-            <span className="eyebrow eyebrow--terra">Diferencial proprietário</span>
-            <h2 className="h2 h2--light">ICD — Índice de Coerência Decisória</h2>
-            <p className="lede lede--light">
-              O ICD™ é uma leitura proprietária da CRIVO que apoia líderes na identificação de onde a qualidade da{" "}
-              <strong>decisão</strong> pode estar perdendo sustentação sob pressão — sem expor toda a metodologia que
-              gera essa leitura.
-            </p>
-          </div>
+        <span className="eyebrow eyebrow--terra" style={{ justifyContent: "center" }}>
+          Diferencial proprietário
+        </span>
+        <h2 className="h2 h2--light h2--center">ICD — Índice de Coerência Decisória</h2>
+        <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 8px", maxWidth: 900 }}>
+          O ICD apoia líderes e organizações na leitura da coerência da decisão sob pressão. Mostra onde a decisão
+          ganha ou perde sustentação — para decidir com mais clareza e consistência.
+        </p>
 
-          <div className="icd-pro" role="img" aria-label="Diagrama do ICD: quatro eixos — Clareza, Critério, Alinhamento e Sustentação ao redor do índice central">
-            <svg className="icd-pro__lines" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <circle cx="200" cy="200" r="150" className="icd-pro__ring" />
-              <line x1="200" y1="200" x2="200" y2="62" />
-              <line x1="200" y1="200" x2="62" y2="200" />
-              <line x1="200" y1="200" x2="338" y2="200" />
-              <line x1="200" y1="200" x2="200" y2="338" />
-            </svg>
-            <div className="icd-pro__core">
-              <strong>ICD</strong>
-              <em>Coerência Decisória</em>
-            </div>
-            <div className="icd-axis icd-axis--top">
-              <span className="icd-axis__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M9 18h6M10 21h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M12 3a6 6 0 0 0-3.8 10.6c.7.6 1.1 1.4 1.2 2.4h5.2c.1-1 .5-1.8 1.2-2.4A6 6 0 0 0 12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+        {/* Eixos oficiais do ICD — régua horizontal de 4 eixos (print Pág. 02) */}
+        <div className="icd-axes">
+          <span className="icd-axes__label">Eixos oficiais do ICD</span>
+          <div className="icd-axes__track">
+            <article className="icd-node">
+              <span className="icd-node__circle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" /></svg>
               </span>
               <strong>Clareza</strong>
-              <p>Quanto a decisão está clara em sua intenção e direção.</p>
-            </div>
-            <div className="icd-axis icd-axis--left">
-              <span className="icd-axis__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M6 21h12M5 7h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M5 7l-2.3 5.4a2.8 2.8 0 0 0 4.6 0L5 7ZM19 7l-2.3 5.4a2.8 2.8 0 0 0 4.6 0L19 7Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              <p>Qualidade da leitura do contexto e da situação.</p>
+            </article>
+            <article className="icd-node">
+              <span className="icd-node__circle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M6 21h12M5 7h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M5 7l-2.3 5.4a2.8 2.8 0 0 0 4.6 0L5 7ZM19 7l-2.3 5.4a2.8 2.8 0 0 0 4.6 0L19 7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
               </span>
               <strong>Critério</strong>
-              <p>Qualidade do raciocínio e dos critérios que fundamentam a decisão.</p>
-            </div>
-            <div className="icd-axis icd-axis--right">
-              <span className="icd-axis__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="17" cy="7" r="2.3" stroke="currentColor" strokeWidth="1.5" /><path d="M16.5 12c2.2.3 4 2.1 4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              <p>Qualidade dos critérios e da lógica que sustentam a decisão.</p>
+            </article>
+            <article className="icd-node">
+              <span className="icd-node__circle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6.5" r="2.6" stroke="currentColor" strokeWidth="1.6" /><circle cx="5" cy="10" r="2.1" stroke="currentColor" strokeWidth="1.6" /><circle cx="19" cy="10" r="2.1" stroke="currentColor" strokeWidth="1.6" /><path d="M8 17.5c0-2.2 1.8-4 4-4s4 1.8 4 4M2 17.5c0-1.7 1.3-3 3-3.1M22 17.5c0-1.7-1.3-3-3-3.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
               </span>
               <strong>Alinhamento</strong>
-              <p>Grau de coerência com pessoas, contexto e expectativas.</p>
-            </div>
-            <div className="icd-axis icd-axis--bottom">
-              <span className="icd-axis__ic" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+              <p>Coerência entre decisão, pessoas impactadas e propósito.</p>
+            </article>
+            <article className="icd-node">
+              <span className="icd-node__circle" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
               </span>
               <strong>Sustentação</strong>
-              <p>Capacidade da decisão de se manter firme no tempo, com evidências e preparo.</p>
-            </div>
+              <p>Capacidade de sustentar a decisão ao longo do tempo e das tensões.</p>
+            </article>
           </div>
         </div>
 
         <div className="grid grid--3 icd-delivers">
           <div className="deliver-card">
-            <span className="deliver-card__ic" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 18h16M5 18l-1.2-9 4.2 3.2L12 5l4 7.2L20.2 9 19 18" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" /></svg>
-            </span>
-            <span className="deliver-card__tag">Para a liderança</span>
-            <p>Clareza sobre o que sustenta — ou fragiliza — suas decisões e caminhos objetivos de desenvolvimento.</p>
+            <span className="deliver-card__tag">Para o líder</span>
+            <p>Decisões mais coerentes, confiantes e sustentáveis sob pressão.</p>
           </div>
           <div className="deliver-card">
-            <span className="deliver-card__ic" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.5" /><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </span>
             <span className="deliver-card__tag">Para a empresa</span>
-            <p>
-              Leitura agregada da coerência decisória da liderança por ciclos e áreas elegíveis, com evolução no
-              tempo e preservando a confidencialidade.
-            </p>
+            <p>Decisões alinhadas à estratégia, com mais consistência e previsibilidade.</p>
           </div>
           <div className="deliver-card">
-            <span className="deliver-card__ic" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><circle cx="17" cy="7" r="2.3" stroke="currentColor" strokeWidth="1.5" /><path d="M16.5 12c2.2.3 4 2.1 4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </span>
             <span className="deliver-card__tag">Para o RH</span>
-            <p>Evidência de impacto e cruzamento com clima e turnover — sempre com dados agregados e protegidos.</p>
+            <p>Evidência qualificada para desenvolver líderes e reduzir riscos organizacionais.</p>
           </div>
         </div>
 
+        <p className="icd-tagline">Não é teste de personalidade. É leitura de coerência decisória.</p>
+
         <div className="cta-inline">
-          <a href={PLATAFORMA_URL} className="btn btn--terra">
-            Conhecer o Radar da Decisão →
+          <a href="/lp#diagnostico" className="btn btn--terra">
+            Conhecer o ICD →
           </a>
         </div>
       </div>

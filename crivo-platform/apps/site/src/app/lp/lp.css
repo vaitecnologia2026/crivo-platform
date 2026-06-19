@@ -2187,6 +2187,46 @@ th.compare__crivo { color: var(--terra) !important; }
 .deliver-card__ic svg { width: 22px; height: 22px; }
 
 /* ============================================================
+   ICD — eixos oficiais em régua horizontal (print Pág. 02 / série nova)
+   ============================================================ */
+.icd-axes {
+  border: 1px solid rgba(196, 137, 74, 0.3); border-radius: 16px; padding: 34px 28px 30px;
+  margin: 36px auto 30px; max-width: 1000px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+}
+.icd-axes__label {
+  display: block; text-align: center; font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--terra-dourado); margin-bottom: 26px;
+}
+.icd-axes__track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+.icd-axes__track::before {
+  content: ""; position: absolute; top: 34px; left: 12.5%; right: 12.5%; height: 0;
+  border-top: 1px dashed rgba(196, 137, 74, 0.4); z-index: 0;
+}
+.icd-node { text-align: center; padding: 0 14px; position: relative; z-index: 1; }
+.icd-node__circle {
+  width: 68px; height: 68px; border-radius: 999px; margin: 0 auto 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-claro); background: var(--azul-profundo);
+  border: 1.5px solid rgba(196, 137, 74, 0.5); box-shadow: 0 0 0 6px var(--azul-profundo), 0 0 22px -6px rgba(196, 137, 74, 0.55);
+}
+.icd-node__circle svg { width: 30px; height: 30px; }
+.icd-node strong {
+  display: block; font-family: var(--font-display); font-size: 14px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--off-white); margin-bottom: 7px;
+}
+.icd-node p { font-size: 12.5px; font-weight: 300; line-height: 1.5; color: var(--text-light-sec); }
+.icd-tagline {
+  text-align: center; font-family: var(--font-display); font-style: italic; font-size: 15px;
+  color: var(--terra-claro); margin: 30px auto 0; max-width: 660px;
+}
+@media (max-width: 720px) {
+  .icd-axes__track { grid-template-columns: 1fr 1fr; gap: 30px 0; }
+  .icd-axes__track::before { display: none; }
+}
+@media (max-width: 420px) { .icd-axes__track { grid-template-columns: 1fr; } }
+
+/* ============================================================
    Soluções — portfólio modular + Diferenciais (print Pág. 07)
    ============================================================ */
 .sol-core { display: flex; justify-content: center; margin: 40px 0 0; }
