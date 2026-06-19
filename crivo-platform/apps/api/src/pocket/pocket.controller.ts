@@ -12,12 +12,15 @@ import {
 import { PocketService } from './pocket.service';
 import { CreatePocketSessionDto, UpsertReflectionDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { POCKET_QUESTIONS } from '@crivo/types';
 import type { SessionUser } from '@crivo/types';
 
 @Controller('pocket')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, ScreenAccessGuard)
+@RequireScreen('pocket')
 export class PocketController {
   constructor(private readonly pocket: PocketService) {}
 

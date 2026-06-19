@@ -8,6 +8,7 @@ import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionGuard } from './guards/permission.guard';
 import { ModuleGuard } from './guards/module.guard';
+import { ScreenAccessGuard } from './guards/screen-access.guard';
 import { PermissionService } from './permission.service';
 import { ModuleService } from './module.service';
 import { TenantRolesController } from './tenant-roles.controller';
@@ -42,6 +43,7 @@ import { TenantRolesService } from './tenant-roles.service';
     RolesGuard,
     PermissionGuard,
     ModuleGuard,
+    ScreenAccessGuard,
     PermissionService,
     ModuleService,
     TenantRolesService,
@@ -52,6 +54,7 @@ import { TenantRolesService } from './tenant-roles.service';
     RolesGuard,
     PermissionGuard,
     ModuleGuard,
+    ScreenAccessGuard,
     PermissionService,
     ModuleService,
   ],

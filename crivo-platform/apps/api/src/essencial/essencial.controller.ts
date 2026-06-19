@@ -2,15 +2,18 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { EssencialService } from './essencial.service';
 import { CreateEssentialRecordDto, SubmitSelfAssessmentDto } from './dto';
 
 /** Diagnóstico Essencial do tenant (Briefing §5). Gate pelo módulo "campanhas". */
 @Controller('essencial')
-@UseGuards(AuthGuard, ModuleGuard)
+@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard)
 @RequireModule('campanhas')
+@RequireScreen('essencial')
 export class EssencialController {
   constructor(private readonly svc: EssencialService) {}
 

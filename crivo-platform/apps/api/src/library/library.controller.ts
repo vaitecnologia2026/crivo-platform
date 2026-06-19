@@ -3,13 +3,16 @@ import { LibraryService } from './library.service';
 import { CreateLibraryItemDto, UpdateLibraryItemDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequirePermission } from '../iam/require-permission.decorator';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
 /** Biblioteca & Formação: leitura por library:view, gestão por library:manage. */
 @Controller('library')
-@UseGuards(AuthGuard, PermissionGuard)
+@UseGuards(AuthGuard, PermissionGuard, ScreenAccessGuard)
+@RequireScreen('biblioteca')
 export class LibraryController {
   constructor(private readonly library: LibraryService) {}
 

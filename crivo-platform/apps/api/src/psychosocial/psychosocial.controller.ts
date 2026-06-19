@@ -3,7 +3,9 @@ import { PsychosocialService } from './psychosocial.service';
 import { SubmitPsychosocialDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { Roles } from '../iam/roles.decorator';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { PSYCHOSOCIAL_QUESTIONS, type SessionUser } from '@crivo/types';
 
@@ -13,7 +15,8 @@ import { PSYCHOSOCIAL_QUESTIONS, type SessionUser } from '@crivo/types';
  * com supressão §14 restrita a RH/gestão.
  */
 @Controller('psychosocial')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard, ScreenAccessGuard)
+@RequireScreen('psicossocial')
 export class PsychosocialController {
   constructor(private readonly psychosocial: PsychosocialService) {}
 

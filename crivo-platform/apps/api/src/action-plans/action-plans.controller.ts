@@ -19,7 +19,9 @@ import type { Response } from 'express';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ActionPlansService } from './action-plans.service';
 import { DocumentsService } from './documents.service';
@@ -35,8 +37,9 @@ import {
  * "relatorios" (Relatórios, Evidências & Comunicações) já existente no catálogo.
  */
 @Controller('action-plans')
-@UseGuards(AuthGuard, ModuleGuard)
+@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard)
 @RequireModule('relatorios')
+@RequireScreen('relatorios')
 export class ActionPlansController {
   constructor(
     private readonly plans: ActionPlansService,

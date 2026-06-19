@@ -13,8 +13,10 @@ import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
+import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequirePermission } from '../iam/require-permission.decorator';
+import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ParecerService } from './parecer.service';
 import { UpsertParecerDto } from './dto';
@@ -25,8 +27,9 @@ import { UpsertParecerDto } from './dto';
  * (papel Consultor CRIVO e gestão). Data plane (RLS por tenant).
  */
 @Controller('parecer')
-@UseGuards(AuthGuard, ModuleGuard, PermissionGuard)
+@UseGuards(AuthGuard, ModuleGuard, PermissionGuard, ScreenAccessGuard)
 @RequireModule('parecer')
+@RequireScreen('parecer')
 @RequirePermission('parecer:view')
 export class ParecerController {
   constructor(private readonly parecer: ParecerService) {}
