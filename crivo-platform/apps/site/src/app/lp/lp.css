@@ -2089,3 +2089,59 @@ th.compare__crivo { color: var(--terra) !important; }
 .cycle-arrow { color: var(--terra-claro); font-size: 20px; align-self: center; }
 @media (max-width: 760px) { .cycle-arrow { transform: rotate(90deg); } .metodo-cycle__steps { flex-direction: column; align-items: center; } }
 .metodo-cycle__foot { margin-top: 24px; font-family: var(--font-display); font-style: italic; font-size: 14px; color: var(--text-light-sec); }
+
+/* ============================================================
+   ICD — radial proprietário 4 eixos icônicos (print Pág. 06)
+   ============================================================ */
+.icd-pro-grid { display: grid; grid-template-columns: 1fr 1.05fr; gap: 48px; align-items: center; margin-bottom: 52px; }
+.icd-pro-txt .h2 { text-align: left; }
+.icd-pro-txt .lede { text-align: left; margin: 0; }
+@media (max-width: 900px) { .icd-pro-grid { grid-template-columns: 1fr; gap: 40px; } }
+
+.icd-pro {
+  position: relative; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto auto;
+  gap: 16px 10px; align-items: center; justify-items: center; max-width: 560px; min-height: 420px; margin: 0 auto; padding: 6px;
+}
+.icd-pro__lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.icd-pro__ring { fill: none; stroke: rgba(139, 175, 212, 0.16); stroke-width: 1.2; stroke-dasharray: 3 7; }
+.icd-pro__lines line { stroke: rgba(196, 137, 74, 0.3); stroke-width: 1.2; stroke-dasharray: 2 5; }
+
+.icd-pro__core {
+  grid-column: 2; grid-row: 2; position: relative; z-index: 1;
+  width: 128px; height: 128px; border-radius: 999px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  background: radial-gradient(circle at 50% 34%, #15315c, #0a1c38); border: 1px solid rgba(196, 137, 74, 0.45);
+  box-shadow: 0 0 0 7px rgba(13, 31, 60, 0.4), 0 0 50px -8px rgba(196, 137, 74, 0.55);
+}
+.icd-pro__core strong { font-family: var(--font-word), serif; font-size: 27px; letter-spacing: 0.12em; color: var(--off-white); line-height: 1; }
+.icd-pro__core em { font-style: normal; font-size: 7.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--terra-claro); margin-top: 6px; }
+
+.icd-axis { position: relative; z-index: 1; width: 158px; text-align: center; }
+.icd-axis__ic {
+  width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(196, 137, 74, 0.4); color: var(--terra-claro);
+  display: inline-flex; align-items: center; justify-content: center; background: rgba(10, 28, 56, 0.85); margin-bottom: 8px;
+}
+.icd-axis__ic svg { width: 22px; height: 22px; }
+.icd-axis strong { display: block; font-family: var(--font-display), sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--off-white); margin-bottom: 4px; }
+.icd-axis p { font-size: 11px; font-weight: 300; color: var(--text-light-sec); line-height: 1.4; }
+.icd-axis--top { grid-column: 2; grid-row: 1; }
+.icd-axis--left { grid-column: 1; grid-row: 2; }
+.icd-axis--right { grid-column: 3; grid-row: 2; }
+.icd-axis--bottom { grid-column: 2; grid-row: 3; }
+@media (max-width: 560px) {
+  .icd-pro { grid-template-columns: 1fr 1fr; min-height: 0; }
+  .icd-pro__lines { display: none; }
+  .icd-pro__core { grid-column: 1 / -1; grid-row: 1; }
+  .icd-axis { width: auto; }
+  .icd-axis--top { grid-column: 1; grid-row: 2; }
+  .icd-axis--left { grid-column: 2; grid-row: 2; }
+  .icd-axis--right { grid-column: 1; grid-row: 3; }
+  .icd-axis--bottom { grid-column: 2; grid-row: 3; }
+}
+
+/* ícone nos 3 cards de público (Para a liderança / empresa / RH) */
+.deliver-card__ic {
+  width: 44px; height: 44px; border-radius: 12px; background: rgba(196, 137, 74, 0.14); border: 1px solid rgba(196, 137, 74, 0.3);
+  color: var(--terra-claro); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px;
+}
+.deliver-card__ic svg { width: 22px; height: 22px; }
