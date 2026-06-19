@@ -45,7 +45,7 @@
   --font-body: var(--font-poppins), "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-word: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
 
-  --maxw: 1180px;
+  --maxw: 1240px;
   --maxw-narrow: 860px;
 
   --r: 3px;
@@ -280,12 +280,12 @@ img, svg { display: block; max-width: 100%; }
 .hero__inner {
   position: relative; z-index: 1;
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   gap: 56px;
   align-items: center;
   flex-grow: 1;
 }
-.hero__copy { max-width: 680px; }
+.hero__copy { max-width: 620px; }
 /* Título escuro sobre o hero claro (a classe .display segue clara nas seções dark). */
 .hero .display { color: var(--azul-profundo); }
 .hero__sub {
@@ -326,9 +326,9 @@ img, svg { display: block; max-width: 100%; }
   padding: 6px 12px; border-radius: 999px;
 }
 .hero-card__photo {
-  aspect-ratio: 4 / 3.4;
+  aspect-ratio: 4 / 3.9;
   background-size: cover;
-  background-position: center 30%;
+  background-position: center 28%;
   background-repeat: no-repeat;
 }
 .hero-card__bar {
