@@ -215,60 +215,21 @@ export function JornadaSection() {
    ============================================================ */
 export function PortalSection() {
   return (
-    <section className="section section--dark" id="portal">
-      <div className="container split">
-        <div className="split__left">
-          <span className="eyebrow eyebrow--terra">Portal Executivo CRIVO</span>
-          <h2 className="h2 h2--light">A visão executiva da sua organização, em um ambiente logado e seguro.</h2>
-          <p className="body--light">
-            Empresas contratantes acessam um <strong>ambiente seguro</strong> para organizar diagnósticos, acompanhar
-            dashboards, gerir planos de ação e monitorar a evolução da jornada CRIVO.
-          </p>
-          <blockquote className="pull-quote">
-            &ldquo;O Portal organiza a visão executiva da empresa. O app sustenta a transformação na rotina dos
-            líderes.&rdquo;
-          </blockquote>
-          <p className="lgpd-note">
-            <strong>LGPD &amp; confidencialidade.</strong> A empresa visualiza dados organizacionais e por grupo — sem
-            exposição indevida de respostas individuais sensíveis. Tudo agregado e protegido.
-          </p>
-        </div>
-        <div className="split__right">
-          <div className="portal-features">
-            <div className="portal-feature"><span>▴</span> Cadastrar áreas e estrutura organizacional</div>
-            <div className="portal-feature"><span>▴</span> Criar campanhas e disparar links de pesquisa</div>
-            <div className="portal-feature"><span>▴</span> Acompanhar a adesão em tempo real</div>
-            <div className="portal-feature"><span>▴</span> Visualizar dashboards do diagnóstico e indicadores agregados de liderança</div>
-            <div className="portal-feature"><span>▴</span> Acessar o mapa de riscos psicossociais</div>
-            <div className="portal-feature"><span>▴</span> Gerir o plano de ação e as evidências</div>
-            <div className="portal-feature"><span>▴</span> Gerar relatórios executivos</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ============================================================
-   DASHBOARD EXECUTIVO
-   ============================================================ */
-export function DashboardSection() {
-  return (
-    <section className="section section--light" id="dashboard">
+    <section className="section section--light" id="portal">
       <div className="container">
-        <span className="eyebrow">Dashboard executivo</span>
-        <h2 className="h2">Dados que viram decisão — em uma leitura.</h2>
+        <span className="eyebrow">Portal Executivo</span>
+        <h2 className="h2">A visão executiva da sua organização — em uma leitura.</h2>
         <p className="lede">
-          Login seguro, dashboards inteligentes, plano de ação estruturado e indicadores que mostram o que importa.
-          Tudo integrado para transformar dados em decisões e acompanhar a evolução com confiança.
+          Visão organizacional completa, com indicadores, gráficos e mapa de riscos psicossociais. Login seguro,
+          plano de ação e evidências — tudo agregado e protegido pela LGPD.
         </p>
 
-        <div className="laptop" role="img" aria-label="Dashboard executivo CRIVO: Índice Geral 78, taxa de adesão 84%, fatores psicossociais, áreas críticas e liderança">
+        <div className="laptop" role="img" aria-label="Portal Executivo CRIVO: Índice Geral 78, taxa de adesão 84%, fatores psicossociais, áreas críticas e liderança">
           <div className="laptop__screen">
             <div className="dashshot">
               <div className="dashshot__bar" aria-hidden="true">
                 <span className="dashshot__brand">CRIVO</span>
-                <span className="dashshot__crumb">Dashboard Executivo · Empresa Demo</span>
+                <span className="dashshot__crumb">Portal Executivo · Empresa Demo</span>
                 <span className="dashshot__dots"><i /><i /><i /></span>
               </div>
               <div className="dashshot__grid">
@@ -335,7 +296,7 @@ export function DashboardSection() {
             <span className="dash-kpi__foot dash-kpi__foot--up">+18 esta semana</span>
           </div>
           <div className="dash-kpi">
-            <span className="dash-kpi__label">Riscos psicossociais</span>
+            <span className="dash-kpi__label">Mapa de riscos psicossociais</span>
             <div className="dash-heat" aria-hidden="true">
               {[1, 2, 3, 2, 3, 4, 3, 4, 4].map((c, i) => (
                 <span key={i} className={`dash-heat__c dash-heat__c--${c}`} />
@@ -356,16 +317,20 @@ export function DashboardSection() {
   );
 }
 
+/* DASHBOARD EXECUTIVO: fundido no Portal Executivo (print Pág. 04 série nova) —
+   o Portal agora é o mockup de dashboard com indicadores, gráficos e mapa de riscos. */
+
 /* ============================================================
-   APP CRIVO (print Pág. 09)
+   APP CRIVO (print Pág. 09 / ajustado Pág. 04 série nova)
    ============================================================ */
 const APP_FEATURES = [
   { nome: "Meu Estado", desc: "Check-in diário da coerência decisória.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12h3.5l2-5.5 3.5 11 2-5.5H21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
   { nome: "CRIVO Pocket", desc: "Microaprendizados aplicados à liderança.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.5h10v17l-5-3.5-5 3.5v-17Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M9.5 8h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
   { nome: "Radar da Decisão · ICD™", desc: "Leitura contínua da coerência decisória sob pressão.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" /><path d="M12 12l6-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
   { nome: "Simulador de Decisão", desc: "Ensaie decisões difíceis antes de agir.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="2.3" stroke="currentColor" strokeWidth="1.6" /><circle cx="6" cy="18" r="2.3" stroke="currentColor" strokeWidth="1.6" /><circle cx="18" cy="9" r="2.3" stroke="currentColor" strokeWidth="1.6" /><path d="M6 8.3v7.4M6 11h5.5a4 4 0 0 0 4-4V11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
-  { nome: "Mentor Operacional · Mentor CRIVO", desc: "Apoio reflexivo e operacional à decisão.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3v-3H4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8.5 10.5h7M8.5 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
+  { nome: "Mentor CRIVO", desc: "Apoio reflexivo e operacional à decisão.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3v-3H4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8.5 10.5h7M8.5 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
   { nome: "Dashboard do Líder", desc: "Acompanhe sua evolução e plano de desenvolvimento.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
+  { nome: "Academia CRIVO", desc: "Cursos, trilhas e conteúdos para desenvolver a liderança.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4 3 9l9 5 9-5-9-5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M7 11.5V16c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
 ];
 
 export function AppSection() {

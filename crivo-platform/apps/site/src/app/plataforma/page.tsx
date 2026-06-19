@@ -3,7 +3,7 @@ import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { PLATAFORMA_URL, WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { LpEffects } from "../lp/LpEffects";
-import { PortalSection, DashboardSection, AppSection, EcossistemaSection } from "../_sections/CrivoSections";
+import { PortalSection, AppSection, EcossistemaSection } from "../_sections/CrivoSections";
 import "../lp/lp.css";
 
 export const metadata: Metadata = {
@@ -34,7 +34,6 @@ export default function PlataformaPage() {
 
       {/* Seções compartilhadas (mesma fonte da Home) */}
       <PortalSection />
-      <DashboardSection />
       <AppSection />
       <EcossistemaSection />
 

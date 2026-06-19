@@ -8,7 +8,6 @@ import {
   IcdSection,
   PortfolioSection,
   PortalSection,
-  DashboardSection,
   AppSection,
   EcossistemaSection,
 } from "../_sections/CrivoSections";
@@ -362,9 +361,8 @@ export default function LandingPage() {
       <IcdSection />
       <PortfolioSection />
 
-      {/* ===================== 10 · PORTAL · 11 · DASHBOARD · 12 · APP · 13 · ECOSSISTEMA ===================== */}
+      {/* ===================== 10 · PORTAL EXECUTIVO (dashboard) · 12 · APP · 13 · ECOSSISTEMA ===================== */}
       <PortalSection />
-      <DashboardSection />
       <AppSection />
       <EcossistemaSection />
 
