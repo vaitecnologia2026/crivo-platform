@@ -11,6 +11,72 @@ export const metadata: Metadata = {
     "Portal Executivo logado e seguro (LGPD), Dashboard executivo, App CRIVO (Pocket, Radar da Decisão) e Academia CRIVO — uma jornada integrada de transformação.",
 };
 
+/* ícones de traço (stroke) dos recursos do App — sem emoji */
+const APP_FEATURES = [
+  {
+    nome: "Meu Estado",
+    desc: "Check-in diário da coerência decisória.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 12h3.5l2-5.5 3.5 11 2-5.5H21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    nome: "CRIVO Pocket",
+    desc: "Microaprendizados aplicados à liderança.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 3.5h10v17l-5-3.5-5 3.5v-17Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M9.5 8h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    nome: "Radar da Decisão · ICD™",
+    desc: "Leitura contínua da coerência decisória sob pressão.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M12 12l6-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    nome: "Simulador de Decisão",
+    desc: "Ensaie decisões difíceis antes de agir.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="6" cy="6" r="2.3" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="6" cy="18" r="2.3" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="18" cy="9" r="2.3" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M6 8.3v7.4M6 11h5.5a4 4 0 0 0 4-4V11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    nome: "Mentor Operacional · Mentor CRIVO",
+    desc: "Apoio reflexivo e operacional à decisão.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 5.5h16v10H10l-4 3v-3H4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M8.5 10.5h7M8.5 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    nome: "Dashboard do Líder",
+    desc: "Acompanhe sua evolução e plano de desenvolvimento.",
+    ic: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+];
+
 export default function PlataformaPage() {
   return (
     <>
@@ -179,75 +245,88 @@ export default function PlataformaPage() {
         </div>
       </section>
 
-      {/* ===================== APP CRIVO ===================== */}
+      {/* ===================== APP CRIVO (print Pág. 09) ===================== */}
       <section className="section section--dark" id="app">
-        <div className="container split split--app">
-          <div className="split__left">
-            <span className="eyebrow eyebrow--terra">App CRIVO</span>
-            <h2 className="h2 h2--light">A transformação que acontece na rotina do líder.</h2>
-            <p className="body--light">
-              O Portal mostra onde a organização precisa atuar. O app ajuda a liderança a sustentar a mudança todos os
-              dias — conectado à jornada CRIVO, aos planos de ação e aos indicadores agregados.
-            </p>
-            <p className="body--light">
-              <strong>Pocket prepara. Registro de Decisão organiza. ICD / Radar mede a coerência. Academia desenvolve
-              competências.</strong>
-            </p>
-            <ul className="app-chips" aria-label="Recursos do App CRIVO">
-              <li>Meu Estado</li>
-              <li>CRIVO Pocket</li>
-              <li>Radar da Decisão · ICD™</li>
-              <li>Mentor CRIVO</li>
-              <li>Academia CRIVO</li>
-              <li>Dashboard do Líder</li>
-            </ul>
-            <p className="lgpd-note">
-              <strong>Portal ↔ App.</strong> Uma jornada integrada: o que o líder desenvolve no app reflete na leitura
-              organizacional do Portal — e vice-versa.
-            </p>
-          </div>
+        <div className="container">
+          <div className="split split--app">
+            <div className="split__left">
+              <span className="eyebrow eyebrow--terra">App CRIVO · página estratégica</span>
+              <h2 className="h2 h2--light">A transformação que acontece na rotina do líder.</h2>
+              <p className="body--light">
+                O App CRIVO é o seu companheiro diário de decisões. Ele conecta diagnóstico, prática e evolução em uma
+                experiência simples, reflexiva e orientada a resultados.
+              </p>
+              <div className="app-features">
+                {APP_FEATURES.map((f) => (
+                  <div className="app-feature" key={f.nome}>
+                    <span className="app-feature__ic" aria-hidden="true">
+                      {f.ic}
+                    </span>
+                    <div className="app-feature__body">
+                      <strong>{f.nome}</strong>
+                      <span>{f.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-          <div className="split__right">
-            <div className="phone" role="img" aria-label="Tela do App CRIVO: saudação ao líder, Meu Estado, Pocket e Radar da Decisão">
-              <span className="phone__notch" aria-hidden="true" />
-              <div className="phone__screen">
-                <div className="phone__bar" aria-hidden="true">
-                  <span>9:41</span>
-                  <span className="phone__brand">CRIVO</span>
-                  <span>▤ ▦ ▮</span>
-                </div>
-                <div className="phone__greet">
-                  <span className="phone__hello">Bom dia, Líder.</span>
-                  <span className="phone__date">Como está sua coerência hoje?</span>
-                </div>
-                <div className="phone__state">
-                  <div className="phone__ring phone__ring--lg"><strong>78</strong><em>Coerência</em></div>
-                  <span className="phone__checkin">Último check-in: hoje, 07:30</span>
-                  <span className="phone__btn">Fazer check-in</span>
-                </div>
-                <span className="phone__label">Em destaque</span>
-                <div className="phone__card">
-                  <span className="phone__tag">◎ Radar da Decisão</span>
-                  <span className="phone__sub">2 sinais críticos detectados</span>
-                </div>
-                <div className="phone__card">
-                  <span className="phone__tag">◳ CRIVO Pocket</span>
-                  <span className="phone__sub">Novo microaprendizado disponível</span>
-                </div>
-                <span className="phone__label">Seu plano</span>
-                <div className="phone__card phone__card--plan">
-                  <span className="phone__sub">Próximo passo sugerido</span>
-                  <span className="phone__tag">CRIVO Pocket →</span>
-                </div>
-                <div className="phone__nav" aria-hidden="true">
-                  <span className="is-active">Início</span>
-                  <span>Estado</span>
-                  <span>Pocket</span>
-                  <span>Plano</span>
-                  <span>Mais</span>
+            <div className="split__right">
+              <div className="phone-stage">
+                <div className="phone" role="img" aria-label="Tela do App CRIVO: saudação ao líder, índice de coerência 78, Radar da Decisão e Pocket">
+                  <span className="phone__notch" aria-hidden="true" />
+                  <div className="phone__screen">
+                    <div className="phone__bar" aria-hidden="true">
+                      <span>9:41</span>
+                      <span className="phone__brand">CRIVO</span>
+                      <span>▤ ▦ ▮</span>
+                    </div>
+                    <div className="phone__greet">
+                      <span className="phone__hello">Bom dia, Líder.</span>
+                      <span className="phone__date">Como está sua coerência hoje?</span>
+                    </div>
+                    <div className="phone__state">
+                      <div className="phone__ring phone__ring--lg"><strong>78</strong><em>Coerência</em></div>
+                      <span className="phone__checkin">Último check-in: hoje, 07:30</span>
+                      <span className="phone__btn">Fazer check-in</span>
+                    </div>
+                    <span className="phone__label">Em destaque</span>
+                    <div className="phone__card">
+                      <span className="phone__tag">◎ Radar da Decisão</span>
+                      <span className="phone__sub">2 sinais críticos detectados</span>
+                    </div>
+                    <div className="phone__card">
+                      <span className="phone__tag">◳ CRIVO Pocket</span>
+                      <span className="phone__sub">Novo microaprendizado disponível</span>
+                    </div>
+                    <span className="phone__label">Seu plano</span>
+                    <div className="phone__card phone__card--plan">
+                      <span className="phone__sub">Próximo passo sugerido</span>
+                      <span className="phone__tag">Simulador de Decisão →</span>
+                    </div>
+                    <div className="phone__nav" aria-hidden="true">
+                      <span className="is-active">Início</span>
+                      <span>Estado</span>
+                      <span>Pocket</span>
+                      <span>Plano</span>
+                      <span>Mais</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="app-callout">
+            <span className="app-callout__ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 3l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.2l5.8-.9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p>
+              O App permanece como <strong>página estratégica</strong> — diferencial de valor e a porta de entrada para a
+              rotina do líder.
+            </p>
           </div>
         </div>
       </section>
@@ -255,19 +334,20 @@ export default function PlataformaPage() {
       {/* ===================== ACADEMIA / ECOSSISTEMA ===================== */}
       <section className="section section--light" id="ecossistema">
         <div className="container">
-          <span className="eyebrow">Academia &amp; Recursos CRIVO</span>
+          <span className="eyebrow">Ecossistema &amp; Recursos CRIVO</span>
           <h2 className="h2">Recursos que ampliam sua evolução.</h2>
           <p className="lede">
             Conteúdos, trilhas e inteligência prática que fortalecem lideranças e organizam o conhecimento em ação.
           </p>
 
           <div className="eco-cards">
-            <article className="eco-tile">
+            <article className="eco-tile eco-tile--featured">
+              <span className="eco-tile__badge">Ecossistema · comece por aqui</span>
               <span className="eco-tile__ic" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M12 4 3 9l9 5 9-5-9-5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M7 11.5V16c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
               </span>
               <h3>Academia CRIVO</h3>
-              <p>Cursos e formações para líderes e times, com aplicação prática.</p>
+              <p>Cursos e formações para líderes e times, com aplicação prática — o coração do desenvolvimento contínuo.</p>
             </article>
             <article className="eco-tile">
               <span className="eco-tile__ic" aria-hidden="true">
@@ -307,7 +387,7 @@ export default function PlataformaPage() {
           </div>
 
           <p className="eco-foot">
-            A Academia e os Recursos tornam o conhecimento acessível, organizado e sempre atualizado.
+            O Ecossistema e os Recursos tornam o conhecimento acessível, organizado e sempre atualizado.
           </p>
         </div>
       </section>

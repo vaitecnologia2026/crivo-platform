@@ -1052,14 +1052,20 @@ th.compare__crivo { color: var(--terra) !important; }
 .portal-feature:last-child { border-bottom: none; }
 .portal-feature span { color: var(--terra-dourado); font-size: 13px; }
 .app-feature {
-  padding: 18px 0; border-bottom: 1px solid var(--line-dark);
+  display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start;
+  padding: 15px 0; border-bottom: 1px solid var(--line-dark);
 }
 .app-feature:last-child { border-bottom: none; }
+.app-feature__ic {
+  width: 44px; height: 44px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-claro); background: rgba(196, 137, 74, 0.12); border: 1px solid rgba(196, 137, 74, 0.3);
+}
+.app-feature__ic svg { width: 22px; height: 22px; }
 .app-feature strong {
-  display: block; font-family: var(--font-display); font-size: 18px; font-weight: 500;
+  display: block; font-family: var(--font-display); font-size: 16px; font-weight: 600;
   color: var(--off-white); margin-bottom: 3px;
 }
-.app-feature span { font-size: 14px; font-weight: 300; color: var(--text-light-sec); line-height: 1.5; }
+.app-feature span { font-size: 13.5px; font-weight: 300; color: var(--text-light-sec); line-height: 1.5; }
 
 /* App CRIVO — chips condensados (reduz a lista de 7 linhas) + mockup de celular. */
 .split--app { align-items: center; }
@@ -1069,6 +1075,40 @@ th.compare__crivo { color: var(--terra) !important; }
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(139, 175, 212, 0.22);
   border-radius: 999px; padding: 7px 14px;
+}
+
+/* App CRIVO — celular como imagem principal + callout estratégico (print Pág. 09) */
+.phone-stage { position: relative; display: flex; justify-content: center; align-items: center; }
+.phone-stage::before {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 78%; height: 66%; border-radius: 999px; pointer-events: none; z-index: 0;
+  background: radial-gradient(closest-side, rgba(196, 137, 74, 0.24), rgba(196, 137, 74, 0));
+}
+.phone-stage .phone { position: relative; z-index: 1; }
+
+.app-callout {
+  display: flex; align-items: center; gap: 16px; margin-top: 40px;
+  padding: 20px 24px; border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(196, 137, 74, 0.1), rgba(196, 137, 74, 0.03));
+  border: 1px solid rgba(196, 137, 74, 0.28); border-left: 3px solid var(--terra-dourado);
+}
+.app-callout__ic {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-claro); background: rgba(196, 137, 74, 0.14); border: 1px solid rgba(196, 137, 74, 0.32);
+}
+.app-callout__ic svg { width: 22px; height: 22px; }
+.app-callout p { margin: 0; font-size: 15px; font-weight: 300; color: var(--text-light-sec); line-height: 1.55; }
+.app-callout strong { color: var(--off-white); font-weight: 600; }
+
+/* Academia em destaque no grid de Ecossistema */
+.eco-tile--featured {
+  border-top: 3px solid var(--terra);
+  background: linear-gradient(180deg, rgba(168, 105, 61, 0.07), rgba(255, 255, 255, 0) 60%);
+}
+.eco-tile__badge {
+  display: inline-block; font-family: var(--font-display); font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--terra-dourado); background: rgba(168, 105, 61, 0.12); border: 1px solid rgba(168, 105, 61, 0.28);
+  border-radius: 999px; padding: 4px 11px; margin-bottom: 12px;
 }
 
 .phone {
