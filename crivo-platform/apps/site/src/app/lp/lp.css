@@ -1801,3 +1801,109 @@ th.compare__crivo { color: var(--terra) !important; }
   .hero::after, .page-hero::after, .hero-card, .eyebrow::before, .hero__ctas .btn--terra,
   .section--dark:not(.hero):not(.page-hero) > .container::before { animation: none; }
 }
+
+/* ============================================================
+   RECONSTRUÇÃO DO HERO (Design Chief) — badge + peek do produto
+   ============================================================ */
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 11.5px; font-weight: 500; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--terra);
+  background: rgba(168, 105, 61, 0.08);
+  border: 1px solid rgba(168, 105, 61, 0.3);
+  padding: 8px 16px; border-radius: 999px; margin-bottom: 24px;
+}
+.hero-badge__dot {
+  width: 7px; height: 7px; border-radius: 999px; background: var(--terra);
+  box-shadow: 0 0 0 0 rgba(168, 105, 61, 0.5); animation: heroLive 1.8s ease-out infinite;
+}
+
+/* Peek do produto (ICD) sobreposto à foto do hero */
+.hero__visual { position: relative; }
+.hero-float {
+  position: absolute; left: -24px; bottom: 40px; z-index: 3;
+  width: 232px; padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(13, 31, 60, 0.08); border-radius: 14px;
+  box-shadow: 0 26px 60px -24px rgba(13, 31, 60, 0.42);
+  animation: floatY 8.5s ease-in-out infinite;
+}
+.hero-float__label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--azul-cobalto);
+}
+.hero-float__row { display: flex; align-items: baseline; gap: 6px; margin: 6px 0 11px; }
+.hero-float__score { font-family: var(--font-display); font-size: 38px; font-weight: 600; color: var(--azul-profundo); line-height: 1; }
+.hero-float__of { font-size: 14px; color: var(--text-dark-sec); }
+.hero-float__pill {
+  margin-left: auto; font-size: 10px; font-weight: 600; color: #2e7850;
+  background: rgba(46, 120, 80, 0.12); padding: 3px 10px; border-radius: 999px;
+}
+.hero-float__bar { height: 7px; border-radius: 999px; background: rgba(13, 31, 60, 0.08); overflow: hidden; }
+.hero-float__bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--terra-claro), var(--terra)); }
+.hero-float__foot { display: block; margin-top: 10px; font-size: 10.5px; color: var(--text-dark-sec); }
+@media (max-width: 880px) { .hero-float { left: auto; right: 10px; bottom: 10px; width: 200px; } }
+@media (prefers-reduced-motion: reduce) { .hero-float, .hero-badge__dot { animation: none; } }
+
+/* ============================================================
+   PADRÃO FUTURISTA (Design Chief) — glass · glow · dado vivo
+   Premium-tech (estilo Linear/Vercel): vidro fosco, brilho sutil,
+   números em fonte de telemetria, fundo vivo. Foco nas seções navy.
+   ============================================================ */
+
+/* Fundo vivo das seções escuras: orbs de brilho que derivam */
+@keyframes orbDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.55; }
+  50%      { transform: translate(6%, -5%) scale(1.22); opacity: 0.9; }
+}
+.section--dark:not(.hero):not(.page-hero)::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(26% 36% at 14% 24%, rgba(74, 111, 165, 0.22) 0%, transparent 60%),
+    radial-gradient(24% 32% at 88% 76%, rgba(168, 105, 61, 0.16) 0%, transparent 60%);
+  filter: blur(34px);
+  animation: orbDrift 17s ease-in-out infinite;
+}
+
+/* Cards de vidro (glassmorphism) nas seções escuras */
+.section--dark .deliver-card,
+.section--dark .risco-card,
+.section--dark .mvv-card,
+.section--dark .icd-step,
+.section--dark .nr1-col {
+  background:
+    linear-gradient(158deg, rgba(139, 175, 212, 0.1) 0%, rgba(139, 175, 212, 0.03) 48%, rgba(168, 105, 61, 0.05) 100%),
+    rgba(10, 24, 48, 0.5);
+  backdrop-filter: blur(13px); -webkit-backdrop-filter: blur(13px);
+  border: 1px solid rgba(139, 175, 212, 0.18);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 42px -28px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.section--dark .deliver-card:hover,
+.section--dark .risco-card:hover,
+.section--dark .mvv-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(196, 137, 74, 0.5);
+  box-shadow: 0 0 0 1px rgba(196, 137, 74, 0.22), 0 28px 60px -28px rgba(0, 0, 0, 0.72),
+    0 0 44px -12px rgba(168, 105, 61, 0.42);
+}
+
+/* Números em fonte de telemetria (mono) com leve glow */
+.dash-kpi__num, .ds-index strong, .icd-step__num, .trust__item strong,
+.hero-float__score, .trilha__grid strong, .icd-radial__core strong {
+  font-family: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: -0.02em;
+}
+.section--dark .icd-step__num,
+.icd-radial__core strong { color: var(--terra-claro); text-shadow: 0 0 20px rgba(196, 137, 74, 0.45); }
+
+/* Glow no badge e no anel do radial (sensação futurista) */
+.hero-badge { box-shadow: 0 0 30px -12px rgba(168, 105, 61, 0.45); }
+.icd-radial__core { box-shadow: 0 0 0 6px rgba(13, 31, 60, 0.45), 0 0 60px -6px rgba(196, 137, 74, 0.5); }
+
+/* Linha de "scan" futurista no topo das seções navy de conteúdo */
+@media (prefers-reduced-motion: reduce) {
+  .section--dark:not(.hero):not(.page-hero)::after { animation: none; }
+}

@@ -26,8 +26,9 @@ export default function LandingPage() {
       <section id="hero" className="hero hero--1">
         <div className="container hero__inner">
           <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">
-              Transformação Organizacional · Liderança · Cultura · Governança
+            <span className="hero-badge">
+              <i className="hero-badge__dot" aria-hidden="true" />
+              Transformação Organizacional · Liderança · Governança
             </span>
             <h1 className="display">
               Transformação organizacional começa pela forma como a liderança{" "}
@@ -76,6 +77,20 @@ export default function LandingPage() {
                 </span>
               </figcaption>
             </figure>
+
+            {/* Peek do produto (ICD) sobreposto — sinaliza a plataforma, não só foto */}
+            <div className="hero-float" aria-hidden="true">
+              <span className="hero-float__label">ICD · Coerência Decisória</span>
+              <div className="hero-float__row">
+                <strong className="hero-float__score">78</strong>
+                <span className="hero-float__of">/100</span>
+                <span className="hero-float__pill">Boa</span>
+              </div>
+              <div className="hero-float__bar">
+                <i style={{ width: "78%" }} />
+              </div>
+              <span className="hero-float__foot">Saúde da liderança sob pressão · +6 no ciclo</span>
+            </div>
           </div>
         </div>
 
