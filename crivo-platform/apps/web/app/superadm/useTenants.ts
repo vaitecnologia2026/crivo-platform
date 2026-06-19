@@ -48,7 +48,9 @@ export function useTenants() {
   // Mutações: aplicam a atualização e refletem na lista sem recarregar tudo.
   const provision = useCallback(async (dto: CreateTenantRequest): Promise<ProvisionResult> => {
     const result = await createTenant(dto);
-    setTenants((prev) => [result.tenant, ...prev]);
+    // Dedup por id: evita linha repetida se a empresa já estiver na lista
+    // (re-fetch concorrente, StrictMode, etc.). O backend não duplica (unique).
+    setTenants((prev) => [result.tenant, ...prev.filter((t) => t.id !== result.tenant.id)]);
     return result;
   }, []);
 

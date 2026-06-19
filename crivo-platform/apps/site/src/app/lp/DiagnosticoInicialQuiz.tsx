@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ScaleHelpBox } from "@crivo/ui";
 import {
   computePreDiagnostic,
   MATURITY_LABEL,
@@ -158,6 +159,7 @@ export function DiagnosticoInicialQuiz() {
           <p className="diag-quiz__progress">{answeredCount}/{total} respondidas</p>
         </div>
 
+        <ScaleHelpBox scale={PRE_DIAGNOSTIC_SCALE} />
         <ol className="diag-quiz__questions">
           {PRE_DIAGNOSTIC_QUESTIONS.map((q) => (
             <li key={q.id} className="diag-quiz__q">

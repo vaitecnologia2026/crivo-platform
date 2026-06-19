@@ -5,4 +5,5 @@ export { Brand, type BrandProps } from "./components/brand";
 export { Button, buttonVariants, type ButtonProps } from "./components/button";
 export { Section, Container, sectionVariants, type SectionProps } from "./components/section";
 export { Eyebrow, type EyebrowProps } from "./components/eyebrow";
+export { ScaleHelpBox, type ScaleHelpBoxProps, type ScaleItem } from "./components/scale-help";
 export { createLogger, log, logger, type Logger, type LevelName } from "./logger";

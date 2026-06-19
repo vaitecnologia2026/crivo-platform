@@ -17,6 +17,7 @@ import {
   type PsychosocialDimension,
   type PsychosocialRiskLevel,
 } from "@crivo/types";
+import { ScaleHelpBox } from "@crivo/ui";
 
 /**
  * Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO).
@@ -171,6 +172,10 @@ function Responder() {
         </p>
       </div>
 
+      <ScaleHelpBox
+        scale={LIKERT}
+        hint="Avalie o quanto você concorda com cada afirmação sobre o seu trabalho."
+      />
       <div className="q-list">
         {questions.map((q, i) => (
           <div className="card q-item" key={q.id} id={`pq-${q.id}`}>

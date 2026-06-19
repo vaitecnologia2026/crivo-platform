@@ -3,138 +3,16 @@
 import { useEffect } from "react";
 import { createLogger } from "@crivo/ui/logger";
 
-// Porte fiel do script.js da LP: máscara WhatsApp, e-mail corporativo, submit dos
-// formulários (stub), nav no scroll e reveal-on-scroll com stagger.
+// Efeitos visuais da LP: nav muda no scroll e reveal-on-scroll com stagger.
+// Os formulários da LP são React (DiagnosticoInicialQuiz, no modal) — não há
+// captação de lead aqui. (Removido: máscara/validação e forms estáticos legados.)
 export function LpEffects() {
   useEffect(() => {
     // Acesso é protegido no servidor pelo middleware (cookie httpOnly assinado).
     const log = createLogger("crivo:lp");
-    const flog = log.child("form");
     const navlog = log.child("nav");
     const revlog = log.child("reveal");
     const cleanups: Array<() => void> = [];
-
-    // ---------- WhatsApp mask ----------
-    const wpp = document.getElementById("whatsapp") as HTMLInputElement | null;
-    if (wpp) {
-      const onInput = (e: Event) => {
-        const t = e.target as HTMLInputElement;
-        let v = t.value.replace(/\D/g, "").slice(0, 11);
-        if (v.length > 6) v = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
-        else if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
-        else if (v.length > 0) v = `(${v}`;
-        t.value = v;
-      };
-      wpp.addEventListener("input", onInput);
-      cleanups.push(() => wpp.removeEventListener("input", onInput));
-    }
-
-    // ---------- Anti-Gmail/Hotmail em e-mail corporativo ----------
-    const emailField = document.getElementById("email") as HTMLInputElement | null;
-    if (emailField) {
-      const onBlur = (e: Event) => {
-        const t = e.target as HTMLInputElement;
-        const v = t.value.toLowerCase();
-        const blocked = ["@gmail.com", "@hotmail.com", "@outlook.com", "@yahoo.com", "@uol.com.br", "@bol.com.br"];
-        const hit = blocked.find((d) => v.endsWith(d));
-        if (hit) {
-          flog.warn("e-mail não-corporativo bloqueado:", hit);
-          t.setCustomValidity("Por favor, use um e-mail corporativo (com domínio da sua empresa).");
-          t.reportValidity();
-        } else {
-          t.setCustomValidity("");
-        }
-      };
-      emailField.addEventListener("blur", onBlur);
-      cleanups.push(() => emailField.removeEventListener("blur", onBlur));
-    }
-
-    // ---------- Lead form (diagnóstico) ----------
-    const form = document.getElementById("leadForm") as HTMLFormElement | null;
-    const success = document.getElementById("formSuccess");
-    const formError = document.getElementById("formError");
-    if (form) {
-      const onSubmit = async (e: Event) => {
-        e.preventDefault();
-        if (!form.checkValidity()) {
-          form.reportValidity();
-          return;
-        }
-        const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-        const original = btn.textContent;
-        formError?.classList.remove("is-visible");
-        success?.classList.remove("is-visible");
-        btn.textContent = "Enviando seu pré-diagnóstico...";
-        btn.disabled = true;
-        const data = Object.fromEntries(new FormData(form).entries());
-        flog.info("pré-diagnóstico submetido", { empresa: data.empresa });
-        try {
-          const res = await fetch("/api/lead", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...data, origem: "lp-diagnostico" }),
-            signal: AbortSignal.timeout(15000),
-          });
-          if (!res.ok) throw new Error(`status ${res.status}`);
-          form.reset();
-          if (success) {
-            success.classList.add("is-visible");
-            success.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-          flog.info("lead enviado ao endpoint /api/lead");
-        } catch (err) {
-          flog.error("falha ao enviar lead", err);
-          formError?.classList.add("is-visible");
-        } finally {
-          btn.textContent = original;
-          btn.disabled = false;
-        }
-      };
-      form.addEventListener("submit", onSubmit);
-      cleanups.push(() => form.removeEventListener("submit", onSubmit));
-    }
-
-    // ---------- E-book lead magnet ----------
-    const ebookForm = document.getElementById("ebookForm") as HTMLFormElement | null;
-    const ebookOk = document.getElementById("ebookSuccess");
-    const ebookError = document.getElementById("ebookError");
-    if (ebookForm) {
-      const elog = log.child("ebook");
-      const onSubmit = async (e: Event) => {
-        e.preventDefault();
-        if (!ebookForm.checkValidity()) {
-          ebookForm.reportValidity();
-          return;
-        }
-        const btn = ebookForm.querySelector('button[type="submit"]') as HTMLButtonElement;
-        const original = btn.textContent;
-        ebookError?.classList.remove("is-visible");
-        ebookOk?.classList.remove("is-visible");
-        btn.textContent = "Enviando...";
-        btn.disabled = true;
-        const data = Object.fromEntries(new FormData(ebookForm).entries());
-        try {
-          const res = await fetch("/api/lead", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...data, origem: "lp-ebook-nr1" }),
-            signal: AbortSignal.timeout(15000),
-          });
-          if (!res.ok) throw new Error(`status ${res.status}`);
-          ebookForm.reset();
-          ebookOk?.classList.add("is-visible");
-          elog.info("lead de e-book enviado ao endpoint /api/lead");
-        } catch (err) {
-          elog.error("falha ao enviar lead de e-book", err);
-          ebookError?.classList.add("is-visible");
-        } finally {
-          btn.textContent = original;
-          btn.disabled = false;
-        }
-      };
-      ebookForm.addEventListener("submit", onSubmit);
-      cleanups.push(() => ebookForm.removeEventListener("submit", onSubmit));
-    }
 
     // ---------- Nav: muda fundo no scroll ----------
     const nav = document.getElementById("nav");

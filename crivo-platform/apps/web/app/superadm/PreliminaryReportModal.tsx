@@ -154,7 +154,10 @@ export function PreliminaryReportModal({
             <h3 className="mb-3 font-display text-base text-azul-profundo">Histórico</h3>
             {reports === null && <p className="text-[13px] text-text-sec">Carregando…</p>}
             {reports && reports.length === 0 && (
-              <p className="text-[13px] text-text-sec">Nenhum relatório gerado para este lead.</p>
+              <p className="text-[13px] text-text-sec">
+                Nenhum relatório de IA gerado ainda. O diagnóstico do lead já está salvo — use
+                “Gerar relatório” acima quando quiser. O avanço do lead no funil não depende disto.
+              </p>
             )}
             {reports && reports.map((r) => (
               <div key={r.id} className="mb-3 rounded-[6px] border border-line bg-white p-4">

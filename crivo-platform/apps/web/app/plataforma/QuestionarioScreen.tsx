@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
+import { ScaleHelpBox } from "@crivo/ui";
 
 interface Question {
   id: number;
@@ -170,6 +171,10 @@ export function QuestionarioScreen() {
         </div>
       )}
 
+      <ScaleHelpBox
+        scale={LIKERT}
+        hint="Avalie o quanto você concorda com cada afirmação sobre o ambiente decisório."
+      />
       <div className="q-list">
         {questions.map((q, i) => (
           <div className="card q-item" key={q.id} id={`q-${q.id}`}>

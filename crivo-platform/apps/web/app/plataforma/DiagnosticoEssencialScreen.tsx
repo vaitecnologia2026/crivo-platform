@@ -18,6 +18,7 @@ import {
   listEssentialRecords,
   submitSelfAssessment,
 } from "@/lib/api";
+import { ScaleHelpBox } from "@crivo/ui";
 
 /** Diagnóstico Essencial (Briefing §5): autoavaliação + escuta/observação → Plano de Ação. */
 export function DiagnosticoEssencialScreen() {
@@ -118,6 +119,7 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
 
   return (
     <div>
+      <ScaleHelpBox scale={PRE_DIAGNOSTIC_SCALE} />
       <ol className="essencial-q">
         {PRE_DIAGNOSTIC_QUESTIONS.map((q) => (
           <li key={q.id}>

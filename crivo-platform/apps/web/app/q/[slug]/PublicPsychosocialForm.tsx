@@ -14,6 +14,7 @@ import {
   type PsychosocialRiskLevel,
 } from "@crivo/types";
 import s from "./public.module.css";
+import { ScaleHelpBox } from "@crivo/ui";
 
 const RISK_COLOR: Record<PsychosocialRiskLevel, string> = {
   BAIXO: "#2f9e64",
@@ -160,6 +161,16 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
           />
         </div>
 
+        <ScaleHelpBox
+          scale={[
+            { value: 1, label: "Discordo totalmente" },
+            { value: 2, label: "Discordo" },
+            { value: 3, label: "Neutro" },
+            { value: 4, label: "Concordo" },
+            { value: 5, label: "Concordo totalmente" },
+          ]}
+          hint="Avalie o quanto você concorda com cada afirmação. Suas respostas são anônimas."
+        />
         {questions.map((q, i) => (
           <div className={s.q} key={q.id}>
             <p className={s.qtext}>
