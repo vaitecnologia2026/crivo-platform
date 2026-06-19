@@ -1907,3 +1907,38 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (prefers-reduced-motion: reduce) {
   .section--dark:not(.hero):not(.page-hero)::after { animation: none; }
 }
+
+/* ============================================================
+   MENU NO PADRÃO PROFISSIONAL — página ativa + dropdown de vidro
+   ============================================================ */
+.nav__top { position: relative; }
+
+/* Indicador da página ATIVA (padrão profissional de navegação) */
+.nav__top.is-active { color: #fff; }
+.nav__top.is-active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 1px; height: 2px;
+  background: linear-gradient(90deg, var(--terra-claro), var(--terra));
+  border-radius: 2px; box-shadow: 0 0 12px rgba(196, 137, 74, 0.6);
+}
+
+/* Hover dos itens de topo: sublinhado sutil que cresce */
+.nav__top:not(.is-active)::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 1px; height: 2px;
+  background: rgba(196, 137, 74, 0.7); border-radius: 2px;
+  transform: scaleX(0); transform-origin: left; transition: transform 0.25s ease;
+}
+.nav__top:not(.is-active):hover::after { transform: scaleX(1); }
+
+/* Dropdown de vidro (combina com o padrão futurista) */
+.nav__menu {
+  background: rgba(11, 26, 51, 0.8);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 175, 212, 0.2);
+  box-shadow: 0 26px 64px rgba(5, 14, 30, 0.58), 0 0 44px -16px rgba(74, 111, 165, 0.4);
+}
+
+/* Mobile: item ativo marcado no painel (sem sublinhado) */
+@media (max-width: 1080px) {
+  .nav__top.is-active::after, .nav__top:not(.is-active)::after { display: none; }
+  .nav__links .nav__top.is-active { color: var(--terra-claro); }
+}

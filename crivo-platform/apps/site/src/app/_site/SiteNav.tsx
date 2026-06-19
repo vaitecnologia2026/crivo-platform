@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
 
 // Navegação principal compartilhada (header azul-marinho + submenus em hover no
 // desktop; menu hambúrguer no mobile via checkbox-hack, sem JS).
 // Itens de topo apontam para as páginas internas; sub-itens para seções (rota#secao).
+// Cliente p/ destacar a página ativa (padrão profissional de navegação).
 type NavItem = { label: string; href: string };
 type NavTop = { label: string; href: string; items?: NavItem[] };
 
@@ -85,6 +89,10 @@ function NavLink({ href, className, children }: { href: string; className?: stri
 }
 
 export function SiteNav() {
+  const pathname = usePathname();
+  // Ativo só para páginas dedicadas (rota sem âncora). Itens "/lp#..." não marcam.
+  const isActive = (href: string) => !href.includes("#") && href !== "/lp" ? href === pathname : href === "/lp" && pathname === "/lp";
+
   return (
     <header className="nav" id="nav">
       <div className="container nav__inner">
@@ -100,10 +108,14 @@ export function SiteNav() {
         <input type="checkbox" id="navToggle" className="nav__toggle" aria-hidden="true" />
 
         <nav className="nav__links" aria-label="Navegação principal">
-          {NAV.map((top) =>
-            top.items ? (
+          {NAV.map((top) => {
+            const active = isActive(top.href);
+            return top.items ? (
               <div className="nav__item" key={top.label}>
-                <NavLink href={top.href} className="nav__top nav__top--drop">
+                <NavLink
+                  href={top.href}
+                  className={`nav__top nav__top--drop${active ? " is-active" : ""}`}
+                >
                   {top.label}
                 </NavLink>
                 <div className="nav__menu" role="menu">
@@ -115,11 +127,11 @@ export function SiteNav() {
                 </div>
               </div>
             ) : (
-              <NavLink href={top.href} className="nav__top" key={top.label}>
+              <NavLink href={top.href} className={`nav__top${active ? " is-active" : ""}`} key={top.label}>
                 {top.label}
               </NavLink>
-            ),
-          )}
+            );
+          })}
         </nav>
 
         <div className="nav__actions">
