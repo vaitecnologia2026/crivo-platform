@@ -2007,3 +2007,40 @@ th.compare__crivo { color: var(--terra) !important; }
 .founder-card__body strong { display: block; font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--azul-profundo); margin-bottom: 6px; }
 .founder-card__body strong em { font-style: normal; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--terra); margin-left: 6px; }
 .founder-card__body p { font-size: 13px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.55; }
+
+/* ============================================================
+   RISCOS PSICOSSOCIAIS E IA (print Pág. 04) — Venn + 4 pilares
+   ============================================================ */
+.riscos-head { display: grid; grid-template-columns: 1.25fr 1fr; gap: 48px; align-items: center; margin-bottom: 52px; }
+.riscos-head .h2 { text-align: left; }
+.riscos-head .lede { text-align: left; margin: 0; max-width: 580px; }
+@media (max-width: 880px) { .riscos-head { grid-template-columns: 1fr; gap: 30px; } }
+
+.venn { position: relative; display: flex; align-items: center; justify-content: center; min-height: 220px; }
+.venn svg { width: 100%; max-width: 340px; position: relative; z-index: 1; }
+.venn__ring { stroke: rgba(196, 137, 74, 0.38); stroke-width: 1.2; }
+.venn__ic { stroke: var(--terra-claro); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.venn__glow {
+  position: absolute; left: 50%; top: 50%; width: 110px; height: 110px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(196, 137, 74, 0.55) 0%, transparent 70%);
+  filter: blur(10px); animation: glowPulse 3.2s ease-in-out infinite; pointer-events: none;
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.18); }
+}
+@media (prefers-reduced-motion: reduce) { .venn__glow { animation: none; } }
+
+/* 4 pilares com mais peso visual: ícone em círculo + número */
+.risco-card { padding: 26px 24px 28px; }
+.risco-card__ic {
+  width: 52px; height: 52px; border-radius: 999px;
+  background: transparent; border: 1px solid rgba(196, 137, 74, 0.45); color: var(--terra-claro);
+  display: inline-flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 0;
+}
+.risco-card__ic svg { width: 24px; height: 24px; }
+.risco-card__num {
+  display: block; font-family: var(--font-jetbrains), "JetBrains Mono", monospace;
+  font-size: 13px; font-weight: 700; color: var(--terra-claro); letter-spacing: 0.04em; margin-bottom: 8px;
+}
+.risco-card h3 { font-size: 18px; margin-bottom: 10px; }

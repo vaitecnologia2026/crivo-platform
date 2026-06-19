@@ -310,33 +310,81 @@ export default function LandingPage() {
       {/* ===================== RISCOS PSICOSSOCIAIS E IA ===================== */}
       <section className="section section--dark" id="riscos-ia">
         <div className="container">
-          <span className="eyebrow eyebrow--terra">Os dois desafios da nova gestão</span>
-          <h2 className="h2 h2--light h2--center">Riscos psicossociais e IA.</h2>
-          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 8px" }}>
-            A CRIVO™ atua onde os dois maiores desafios das empresas se encontram: o aumento da pressão humana e a
-            aceleração tecnológica.
-          </p>
+          {/* Cabeçalho 2 colunas: texto + gráfico Venn (Pessoas ⊕ IA) — print Pág. 04 */}
+          <div className="riscos-head">
+            <div className="riscos-head__txt">
+              <span className="eyebrow eyebrow--terra">Os dois desafios da nova gestão</span>
+              <h2 className="h2 h2--light">
+                Riscos psicossociais e Inteligência Artificial:{" "}
+                <span className="terra-text">as duas agendas que moldam a nova gestão.</span>
+              </h2>
+              <p className="lede lede--light">
+                A pressão sobre as pessoas aumenta. A tecnologia acelera. Sustentar resultados exige liderança
+                preparada, governança sólida e inteligência organizacional.
+              </p>
+            </div>
+            <div className="venn" role="img" aria-label="Pessoas e Inteligência Artificial: duas agendas que se encontram">
+              <span className="venn__glow" aria-hidden="true" />
+              <svg viewBox="0 0 360 240" fill="none" aria-hidden="true">
+                <circle cx="142" cy="120" r="90" className="venn__ring" />
+                <circle cx="218" cy="120" r="90" className="venn__ring" />
+                <g className="venn__ic" transform="translate(96,98)">
+                  <circle cx="16" cy="13" r="7.5" />
+                  <path d="M2 46c0-9 6.2-15 14-15s14 6 14 15" />
+                </g>
+                <g className="venn__ic" transform="translate(218,98)">
+                  <rect x="7" y="7" width="34" height="34" rx="6" />
+                  <rect x="17" y="17" width="14" height="14" rx="2" />
+                  <path d="M16 3v4M24 3v4M32 3v4M16 41v4M24 41v4M32 41v4M3 16h4M3 24h4M3 32h4M41 16h4M41 24h4M41 32h4" />
+                </g>
+              </svg>
+            </div>
+          </div>
 
           <div className="riscos-grid">
             <article className="risco-card">
-              <span className="risco-card__ic">◴</span>
-              <h3>Riscos psicossociais</h3>
-              <p>Leitura estruturada de sobrecarga, conflitos, afastamentos, comunicação, segurança psicológica e fatores humanos que impactam cultura, execução e resultados.</p>
+              <span className="risco-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" strokeWidth="1.6" /><path d="M5.5 19c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              </span>
+              <span className="risco-card__num">01</span>
+              <h3>Pressão humana</h3>
+              <p>
+                Leitura profunda dos riscos psicossociais que impactam saúde, engajamento, cultura e performance:
+                sobrecarga, conflitos, comunicação, segurança psicológica e fatores humanos críticos.
+              </p>
             </article>
             <article className="risco-card">
-              <span className="risco-card__ic">◆</span>
-              <h3>Pessoas + IA</h3>
-              <p>Preparação da liderança e da cultura para integrar inteligência artificial com consciência, critério, governança e responsabilidade.</p>
+              <span className="risco-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.6" /><circle cx="5" cy="13" r="2" stroke="currentColor" strokeWidth="1.6" /><circle cx="19" cy="13" r="2" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="20" r="2" stroke="currentColor" strokeWidth="1.6" /><path d="M12 7v11M11 11l-4.3 1.5M13 11l4.3 1.5M6.6 14.6 11 18.4M17.4 14.6 13 18.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+              </span>
+              <span className="risco-card__num">02</span>
+              <h3>Pessoas, IA e governança</h3>
+              <p>
+                Integração responsável da inteligência artificial à estratégia de pessoas, com critérios, ética,
+                governança e controle de riscos.
+              </p>
             </article>
             <article className="risco-card">
-              <span className="risco-card__ic">▲</span>
+              <span className="risco-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.6" /><path d="M3.5 18c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="17" cy="8" r="2.3" stroke="currentColor" strokeWidth="1.6" /><path d="M16.5 13c2.2.3 4 2.1 4 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              </span>
+              <span className="risco-card__num">03</span>
               <h3>Liderança e cultura</h3>
-              <p>Desenvolvimento de líderes capazes de sustentar decisões, conversas, rotinas e comportamentos em ambientes de pressão e transformação.</p>
+              <p>
+                Desenvolvimento de líderes que sustentam decisões, conduzem conversas difíceis e constroem culturas de
+                confiança, clareza e adaptação contínua.
+              </p>
             </article>
             <article className="risco-card">
-              <span className="risco-card__ic">❖</span>
-              <h3>Governança comportamental</h3>
-              <p>Transformação de sinais invisíveis em diagnóstico, plano de ação, desenvolvimento da liderança, evidências e evolução sustentável.</p>
+              <span className="risco-card__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </span>
+              <span className="risco-card__num">04</span>
+              <h3>Transformação organizacional</h3>
+              <p>
+                Conexão entre diagnóstico, governança e execução para transformar sinais em ações que geram evolução
+                sustentável e vantagem competitiva.
+              </p>
             </article>
           </div>
         </div>
