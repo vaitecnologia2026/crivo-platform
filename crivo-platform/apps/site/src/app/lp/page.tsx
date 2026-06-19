@@ -3,7 +3,15 @@ import { LpEffects } from "./LpEffects";
 import { DiagnosticoInicialQuiz } from "./DiagnosticoInicialQuiz";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
-import { PLATAFORMA_URL } from "../_site/site.config";
+import {
+  MetodoSection,
+  IcdSection,
+  PortfolioSection,
+  PortalSection,
+  DashboardSection,
+  AppSection,
+  EcossistemaSection,
+} from "../_sections/CrivoSections";
 import "./lp.css";
 
 export const metadata: Metadata = {
@@ -12,17 +20,16 @@ export const metadata: Metadata = {
     "Consultoria estratégica de transformação organizacional com tecnologia aplicada. A CRIVO™ revela sinais invisíveis, prioriza ações, desenvolve lideranças e sustenta a evolução com método, dados, plano de ação e evidências.",
 };
 
+// Home única — sequência das 16 seções (print Pág. 01: Arquitetura, menu e navegação).
+// Menu por âncoras; seções pesadas vêm de _sections/CrivoSections (mesma fonte das
+// páginas dedicadas /metodo /plataforma /solucoes). Alternância claro/azul premium.
 export default function LandingPage() {
   return (
     <>
       <LpEffects />
-
-      {/* Header compartilhado (navy + submenus). Ver app/_site/SiteNav.tsx */}
       <SiteNav />
 
-      {/* ===================== HERO 1 ===================== */}
-      {/* Hero 1 — claro/off-white, Foto 1 (equipe executiva caminhando).
-          Copy aprovada no briefing final. Sem NR-1, sem "riscos humanos". */}
+      {/* ===================== 01 · HERO 1 ===================== */}
       <section id="hero" className="hero hero--1">
         <div className="container hero__inner">
           <div className="hero__copy">
@@ -78,7 +85,6 @@ export default function LandingPage() {
               </figcaption>
             </figure>
 
-            {/* Peek do produto (ICD) sobreposto — sinaliza a plataforma, não só foto */}
             <div className="hero-float" aria-hidden="true">
               <span className="hero-float__label">ICD · Coerência Decisória</span>
               <div className="hero-float__row">
@@ -114,9 +120,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== HERO 2 ===================== */}
-      {/* Hero 2 — navy, Foto 3 (reunião executiva). Copy aprovada.
-          Alterna claro→azul (REGRA 7). Pessoas · Decisões · Tecnologia · IA. Sem NR-1. */}
+      {/* ===================== 02 · HERO 2 ===================== */}
       <section id="hero2" className="hero hero--2 section--dark">
         <div className="container hero__inner hero__inner--rev">
           <div className="hero__visual">
@@ -176,10 +180,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== DESAFIOS DA TRANSFORMAÇÃO ===================== */}
-      {/* Antes "O Problema" — renomeado no briefing final. Cards executivos,
-          pouco texto, com respiro. Termo "riscos humanos" removido. */}
-      <section className="section section--light" id="desafios">
+      {/* ===================== 03 · O PROBLEMA ===================== */}
+      <section className="section section--light" id="o-problema">
         <div className="container">
           <span className="eyebrow">O Problema</span>
           <h2 className="h2">Empresas crescem até o limite da sua liderança.</h2>
@@ -225,68 +227,16 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== NR-1 ===================== */}
-      <section className="section section--dark" id="nr1">
-        <div className="container">
-          <span className="eyebrow eyebrow--terra">NR-1 · porta de entrada</span>
-          <h2 className="h2 h2--light h2--center">
-            A NR-1 tornou visível uma parte do desafio. A evolução acontece quando diagnóstico vira ação, evidência e
-            sustentação.
-          </h2>
-          <p className="lede lede--light">
-            A NR-1 é porta de entrada, não o limite da CRIVO. A atualização ampliou a atenção das empresas sobre fatores
-            psicossociais — mas o desafio vai além da conformidade: envolve a forma como a organização lidera, decide,
-            cobra, comunica e sustenta a rotina. A entrega conecta fatores psicossociais, plano de ação, responsáveis,
-            prazos, evidências, liderança e acompanhamento.
-          </p>
-
-          <div className="nr1-split">
-            <div className="nr1-col">
-              <h4>O que está em jogo</h4>
-              <ul className="nr1-list nr1-list--risk">
-                <li>Compliance legal e passivo trabalhista</li>
-                <li>Riscos psicossociais sistêmicos</li>
-                <li>Liderança sob pressão e baixa sustentação da rotina</li>
-                <li>Ambiente organizacional deteriorado</li>
-                <li>Custos invisíveis não monitorados</li>
-              </ul>
-            </div>
-            <div className="nr1-col">
-              <h4>Como a CRIVO apoia</h4>
-              <ul className="nr1-list nr1-list--deliver">
-                <li>
-                  <strong>CRIVO Diagnóstico™</strong> — diagnóstico organizacional estruturado
-                </li>
-                <li>
-                  <strong>Pesquisa estruturada</strong> — mapeamento de ambiente e liderança
-                </li>
-                <li>
-                  <strong>Leitura técnica</strong> — leitura sistêmica de riscos e causas
-                </li>
-                <li>
-                  <strong>Plano de ação</strong> — estratégia com método, prioridade e prazo
-                </li>
-                <li>
-                  <strong>Evidências e acompanhamento</strong> — monitoramento evolutivo do ambiente
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== SOBRE (teaser → página /sobre) ===================== */}
-      {/* Home enxuta: o conteúdo completo (Quem Somos, Como Nasceu, Fundadores,
-          MVV) vive em /sobre. Aqui só um resumo que direciona. */}
-      <section className="section section--light" id="sobre-teaser">
+      {/* ===================== 04 · QUEM SOMOS ===================== */}
+      <section className="section section--dark" id="quem-somos">
         <div className="container split">
           <div className="split__left">
-            <span className="eyebrow">Quem somos</span>
-            <h2 className="h2">
+            <span className="eyebrow eyebrow--terra">Quem somos</span>
+            <h2 className="h2 h2--light">
               Consultoria estratégica de transformação organizacional por meio do desenvolvimento sustentável da
               liderança.
             </h2>
-            <p className="lede">
+            <p className="lede lede--light">
               A CRIVO™ combina método proprietário, leitura organizacional, desenvolvimento da liderança e tecnologia
               aplicada para transformar sinais dispersos em clareza, plano de ação e evolução sustentável.
             </p>
@@ -294,7 +244,7 @@ export default function LandingPage() {
               &ldquo;A CRIVO™ transforma sinais invisíveis em clareza, liderança e evolução sustentável.&rdquo;
             </blockquote>
             <div className="cta-inline">
-              <a href="/sobre" className="btn btn--outline-dark">
+              <a href="/sobre" className="btn btn--terra">
                 Conhecer a CRIVO · quem somos e fundadores →
               </a>
             </div>
@@ -307,10 +257,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== RISCOS PSICOSSOCIAIS E IA ===================== */}
+      {/* ===================== 05 · COMO NASCEU ===================== */}
+      <section className="section section--light" id="como-nasceu">
+        <div className="container">
+          <span className="eyebrow">Como nasceu</span>
+          <h2 className="h2">Da prática executiva à inteligência aplicável.</h2>
+          <p className="lede">
+            A CRIVO nasceu da prática executiva e da percepção de que a qualidade das decisões sob pressão molda
+            cultura, performance e resultados. Transformamos padrões invisíveis em inteligência aplicável para
+            lideranças que precisam decidir melhor em contextos reais.
+          </p>
+          <div className="cta-inline">
+            <a href="/sobre#como-nasceu" className="btn btn--outline-dark">
+              Ler a história completa e conhecer os fundadores →
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== 06 · RISCOS PSICOSSOCIAIS E IA ===================== */}
       <section className="section section--dark" id="riscos-ia">
         <div className="container">
-          {/* Cabeçalho 2 colunas: texto + gráfico Venn (Pessoas ⊕ IA) — print Pág. 04 */}
           <div className="riscos-head">
             <div className="riscos-head__txt">
               <span className="eyebrow eyebrow--terra">Os dois desafios da nova gestão</span>
@@ -390,165 +357,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== MÉTODO ===================== */}
-      {/* ===================== MÉTODO + ICD (teaser → /metodo) ===================== */}
-      <section className="section section--light" id="metodo-teaser">
-        <div className="container">
-          <span className="eyebrow">Método CRIVO + ICD</span>
-          <h2 className="h2">Um método para decidir, sustentar e evoluir.</h2>
-          <p className="lede">
-            A estrutura C-R-I-V-O transforma percepção, responsabilidade, integração, valores e organização em decisões
-            mais coerentes — e o ICD™ mede a coerência decisória da liderança sob pressão (Clareza · Critério ·
-            Alinhamento · Sustentação).
-          </p>
-          <div className="metodo-grid">
-            <div className="metodo-card"><span className="metodo-card__letter">C</span><h3>Consciência</h3></div>
-            <div className="metodo-card"><span className="metodo-card__letter">R</span><h3>Responsabilidade</h3></div>
-            <div className="metodo-card"><span className="metodo-card__letter">I</span><h3>Integração</h3></div>
-            <div className="metodo-card"><span className="metodo-card__letter">V</span><h3>Valores</h3></div>
-            <div className="metodo-card"><span className="metodo-card__letter">O</span><h3>Organização</h3></div>
-          </div>
-          <div className="cta-inline">
-            <a href="/metodo" className="btn btn--outline-dark">
-              Conhecer o Método CRIVO e o ICD →
-            </a>
-          </div>
-        </div>
-      </section>
+      {/* ===================== 07 · MÉTODO · 08 · ICD · 09 · SOLUÇÕES ===================== */}
+      <MetodoSection />
+      <IcdSection />
+      <PortfolioSection />
 
-      {/* ===================== PLATAFORMA (teaser → /plataforma) ===================== */}
-      <section className="section section--dark" id="plataforma-teaser">
+      {/* ===================== 10 · PORTAL · 11 · DASHBOARD · 12 · APP · 13 · ECOSSISTEMA ===================== */}
+      <PortalSection />
+      <DashboardSection />
+      <AppSection />
+      <EcossistemaSection />
+
+      {/* ===================== NR-1 (âncora / seção específica) ===================== */}
+      <section className="section section--dark" id="nr1">
         <div className="container">
-          <span className="eyebrow eyebrow--terra">Plataforma CRIVO</span>
+          <span className="eyebrow eyebrow--terra">NR-1 · porta de entrada</span>
           <h2 className="h2 h2--light h2--center">
-            Portal Executivo, App CRIVO e Academia — em uma jornada integrada.
+            A NR-1 tornou visível uma parte do desafio. A evolução acontece quando diagnóstico vira ação, evidência e
+            sustentação.
           </h2>
-          <p className="lede lede--light" style={{ textAlign: "center", margin: "0 auto 40px" }}>
-            O Portal organiza a visão executiva; o App sustenta a mudança na rotina do líder; a Academia desenvolve
-            competências. Tudo agregado e protegido pela LGPD.
+          <p className="lede lede--light">
+            A NR-1 é porta de entrada, não o limite da CRIVO. A atualização ampliou a atenção das empresas sobre fatores
+            psicossociais — mas o desafio vai além da conformidade: envolve a forma como a organização lidera, decide,
+            cobra, comunica e sustenta a rotina. A entrega conecta fatores psicossociais, plano de ação, responsáveis,
+            prazos, evidências, liderança e acompanhamento.
           </p>
-          <div className="grid grid--3 icd-delivers">
-            <div className="deliver-card">
-              <span className="deliver-card__tag">Portal Executivo</span>
-              <p>Diagnósticos, campanhas, dashboards, plano de ação e evidências em ambiente seguro.</p>
+
+          <div className="nr1-split">
+            <div className="nr1-col">
+              <h4>O que está em jogo</h4>
+              <ul className="nr1-list nr1-list--risk">
+                <li>Compliance legal e passivo trabalhista</li>
+                <li>Riscos psicossociais sistêmicos</li>
+                <li>Liderança sob pressão e baixa sustentação da rotina</li>
+                <li>Ambiente organizacional deteriorado</li>
+                <li>Custos invisíveis não monitorados</li>
+              </ul>
             </div>
-            <div className="deliver-card">
-              <span className="deliver-card__tag">App CRIVO · Pocket</span>
-              <p>Meu Estado, Radar da Decisão (ICD™), Pocket e Dashboard do líder — na rotina.</p>
+            <div className="nr1-col">
+              <h4>Como a CRIVO apoia</h4>
+              <ul className="nr1-list nr1-list--deliver">
+                <li>
+                  <strong>CRIVO Diagnóstico™</strong> — diagnóstico organizacional estruturado
+                </li>
+                <li>
+                  <strong>Pesquisa estruturada</strong> — mapeamento de ambiente e liderança
+                </li>
+                <li>
+                  <strong>Leitura técnica</strong> — leitura sistêmica de riscos e causas
+                </li>
+                <li>
+                  <strong>Plano de ação</strong> — estratégia com método, prioridade e prazo
+                </li>
+                <li>
+                  <strong>Evidências e acompanhamento</strong> — monitoramento evolutivo do ambiente
+                </li>
+              </ul>
             </div>
-            <div className="deliver-card">
-              <span className="deliver-card__tag">Academia CRIVO</span>
-              <p>Cursos, trilhas, conteúdos e inteligência contínua para a liderança.</p>
-            </div>
-          </div>
-          <div className="cta-inline">
-            <a href="/plataforma" className="btn btn--terra">
-              Conhecer a Plataforma · Portal, App e Academia →
-            </a>
           </div>
         </div>
       </section>
 
-      {/* ===================== SOLUÇÕES ===================== */}
-      <section className="section section--light" id="solucoes">
-        <div className="container">
-          <span className="eyebrow">Soluções &amp; Serviços</span>
-          <h2 className="h2">Para cada momento da organização, um nível de atuação.</h2>
-          <p className="lede">
-            A CRIVO combina diagnóstico, plano de ação, desenvolvimento da liderança, app, dados e acompanhamento para
-            cada momento da organização — da entrada (NR-1 e diagnóstico inicial) à transformação cultural, governança
-            de IA e performance.
-          </p>
-
-          <div className="product-grid product-grid--auto">
-            <article className="product-card product-card--free">
-              <span className="product-card__level">01</span>
-              <h3>Diagnóstico Inicial</h3>
-              <span className="product-card__tag">Leitura preliminar · gratuito</span>
-              <p>
-                Primeira leitura sobre riscos invisíveis, liderança e pontos de atenção. Relatório Preliminar CRIVO™ por
-                e-mail em até 24h.
-              </p>
-              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
-                Fazer diagnóstico inicial
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">02</span>
-              <h3>CRIVO Diagnóstico™</h3>
-              <span className="product-card__tag">Diagnóstico Organizacional</span>
-              <p>
-                Diagnóstico oficial estruturado: fatores psicossociais, liderança, cultura, dashboard, plano de ação e
-                evidências. Aplicado e gerido no Portal Executivo.
-              </p>
-              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">03</span>
-              <h3>CRIVO Liderança</h3>
-              <span className="product-card__tag">Jornada de Liderança</span>
-              <p>
-                Jornada aplicada à rotina: trilhas, mentorias, app (Radar da Decisão, Academia CRIVO) e desenvolvimento
-                contínuo. Turmas de até 50 líderes.
-              </p>
-              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card product-card--featured">
-              <span className="badge-featured">Mais procurado</span>
-              <span className="product-card__level">04</span>
-              <h3>CRIVO Evolução</h3>
-              <span className="product-card__tag">Mentoria &amp; Governança</span>
-              <p>
-                Mentoria em grupo, governança comportamental, liderança sob pressão, Radar da Decisão evolutivo e
-                devolutivas estruturadas. Aprofundamento contínuo.
-              </p>
-              <a href="#diagnostico" className="btn btn--terra btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">05</span>
-              <h3>CRIVO Enterprise</h3>
-              <span className="product-card__tag">Transformação Organizacional</span>
-              <p>
-                Diagnóstico completo, PDCA, workshops, mentoria individual e sustentação cultural. Ideal para M&amp;A,
-                profissionalização ou crescimento acelerado.
-              </p>
-              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-
-            <article className="product-card">
-              <span className="product-card__level">06</span>
-              <h3>CRIVO Advisory</h3>
-              <span className="product-card__tag">Conselho Estratégico</span>
-              <p>
-                Conselheiro para C-Level e fundadores. Sustentação contínua com visão de governança e sucessão.
-              </p>
-              <a href="#diagnostico" className="btn btn--outline-dark btn--block">
-                Conhecer
-              </a>
-            </article>
-          </div>
-
-          <div className="cta-inline">
-            <a href="/solucoes" className="btn btn--outline-dark">
-              Ver todas as soluções, trilha e comparativo CRIVO →
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== E-BOOK ===================== */}
+      {/* ===================== 14 · E-BOOK ===================== */}
       <section className="section section--light" id="ebook">
         <div className="container ebook">
           <div className="ebook__copy">
@@ -605,7 +475,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== DIAGNÓSTICO ===================== */}
+      {/* ===================== 14 · DIAGNÓSTICO INICIAL ===================== */}
       <section className="section section--accent" id="diagnostico">
         <div className="container">
           <span className="eyebrow eyebrow--terra">Diagnóstico inicial · gratuito</span>
@@ -617,9 +487,6 @@ export default function LandingPage() {
             fragilidades de liderança — com devolutiva por e-mail. Não substitui o CRIVO Diagnóstico™ completo.
           </p>
 
-          {/* Preview do Relatório Preliminar (estilo Lovable rev2) — 5 blocos com scores
-              ilustrativos + 3 pontos de atenção. Ajuda o lead a entender o que vai chegar
-              por e-mail depois do quiz. */}
           <div className="preview-report">
             <div className="preview-report__head">
               <span className="preview-report__eyebrow">Relatório Preliminar · prévia</span>
@@ -819,7 +686,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== FAQ ===================== */}
+      {/* ===================== 15 · FAQ ===================== */}
       <section className="section section--light" id="faq">
         <div className="container container--narrow">
           <span className="eyebrow">Perguntas frequentes</span>
@@ -937,7 +804,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== CTA FINAL ===================== */}
+      {/* ===================== 16 · CTA FINAL ===================== */}
       <section className="section section--final">
         <div className="container final">
           <svg className="vertice-final" viewBox="0 0 120 100" fill="none" aria-hidden="true">
@@ -973,7 +840,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Rodapé compartilhado. Ver app/_site/SiteFooter.tsx */}
       <SiteFooter />
     </>
   );

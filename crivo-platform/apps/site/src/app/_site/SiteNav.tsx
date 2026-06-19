@@ -12,65 +12,26 @@ import { PLATAFORMA_URL } from "./site.config";
 type NavItem = { label: string; href: string };
 type NavTop = { label: string; href: string; items?: NavItem[] };
 
+// Arquitetura aprovada (print Pág. 01): Home única com seções sequenciais e menu
+// por âncoras. "Sobre" concentra o institucional (submenu). As páginas dedicadas
+// (/metodo /plataforma /solucoes /sobre) seguem existindo como aprofundamento.
 const NAV: NavTop[] = [
-  { label: "Início", href: "/lp" },
-  {
-    label: "Soluções",
-    href: "/solucoes",
-    items: [
-      { label: "Diagnóstico Inicial", href: "/lp#diagnostico" },
-      { label: "Fatores Psicossociais e NR-1", href: "/lp#nr1" },
-      { label: "Liderança e Cultura", href: "/solucoes" },
-      { label: "Governança de IA e Pessoas", href: "/lp#riscos-ia" },
-      { label: "Evolução e Sustentação", href: "/solucoes" },
-      { label: "Enterprise e Advisory", href: "/solucoes" },
-      { label: "Projetos Especiais", href: "/solucoes" },
-    ],
-  },
-  {
-    label: "Método CRIVO",
-    href: "/metodo",
-    items: [
-      { label: "Método CRIVO", href: "/metodo" },
-      { label: "ICD — Índice de Coerência Decisória", href: "/metodo#icd" },
-      { label: "Radar da Decisão", href: "/metodo#icd" },
-      { label: "Governança Comportamental", href: "/lp#riscos-ia" },
-      { label: "Evidências e evolução", href: "/metodo#jornada" },
-    ],
-  },
-  {
-    label: "Plataforma",
-    href: "/plataforma",
-    items: [
-      { label: "Portal Executivo", href: "/plataforma#portal" },
-      { label: "Dashboard Executivo", href: "/plataforma#dashboard" },
-      { label: "App CRIVO", href: "/plataforma#app" },
-      { label: "Pocket CRIVO", href: "/plataforma#app" },
-      { label: "Academia CRIVO", href: "/plataforma#ecossistema" },
-      { label: "Área logada", href: PLATAFORMA_URL },
-    ],
-  },
-  {
-    label: "Conteúdos",
-    href: "/lp#ebook",
-    items: [
-      { label: "E-book", href: "/lp#ebook" },
-      { label: "Materiais gratuitos", href: "/plataforma#ecossistema" },
-      { label: "FAQ", href: "/lp#faq" },
-      { label: "Artigos e eventos", href: "/plataforma#ecossistema" },
-    ],
-  },
+  { label: "O Problema", href: "/lp#o-problema" },
+  { label: "Método", href: "/lp#metodo" },
+  { label: "Soluções", href: "/lp#solucoes" },
+  { label: "ICD", href: "/lp#icd" },
+  { label: "Portal", href: "/lp#portal" },
+  { label: "App", href: "/lp#app" },
   {
     label: "Sobre",
-    href: "/sobre",
+    href: "/lp#quem-somos",
     items: [
-      { label: "Quem somos", href: "/sobre#quem-somos" },
-      { label: "Como nasceu a CRIVO", href: "/sobre#como-nasceu" },
-      { label: "Fundadores", href: "/sobre#fundadores" },
-      { label: "Missão, visão e valores", href: "/sobre#mvv" },
-      { label: "Contato", href: "/lp#diagnostico" },
+      { label: "Quem Somos", href: "/lp#quem-somos" },
+      { label: "Como Nasceu", href: "/lp#como-nasceu" },
+      { label: "Ecossistema CRIVO", href: "/lp#ecossistema" },
     ],
   },
+  { label: "NR-1", href: "/lp#nr1" },
 ];
 
 function NavLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
