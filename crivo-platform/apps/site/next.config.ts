@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // @crivo/ui é distribuído como TS-fonte (workspace) — precisa ser transpilado.
   transpilePackages: ["@crivo/ui"],
+  // nodemailer é lib Node (SMTP) usada na rota /api/lead — não deve ser empacotada.
+  serverExternalPackages: ["nodemailer"],
   turbopack: { root: monorepoRoot },
 };
 

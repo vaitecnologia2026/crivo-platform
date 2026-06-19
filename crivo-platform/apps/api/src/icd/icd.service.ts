@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { mailConfigured, sendMail } from '../common/mailer';
 import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
 import type { SubmitIcdDto } from './dto';
@@ -241,10 +242,7 @@ export class IcdService {
         select: { id: true, email: true, name: true },
       });
 
-      const apiKey = process.env.RESEND_API_KEY;
-      const from = process.env.RESEND_FROM ?? 'CRIVO <noreply@crivolegacy.com.br>';
-
-      if (!apiKey) {
+      if (!mailConfigured()) {
         await tx.assessmentCycle.update({
           where: { id: cycleId },
           data: { reminderSentAt: new Date() },
@@ -253,7 +251,7 @@ export class IcdService {
           sent: 0,
           pending: pendentes.length,
           provider: 'stub',
-          reason: 'RESEND_API_KEY ausente — operador deve enviar manualmente.',
+          reason: 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.',
         };
       }
 
@@ -271,23 +269,17 @@ export class IcdService {
       );
 
       let sent = 0;
+      let provider = 'stub';
       for (const u of pendentes) {
         const subject = subjectTemplate.replaceAll('{campaign_name}', cycle.name);
         const html = bodyTemplate
           .replaceAll('{first_name}', u.name.split(' ')[0])
           .replaceAll('{campaign_name}', cycle.name)
           .replaceAll('{description}', cycle.description ?? 'Sua participação ajuda a empresa a entender o ambiente decisório.');
-        try {
-          const res = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ from, to: u.email, subject, html }),
-            signal: AbortSignal.timeout(10000),
-          });
-          if (res.ok) sent += 1;
-        } catch {
-          /* falha individual não interrompe o lote — best-effort */
-        }
+        // Best-effort: falha individual não interrompe o lote.
+        const r = await sendMail({ to: u.email, subject, html });
+        if (r.ok) sent += 1;
+        provider = r.provider;
       }
 
       await tx.assessmentCycle.update({
@@ -295,7 +287,7 @@ export class IcdService {
         data: { reminderSentAt: new Date() },
       });
 
-      return { sent, pending: pendentes.length, provider: 'resend' };
+      return { sent, pending: pendentes.length, provider };
     });
   }
 

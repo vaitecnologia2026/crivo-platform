@@ -1,13 +1,14 @@
+import nodemailer from "nodemailer";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 // Recebe os leads dos formulários da LP (diagnóstico + e-book) e entrega por
-// até TRÊS canais, conforme configurado por env — nenhum lead se perde:
-//   • PLATFORM_API_URL + LEAD_INTAKE_SECRET → cria o lead direto no pipeline do
-//     CRM (POST /leads/intake) — fecha o loop captação → plataforma.
+// múltiplos canais, conforme configurado por env — nenhum lead se perde:
+//   • PLATFORM_API_URL  → cria o lead direto no pipeline do CRM (POST /public/lead)
 //   • LEAD_WEBHOOK_URL  → POST do payload (CRM / Zapier / Make / planilha)
-//   • RESEND_API_KEY    → e-mail para LEAD_TO_EMAIL (default contato@crivolegacy.com.br)
+//   • SMTP_* (Hostinger) → e-mail para LEAD_TO_EMAIL (preferido)
+//   • RESEND_API_KEY    → e-mail via Resend (fallback, se SMTP ausente)
 // Se nada estiver configurado, registra no log do servidor e ACEITA o lead
 // (não trava o usuário), deixando rastro para recuperação manual.
 
@@ -61,6 +62,35 @@ async function sendIntake(apiUrl: string, data: Lead, email: string): Promise<bo
   }
 }
 
+function leadEmailParts(data: Lead) {
+  const to = process.env.LEAD_TO_EMAIL ?? "contato@crivolegacy.com.br";
+  const linhas = Object.entries(data)
+    .map(([k, v]) => `<strong>${k}:</strong> ${String(v ?? "")}`)
+    .join("<br>");
+  const subject = `Novo lead CRIVO · ${String(data.empresa ?? data.nome ?? data.email)}`;
+  const html = `<h2>Novo lead (${String(data.origem ?? "lp")})</h2>${linhas}`;
+  return { to, subject, html };
+}
+
+// E-mail via SMTP (Hostinger) — remetente é o endereço autenticado.
+async function sendEmailSmtp(data: Lead, email: string): Promise<boolean> {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return false;
+  const port = Number(process.env.SMTP_PORT ?? 465);
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465;
+  const from = process.env.SMTP_FROM ?? `CRIVO Leads <${user}>`;
+  const { to, subject, html } = leadEmailParts(data);
+  try {
+    const transport = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    await transport.sendMail({ from, to, replyTo: email, subject, html });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function sendEmail(apiKey: string, data: Lead, email: string): Promise<boolean> {
   const to = process.env.LEAD_TO_EMAIL ?? "contato@crivolegacy.com.br";
   const from = process.env.LEAD_FROM_EMAIL ?? "CRIVO Leads <onboarding@resend.dev>";
@@ -102,15 +132,18 @@ export async function POST(req: Request) {
   const webhook = process.env.LEAD_WEBHOOK_URL;
   const resendKey = process.env.RESEND_API_KEY;
   const platformApi = process.env.PLATFORM_API_URL;
+  const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
   const tasks: Promise<boolean>[] = [];
   if (platformApi) tasks.push(sendIntake(platformApi, data, email));
   if (webhook) tasks.push(sendWebhook(webhook, data));
-  if (resendKey) tasks.push(sendEmail(resendKey, data, email));
+  // E-mail: SMTP (Hostinger) preferido; Resend como fallback.
+  if (smtpConfigured) tasks.push(sendEmailSmtp(data, email));
+  else if (resendKey) tasks.push(sendEmail(resendKey, data, email));
 
   if (tasks.length === 0) {
     console.warn(
-      "[lead] Nenhum provider configurado (PLATFORM_API_URL / RESEND_API_KEY / LEAD_WEBHOOK_URL). Lead recebido:",
+      "[lead] Nenhum provider configurado (PLATFORM_API_URL / SMTP_* / RESEND_API_KEY / LEAD_WEBHOOK_URL). Lead recebido:",
       JSON.stringify(data),
     );
     return NextResponse.json({ ok: true, warning: "no-provider" });

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   computePreDiagnostic,
   type CreateDiagnosticLeadRequest,
@@ -10,6 +10,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { PreliminaryReportsService } from './preliminary-reports.service';
 import { ProvisioningService } from './provisioning.service';
 
 type Actor = { id: string; email: string };
@@ -22,10 +23,13 @@ type Actor = { id: string; email: string };
  */
 @Injectable()
 export class PlatformLeadsService {
+  private readonly log = new Logger(PlatformLeadsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly provisioning: ProvisioningService,
+    private readonly preliminaryReports: PreliminaryReportsService,
   ) {}
 
   async list(): Promise<PlatformLeadSummary[]> {
@@ -96,7 +100,7 @@ export class PlatformLeadsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    await this.prisma.admin.platformLead.create({
+    const lead = await this.prisma.admin.platformLead.create({
       data: {
         name,
         company: dto.company?.trim() || null,
@@ -117,6 +121,26 @@ export class PlatformLeadsService {
       target: dto.email?.trim() || name,
       meta: { origin: dto.origin ?? 'lp-diagnostico', score: result.score },
     });
+
+    // Relatório Preliminar automático: gera com IA e envia ao lead por e-mail.
+    // Best-effort e em background — NÃO bloqueia a resposta da LP (a IA leva
+    // alguns segundos) e nunca derruba o intake se a IA estiver desligada.
+    if (lead.email) {
+      void this.preliminaryReports
+        .generate({ platformLeadId: lead.id })
+        .then((r) =>
+          this.log.log(
+            `Relatório preliminar do lead ${lead.id} (${lead.email}): status=${r.status}`,
+          ),
+        )
+        .catch((e) =>
+          this.log.warn(
+            `Relatório preliminar automático falhou para ${lead.email}: ${
+              e instanceof Error ? e.message : e
+            }`,
+          ),
+        );
+    }
 
     return { ok: true, result };
   }

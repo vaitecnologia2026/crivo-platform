@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { sendMail } from '../common/mailer';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from './ai-settings.service';
 import { EditableTextsService } from './editable-texts.service';
@@ -16,8 +17,10 @@ const PROMPT_VERSION = 'v1';
  * Relatório Preliminar CRIVO (Briefing §5, Portal §7).
  *
  * Geração via IA (mesmo provider configurado para o Copiloto). Envio por e-mail
- * é graceful: se RESEND_API_KEY estiver no env, envia via Resend; senão marca
- * como PRONTO (não envia) e o operador pode disparar manualmente depois.
+ * é graceful: usa SMTP (Hostinger) ou Resend, conforme configurado (ver
+ * common/mailer); sem provider, marca como PRONTO (não envia) e o operador
+ * dispara manualmente depois. Disparo automático no intake do Diagnóstico
+ * Inicial da LP (PlatformLeadsService.intakeDiagnostic).
  *
  * Control plane — sem RLS. Acesso restrito ao Super Admin (SuperAdminGuard).
  */
@@ -218,49 +221,24 @@ export class PreliminaryReportsService {
     markdown: string;
     footer: string;
   }): Promise<{ ok: boolean; provider: string; reason?: string }> {
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM ?? 'CRIVO <noreply@crivolegacy.com.br>';
-
-    if (!apiKey) {
-      // Modo stub: não envia, só registra. Permite operar sem provider configurado.
-      this.log.warn(
-        `RESEND_API_KEY não configurada. Relatório de "${input.leadName}" não foi enviado a ${input.to}. Configure RESEND_API_KEY no env.`,
-      );
-      return {
-        ok: false,
-        provider: 'stub',
-        reason: 'Envio de e-mail desabilitado (RESEND_API_KEY ausente).',
-      };
-    }
-
     const subject = input.company
       ? `Seu Relatório Preliminar CRIVO — ${input.company}`
       : 'Seu Relatório Preliminar CRIVO';
     const html = renderEmailHtml(input.leadName, input.markdown, input.footer);
-    const text = input.markdown;
 
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from, to: input.to, subject, html, text }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) {
-        const detail = await res.text().catch(() => res.statusText);
-        return { ok: false, provider: 'resend', reason: `HTTP ${res.status}: ${detail}` };
-      }
-      return { ok: true, provider: 'resend' };
-    } catch (e) {
-      return {
-        ok: false,
-        provider: 'resend',
-        reason: e instanceof Error ? e.message : 'Falha de conexão Resend.',
-      };
+    const result = await sendMail({ to: input.to, subject, html, text: input.markdown });
+
+    if (result.provider === 'stub') {
+      // Sem provider: não envia, só registra. Permite operar sem e-mail configurado.
+      this.log.warn(
+        `Nenhum provider de e-mail configurado. Relatório de "${input.leadName}" não foi enviado a ${input.to}. Configure SMTP_* (Hostinger) ou RESEND_API_KEY.`,
+      );
+    } else if (!result.ok) {
+      this.log.warn(
+        `Falha ao enviar relatório de "${input.leadName}" a ${input.to} via ${result.provider}: ${result.reason}`,
+      );
     }
+    return result;
   }
 }
 
