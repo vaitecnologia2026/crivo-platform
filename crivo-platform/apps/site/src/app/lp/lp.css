@@ -2227,6 +2227,51 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (max-width: 420px) { .icd-axes__track { grid-template-columns: 1fr; } }
 
 /* ============================================================
+   Diagnóstico — jornada estratégica + e-book posterior (print Pág. 03)
+   ============================================================ */
+.jornada { margin: 6px auto 40px; max-width: 1000px; }
+.jornada__h {
+  display: block; text-align: center; font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--terra-claro); margin-bottom: 24px;
+}
+.jornada__steps { display: flex; align-items: flex-start; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.jornada-step { display: flex; flex-direction: column; align-items: center; text-align: center; width: 168px; }
+.jornada-step__ic {
+  width: 58px; height: 58px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--terra-claro); background: rgba(255, 255, 255, 0.04); border: 1.5px solid rgba(196, 137, 74, 0.5);
+  margin-bottom: 12px; box-shadow: 0 0 22px -8px rgba(196, 137, 74, 0.5);
+}
+.jornada-step__ic svg { width: 26px; height: 26px; }
+.jornada-step strong { font-family: var(--font-display); font-size: 15px; color: var(--off-white); margin-bottom: 3px; }
+.jornada-step span:last-child { font-size: 12.5px; font-weight: 300; line-height: 1.4; color: var(--text-light-sec); }
+.jornada-arrow { color: var(--terra-claro); font-size: 20px; align-self: center; margin-top: 16px; }
+@media (max-width: 760px) {
+  .jornada-arrow { transform: rotate(90deg); }
+  .jornada__steps { flex-direction: column; align-items: center; }
+}
+
+.ebook-after {
+  display: flex; align-items: center; gap: 30px; margin-top: 44px; padding: 26px 30px; border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(196, 137, 74, 0.3);
+}
+.ebook-after__cover {
+  flex: 0 0 auto; width: 106px; height: 134px; border-radius: 8px;
+  background: linear-gradient(160deg, #15315c, #0a1c38); border: 1px solid rgba(196, 137, 74, 0.4);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px;
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.6);
+}
+.ebook-after__cover svg { width: 36px; height: 33px; }
+.ebook-after__cover strong { font-family: var(--font-word), serif; font-size: 16px; letter-spacing: 0.04em; color: var(--off-white); }
+.ebook-after__cover em { font-style: normal; font-size: 7.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terra-claro); }
+.ebook-after__txt { flex: 1; }
+.ebook-after__txt h3 { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--off-white); margin: 6px 0 8px; line-height: 1.25; }
+.ebook-after__txt p { font-size: 14px; font-weight: 300; line-height: 1.55; color: var(--text-light-sec); margin-bottom: 12px; }
+.ebook-after__txt p strong { color: var(--off-white); font-weight: 600; }
+.ebook-after__note { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--terra-claro); }
+.ebook-after__note svg { width: 17px; height: 17px; flex: 0 0 auto; }
+@media (max-width: 620px) { .ebook-after { flex-direction: column; text-align: center; } }
+
+/* ============================================================
    Soluções — portfólio modular + Diferenciais (print Pág. 07)
    ============================================================ */
 .sol-core { display: flex; justify-content: center; margin: 40px 0 0; }

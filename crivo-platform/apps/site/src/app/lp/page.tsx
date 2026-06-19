@@ -418,64 +418,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== 14 · E-BOOK ===================== */}
-      <section className="section section--light" id="ebook">
-        <div className="container ebook">
-          <div className="ebook__copy">
-            <span className="eyebrow">Material gratuito</span>
-            <h2 className="h2">NR-1, riscos psicossociais e liderança: o que enxergar além da conformidade.</h2>
-            <p className="ebook__lede">
-              Um material direto para entender como fatores psicossociais impactam cultura, liderança, execução e
-              resultados — e como transformar a exigência da NR-1 em diagnóstico, evidências e plano de ação.
-            </p>
-            <ul className="ebook__list">
-              <li>
-                <span>▴</span> O que a NR-1 exige na prática sobre fatores psicossociais
-              </li>
-              <li>
-                <span>▴</span> Como a liderança pode ampliar ou reduzir riscos na rotina
-              </li>
-              <li>
-                <span>▴</span> Como organizar diagnóstico, evidências e plano de ação
-              </li>
-            </ul>
-          </div>
-          <form className="ebook__form" id="ebookForm">
-            <div className="ebook__cover">
-              <svg viewBox="0 0 48 44" fill="none" aria-hidden="true">
-                <line x1="5" y1="37" x2="24" y2="6" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-                <line x1="43" y1="37" x2="24" y2="6" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-                <line x1="5" y1="37" x2="17" y2="37" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-                <line x1="31" y1="37" x2="43" y2="37" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
-                <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
-                <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
-              </svg>
-              <strong>Guia NR-1</strong>
-              <em>para Lideranças · 2026</em>
-            </div>
-            <div className="field">
-              <label htmlFor="eb-nome">Nome</label>
-              <input type="text" id="eb-nome" name="nome" placeholder="Seu nome" required />
-            </div>
-            <div className="field">
-              <label htmlFor="eb-email">E-mail corporativo</label>
-              <input type="email" id="eb-email" name="email" placeholder="nome@empresa.com.br" required />
-            </div>
-            <button type="submit" className="btn btn--terra btn--block">
-              Receber e-book gratuito →
-            </button>
-            <p className="form__lgpd">Sem custo · Sem spam · Dados protegidos pela LGPD</p>
-            <p className="form__success" id="ebookSuccess" role="status" aria-live="polite">
-              Pronto! Enviamos o guia para o seu e-mail corporativo.
-            </p>
-            <p className="form__error" id="ebookError" role="alert" aria-live="assertive">
-              Não foi possível enviar agora. Tente novamente em instantes.
-            </p>
-          </form>
-        </div>
-      </section>
-
-      {/* ===================== 14 · DIAGNÓSTICO INICIAL ===================== */}
+      {/* ===================== 14 · DIAGNÓSTICO INICIAL + E-BOOK (print Pág. 03) ===================== */}
+      {/* Decisão aprovada: o e-book deixa de ser captura isolada. O Diagnóstico Inicial é a
+          conversão principal; o e-book (Guia NR-1) é entregue DEPOIS, como material complementar
+          (card ao final da seção). A jornada de 4 passos torna a sequência explícita. */}
       <section className="section section--accent" id="diagnostico">
         <div className="container">
           <span className="eyebrow eyebrow--terra">Diagnóstico inicial · gratuito</span>
@@ -486,6 +432,44 @@ export default function LandingPage() {
             Em poucos minutos, identifique sinais iniciais de pressão organizacional, riscos psicossociais e
             fragilidades de liderança — com devolutiva por e-mail. Não substitui o CRIVO Diagnóstico™ completo.
           </p>
+
+          {/* Jornada estratégica — 4 passos (print Pág. 03) */}
+          <div className="jornada">
+            <span className="jornada__h">A jornada estratégica</span>
+            <div className="jornada__steps">
+              <div className="jornada-step">
+                <span className="jornada-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                </span>
+                <strong>1.</strong>
+                <span>Preencher dados</span>
+              </div>
+              <span className="jornada-arrow" aria-hidden="true">→</span>
+              <div className="jornada-step">
+                <span className="jornada-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="12" height="17" rx="2" stroke="currentColor" strokeWidth="1.6" /><path d="M9 4V3h6v1M9 10h6M9 14h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                </span>
+                <strong>2.</strong>
+                <span>Responder diagnóstico inicial</span>
+              </div>
+              <span className="jornada-arrow" aria-hidden="true">→</span>
+              <div className="jornada-step">
+                <span className="jornada-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16M8 16l3.5-4 3 2.5L20 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+                <strong>3.</strong>
+                <span>Receber relatório preliminar</span>
+              </div>
+              <span className="jornada-arrow" aria-hidden="true">→</span>
+              <div className="jornada-step">
+                <span className="jornada-step__ic" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15.5H5.5A1.5 1.5 0 0 0 4 21zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v15.5h5.5A1.5 1.5 0 0 1 20 21z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+                </span>
+                <strong>4.</strong>
+                <span>Receber e-book + contato do especialista</span>
+              </div>
+            </div>
+          </div>
 
           <div className="preview-report">
             <div className="preview-report__head">
@@ -683,6 +667,36 @@ export default function LandingPage() {
               Não foi possível enviar agora. Verifique sua conexão e tente novamente.
             </p>
           </form>
+        </div>
+
+        {/* Material complementar — E-book entregue APÓS o diagnóstico (print Pág. 03) */}
+        <div className="container">
+          <div className="ebook-after">
+            <div className="ebook-after__cover" aria-hidden="true">
+              <svg viewBox="0 0 48 44" fill="none">
+                <line x1="5" y1="37" x2="24" y2="6" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
+                <line x1="43" y1="37" x2="24" y2="6" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
+                <line x1="5" y1="37" x2="17" y2="37" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
+                <line x1="31" y1="37" x2="43" y2="37" stroke="#F2F0EC" strokeWidth="2.4" strokeLinecap="round" />
+                <circle cx="24" cy="6" r="3.6" fill="#C4894A" />
+                <circle cx="24" cy="6" r="1.6" fill="#F2F0EC" />
+              </svg>
+              <strong>Guia NR-1</strong>
+              <em>para Lideranças · 2026</em>
+            </div>
+            <div className="ebook-after__txt">
+              <span className="eyebrow eyebrow--terra">Material complementar</span>
+              <h3>O Guia NR-1 reforça a jornada — não substitui a conversão.</h3>
+              <p>
+                Material estratégico para aprofundar o tema. O e-book é enviado <strong>após a conclusão do
+                diagnóstico inicial</strong>, junto com a devolutiva e o próximo passo.
+              </p>
+              <span className="ebook-after__note">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4 4 10-10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                Entrega garantida por e-mail ou WhatsApp
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
