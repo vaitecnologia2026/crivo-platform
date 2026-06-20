@@ -2367,6 +2367,40 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (prefers-reduced-motion: reduce) { .float-cta { animation: none; } }
 
 /* ============================================================
+   Diagnóstico guiado no modal — orientação + 1 pergunta por vez
+   ============================================================ */
+.diag-orient__title { font-family: var(--font-display); font-size: 24px; font-weight: 600; color: var(--azul-profundo); margin: 10px 0 8px; }
+.diag-orient__intro { font-size: 15px; line-height: 1.55; color: var(--text-dark-sec); margin-bottom: 18px; }
+.diag-orient__intro strong { color: var(--azul-profundo); }
+
+.diag-quiz--single .diag-quiz__head { margin-bottom: 12px; align-items: center; }
+.diag-quiz__back { background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--text-dark-sec); padding: 0; }
+.diag-quiz__back:hover { color: var(--terra); }
+.diag-progress { height: 6px; border-radius: 999px; background: rgba(13, 31, 60, 0.08); overflow: hidden; margin-bottom: 22px; }
+.diag-progress i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--terra-claro), var(--terra)); transition: width 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+.diag-single { animation: diagSlide 0.34s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes diagSlide { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+.diag-single__q { font-family: var(--font-display); font-size: 20px; font-weight: 600; line-height: 1.35; color: var(--azul-profundo); min-height: 82px; margin: 0 0 22px; }
+.diag-single__scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.diag-single__opt {
+  aspect-ratio: 1 / 1; border-radius: 14px; border: 1.5px solid var(--line);
+  background: #fff; color: var(--azul-profundo); font-family: var(--font-display); font-size: 26px; font-weight: 600;
+  cursor: pointer; transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.diag-single__opt:hover { border-color: var(--terra); color: var(--terra); transform: translateY(-3px); box-shadow: 0 12px 26px -14px rgba(168, 105, 61, 0.5); }
+.diag-single__opt.is-selected { background: var(--terra); border-color: var(--terra); color: #fff; transform: translateY(-3px) scale(1.04); }
+.diag-single__legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 20px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); }
+.diag-single__legend li { font-size: 12px; color: var(--text-dark-sec); }
+.diag-single__legend b { color: var(--azul-profundo); margin-right: 3px; }
+.diag-single__hint { font-family: var(--font-display); font-style: italic; font-size: 13px; color: var(--terra); margin-top: 12px; text-align: center; }
+@media (max-width: 480px) {
+  .diag-single__scale { gap: 7px; }
+  .diag-single__opt { font-size: 20px; border-radius: 11px; }
+  .diag-single__q { font-size: 18px; min-height: 0; }
+}
+
+/* ============================================================
    Soluções — portfólio modular + Diferenciais (print Pág. 07)
    ============================================================ */
 .sol-core { display: flex; justify-content: center; margin: 40px 0 0; }

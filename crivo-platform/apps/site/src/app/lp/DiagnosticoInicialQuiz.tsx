@@ -13,13 +13,12 @@ import {
 } from "@crivo/types";
 
 /**
- * Diagnóstico Inicial (pré-diagnóstico público da LP) — jornada do cliente:
+ * Diagnóstico Inicial (pré-diagnóstico público da LP) — experiência guiada:
  *   1) form (nome/empresa/telefone/e-mail/funcionários/segmento)
- *   2) responde as 10 perguntas
- *   3) resultado preliminar + "enviado para WhatsApp/e-mail"
- * Ao concluir, o lead é criado AUTOMATICAMENTE no CRM do Super Admin
- * (POST /api/diagnostic-lead → /public/diagnostic-lead). Não substitui o
- * CRIVO Diagnóstico™ completo.
+ *   2) tela de orientação (regras + escala 1–5 via ScaleHelpBox compartilhado)
+ *   3) UMA pergunta por vez — clicou no número, avança de forma fluida
+ *   4) resultado preliminar + "enviado para WhatsApp/e-mail"
+ * Ao concluir, o lead é criado AUTOMATICAMENTE no CRM (POST /api/diagnostic-lead).
  */
 
 type Contact = {
@@ -39,37 +38,60 @@ const SEGMENTS = [
 ];
 
 export function DiagnosticoInicialQuiz() {
-  const [step, setStep] = useState<"form" | "quiz" | "result">("form");
+  const [step, setStep] = useState<"form" | "orientacao" | "quiz" | "result">("form");
   const [contact, setContact] = useState<Contact>({
     name: "", company: "", phone: "", email: "", employeesCount: "", segment: "",
   });
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [idx, setIdx] = useState(0);
+  const [locked, setLocked] = useState(false);
   const [result, setResult] = useState<PreDiagnosticResult | null>(null);
   const [sent, setSent] = useState<"idle" | "sending" | "ok" | "error">("idle");
 
-  const answeredCount = Object.keys(answers).length;
   const total = PRE_DIAGNOSTIC_QUESTIONS.length;
-  const allAnswered = answeredCount === total;
   const formValid = contact.name.trim() && contact.email.trim();
-
   const set = (k: keyof Contact) => (v: string) => setContact((c) => ({ ...c, [k]: v }));
 
-  function startQuiz(e: React.FormEvent) {
+  function startOrientacao(e: React.FormEvent) {
     e.preventDefault();
     if (!formValid) return;
-    setStep("quiz");
-    document.getElementById("diag-resultado")?.scrollIntoView({ behavior: "smooth" });
+    setStep("orientacao");
   }
 
-  async function submitQuiz() {
-    if (!allAnswered) return;
-    const payloadAnswers = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value: answers[q.id] }));
+  function startQuiz() {
+    setIdx(0);
+    setStep("quiz");
+  }
+
+  function responder(value: number) {
+    if (locked) return;
+    const q = PRE_DIAGNOSTIC_QUESTIONS[idx];
+    const next = { ...answers, [q.id]: value };
+    setAnswers(next);
+    setLocked(true);
+    // pequena pausa para o "flash" da seleção antes de deslizar para a próxima
+    window.setTimeout(() => {
+      if (idx < total - 1) {
+        setIdx(idx + 1);
+        setLocked(false);
+      } else {
+        finalizar(next);
+      }
+    }, 260);
+  }
+
+  function voltar() {
+    if (idx > 0) {
+      setIdx(idx - 1);
+      setLocked(false);
+    }
+  }
+
+  async function finalizar(todas: Record<number, number>) {
+    const payloadAnswers = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value: todas[q.id] }));
     const r = computePreDiagnostic(payloadAnswers);
     setResult(r);
     setStep("result");
-    document.getElementById("diag-resultado")?.scrollIntoView({ behavior: "smooth" });
-
-    // Cria o lead AUTOMATICAMENTE no CRM do Super Admin.
     setSent("sending");
     try {
       const res = await fetch("/api/diagnostic-lead", {
@@ -94,12 +116,14 @@ export function DiagnosticoInicialQuiz() {
 
   function reset() {
     setAnswers({});
+    setIdx(0);
+    setLocked(false);
     setResult(null);
     setSent("idle");
     setStep("form");
   }
 
-  // ── PASSO 3: resultado ──
+  // ── RESULTADO ──
   if (step === "result" && result) {
     return (
       <div id="diag-resultado" className="diag-quiz diag-quiz--result">
@@ -150,55 +174,78 @@ export function DiagnosticoInicialQuiz() {
     );
   }
 
-  // ── PASSO 2: perguntas ──
-  if (step === "quiz") {
+  // ── ORIENTAÇÃO ──
+  if (step === "orientacao") {
     return (
-      <div id="diag-resultado" className="diag-quiz">
-        <div className="diag-quiz__head">
-          <span className="eyebrow eyebrow--terra">Leitura preliminar · 2 min</span>
-          <p className="diag-quiz__progress">{answeredCount}/{total} respondidas</p>
-        </div>
-
+      <div className="diag-quiz diag-orient">
+        <span className="eyebrow eyebrow--terra">Diagnóstico Inicial · grátis</span>
+        <h3 className="diag-orient__title">Vamos começar.</h3>
+        <p className="diag-orient__intro">
+          Você vai responder agora, de forma muito prática, <strong>10 perguntas</strong> que vão gerar o seu primeiro
+          diagnóstico.
+        </p>
         <ScaleHelpBox scale={PRE_DIAGNOSTIC_SCALE} />
-        <ol className="diag-quiz__questions">
-          {PRE_DIAGNOSTIC_QUESTIONS.map((q) => (
-            <li key={q.id} className="diag-quiz__q">
-              <p className="diag-quiz__q-text">{q.text}</p>
-              <div className="diag-quiz__scale" role="radiogroup" aria-label={q.text}>
-                {PRE_DIAGNOSTIC_SCALE.map((opt) => {
-                  const selected = answers[q.id] === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      title={opt.label}
-                      className={`diag-quiz__opt${selected ? " is-selected" : ""}`}
-                      onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt.value }))}
-                    >
-                      {opt.value}
-                    </button>
-                  );
-                })}
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        <button type="button" className="btn btn--terra btn--block" disabled={!allAnswered} onClick={submitQuiz}>
-          {allAnswered ? "Ver meu resultado →" : `Responda todas (${answeredCount}/${total})`}
+        <button type="button" className="btn btn--terra btn--block" onClick={startQuiz}>
+          Avançar →
         </button>
       </div>
     );
   }
 
-  // ── PASSO 1: formulário ──
+  // ── PERGUNTAS (uma de cada vez) ──
+  if (step === "quiz") {
+    const q = PRE_DIAGNOSTIC_QUESTIONS[idx];
+    const selected = answers[q.id];
+    return (
+      <div className="diag-quiz diag-quiz--single">
+        <div className="diag-quiz__head">
+          <span className="eyebrow eyebrow--terra">Pergunta {idx + 1} de {total}</span>
+          {idx > 0 && (
+            <button type="button" className="diag-quiz__back" onClick={voltar}>
+              ← Voltar
+            </button>
+          )}
+        </div>
+        <div className="diag-progress" aria-hidden="true">
+          <i style={{ width: `${(idx / total) * 100}%` }} />
+        </div>
+
+        <div className="diag-single" key={idx}>
+          <p className="diag-single__q">{q.text}</p>
+          <div className="diag-single__scale" role="radiogroup" aria-label={q.text}>
+            {PRE_DIAGNOSTIC_SCALE.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={selected === opt.value}
+                title={opt.label}
+                className={`diag-single__opt${selected === opt.value ? " is-selected" : ""}`}
+                onClick={() => responder(opt.value)}
+              >
+                {opt.value}
+              </button>
+            ))}
+          </div>
+          {/* observação sobre a avaliação dos números — sempre embaixo */}
+          <ul className="diag-single__legend" aria-hidden="true">
+            {PRE_DIAGNOSTIC_SCALE.map((s) => (
+              <li key={s.value}>
+                <b>{s.value}</b> {s.label}
+              </li>
+            ))}
+          </ul>
+          <p className="diag-single__hint">Clique no número para avançar.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── FORMULÁRIO (dados) ──
   return (
-    <form className="diag-quiz diag-form" onSubmit={startQuiz}>
+    <form className="diag-quiz diag-form" onSubmit={startOrientacao}>
       <div className="diag-quiz__head">
         <span className="eyebrow eyebrow--terra">Diagnóstico Inicial · grátis</span>
-        <p className="diag-quiz__progress">Passo 1 de 2</p>
       </div>
       <p className="diag-form__lead">
         Preencha seus dados para iniciar a leitura preliminar. O resultado é enviado para seu e-mail ou WhatsApp.
@@ -238,7 +285,7 @@ export function DiagnosticoInicialQuiz() {
       </div>
 
       <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
-        Fazer diagnóstico inicial →
+        Avançar →
       </button>
     </form>
   );
