@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
 import { DiagnosticoModal } from "../lp/DiagnosticoModal";
+import { LpFloaters } from "../lp/LpFloaters";
 
 // Navegação principal compartilhada (header azul-marinho + submenus em hover no
 // desktop; menu hambúrguer no mobile via checkbox-hack, sem JS).
@@ -113,6 +114,7 @@ export function SiteNav() {
       </div>
     </header>
     <DiagnosticoModal />
+    <LpFloaters />
     </>
   );
 }
