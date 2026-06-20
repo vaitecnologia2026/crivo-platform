@@ -8,6 +8,8 @@ import type {
   ContractData,
   CreateMentoriaRequest,
   CreateTenantRequest,
+  CreateUserRequest,
+  CreateUserResult,
   EditableTextData,
   GeneratePreliminaryReportRequest,
   GlobalAcademyContentData,
@@ -26,6 +28,8 @@ import type {
   TenantSummary,
   UpdateBrandingRequest,
   UpdateMentoriaRequest,
+  UpdateUserRequest,
+  UserSummary,
   UpsertActionTemplateRequest,
   UpsertAiSettingsRequest,
   UpsertContractRequest,
@@ -162,6 +166,35 @@ export function setTenantPlan(id: string, plan: Plan): Promise<TenantSummary> {
 
 export function getTenantUsage(id: string): Promise<UsageSummary> {
   return adminFetch<UsageSummary>(`/admin/tenants/${id}/usage`);
+}
+
+// ── Usuários da empresa (gestão pelo Super Admin) ──
+
+export function listTenantUsers(tenantId: string): Promise<UserSummary[]> {
+  return adminFetch<UserSummary[]>(`/admin/tenants/${tenantId}/users`);
+}
+
+/** Cria um usuário na empresa (senha temporária retornada 1× se ausente). */
+export function createTenantUser(
+  tenantId: string,
+  body: CreateUserRequest,
+): Promise<CreateUserResult> {
+  return adminFetch<CreateUserResult>(`/admin/tenants/${tenantId}/users`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/** Atualiza papel / (des)ativa um usuário da empresa. */
+export function updateTenantUser(
+  tenantId: string,
+  id: string,
+  body: UpdateUserRequest,
+): Promise<UserSummary> {
+  return adminFetch<UserSummary>(`/admin/tenants/${tenantId}/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 // ── Visão geral + auditoria (control plane) ──

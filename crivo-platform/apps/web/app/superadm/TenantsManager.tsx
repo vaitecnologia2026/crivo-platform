@@ -15,6 +15,7 @@ import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
 import { BrandingModal } from "./BrandingModal";
 import { ContractModal } from "./ContractModal";
+import { TenantUsersModal } from "./TenantUsersModal";
 
 const STATUS_LABEL: Record<TenantStatus, string> = {
   ACTIVE: "Ativa",
@@ -38,6 +39,7 @@ export function TenantsManager({
   const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
   const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
   const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
+  const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -182,6 +184,9 @@ export function TenantsManager({
                         {t.status !== "DELETED" && (
                           <ActionLink onClick={() => setBrandingOf(t)}>Marca</ActionLink>
                         )}
+                        {t.status !== "DELETED" && (
+                          <ActionLink onClick={() => setUsersOf(t)}>Usuários</ActionLink>
+                        )}
                         {t.status === "ACTIVE" ? (
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
                             Bloquear
@@ -227,6 +232,8 @@ export function TenantsManager({
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
 
       {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
+
+      {usersOf && <TenantUsersModal tenant={usersOf} onClose={() => setUsersOf(null)} />}
     </div>
   );
 }

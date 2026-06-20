@@ -28,6 +28,8 @@ import {
   MentoriasController,
 } from './super-admin-extras.controller';
 import { MentoriasService } from './mentorias.service';
+import { AdminUsersController } from './admin-users.controller';
+import { AdminUsersService } from './admin-users.service';
 import { ActionTemplatesService } from './action-templates.service';
 import { EditableTextsService } from './editable-texts.service';
 import { GlobalAcademyService } from './global-academy.service';
@@ -52,6 +54,7 @@ import { GlobalAcademyService } from './global-academy.service';
     ActionTemplatesController,
     EditableTextsController,
     GlobalAcademyController,
+    AdminUsersController,
   ],
   providers: [
     AdminAuthService,
@@ -68,6 +71,7 @@ import { GlobalAcademyService } from './global-academy.service';
     SuperAdminGuard,
     PreliminaryReportsService,
     MentoriasService,
+    AdminUsersService,
     ActionTemplatesService,
     EditableTextsService,
     GlobalAcademyService,
