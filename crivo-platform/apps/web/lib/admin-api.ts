@@ -372,6 +372,9 @@ export function generatePreliminaryReport(dto: GeneratePreliminaryReportRequest)
   return adminFetch<PreliminaryReportData>("/admin/preliminary-reports/generate", {
     method: "POST",
     body: JSON.stringify(dto),
+    // Geração via IA leva mais que o timeout padrão (15s). Espera até 60s
+    // (alinhado ao maxDuration da função serverless da API).
+    signal: AbortSignal.timeout(60000),
   });
 }
 

@@ -6,6 +6,10 @@ import express, { type Express } from 'express';
 import { AppModule } from '../src/app.module';
 import { applyAppConfig } from '../src/setup';
 
+// Permite à função rodar até 60s — geração do Relatório Preliminar via IA leva
+// mais que o padrão (~10s) da Vercel. (Plano permite até 60s; Pro até 300s.)
+export const config = { maxDuration: 60 };
+
 // Cacheia a instância Nest entre invocações da mesma função serverless (warm start).
 let cached: Express | null = null;
 

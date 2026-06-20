@@ -1518,6 +1518,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   font-style: normal; background: var(--line-soft); color: var(--text-sec);
   padding: 1px 8px; border-radius: 999px; font-size: 11px;
 }
+.kb-col__help {
+  margin: -2px 4px 2px; font-size: 10.5px; line-height: 1.4; font-weight: 400;
+  color: var(--text-sec); opacity: 0.82; text-transform: none; letter-spacing: 0;
+}
 .kb-card {
   background: var(--bg-elev); border: 1px solid var(--line);
   border-radius: var(--r-md); padding: 14px; box-shadow: var(--shadow-1);

@@ -73,6 +73,11 @@ export class PreliminaryReportsService {
         'IA não está configurada/ativa. Configure em Super Admin · Configurações de IA.',
       );
     }
+    // Relatório é curto (600–900 palavras) → modelo RÁPIDO para caber no limite
+    // da função serverless (60s). Mantém o configurado só se for da família "4o"
+    // (rápida); gpt-4/gpt-4-turbo legados (lentos → timeout) caem p/ gpt-4o-mini.
+    const cfg = settings.model || 'gpt-4o-mini';
+    const reportModel = cfg.includes('4o') ? cfg : 'gpt-4o-mini';
 
     // Cria registro em GERANDO para acompanhamento (UI pode polar).
     const report = await this.prisma.admin.preliminaryReport.create({
@@ -83,7 +88,7 @@ export class PreliminaryReportsService {
         diagnosticDimensions: diagnostic.byDimension as unknown as object,
         topAttention: diagnostic.topAttention,
         content: '',
-        modelVersion: settings.model || 'gpt-4o-mini',
+        modelVersion: reportModel,
         promptVersion: PROMPT_VERSION,
         status: 'GERANDO',
       },
@@ -91,7 +96,7 @@ export class PreliminaryReportsService {
 
     let content: string;
     try {
-      content = await this.callAi(lead, diagnostic, settings.model || 'gpt-4o-mini');
+      content = await this.callAi(lead, diagnostic, reportModel);
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Falha desconhecida ao gerar relatório.';
       const errored = await this.prisma.admin.preliminaryReport.update({
@@ -186,20 +191,30 @@ export class PreliminaryReportsService {
     const system = buildSystemPrompt();
     const user = buildUserMessage(lead, diagnostic);
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        temperature: 0.4,
-        max_tokens: 2400,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
+    let res: Response;
+    try {
+      res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          temperature: 0.4,
+          max_tokens: 2000,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+        signal: AbortSignal.timeout(55000),
+      });
+    } catch (e) {
+      if (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+        throw new Error(
+          'A IA demorou demais para responder. Tente novamente; se persistir, escolha um modelo mais rápido (gpt-4o-mini) em Configurações de IA.',
+        );
+      }
+      throw e;
+    }
 
     if (!res.ok) {
       if (res.status === 401) throw new Error('Token de IA inválido.');

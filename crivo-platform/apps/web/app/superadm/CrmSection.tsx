@@ -22,6 +22,22 @@ const ALL_STAGES: PlatformLeadStage[] = [...BOARD, "PRE_DIAGNOSTICO", "REUNIAO",
 // Estágios legados que aparecem dentro de "Oportunidade" no board.
 const FOLD_INTO_OPORTUNIDADE: PlatformLeadStage[] = ["PRE_DIAGNOSTICO", "REUNIAO"];
 
+// Legenda curta de cada passo do funil — ajuda o operador a entender o que cada
+// coluna significa e quando mover o lead para a próxima.
+const STAGE_HELP: Partial<Record<PlatformLeadStage, string>> = {
+  NOVO: "Lead recém-chegado, ainda sem contato ou qualificação.",
+  OPORTUNIDADE: "Em conversa/qualificação — pré-diagnóstico ou reunião.",
+  PROPOSTA: "Proposta comercial enviada, aguardando decisão.",
+  FECHADO: "Negócio ganho — pronto para virar contrato e cliente.",
+  CONTRATO: "Contrato assinado e formalização concluída.",
+  ONBOARDING: "Boas-vindas e coleta dos dados iniciais do cliente.",
+  IMPLANTACAO: "Configuração e ativação do sistema/serviço.",
+  ENTREGA: "Primeira entrega/diagnóstico concluído ao cliente.",
+  SUSTENTACAO: "Acompanhamento contínuo e suporte ativo.",
+  RENOVACAO: "Ciclo perto do fim — hora de renovar o contrato.",
+  UPSELL: "Oportunidade de ampliar (novos módulos ou serviços).",
+};
+
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
@@ -131,6 +147,7 @@ export function CrmSection() {
                     {PLATFORM_LEAD_STAGE_LABEL[stage]}
                     <em>{items.length}</em>
                   </div>
+                  {STAGE_HELP[stage] && <p className="kb-col__help">{STAGE_HELP[stage]}</p>}
                   {items.map((l) => (
                     <article
                       key={l.id}
@@ -161,7 +178,7 @@ export function CrmSection() {
                         ))}
                       </select>
                       {l.convertedTenantId ? (
-                        <span className="kb-converted">✓ Cliente provisionado</span>
+                        <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
                       ) : (
                         <button type="button" className="kb-convert" onClick={() => setConverting(l)}>
                           Converter em cliente →
@@ -257,7 +274,7 @@ function ConvertModal({
     <div className="modal-backdrop" onClick={done ? onConverted : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
-          <h2>{done ? "Cliente provisionado ✓" : "Converter em cliente"}</h2>
+          <h2>{done ? "Cliente Habilitado ✓ · sistema liberado" : "Converter em cliente"}</h2>
           <button className="icon-btn" onClick={done ? onConverted : onClose} title="Fechar">✕</button>
         </header>
 
