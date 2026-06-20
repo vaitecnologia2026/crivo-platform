@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ScaleHelpBox } from "@crivo/ui";
 import {
   computePreDiagnostic,
   MATURITY_LABEL,
@@ -184,7 +183,18 @@ export function DiagnosticoInicialQuiz() {
           Você vai responder agora, de forma muito prática, <strong>10 perguntas</strong> que vão gerar o seu primeiro
           diagnóstico.
         </p>
-        <ScaleHelpBox scale={PRE_DIAGNOSTIC_SCALE} />
+        <div className="diag-rules">
+          <span className="diag-rules__h">Como responder</span>
+          <p className="diag-rules__p">Use a escala abaixo para avaliar a realidade atual da sua empresa.</p>
+          <ul className="diag-rules__scale">
+            {PRE_DIAGNOSTIC_SCALE.map((s) => (
+              <li key={s.value} className="diag-rules__item">
+                <span className="diag-rules__n">{s.value}</span>
+                <span className="diag-rules__l">{s.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
         <button type="button" className="btn btn--terra btn--block" onClick={startQuiz}>
           Avançar →
         </button>
