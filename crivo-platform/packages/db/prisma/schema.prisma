@@ -25,6 +25,8 @@ enum Role {
   CONSULTOR
   MENTOR
   ACADEMIA
+  FINANCEIRO
+  VISUALIZADOR
 }
 
 enum Plan {

@@ -12,6 +12,8 @@ export const ROLES = [
   'CONSULTOR', // Consultor CRIVO — acompanha o cliente, aplica diagnóstico e parecer.
   'MENTOR',    // Mentor — conduz mentorias e cura conteúdo da Academia.
   'ACADEMIA',  // Usuário Academia — acesso restrito à Academia CRIVO (conteúdo).
+  'FINANCEIRO',   // Financeiro — leitura de pipeline/biblioteca (sem módulo financeiro dedicado ainda).
+  'VISUALIZADOR', // Visualizador — somente leitura, transversal.
 ] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -58,6 +60,10 @@ export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
   MENTOR: ["icd:view", "library:view", "library:manage"],
   // Usuário Academia: acesso restrito ao conteúdo da Academia CRIVO.
   ACADEMIA: ["library:view"],
+  // Financeiro: leitura de pipeline e biblioteca (sem módulo financeiro dedicado ainda).
+  FINANCEIRO: ["leads:view", "library:view"],
+  // Visualizador: somente leitura, transversal.
+  VISUALIZADOR: ["leads:view", "icd:view", "users:view", "library:view", "parecer:view"],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -71,6 +77,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   CONSULTOR: "Consultor CRIVO",
   MENTOR: "Mentor",
   ACADEMIA: "Usuário Academia",
+  FINANCEIRO: "Financeiro",
+  VISUALIZADOR: "Visualizador",
 };
 
 // ── Gestão de usuários da empresa (time) ──
