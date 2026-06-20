@@ -3,8 +3,8 @@
 import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
-import type { LoginResponse } from "@crivo/types";
-import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, setToken, clearToken } from "@/lib/api";
+import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
+import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken } from "@/lib/api";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -16,6 +16,23 @@ function readCachedRole(): string | null {
 }
 function clearCachedRole() {
   try { localStorage.removeItem(ROLE_STORAGE_KEY); } catch { /* noop */ }
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "—";
+}
+/** Atualiza o chip do usuário no header com o usuário REAL do tenant logado —
+ *  corrige o placeholder "Rafael Moreira" que vinha fixo no markup (multi-empresa). */
+function applyUserChip(name: string, role: string) {
+  const chip = document.querySelector(".user-chip");
+  if (!chip) return;
+  const nameEl = chip.querySelector("strong");
+  const roleEl = chip.querySelector("span");
+  const avatar = chip.querySelector(".user-chip__avatar");
+  if (nameEl && name) nameEl.textContent = name;
+  if (roleEl) roleEl.textContent = ROLE_LABELS[role as Role] ?? role;
+  if (avatar && name) avatar.textContent = initialsOf(name);
 }
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
@@ -205,15 +222,18 @@ export function Plataforma() {
     const enterApp = async (role: string | null): Promise<void> => {
       let accessLoaded = false;
       try {
-        const [mods, perms, screens, branding] = await Promise.all([
+        const [mods, perms, screens, branding, me] = await Promise.all([
           getMyModules(),
           getMyPermissions(),
           getMyScreens(),
           getMyBranding(),
+          getMyRole().catch(() => null),
         ]);
         enabledModules = new Set(mods);
         permissions = new Set(perms);
         allowedScreens = screens && screens.length ? new Set(screens) : null;
+        // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
+        if (me) applyUserChip(me.name, me.role);
         applyModuleVisibility();
         removeBranding?.();
         removeBranding = applyBranding(branding);
