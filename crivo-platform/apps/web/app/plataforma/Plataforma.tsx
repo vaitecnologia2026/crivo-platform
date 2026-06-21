@@ -222,11 +222,13 @@ export function Plataforma() {
     const enterApp = async (role: string | null): Promise<void> => {
       let accessLoaded = false;
       try {
+        // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
+        // o Promise.all inteiro e pular o applyUserChip / a visibilidade.
         const [mods, perms, screens, branding, me] = await Promise.all([
-          getMyModules(),
-          getMyPermissions(),
-          getMyScreens(),
-          getMyBranding(),
+          getMyModules().catch(() => [] as string[]),
+          getMyPermissions().catch(() => [] as string[]),
+          getMyScreens().catch(() => null),
+          getMyBranding().catch(() => null),
           getMyRole().catch(() => null),
         ]);
         enabledModules = new Set(mods);
@@ -285,6 +287,9 @@ export function Plataforma() {
         );
         setToken(r.token);
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
+        // Header com o usuário REAL do login JÁ — robusto: não depende dos
+        // fetches de acesso do enterApp (que podem falhar/competir e pular o chip).
+        applyUserChip(r.user.name, r.user.role);
         const homeRole: string | null = r.user.role ?? null;
         if (homeRole) cacheRole(homeRole);
         // Mesma entrada da restauração de sessão: carrega acesso → HOME por papel.
