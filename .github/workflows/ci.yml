@@ -3,15 +3,21 @@ name: CI
 # Quality gate — roda em todo push na main e em todo PR.
 # Como o deploy é manual (Vercel) e a API auto-deploya no push (Railway),
 # este gate é a ÚNICA rede de proteção antes do código chegar perto de produção.
+#
+# OBS: o monorepo vive no subdiretório `crivo-platform/` deste repositório,
+# então os passos `run` rodam com working-directory nessa pasta.
 on:
   push:
     branches: [main]
   pull_request:
 
-# Cancela execuções antigas do mesmo ref quando chega um push novo.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: crivo-platform
 
 jobs:
   quality:
@@ -36,6 +42,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: crivo-platform/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
