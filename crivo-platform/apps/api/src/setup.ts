@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 
-/** Config compartilhada entre o bootstrap local (main.ts) e o serverless (api/index.ts). */
+/** Config compartilhada do bootstrap da API (helmet, CORS, ValidationPipe, prefixo /api). */
 export function applyAppConfig(app: INestApplication) {
   app.use(helmet());
   app.setGlobalPrefix('api');
