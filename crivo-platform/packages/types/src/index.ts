@@ -428,7 +428,7 @@ export const PRE_DIAGNOSTIC_QUESTIONS: PreDiagnosticQuestion[] = [
   { id: 6, dimension: 'cultura_comunicacao', text: 'A comunicação entre áreas favorece alinhamento, cooperação e tomada de decisão com clareza?' },
   { id: 7, dimension: 'fatores_psicossociais', text: 'A empresa já monitora sinais como afastamentos, turnover, conflitos, clima, queda de produtividade ou adoecimento relacionado ao trabalho?' },
   { id: 8, dimension: 'fatores_psicossociais', text: 'Existem ações estruturadas para identificar, registrar e tratar fatores psicossociais relacionados ao trabalho?' },
-  { id: 9, dimension: 'governanca_plano', text: 'A empresa possui responsáveis, prazos, evidências e acompanhamento para tratar riscos humanos, culturais e organizacionais?' },
+  { id: 9, dimension: 'governanca_plano', text: 'A empresa possui responsáveis, prazos, evidências e acompanhamento para tratar riscos psicossociais, culturais e organizacionais?' },
   { id: 10, dimension: 'governanca_plano', text: 'Os temas de liderança, cultura, riscos psicossociais e resultados são acompanhados de forma contínua pela gestão?' },
 ];
 

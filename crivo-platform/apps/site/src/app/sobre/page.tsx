@@ -93,7 +93,7 @@ export default function SobrePage() {
                   cultura, performance e resultados.
                 </p>
                 <p>
-                  Transformamos padrões invisíveis de risco humano em inteligência aplicável para lideranças que
+                  Transformamos padrões invisíveis de decisão em inteligência aplicável para lideranças que
                   precisam decidir melhor em contextos reais.
                 </p>
               </div>
