@@ -366,7 +366,12 @@ export function AppSection() {
                   <div className="phone__bar" aria-hidden="true">
                     <span>9:41</span>
                     <span className="phone__brand">CRIVO</span>
-                    <span>▤ ▦ ▮</span>
+                    <span className="phone__status" aria-hidden="true">
+                      <svg width="30" height="10" viewBox="0 0 31 10" fill="currentColor">
+                        <rect x="0" y="6" width="2" height="4" rx=".5" /><rect x="3.5" y="4" width="2" height="6" rx=".5" /><rect x="7" y="2" width="2" height="8" rx=".5" /><rect x="10.5" y="0" width="2" height="10" rx=".5" />
+                        <rect x="17" y="1.5" width="11" height="7" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1" /><rect x="18.5" y="3" width="6.5" height="4" rx=".5" /><rect x="29.4" y="3.4" width="1.3" height="3.2" rx=".6" />
+                      </svg>
+                    </span>
                   </div>
                   <div className="phone__greet">
                     <span className="phone__hello">Bom dia, Líder.</span>
@@ -379,11 +384,21 @@ export function AppSection() {
                   </div>
                   <span className="phone__label">Em destaque</span>
                   <div className="phone__card">
-                    <span className="phone__tag">◎ Radar da Decisão</span>
+                    <span className="phone__tag">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ verticalAlign: "-1px", marginRight: 5 }}>
+                        <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" />
+                      </svg>
+                      Radar da Decisão
+                    </span>
                     <span className="phone__sub">2 sinais críticos detectados</span>
                   </div>
                   <div className="phone__card">
-                    <span className="phone__tag">◳ CRIVO Pocket</span>
+                    <span className="phone__tag">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true" style={{ verticalAlign: "-1px", marginRight: 5 }}>
+                        <path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z" />
+                      </svg>
+                      CRIVO Pocket
+                    </span>
                     <span className="phone__sub">Novo microaprendizado disponível</span>
                   </div>
                   <span className="phone__label">Seu plano</span>

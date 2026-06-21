@@ -234,7 +234,7 @@ export function DiagnosticoInicialQuiz() {
           )}
         </div>
         <div className="diag-progress" aria-hidden="true">
-          <i style={{ width: `${(idx / total) * 100}%` }} />
+          <i style={{ width: `${((idx + 1) / total) * 100}%` }} />
         </div>
 
         <div className="diag-single" key={idx}>

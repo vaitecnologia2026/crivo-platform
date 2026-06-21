@@ -32,7 +32,7 @@ export function SiteFooter() {
           <h5>Plataforma</h5>
           <ul>
             <li><Link href="/plataforma#portal">Portal Executivo</Link></li>
-            <li><Link href="/plataforma#dashboard">Dashboard Executivo</Link></li>
+            <li><Link href="/plataforma#portal">Dashboard Executivo</Link></li>
             <li><Link href="/plataforma#app">App CRIVO</Link></li>
             <li><Link href="/plataforma#app">Pocket CRIVO</Link></li>
             <li><Link href="/plataforma#ecossistema">Academia CRIVO</Link></li>
@@ -42,7 +42,7 @@ export function SiteFooter() {
         <div>
           <h5>Conteúdos</h5>
           <ul>
-            <li><Link href="/lp#ebook">E-book</Link></li>
+            <li><Link href="/lp#diagnostico">E-book</Link></li>
             <li><Link href="/plataforma#ecossistema">Materiais gratuitos</Link></li>
             <li><Link href="/lp#faq">FAQ</Link></li>
             <li><Link href="/plataforma#ecossistema">Artigos e eventos</Link></li>
