@@ -9,6 +9,11 @@ import type {
   CreateActionItemRequest,
   CreateActionPlanRequest,
   CreateCampaignRequest,
+  DecisionData,
+  DecisionInput,
+  DecisionCategory,
+  AffectedAudience,
+  DecisionIcdData,
   CreatePocketSessionRequest,
   CreateEvidenceRequest,
   CreateEssentialRecordRequest,
@@ -625,4 +630,32 @@ export async function submitPublicPsychosocial(
     throw new Error(err.message ?? 'Falha ao enviar');
   }
   return res.json();
+}
+
+// ── Registro de Decisões (Anexo ICD §5–§9) — front door dos 4 Eixos ──
+export function listDecisions(): Promise<DecisionData[]> {
+  return apiFetch<DecisionData[]>('/decisions');
+}
+export function createDecision(dto: DecisionInput): Promise<DecisionData> {
+  return apiFetch<DecisionData>('/decisions', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function listDecisionCategories(): Promise<DecisionCategory[]> {
+  return apiFetch<DecisionCategory[]>('/decisions/categories');
+}
+export function listDecisionAudiences(): Promise<AffectedAudience[]> {
+  return apiFetch<AffectedAudience[]>('/decisions/audiences');
+}
+/** Submete as 8 respostas P1–P8 → calcula e persiste o ICD da decisão (4 Eixos). */
+export function submitDecisionIcd(
+  decisionId: string,
+  answers: { id: string; value: number }[],
+): Promise<DecisionIcdData> {
+  return apiFetch<DecisionIcdData>(`/decisions/${decisionId}/icd`, {
+    method: 'POST',
+    body: JSON.stringify({ answers }),
+  });
+}
+/** ICD persistido de uma decisão (null se ainda não avaliada). */
+export function getDecisionIcd(decisionId: string): Promise<DecisionIcdData | null> {
+  return apiFetch<DecisionIcdData | null>(`/decisions/${decisionId}/icd`);
 }

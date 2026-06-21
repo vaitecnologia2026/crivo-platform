@@ -131,6 +131,13 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Desenvolvimento', current: 'Área do Líder' },
       },
       {
+        route: 'decisoes',
+        label: 'Registro de Decisões',
+        icon: '◬',
+        module: 'icd',
+        breadcrumb: { path: 'Desenvolvimento', current: 'Registro de Decisões' },
+      },
+      {
         route: 'pocket',
         label: 'Pocket CRIVO',
         icon: '◐',

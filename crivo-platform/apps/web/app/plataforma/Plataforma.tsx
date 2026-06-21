@@ -36,6 +36,7 @@ function applyUserChip(name: string, role: string) {
 }
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
+import { DecisaoScreen } from "./DecisaoScreen";
 import { IcdScreen } from "./IcdScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
@@ -170,6 +171,7 @@ export function Plataforma() {
       // §16: CRM é interno da CRIVO (Super Admin), fora do portal do cliente.
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);
+      if (name === "decisoes") mountIsland("decisoes-root", <DecisaoScreen />);
       if (name === "biblioteca") mountIsland("biblioteca-root", <BibliotecaScreen />);
       if (name === "relatorios") mountIsland("relatorios-root", <PlanoAcaoScreen />);
       if (name === "essencial") mountIsland("essencial-root", <DiagnosticoEssencialScreen />);

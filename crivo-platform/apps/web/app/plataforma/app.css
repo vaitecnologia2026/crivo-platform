@@ -292,6 +292,32 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .eixos-legacy-h { font-size: 13px; font-weight: 700; color: var(--text); margin: 18px 0 8px; }
 @media (max-width: 640px) { .eixos-grid { grid-template-columns: 1fr; } }
 
+/* Registro de Decisões — avaliação ICD (8 afirmações P1–P8) + chips de público */
+.icd-aval { margin-top: 12px; padding: 14px 16px; background: var(--line-soft); border-radius: var(--r-lg); }
+.icd-aval__q { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.icd-aval__q:last-of-type { border-bottom: 0; }
+.icd-aval__qhead { display: block; font-size: 13px; color: var(--text); margin-bottom: 8px; line-height: 1.45; }
+.icd-aval__qhead em {
+  display: inline-block; font-style: normal; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-deep); margin-right: 8px;
+}
+.icd-aval__scale { display: flex; gap: 6px; }
+.icd-aval__opt {
+  width: 38px; height: 38px; border: 1px solid var(--line); background: #fff;
+  border-radius: var(--r-sm); font-weight: 700; color: var(--text-sec); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.icd-aval__opt:hover { border-color: var(--gold); }
+.icd-aval__opt.is-on { background: var(--gold); border-color: var(--gold); color: #fff; }
+.dec-aud { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.dec-aud__chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px;
+  border: 1px solid var(--line); background: #fff; border-radius: 999px; font-size: 13px;
+  color: var(--text-sec); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.dec-aud__chip.is-on { background: rgba(196, 154, 91, 0.14); border-color: var(--gold); color: var(--gold-deep); }
+@media (max-width: 640px) { .icd-aval__opt { width: 32px; height: 34px; } }
+
 /* Select de estágio nos cards do CRM (CrmScreen) */
 .kb-stage {
   font-size: 11px; padding: 3px 6px; border-radius: 8px;
