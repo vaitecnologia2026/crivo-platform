@@ -34,10 +34,12 @@ export class DocumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async context(tenantId: string) {
+    // rls-allow: contract é control-plane (owner-only); self-scoped por organizationId = tenantId.
     const contract = await this.prisma.admin.contract.findFirst({
       where: { organizationId: tenantId },
       orderBy: { createdAt: 'desc' },
     });
+    // rls-allow: organization é raiz do tenant (control-plane); leitura self-scoped por id=tenantId.
     const org = await this.prisma.admin.organization.findUnique({ where: { id: tenantId } });
     const plans = await this.prisma.forTenant(tenantId, (tx) =>
       tx.actionPlan.findMany({

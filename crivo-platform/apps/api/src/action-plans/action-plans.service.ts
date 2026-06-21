@@ -94,7 +94,7 @@ export class ActionPlansService {
     planId: string,
     templateId: string,
   ): Promise<ActionItemData> {
-    // Catálogo global — control plane, sem RLS.
+    // rls-allow: actionTemplate é catálogo GLOBAL (control-plane, sem RLS).
     const template = await this.prisma.admin.actionTemplate.findUnique({
       where: { id: templateId },
     });
@@ -269,6 +269,7 @@ export class ActionPlansService {
       return (top ? top[0] : null) as DominantPattern | null;
     });
 
+    // rls-allow: actionTemplate é catálogo GLOBAL (control-plane, sem RLS).
     const all = await this.prisma.admin.actionTemplate.findMany({
       where: { active: true },
       orderBy: [{ category: 'asc' }, { title: 'asc' }],

@@ -76,6 +76,7 @@ export class LibraryService {
    *  a biblioteca do tenant. Idempotente: se a URL já estiver na biblioteca,
    *  devolve o existente em vez de duplicar. */
   async importFromGlobal(tenantId: string, contentId: string): Promise<LibraryItemData> {
+    // rls-allow: globalAcademyContent é catálogo GLOBAL do super admin (control-plane).
     const content = await this.prisma.admin.globalAcademyContent.findUnique({
       where: { id: contentId },
     });

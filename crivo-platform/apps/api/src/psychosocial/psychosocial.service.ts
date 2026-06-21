@@ -101,7 +101,7 @@ export class PsychosocialService {
 
   /** Resolve um slug público → nome da empresa + perguntas (sem auth, sem dados internos). */
   async getPublicBySlug(slug: string) {
-    // Bypass RLS: endpoint público, sem tenant no contexto.
+    // rls-allow: endpoint público anônimo (/q/<slug>), sem tenant no contexto; resolve slug→nome (select mínimo).
     const org = await this.prisma.admin.organization.findUnique({
       where: { psychosocialSlug: slug },
       select: { name: true },
@@ -112,6 +112,7 @@ export class PsychosocialService {
 
   /** Submissão pública anônima via slug. Resolve o tenant e grava sob a RLS dele. */
   async submitPublic(slug: string, dto: SubmitPsychosocialDto) {
+    // rls-allow: endpoint público anônimo; resolve slug→tenantId. submit() grava sob a RLS do tenant.
     const org = await this.prisma.admin.organization.findUnique({
       where: { psychosocialSlug: slug },
       select: { id: true },

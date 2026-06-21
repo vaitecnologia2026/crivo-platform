@@ -293,7 +293,7 @@ export class IcdService {
 
   /** Info pública por slug — SEM auth. Não vaza score/respondentes individuais. */
   async getPublicBySlug(slug: string) {
-    // Bypass RLS porque é endpoint público (sem tenantId no contexto).
+    // rls-allow: endpoint público (sem tenantId no contexto); resolve campanha por slug, sem score individual.
     const cycle = await this.prisma.admin.assessmentCycle.findUnique({
       where: { publicSlug: slug },
       include: { org: { select: { name: true } } },

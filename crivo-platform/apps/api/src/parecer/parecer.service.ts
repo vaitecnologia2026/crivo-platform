@@ -104,6 +104,7 @@ export class ParecerService {
     if (row.status !== 'PUBLICADO') {
       throw new BadRequestException('O parecer precisa ser publicado antes de gerar o documento.');
     }
+    // rls-allow: organization é a raiz do tenant (control-plane); leitura self-scoped por id=tenantId da sessão, só o nome.
     const org = await this.prisma.admin.organization.findUnique({ where: { id: tenantId } });
     const company = org?.name ?? 'Empresa';
 

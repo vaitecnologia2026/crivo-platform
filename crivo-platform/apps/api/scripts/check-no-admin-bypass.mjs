@@ -13,9 +13,16 @@ const ALLOW = [
   'iam/auth.service.ts',
   'prisma/prisma.service.ts',
 ];
-const ALLOW_DIRS = ['admin/']; // todo o módulo de control plane
+// Módulos control-plane inteiros: admin (provisionamento/super admin) e iam
+// (identidade, papéis, permissões — atravessam tenants no login/RBAC por design).
+const ALLOW_DIRS = ['admin/', 'iam/'];
 
 const PATTERN = /\bprisma\.admin\b/;
+// Marcador inline para um bypass legítimo e REVISADO (tabela control-plane ou
+// endpoint público sem tenant no contexto). Use `// rls-allow: <motivo>` na
+// própria linha do uso ou na linha imediatamente acima. Qualquer prisma.admin
+// NOVO sem o marcador continua falhando o gate.
+const ALLOW_MARK = /rls-allow/;
 
 function walk(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -28,11 +35,13 @@ const violations = [];
 for (const file of walk(SRC)) {
   const rel = relative(SRC, file);
   if (ALLOW.includes(rel) || ALLOW_DIRS.some((d) => rel.startsWith(d))) continue;
-  readFileSync(file, 'utf8')
-    .split('\n')
-    .forEach((line, i) => {
-      if (PATTERN.test(line)) violations.push(`${rel}:${i + 1}  ${line.trim()}`);
-    });
+  const lines = readFileSync(file, 'utf8').split('\n');
+  lines.forEach((line, i) => {
+    if (!PATTERN.test(line)) return;
+    // Bypass revisado: marcador `rls-allow` na própria linha ou na linha acima.
+    if (ALLOW_MARK.test(line) || (i > 0 && ALLOW_MARK.test(lines[i - 1]))) return;
+    violations.push(`${rel}:${i + 1}  ${line.trim()}`);
+  });
 }
 
 if (violations.length) {

@@ -58,11 +58,14 @@ export class MeteringService {
    * produto, cai no limite do plano (PLAN_LIMITS).
    */
   async userLimit(tenantId: string): Promise<number | null> {
+    // tenant/product são control-plane (owner-only); lê o limite do próprio tenant.
+    // rls-allow: organizationId = tenantId da sessão; forTenant não enxerga estas tabelas control-plane.
     const tenant = await this.prisma.admin.tenant.findUnique({
       where: { organizationId: tenantId },
       select: { productId: true, plan: true },
     });
     if (tenant?.productId) {
+      // rls-allow: product é control-plane (definido pelo super admin); id vem do tenant já resolvido acima.
       const product = await this.prisma.admin.product.findUnique({
         where: { id: tenant.productId },
         select: { maxUsers: true },
