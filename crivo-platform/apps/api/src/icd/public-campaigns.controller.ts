@@ -1,4 +1,5 @@
 import { Controller, Get, Param } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { IcdService } from './icd.service';
 
 /**
@@ -12,6 +13,7 @@ export class PublicCampaignsController {
   constructor(private readonly icd: IcdService) {}
 
   @Get(':slug')
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   getBySlug(@Param('slug') slug: string) {
     return this.icd.getPublicBySlug(slug);
   }

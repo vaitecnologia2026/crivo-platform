@@ -9,7 +9,8 @@ export function applyAppConfig(app: INestApplication) {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
-  app.enableCors({ origin: origins.length ? origins : true, credentials: true });
+  // fail-closed: se WEB_URL vier vazio, NEGA tudo (false) em vez de refletir qualquer origem (true).
+  app.enableCors({ origin: origins.length ? origins : false, credentials: true });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // remove campos que não estão nos DTOs

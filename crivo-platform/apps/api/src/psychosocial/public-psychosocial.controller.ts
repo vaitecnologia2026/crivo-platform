@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PsychosocialService } from './psychosocial.service';
 import { SubmitPsychosocialDto } from './dto';
 
@@ -14,12 +15,14 @@ export class PublicPsychosocialController {
 
   /** Resolve o slug → nome da empresa + perguntas (para renderizar o formulário). */
   @Get(':slug')
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   getBySlug(@Param('slug') slug: string) {
     return this.psychosocial.getPublicBySlug(slug);
   }
 
   /** Submissão anônima via slug. */
   @Post(':slug')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   submit(@Param('slug') slug: string, @Body() dto: SubmitPsychosocialDto) {
     return this.psychosocial.submitPublic(slug, dto);
   }

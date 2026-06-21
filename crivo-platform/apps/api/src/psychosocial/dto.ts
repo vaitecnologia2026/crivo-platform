@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsInt,
   IsOptional,
@@ -9,6 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PSYCHOSOCIAL_QUESTIONS } from '@crivo/types';
 
 class PsychosocialAnswerDto {
   @IsInt()
@@ -27,6 +29,7 @@ export class SubmitPsychosocialDto {
   sector?: string;
 
   @IsArray()
+  @ArrayMaxSize(PSYCHOSOCIAL_QUESTIONS.length)
   @ValidateNested({ each: true })
   @Type(() => PsychosocialAnswerDto)
   answers!: PsychosocialAnswerDto[];

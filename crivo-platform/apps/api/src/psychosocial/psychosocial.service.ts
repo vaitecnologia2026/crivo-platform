@@ -21,7 +21,8 @@ function makeSlug(orgName: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 24) || 'empresa';
-  return `${base}-${randomBytes(3).toString('hex')}`;
+  // 8 bytes = 64 bits de entropia (antes 3 = 24 bits): impede enumeração/brute-force do slug público.
+  return `${base}-${randomBytes(8).toString('hex')}`;
 }
 
 /**
