@@ -268,6 +268,30 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .icd-dim__fill.is-mid { background: var(--gold); }
 .icd-dim__fill.is-low { background: var(--gold-deep); }
 
+/* 4 Eixos (modelo OFICIAL do ICD) — DashboardScreen, camada complementar.
+   Tema claro: track em --line-soft; preenchimento herda is-high/mid/low. */
+.eixos-official { margin: 2px 0 6px; }
+.eixos-official__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.eixos-official__score { display: flex; align-items: baseline; gap: 10px; }
+.eixos-official__score .dash-score { font-size: 30px; font-weight: 700; line-height: 1; }
+.eixos-official__score span { font-size: 13px; font-weight: 600; color: var(--text-sec); }
+.eixos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+.eixo__top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13px; margin-bottom: 6px;
+}
+.eixo__label { color: var(--text-sec); }
+.eixo__bar { height: 8px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.eixo__fill { display: block; height: 100%; border-radius: 999px; background: var(--gold); transition: width 0.6s ease; }
+.eixo__fill.is-high { background: var(--success); }
+.eixo__fill.is-mid { background: var(--gold); }
+.eixo__fill.is-low { background: var(--gold-deep); }
+.eixos-legacy-h { font-size: 13px; font-weight: 700; color: var(--text); margin: 18px 0 8px; }
+@media (max-width: 640px) { .eixos-grid { grid-template-columns: 1fr; } }
+
 /* Select de estágio nos cards do CRM (CrmScreen) */
 .kb-stage {
   font-size: 11px; padding: 3px 6px; border-radius: 8px;

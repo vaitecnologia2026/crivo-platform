@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
+import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
 import { listActionPlans } from "@/lib/api";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import {
   ACTION_STATUS_LABEL,
   getIcdMaturityBand,
+  ICD_AXES,
+  ICD_AXIS_LABEL,
+  ICD_AXIS_DESCRIPTION,
   MIN_LEADERS_FOR_DISCLOSURE,
   type ActionItemData,
   type ActionPlanData,
@@ -69,8 +72,67 @@ function computePlanStats(plans: ActionPlanData[]): PlanStats {
   };
 }
 
+/** 4 EIXOS (modelo OFICIAL) — Clareza/Critério/Alinhamento/Sustentação.
+ *  Agregado do ciclo trimestral ABERTO (peso por impacto + supressão <5,
+ *  computados server-side). Sem ranking ou identificação nominal (§11). */
+function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: LoadStatus }) {
+  if (status === "loading") {
+    return <p className="dash-state" style={{ margin: "0 0 14px" }}>Carregando os 4 Eixos…</p>;
+  }
+  if (status === "error" || !axes) {
+    return <p className="dash-state" style={{ margin: "0 0 14px" }}>Não foi possível carregar os 4 Eixos do ICD.</p>;
+  }
+  const { cycle, company } = axes;
+  if (!cycle) {
+    return (
+      <p className="dash-state" style={{ margin: "0 0 14px" }}>
+        Os <strong>4 Eixos (modelo oficial)</strong> — Clareza, Critério, Alinhamento e Sustentação — entram em uso ao
+        abrir um <strong>ciclo trimestral</strong> e registrar decisões avaliadas pelo ICD. Nenhum ciclo aberto no momento.
+      </p>
+    );
+  }
+  if (!company || company.suppressed || company.score == null || company.band == null) {
+    return (
+      <p className="dash-state" style={{ margin: "0 0 14px" }}>
+        ICD oficial sob <strong>supressão de confidencialidade</strong> (§11): mínimo {MIN_LEADERS_FOR_DISCLOSURE} líderes
+        com decisões avaliadas no ciclo. Atualmente {company?.eligibleLeaders ?? 0}.
+      </p>
+    );
+  }
+  return (
+    <div className="eixos-official">
+      <div className="eixos-official__head">
+        <div className="eixos-official__score">
+          <strong className={`dash-score ${scoreClass(company.score)}`}>{company.score}</strong>
+          <span>{company.band.label}</span>
+        </div>
+        <span className="card__sub">
+          Ciclo {cycle.name || `${cycle.quarter}º tri/${cycle.year}`} · {company.eligibleLeaders} líderes elegíveis · em tempo real
+        </span>
+      </div>
+      <div className="eixos-grid">
+        {ICD_AXES.map((ax) => {
+          const v = Math.round(company.axesAverage[ax] ?? 0);
+          return (
+            <div className="eixo" key={ax} title={ICD_AXIS_DESCRIPTION[ax]}>
+              <div className="eixo__top">
+                <span className="eixo__label">{ICD_AXIS_LABEL[ax]}</span>
+                <strong className={`dash-score ${scoreClass(v)}`}>{v}</strong>
+              </div>
+              <div className="eixo__bar">
+                <span className={`eixo__fill ${scoreClass(v)}`} style={{ width: `${v}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardScreen() {
   const { data, status, refresh } = useIcdDashboard();
+  const { data: axesData, status: axesStatus } = useIcdAxes();
   const [plans, setPlans] = useState<ActionPlanData[] | null>(null);
 
   useEffect(() => {
@@ -275,6 +337,14 @@ export function DashboardScreen() {
               </div>
             </div>
 
+            {/* ── 4 EIXOS (modelo OFICIAL) — Clareza/Critério/Alinhamento/Sustentação ── */}
+            <IcdAxesOfficial axes={axesData} status={axesStatus} />
+
+            {/* ── 4 Rs (modelo LEGADO · diagnóstico de tensão · histórico) ── */}
+            <h4 className="eixos-legacy-h">
+              Modelo legado · 4 Rs <span className="card__sub" style={{ fontWeight: 400 }}>— diagnóstico de tensão (histórico)</span>
+            </h4>
+
             {leadersN === 0 ? (
               <p className="dash-state" style={{ margin: 0 }}>
                 Nenhuma avaliação registrada no ciclo. Quando os líderes responderem, os indicadores aparecem aqui.
@@ -314,8 +384,9 @@ export function DashboardScreen() {
                   </tbody>
                 </table>
                 <p className="card__sub" style={{ marginTop: 10 }}>
-                  O <strong>novo modelo de 4 Eixos</strong> (Clareza/Critério/Alinhamento/Sustentação) entra em uso ao
-                  iniciar um <strong>ciclo trimestral</strong> e registrar decisões reais.
+                  Os <strong>4 Rs</strong> medem a <strong>tensão</strong> sob pressão (diagnóstico legado). O{" "}
+                  <strong>ICD oficial</strong> usa os <strong>4 Eixos</strong> acima, medidos por decisão real ao longo do
+                  ciclo trimestral.
                 </p>
               </>
             )}
