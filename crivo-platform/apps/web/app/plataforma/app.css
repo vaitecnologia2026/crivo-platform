@@ -1102,7 +1102,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-mute);
+  color: var(--text-sec); /* a11y: label de cabeçalho legível (text-mute ~2.5:1 → text-sec ~5.4:1) */
   border-bottom: 1px solid var(--line);
   font-weight: 700;
 }
