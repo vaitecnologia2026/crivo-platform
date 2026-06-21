@@ -68,7 +68,7 @@ export class AdminAuthService {
 
     await this.prisma.admin.superAdmin.update({
       where: { id: adminId },
-      data: { passwordHash: bcrypt.hashSync(newPassword, 10) },
+      data: { passwordHash: bcrypt.hashSync(newPassword, 12) },
     });
     await this.audit.record({
       action: 'admin.password.change',

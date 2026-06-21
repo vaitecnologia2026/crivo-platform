@@ -8,7 +8,7 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const hash = (s: string) => bcrypt.hashSync(s, 10);
+const hash = (s: string) => bcrypt.hashSync(s, 12);
 
 // Dimensões do ICD — os 4 Rs (0–100, coerência: maior = melhor). A tensão
 // dominante é o R de menor coerência (ou EQUILIBRADO).

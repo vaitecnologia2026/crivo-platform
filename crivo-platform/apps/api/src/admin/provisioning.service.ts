@@ -76,7 +76,7 @@ export class ProvisioningService {
           email: adminEmail,
           name: dto.adminName,
           role: 'ADMIN',
-          passwordHash: bcrypt.hashSync(password, 10),
+          passwordHash: bcrypt.hashSync(password, 12),
         },
       });
 
@@ -148,7 +148,7 @@ export class ProvisioningService {
           email: adminEmail,
           name: input.adminName,
           role: 'ADMIN',
-          passwordHash: bcrypt.hashSync(password, 10),
+          passwordHash: bcrypt.hashSync(password, 12),
         },
       });
       await tx.tenantModule.createMany({

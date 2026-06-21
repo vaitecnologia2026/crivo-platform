@@ -7,6 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MeteringService } from '../metering/metering.service';
 import type { CreateLeadDto, UpdateLeadDto } from './dto';
+import { timingSafeEqual } from 'node:crypto';
+
+/** Comparação de segredo em tempo constante — evita timing oracle (CWE-208). */
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
 
 @Injectable()
 export class LeadsService {
@@ -26,7 +34,7 @@ export class LeadsService {
     if (!expected || !tenantId) {
       throw new ServiceUnavailableException('Intake de leads não configurado');
     }
-    if (!secret || secret !== expected) {
+    if (!secret || !safeEqual(secret, expected)) {
       throw new UnauthorizedException('Segredo de intake inválido');
     }
     return this.prisma.forTenant(tenantId, async (tx) => {

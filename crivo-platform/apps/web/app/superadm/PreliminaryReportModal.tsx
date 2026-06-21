@@ -56,8 +56,9 @@ function mdToHtml(md: string): string {
 function exportReportPdf(markdown: string, subtitle: string) {
   const w = window.open("", "_blank", "width=840,height=920");
   if (!w) return;
+  const safeSubtitle = subtitle.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
-  <title>Relatório Preliminar CRIVO — ${subtitle}</title><style>
+  <title>Relatório Preliminar CRIVO — ${safeSubtitle}</title><style>
   body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:720px;margin:32px auto;padding:0 28px;color:#1c2540;line-height:1.62}
   .rh{border-bottom:3px solid #a8693d;padding-bottom:12px;margin-bottom:22px}
   .rh h1{color:#0d1f3c;font-size:21px;margin:0 0 3px} .rh .m{color:#727a8c;font-size:13px}
@@ -65,7 +66,7 @@ function exportReportPdf(markdown: string, subtitle: string) {
   strong{color:#0d1f3c} table{width:100%;border-collapse:collapse;margin:10px 0} td{border:1px solid #e6e3dc;padding:6px 11px;font-size:13px}
   .rf{margin-top:26px;border-top:1px solid #e6e3dc;padding-top:10px;color:#9097a8;font-size:11px}
   </style></head><body>
-  <div class="rh"><h1>Relatório Preliminar CRIVO</h1><div class="m">${subtitle}</div></div>
+  <div class="rh"><h1>Relatório Preliminar CRIVO</h1><div class="m">${safeSubtitle}</div></div>
   ${mdToHtml(markdown)}
   <div class="rf">Relatório preliminar gerado por IA a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ completo nem é avaliação individual ou diagnóstico clínico.</div>
   </body></html>`);

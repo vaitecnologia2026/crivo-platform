@@ -89,7 +89,7 @@ export class AuthService {
       }
       await tx.user.update({
         where: { id: userId },
-        data: { passwordHash: bcrypt.hashSync(newPassword, 10) },
+        data: { passwordHash: bcrypt.hashSync(newPassword, 12) },
       });
       return { ok: true as const };
     });

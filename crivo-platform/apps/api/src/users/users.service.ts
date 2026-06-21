@@ -85,7 +85,7 @@ export class UsersService {
           name: dto.name.trim(),
           role: dto.role,
           screenAccess: normalizeScreens(dto.screenAccess) ?? undefined,
-          passwordHash: bcrypt.hashSync(password, 10),
+          passwordHash: bcrypt.hashSync(password, 12),
         },
       });
     });
