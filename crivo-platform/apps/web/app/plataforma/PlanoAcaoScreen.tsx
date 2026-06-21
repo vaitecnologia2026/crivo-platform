@@ -25,6 +25,7 @@ import {
   type ActionTemplateLite,
 } from "@/lib/api";
 import { DocumentsPanel } from "./DocumentsPanel";
+import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
 const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link"];
 
@@ -132,7 +133,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <span className={`pattern-tag${validated ? "" : ""}`} style={{ color: validated ? "var(--success)" : "var(--gold-deep)" }}>
-            {validated ? "✓ Documento final" : "Minuta"}
+            {validated ? <><IconCheck size={13} /> Documento final</> : "Minuta"}
           </span>
           {!validated && (
             <button className="btn btn--outline-dark btn--sm" disabled={busy || plan.items.length === 0} onClick={validate}>
@@ -235,7 +236,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
       <ul className="lib-list" style={{ marginBottom: 10 }}>
         {item.evidences.map((ev) => (
           <li key={ev.id} className="lib-row">
-            <span className="lib-ic">{ev.fileName ? "📎" : "▤"}</span>
+            <span className="lib-ic">{ev.fileName ? <IconPaperclip size={14} /> : <IconGrid size={14} />}</span>
             <div>
               <strong>{ev.title}</strong>
               <span>

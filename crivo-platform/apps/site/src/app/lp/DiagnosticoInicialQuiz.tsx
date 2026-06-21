@@ -158,7 +158,14 @@ export function DiagnosticoInicialQuiz() {
 
         <div className="diag-sent" data-state={sent}>
           {sent === "sending" && "Enviando seu diagnóstico…"}
-          {sent === "ok" && "✓ Seu diagnóstico foi enviado para seu WhatsApp ou e-mail."}
+          {sent === "ok" && (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 16, height: 16, display: "inline-block", verticalAlign: "-0.15em", marginRight: 4 }}>
+                <path d="M5 12.5l4 4 10-10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Seu diagnóstico foi enviado para seu WhatsApp ou e-mail.
+            </>
+          )}
           {sent === "error" &&
             "Recebemos suas respostas. Em instantes entraremos em contato pelo seu e-mail ou WhatsApp."}
           {sent === "idle" && "Seu diagnóstico foi enviado para seu WhatsApp ou e-mail."}

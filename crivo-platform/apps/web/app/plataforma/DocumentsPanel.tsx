@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DocumentDescriptor, GeneratedDocument } from "@crivo/types";
 import { generateDocument, listDocuments } from "@/lib/api";
+import { IconGrid } from "./Icons";
 
 /** Documentos gerados conforme produto/saída técnica (Briefing §15). */
 export function DocumentsPanel() {
@@ -40,7 +41,7 @@ export function DocumentsPanel() {
       <ul className="lib-list">
         {docs.map((d) => (
           <li key={d.type} className="lib-row">
-            <span className="lib-ic">▤</span>
+            <span className="lib-ic"><IconGrid size={14} /></span>
             <div>
               <strong>{d.title}</strong>
               <span>{d.available ? "Pronto para gerar" : d.reason ?? "Indisponível"}</span>

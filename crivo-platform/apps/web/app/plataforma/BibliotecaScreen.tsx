@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { IconCheck, IconChevronDown, IconChevronRight, IconClose, IconExternal } from "./Icons";
 import {
   LIBRARY_KINDS,
   LIBRARY_KIND_LABEL,
@@ -131,7 +132,7 @@ function ContentPreviewModal({ item, onClose }: { item: PreviewItem; onClose: ()
             <span className="card__eyebrow">{label}{item.category ? ` · ${item.category}` : ""}</span>
             <h2 style={{ marginTop: 4 }}>{item.title}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+          <button className="icon-btn" onClick={onClose} title="Fechar"><IconClose size={16} /></button>
         </header>
         <div className="modal__body">
           <p style={{ color: "var(--text-sec)", lineHeight: 1.6 }}>
@@ -148,7 +149,7 @@ function ContentPreviewModal({ item, onClose }: { item: PreviewItem; onClose: ()
               rel="noreferrer"
               style={{ textDecoration: "none" }}
             >
-              Abrir conteúdo ↗
+              Abrir conteúdo <IconExternal size={14} />
             </a>
           ) : (
             <span className="card__sub" style={{ alignSelf: "center" }}>Link em breve</span>
@@ -184,7 +185,7 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <h2>{initial ? "Editar conteúdo" : "Novo conteúdo"}</h2>
-          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+          <button className="icon-btn" onClick={onClose} title="Fechar"><IconClose size={16} /></button>
         </header>
         <form onSubmit={submit} className="modal__body prod-form">
           <div className="prod-form__grid">
@@ -251,7 +252,7 @@ function GlobalCatalogPanel({ onImported, onPreview, existingUrls }: { onImporte
         }}
       >
         <span>
-          {open ? "▼" : "▶"} Catálogo CRIVO {items && `(${items.length} item${items.length === 1 ? "" : "s"})`}
+          {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />} Catálogo CRIVO {items && `(${items.length} item${items.length === 1 ? "" : "s"})`}
         </span>
         <span className="card__sub" style={{ fontSize: 12 }}>curado pelo time CRIVO</span>
       </button>
@@ -271,7 +272,7 @@ function GlobalCatalogPanel({ onImported, onPreview, existingUrls }: { onImporte
                     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
                       <button className="link-gold" onClick={() => onPreview(it)}>Acessar →</button>
                       {already ? (
-                        <span className="card__sub" style={{ fontSize: 11 }}>✓ já está na sua biblioteca</span>
+                        <span className="card__sub" style={{ fontSize: 11 }}><IconCheck size={12} /> já está na sua biblioteca</span>
                       ) : (
                         <button
                           className="btn btn--gold btn--sm"

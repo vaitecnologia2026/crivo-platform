@@ -10,6 +10,7 @@ import {
   getMyModules,
 } from "@/lib/api";
 import type { OrganizationData, TenantBrandingData, UserSeats } from "@crivo/types";
+import { IconCheck } from "./Icons";
 
 /**
  * Organização (autoatendimento do admin da empresa): dados cadastrais, identidade
@@ -135,7 +136,7 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
         <button className="btn btn--gold btn--sm" onClick={save} disabled={saving}>
           {saving ? "Salvando…" : "Salvar dados"}
         </button>
-        {done && <span className="card__sub" style={{ color: "var(--green,#2f9e64)" }}>Salvo ✓</span>}
+        {done && <span className="card__sub" style={{ color: "var(--green,#2f9e64)" }}><IconCheck size={13} /> Salvo</span>}
       </div>
     </div>
   );
@@ -207,7 +208,7 @@ function BrandingCard({
         <button className="btn btn--gold btn--sm" onClick={save} disabled={saving}>
           {saving ? "Salvando…" : "Salvar identidade"}
         </button>
-        {done && <span className="card__sub" style={{ color: "var(--green,#2f9e64)" }}>Salvo ✓ — recarregue para ver o tema</span>}
+        {done && <span className="card__sub" style={{ color: "var(--green,#2f9e64)" }}><IconCheck size={13} /> Salvo — recarregue para ver o tema</span>}
       </div>
     </div>
   );

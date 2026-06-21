@@ -5,6 +5,7 @@ import { apiFetch, askCopiloto, listLibrary } from "@/lib/api";
 import type { LibraryItemData, MyIcd } from "@crivo/types";
 import { LEADER_TRACKS, LIBRARY_KIND_LABEL } from "@crivo/types";
 import { DIMENSION_LABEL, PATTERN_LABEL } from "./useIcdDashboard";
+import { IconGrid } from "./Icons";
 
 type LoadStatus = "loading" | "error" | "ok";
 
@@ -267,7 +268,7 @@ export function LiderScreen() {
           <ul className="lib-list">
             {content.map((c) => (
               <li key={c.id} className="lib-row">
-                <span className="lib-ic">▦</span>
+                <span className="lib-ic"><IconGrid size={14} /></span>
                 <div>
                   <strong>{c.title}</strong>
                   <span>{LIBRARY_KIND_LABEL[c.kind] ?? c.kind}{c.description ? ` · ${c.description}` : ""}</span>

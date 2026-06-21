@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { IconCheck, IconLink } from "./Icons";
 import {
   closeCampaign,
   createCampaign,
@@ -172,7 +173,7 @@ export function CampanhasScreen() {
                       <div className="camp-row-actions">
                         {c.publicSlug && (
                           <button className="lib-act" onClick={() => copyLink(c.publicSlug!)} title="Copiar link público">
-                            {copiedSlug === c.publicSlug ? "✓ copiado" : "🔗 link"}
+                            {copiedSlug === c.publicSlug ? <><IconCheck size={13} /> copiado</> : <><IconLink size={13} /> link</>}
                           </button>
                         )}
                         {c.status === "OPEN" && (

@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { printDocument } from "./DocumentsPanel";
 import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
+import { IconCheck, IconDot } from "./Icons";
 
 const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
@@ -183,19 +184,19 @@ export function ParecerScreen() {
           <div className="kpi-grid">
             <div className="kpi">
               <span className="kpi__label">1 · Dados consolidados</span>
-              <strong className="kpi__value">✓</strong>
+              <strong className="kpi__value"><IconCheck size={14} /></strong>
               <span className="kpi__delta">{data.totalAvaliacoes} respostas · {data.totalLideres} líderes</span>
             </div>
             <div className="kpi">
               <span className="kpi__label">2 · Análise do consultor</span>
-              <strong className="kpi__value">{published ? "✓" : "●"}</strong>
+              <strong className="kpi__value">{published ? <IconCheck size={14} /> : <IconDot size={14} />}</strong>
               <span className="kpi__delta">
                 {published ? "parecer redigido pelo especialista" : "leitura humana especializada — em curso"}
               </span>
             </div>
             <div className="kpi">
               <span className="kpi__label">3 · Parecer entregue</span>
-              <strong className="kpi__value">{published ? "✓" : "—"}</strong>
+              <strong className="kpi__value">{published ? <IconCheck size={14} /> : "—"}</strong>
               <span className="kpi__delta">
                 {published
                   ? (published.devolutivaAt

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getMyOnboardingStatus, type OnboardingStatus } from "@/lib/api";
+import { IconCheck, IconCircle } from "./Icons";
 
 interface ChecklistItem {
   key: keyof Omit<OnboardingStatus, "allDone">;
@@ -94,7 +95,7 @@ export function OnboardingChecklist() {
           const done = status[it.key];
           return (
             <li key={it.key} className={`onboarding-item ${done ? "is-done" : ""}`}>
-              <span className="onboarding-check" aria-hidden="true">{done ? "✓" : "○"}</span>
+              <span className="onboarding-check" aria-hidden="true">{done ? <IconCheck size={14} /> : <IconCircle size={14} />}</span>
               <div className="onboarding-text">
                 <strong>{it.label}</strong>
                 <span>{it.hint}</span>

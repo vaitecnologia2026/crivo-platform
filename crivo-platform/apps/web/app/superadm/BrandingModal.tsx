@@ -12,6 +12,7 @@ import {
   verifyTenantDomain,
   updateTenantBranding,
 } from "@/lib/admin-api";
+import { IconCheck } from "../plataforma/Icons";
 
 type Load = "loading" | "error" | "ok";
 
@@ -151,7 +152,7 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
                 <Button variant="terra" size="sm" onClick={saveBranding} disabled={saving}>
                   {saving ? "Salvando…" : "Salvar identidade"}
                 </Button>
-                {saved && <span className="text-[12px] text-[#2e7850]">Salvo ✓</span>}
+                {saved && <span className="text-[12px] text-[#2e7850]">Salvo <IconCheck size={13} /></span>}
               </div>
 
               {/* Domínios */}
@@ -212,7 +213,7 @@ export function BrandingModal({ tenant, onClose }: { tenant: TenantSummary; onCl
                         )}
                         {d.verifiedAt && (
                           <p className="mt-1 text-[#2e7850]">
-                            ✓ Verificado em {new Date(d.verifiedAt).toLocaleString("pt-BR")}
+                            <IconCheck size={13} /> Verificado em {new Date(d.verifiedAt).toLocaleString("pt-BR")}
                           </p>
                         )}
                       </div>

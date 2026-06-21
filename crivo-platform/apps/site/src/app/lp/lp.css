@@ -1398,6 +1398,20 @@ th.compare__crivo { color: var(--terra) !important; }
 }
 .diag-field input:focus, .diag-field select:focus { outline: none; border-color: var(--terra); }
 
+/* A11y — anel de foco VISÍVEL apenas no teclado (:focus-visible). Não altera o
+   estado de mouse/hover; vem depois das regras outline:none, então vence p/ teclado. */
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.nav__link:focus-visible,
+.diag-single__opt:focus-visible,
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible,
+.diag-field input:focus-visible, .diag-field select:focus-visible {
+  outline: 2px solid var(--terra-escura);
+  outline-offset: 2px;
+  border-radius: var(--r-lg, 6px);
+}
+
 /* confirmação de envio (passo 3) */
 .diag-sent {
   margin: 4px 0 16px; padding: 12px 14px; border-radius: var(--r); font-size: 13.5px; font-weight: 500;

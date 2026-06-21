@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MENTORIA_FORMAT_LABEL, MENTORIA_STATUS_LABEL, type MentoriaFormat, type MentoriaStatus } from "@crivo/types";
 import { getMyMentorias, type MentoriaTenantEntry } from "@/lib/api";
+import { IconLink, IconPlay } from "./Icons";
 
 type LoadStatus = "loading" | "ok" | "error";
 
@@ -101,7 +102,7 @@ export function MentoriasScreen() {
                   <td>
                     {m.meetingUrl && (
                       <a href={m.meetingUrl} target="_blank" rel="noopener noreferrer" className="lib-act">
-                        🔗 entrar
+                        <IconLink size={14} /> entrar
                       </a>
                     )}
                     {m.location && !m.meetingUrl && <span className="card__sub">{m.location}</span>}
@@ -138,7 +139,7 @@ export function MentoriasScreen() {
                     <strong>{m.title}</strong>
                     {m.recordingUrl && (
                       <a href={m.recordingUrl} target="_blank" rel="noopener noreferrer" className="lib-act" style={{ marginLeft: 8 }}>
-                        ▶ gravação
+                        <IconPlay size={14} /> gravação
                       </a>
                     )}
                   </td>

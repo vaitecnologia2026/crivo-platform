@@ -18,6 +18,7 @@ import {
   type PsychosocialRiskLevel,
 } from "@crivo/types";
 import { ScaleHelpBox } from "@crivo/ui";
+import { IconCheck } from "./Icons";
 
 /**
  * Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO).
@@ -312,7 +313,7 @@ function LinkPanel() {
             }}
           />
           <button className="btn btn--gold btn--sm" onClick={copy}>
-            {copied ? "Copiado ✓" : "Copiar"}
+            {copied ? <>Copiado <IconCheck size={13} /></> : "Copiar"}
           </button>
           <a className="btn btn--ghost btn--sm" href={url} target="_blank" rel="noreferrer">
             Abrir

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { changeMyPassword } from "@/lib/api";
+import { IconCheck } from "./Icons";
 
 /** Modal de troca de senha (#56). Conecta no PATCH /auth/password já existente. */
 export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
@@ -34,7 +35,7 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         <h2>Trocar senha</h2>
         {done ? (
           <p className="terms-body">
-            ✓ Senha atualizada. Você pode continuar usando o sistema normalmente.
+            <IconCheck size={13} /> Senha atualizada. Você pode continuar usando o sistema normalmente.
           </p>
         ) : (
           <>
