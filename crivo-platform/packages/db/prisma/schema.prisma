@@ -339,6 +339,7 @@ model SuperAdmin {
   name         String
   passwordHash String
   active       Boolean  @default(true)
+  tokenVersion Int      @default(0) // revogação de sessão: incrementar invalida os JWTs do admin
   totpSecret   String? // segredo TOTP (definido no setup; pode existir "pendente")
   totpEnabled  Boolean  @default(false) // MFA ativo? exige código no login
   createdAt    DateTime @default(now())
@@ -930,6 +931,10 @@ model User {
   passwordHash    String
   role            Role         @default(COLABORADOR)
   active          Boolean      @default(true)
+  // Revogação de sessão (segurança): incrementar invalida TODOS os JWTs do
+  // usuário (logout, troca de senha, desativação). O token carrega `tv`; o
+  // AuthGuard compara com este valor a cada request.
+  tokenVersion    Int          @default(0)
   // Telas que o usuário pode acessar no portal (lista de rotas, ex.: ["dashboard","icd"]).
   // null = sem restrição (vê tudo que papel/módulo permitem). Controla a nav (F6).
   screenAccess    Json?

@@ -44,6 +44,7 @@ export class AdminAuthService {
       scope: 'platform',
       email: admin.email,
       name: admin.name,
+      tv: admin.tokenVersion, // versão de sessão — o guard rejeita se divergir (revogação)
     });
 
     await this.audit.record({
@@ -68,12 +69,23 @@ export class AdminAuthService {
 
     await this.prisma.admin.superAdmin.update({
       where: { id: adminId },
-      data: { passwordHash: bcrypt.hashSync(newPassword, 12) },
+      // Trocar a senha revoga as sessões antigas (incrementa a versão de token).
+      data: { passwordHash: bcrypt.hashSync(newPassword, 12), tokenVersion: { increment: 1 } },
     });
     await this.audit.record({
       action: 'admin.password.change',
       actor: { id: admin.id, email: admin.email },
     });
+    return { ok: true };
+  }
+
+  /** Logout: revoga todas as sessões do super admin (incrementa a versão de token). */
+  async logout(adminId: string): Promise<{ ok: true }> {
+    const admin = await this.prisma.admin.superAdmin.update({
+      where: { id: adminId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    await this.audit.record({ action: 'admin.logout', actor: { id: admin.id, email: admin.email } });
     return { ok: true };
   }
 

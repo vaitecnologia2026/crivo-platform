@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminLogin, clearAdminToken, getAdminToken, setAdminToken } from "@/lib/admin-api";
+import { adminLogin, adminLogout, clearAdminToken, getAdminToken, setAdminToken } from "@/lib/admin-api";
 import type { PlatformAdmin } from "@crivo/types";
 import { AdminShell } from "./AdminShell";
 import s from "./login.module.css";
@@ -38,6 +38,7 @@ export function SuperAdmin() {
   }, []);
 
   function onLogout() {
+    void adminLogout().catch(() => {}); // revoga a sessão no servidor (best-effort) antes de limpar local
     clearAdminToken();
     setAdmin(null);
   }

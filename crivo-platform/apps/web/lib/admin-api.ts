@@ -115,6 +115,11 @@ export function adminLogin(
   );
 }
 
+/** Logout: revoga a sessão do super admin no servidor antes de limpar o token local. */
+export function adminLogout(): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>("/admin/auth/logout", { method: "POST" }, { redirectOn401: false });
+}
+
 export function listTenants(): Promise<TenantSummary[]> {
   return adminFetch<TenantSummary[]>("/admin/tenants");
 }

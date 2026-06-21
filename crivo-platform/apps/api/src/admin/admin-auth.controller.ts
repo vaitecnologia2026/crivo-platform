@@ -30,6 +30,13 @@ export class AdminAuthController {
     return this.auth.changePassword(admin.id, dto.currentPassword, dto.newPassword);
   }
 
+  /** Logout: revoga todas as sessões do super admin (incrementa a versão de token). */
+  @Post('logout')
+  @UseGuards(SuperAdminGuard)
+  logout(@CurrentAdmin() admin: PlatformAdmin) {
+    return this.auth.logout(admin.id);
+  }
+
   // ── MFA / TOTP (F2) ──
 
   /** Inicia o setup do MFA: devolve o segredo + otpauth URI (QR no autenticador). */

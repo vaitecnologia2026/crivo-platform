@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
-import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken } from "@/lib/api";
+import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken, logout } from "@/lib/api";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -315,6 +315,7 @@ export function Plataforma() {
     });
 
     on(logoutBtn, "click", () => {
+      void logout().catch(() => {}); // revoga a sessão no servidor (best-effort) antes de limpar local
       clearToken();
       clearCachedRole();
       app.classList.remove("is-active");

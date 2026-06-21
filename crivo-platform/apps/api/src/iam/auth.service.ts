@@ -69,6 +69,7 @@ export class AuthService {
       role: user.role,
       email: user.email,
       name: user.name,
+      tv: user.tokenVersion, // versão de sessão — o guard rejeita se divergir (revogação)
     });
 
     return { token, user: session };
@@ -87,10 +88,22 @@ export class AuthService {
       if (!bcrypt.compareSync(currentPassword, u.passwordHash)) {
         throw new UnauthorizedException('Senha atual incorreta');
       }
+      // Trocar a senha revoga as sessões antigas (incrementa a versão de token).
       await tx.user.update({
         where: { id: userId },
-        data: { passwordHash: bcrypt.hashSync(newPassword, 12) },
+        data: { passwordHash: bcrypt.hashSync(newPassword, 12), tokenVersion: { increment: 1 } },
       });
+      return { ok: true as const };
+    });
+  }
+
+  /**
+   * Logout: revoga TODAS as sessões do usuário (todos os dispositivos) incrementando
+   * a versão de token. Qualquer JWT emitido antes deixa de ser aceito pelo AuthGuard.
+   */
+  async logout(tenantId: string, userId: string): Promise<{ ok: true }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
       return { ok: true as const };
     });
   }

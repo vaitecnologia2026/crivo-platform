@@ -29,4 +29,11 @@ export class AuthController {
   changePassword(@CurrentUser() user: SessionUser, @Body() dto: ChangePasswordDto) {
     return this.auth.changeOwnPassword(user.tenantId, user.id, dto.currentPassword, dto.newPassword);
   }
+
+  /** Logout: revoga todas as sessões do usuário (incrementa a versão de token). */
+  @Post('logout')
+  @UseGuards(AuthGuard)
+  logout(@CurrentUser() user: SessionUser) {
+    return this.auth.logout(user.tenantId, user.id);
+  }
 }

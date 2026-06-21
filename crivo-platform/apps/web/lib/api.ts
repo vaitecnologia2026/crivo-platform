@@ -659,3 +659,11 @@ export function submitDecisionIcd(
 export function getDecisionIcd(decisionId: string): Promise<DecisionIcdData | null> {
   return apiFetch<DecisionIcdData | null>(`/decisions/${decisionId}/icd`);
 }
+
+/**
+ * Logout: revoga a sessão no servidor (incrementa a versão de token → invalida o
+ * JWT) antes de limpar o token local. redirectOn401:false — se já expirou, no-op.
+ */
+export function logout(): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>('/auth/logout', { method: 'POST' }, { redirectOn401: false });
+}
