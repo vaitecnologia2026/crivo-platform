@@ -29,14 +29,27 @@ export class AuthService {
         });
       }
     } else {
+      // E-mail é único na plataforma (garantido na criação). Para tolerar uma
+      // duplicata legada SEM pedir a empresa, desempata pela senha: dentre as
+      // contas com este e-mail, entra naquela cujo hash confere. Caso normal
+      // (exatamente 1 conta) é idêntico ao fluxo anterior.
       const matches = await this.prisma.admin.user.findMany({
         where: { email: normalizedEmail, active: true },
-        take: 2,
       });
-      if (matches.length > 1) {
-        throw new UnauthorizedException('Informe a empresa para entrar.');
+      if (matches.length <= 1) {
+        user = matches[0] ?? null;
+      } else {
+        const hits: typeof matches = [];
+        for (const m of matches) {
+          if (await bcrypt.compare(password, m.passwordHash)) hits.push(m);
+        }
+        // 2+ contas com o MESMO e-mail E a MESMA senha: ambíguo de verdade.
+        if (hits.length > 1) {
+          throw new UnauthorizedException('Conta duplicada. Contate o suporte.');
+        }
+        // 1 acerto → entra nela; 0 acertos → cai no "Credenciais inválidas" abaixo.
+        user = hits[0] ?? matches[0];
       }
-      user = matches[0] ?? null;
     }
 
     // bcrypt.compare em tempo constante; mesmo erro p/ usuário inexistente (anti-enumeração).

@@ -74,6 +74,15 @@ export class UsersService {
     const generated = !dto.password;
     const password = dto.password ?? generatePassword();
 
+    // E-mail é único na plataforma: rejeita se já existe em QUALQUER empresa
+    // (evita o login ambíguo que pedia "selecione a empresa").
+    // rls-allow: unicidade global de e-mail (control plane) antes do escopo RLS do tenant
+    const dupGlobal = await this.prisma.admin.user.findFirst({
+      where: { email },
+      select: { id: true },
+    });
+    if (dupGlobal) throw new ConflictException('Este e-mail já está em uso. Escolha outro.');
+
     const user = await this.prisma.forTenant(tenantId, async (tx) => {
       await this.metering.assertUserQuota(tx, tenantId);
       const dup = await tx.user.findFirst({ where: { email } });

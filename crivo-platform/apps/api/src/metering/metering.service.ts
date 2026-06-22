@@ -87,6 +87,20 @@ export class MeteringService {
     }
   }
 
+  /** Mesma barra de quota, mas no control plane (super admin): conta os
+   *  usuários ativos da empresa por tenantId explícito, sem RLS. */
+  async assertUserQuotaAdmin(tenantId: string): Promise<void> {
+    const max = await this.userLimit(tenantId);
+    if (max === null) return; // ilimitado
+    // rls-allow: contagem de assentos por tenantId explícito; ação do super admin
+    const count = await this.prisma.admin.user.count({ where: { tenantId, active: true } });
+    if (count >= max) {
+      throw new UnprocessableEntityException(
+        `Limite de usuários do plano atingido: ${max} ativos. Aumente o limite no produto da empresa.`,
+      );
+    }
+  }
+
   /** Incrementa um contador de uso no período corrente (idempotente por upsert). */
   async increment(tx: PrismaClient, tenantId: string, metric: string, by = 1): Promise<void> {
     const period = currentPeriod();

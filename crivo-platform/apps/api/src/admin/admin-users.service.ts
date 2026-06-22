@@ -9,6 +9,7 @@ import type {
   UserSummary,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { MeteringService } from '../metering/metering.service';
 import { AuditService, type AuditActor } from './audit.service';
 
 /** Senha temporária legível (sem caracteres ambíguos). */
@@ -51,6 +52,7 @@ export class AdminUsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly metering: MeteringService,
   ) {}
 
   private async assertTenant(tenantId: string): Promise<void> {
@@ -76,12 +78,15 @@ export class AdminUsersService {
     actor: AuditActor,
   ): Promise<CreateUserResult> {
     await this.assertTenant(tenantId);
+    // Limite de usuários do plano (mesma regra do app da empresa).
+    await this.metering.assertUserQuotaAdmin(tenantId);
     const email = dto.email.toLowerCase().trim();
     const generated = !dto.password;
     const password = dto.password ?? generatePassword();
 
-    const dup = await this.prisma.admin.user.findFirst({ where: { tenantId, email } });
-    if (dup) throw new ConflictException('Já existe um usuário com este e-mail na empresa');
+    // E-mail é único na plataforma: rejeita se já existe em QUALQUER empresa.
+    const dup = await this.prisma.admin.user.findFirst({ where: { email } });
+    if (dup) throw new ConflictException('Este e-mail já está em uso na plataforma. Use outro.');
 
     const user = await this.prisma.admin.user.create({
       data: {
@@ -114,6 +119,11 @@ export class AdminUsersService {
     const existing = await this.prisma.admin.user.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Usuário não encontrado nesta empresa');
 
+    // Reativar consome um assento → respeita o limite do plano.
+    if (dto.active === true && !existing.active) {
+      await this.metering.assertUserQuotaAdmin(tenantId);
+    }
+
     const updated = await this.prisma.admin.user.update({
       where: { id },
       data: {
@@ -133,5 +143,14 @@ export class AdminUsersService {
     });
 
     return toSummary(updated);
+  }
+
+  /** Uso de assentos da empresa: ativos atuais + limite do plano (null = ilimitado). */
+  async seats(tenantId: string): Promise<{ active: number; max: number | null }> {
+    await this.assertTenant(tenantId);
+    // rls-allow: contagem de assentos por tenantId explícito (super admin, control plane)
+    const active = await this.prisma.admin.user.count({ where: { tenantId, active: true } });
+    const max = await this.metering.userLimit(tenantId);
+    return { active, max };
   }
 }

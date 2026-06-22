@@ -33,6 +33,7 @@ import { AdminUsersService } from './admin-users.service';
 import { ActionTemplatesService } from './action-templates.service';
 import { EditableTextsService } from './editable-texts.service';
 import { GlobalAcademyService } from './global-academy.service';
+import { MeteringModule } from '../metering/metering.module';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -40,6 +41,7 @@ import { GlobalAcademyService } from './global-academy.service';
  * PrismaService. Rotas sob /admin/* (após o prefixo /api).
  */
 @Module({
+  imports: [MeteringModule],
   controllers: [
     AdminAuthController,
     TenantsController,

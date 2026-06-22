@@ -29,6 +29,12 @@ export class AdminUsersController {
     return this.users.list(tenantId);
   }
 
+  /** Uso de assentos (usuários ativos / limite do plano) da empresa. */
+  @Get('seats')
+  seats(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
+    return this.users.seats(tenantId);
+  }
+
   /** Cria um usuário na empresa (senha gerada e retornada 1× se ausente). */
   @Post()
   create(

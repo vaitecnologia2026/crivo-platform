@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@crivo/ui";
 import { ROLES, ROLE_LABELS, type Role, type TenantSummary, type UserSummary } from "@crivo/types";
-import { createTenantUser, listTenantUsers, updateTenantUser } from "@/lib/admin-api";
+import {
+  createTenantUser,
+  getTenantUserSeats,
+  listTenantUsers,
+  updateTenantUser,
+} from "@/lib/admin-api";
 
 type Load = "loading" | "error" | "ok";
 
@@ -16,6 +21,7 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
   const [load, setLoad] = useState<Load>("loading");
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [seats, setSeats] = useState<{ active: number; max: number | null } | null>(null);
 
   const [form, setForm] = useState<{ name: string; email: string; role: Role }>({
     name: "",
@@ -29,9 +35,13 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
     let alive = true;
     (async () => {
       try {
-        const u = await listTenantUsers(tenant.id);
+        const [u, s] = await Promise.all([
+          listTenantUsers(tenant.id),
+          getTenantUserSeats(tenant.id).catch(() => null),
+        ]);
         if (alive) {
           setUsers(u);
+          setSeats(s);
           setLoad("ok");
         }
       } catch {
@@ -55,6 +65,7 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
         role: form.role,
       });
       setUsers((prev) => [...prev, res.user]);
+      getTenantUserSeats(tenant.id).then(setSeats).catch(() => {});
       setForm({ name: "", email: "", role: "COLABORADOR" });
       if (res.tempPassword) setTempPassword(res.tempPassword);
     } catch (e) {
@@ -70,12 +81,15 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
     try {
       const updated = await updateTenantUser(tenant.id, u.id, body);
       setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
+      getTenantUserSeats(tenant.id).then(setSeats).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao atualizar usuário");
     } finally {
       setBusyId(null);
     }
   }
+
+  const atLimit = !!seats && seats.max !== null && seats.active >= seats.max;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -105,7 +119,19 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
           {load === "ok" && (
             <>
               {/* Criar usuário */}
-              <p className="mb-3 text-[12px] uppercase tracking-[0.1em] text-text-sec">Novo usuário</p>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[12px] uppercase tracking-[0.1em] text-text-sec">Novo usuário</p>
+                {seats && (
+                  <span className="text-[12px] text-text-sec">
+                    Assentos:{" "}
+                    <strong className={atLimit ? "text-terra-escura" : "text-text"}>
+                      {seats.max !== null
+                        ? `${seats.active} de ${seats.max}`
+                        : `${seats.active} · ilimitado`}
+                    </strong>
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
                 <input
                   value={form.name}
@@ -134,7 +160,7 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
                   variant="terra"
                   size="sm"
                   onClick={create}
-                  disabled={creating || !form.name.trim() || !form.email.trim()}
+                  disabled={creating || !form.name.trim() || !form.email.trim() || atLimit}
                 >
                   {creating ? "Criando…" : "Criar"}
                 </Button>
@@ -143,6 +169,12 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
                 <div className="mt-2 rounded-[3px] border border-line bg-[#fafaf7] p-2 text-[12px] text-text-sec">
                   Senha temporária (mostrada uma única vez):{" "}
                   <code className="font-mono text-azul-profundo">{tempPassword}</code>
+                </div>
+              )}
+              {atLimit && (
+                <div className="mt-2 rounded-[3px] border border-line bg-[#fdf6f0] p-2 text-[12px] text-terra-escura">
+                  Limite de usuários do plano atingido ({seats?.max}). Aumente o limite no produto da
+                  empresa (aba Produtos) para adicionar mais.
                 </div>
               )}
 

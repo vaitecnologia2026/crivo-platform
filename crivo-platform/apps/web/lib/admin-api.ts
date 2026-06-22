@@ -179,6 +179,15 @@ export function listTenantUsers(tenantId: string): Promise<UserSummary[]> {
   return adminFetch<UserSummary[]>(`/admin/tenants/${tenantId}/users`);
 }
 
+/** Uso de assentos da empresa: usuários ativos atuais + limite do plano (null = ilimitado). */
+export function getTenantUserSeats(
+  tenantId: string,
+): Promise<{ active: number; max: number | null }> {
+  return adminFetch<{ active: number; max: number | null }>(
+    `/admin/tenants/${tenantId}/users/seats`,
+  );
+}
+
 /** Cria um usuário na empresa (senha temporária retornada 1× se ausente). */
 export function createTenantUser(
   tenantId: string,
