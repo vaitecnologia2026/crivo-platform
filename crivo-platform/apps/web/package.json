@@ -7,9 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cap:build": "CAP_EXPORT=1 NODE_ENV=production next build",
+    "cap:sync": "pnpm cap:build && npx cap sync android",
+    "android:aab": "pnpm cap:sync && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8",
+    "@capacitor/core": "^8",
     "@crivo/types": "workspace:*",
     "@crivo/ui": "workspace:*",
     "next": "16.2.7",
@@ -17,6 +22,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.16.0",
     "@types/react": "^19",

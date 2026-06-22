@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CRIVO</string>
+    <string name="title_activity_main">CRIVO</string>
+    <string name="package_name">com.vaisistema.crivo</string>
+    <string name="custom_url_scheme">com.vaisistema.crivo</string>
+</resources>

@@ -19,3 +19,16 @@ out/
 
 # dev-only (atalho de login com token — não versionar)
 crivo-platform/apps/web/public/dev-login.html
+
+# Capacitor / Android — segredos e artefatos de build (NUNCA versionar)
+**/android/key.properties
+**/android/local.properties
+**/android/.gradle/
+**/android/build/
+**/android/app/build/
+**/android/app/release/
+**/android/capacitor-cordova-android-plugins/
+*.jks
+*.keystore
+*.aab
+*.apk
