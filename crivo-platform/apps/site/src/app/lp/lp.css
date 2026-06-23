@@ -416,6 +416,25 @@ img, svg { display: block; max-width: 100%; }
   .ebook-card__body { padding: 26px; }
 }
 
+/* Reforço do e-book dentro do modal do Diagnóstico Inicial */
+.diag-ebook-note {
+  display: flex; align-items: center; gap: 14px;
+  margin: 2px 0 18px; padding: 12px 14px;
+  background: rgba(13, 31, 60, .04);
+  border: 1px solid var(--line); border-radius: 12px;
+}
+.diag-ebook-note__cover {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; justify-content: space-between;
+  width: 46px; height: 60px; padding: 8px 7px; border-radius: 4px;
+  background: linear-gradient(155deg, #0d1f3c 0%, #16335f 100%);
+  color: #f2f0ec; box-shadow: 0 6px 14px -6px rgba(13, 31, 60, .5);
+}
+.diag-ebook-note__kicker { font-size: 8px; letter-spacing: .08em; text-transform: uppercase; color: var(--terra-dourado); }
+.diag-ebook-note__cover strong { font-family: var(--font-display); font-size: 12px; line-height: 1; }
+.diag-ebook-note__txt { font-size: 13px; line-height: 1.45; color: var(--text-dark-sec); }
+.diag-ebook-note__txt strong { color: var(--text-dark); font-weight: 600; }
+
 /* ===================== HERO — extras (briefing final) ===================== */
 /* Hero 1: linha de apoio + frase-âncora. */
 .hero__support {

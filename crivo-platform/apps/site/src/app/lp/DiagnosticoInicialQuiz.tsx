@@ -318,6 +318,17 @@ export function DiagnosticoInicialQuiz() {
         fatores psicossociais e governança. Ao final, você receberá uma devolutiva inicial por e-mail ou WhatsApp.
       </p>
 
+      <div className="diag-ebook-note">
+        <span className="diag-ebook-note__cover" aria-hidden="true">
+          <span className="diag-ebook-note__kicker">E-book</span>
+          <strong>CRIVO™</strong>
+        </span>
+        <span className="diag-ebook-note__txt">
+          Ao concluir, você recebe o <strong>Relatório Preliminar CRIVO™</strong> + o <strong>e-book complementar</strong>{" "}
+          sobre decisão, liderança e fatores psicossociais.
+        </span>
+      </div>
+
       <div className="diag-form__grid">
         <label className="diag-field diag-field--full">
           <span>Nome*</span>

@@ -201,55 +201,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== 04 · QUEM SOMOS ===================== */}
-      <section className="section section--dark" id="quem-somos">
-        <div className="container split">
-          <div className="split__left">
-            <span className="eyebrow eyebrow--terra">Quem somos</span>
-            <h2 className="h2 h2--light">
-              Consultoria estratégica de transformação organizacional por meio do desenvolvimento sustentável da
-              liderança.
-            </h2>
-            <p className="lede lede--light">
-              A CRIVO™ combina método proprietário, leitura organizacional, desenvolvimento da liderança e tecnologia
-              aplicada para transformar sinais dispersos em clareza, plano de ação e evolução sustentável.
-            </p>
-            <blockquote className="pull-quote">
-              &ldquo;A CRIVO™ transforma sinais invisíveis em clareza, liderança e evolução sustentável.&rdquo;
-            </blockquote>
-            <div className="cta-inline">
-              <a href="/sobre" className="btn btn--terra">
-                Conhecer a CRIVO · quem somos e fundadores →
-              </a>
-            </div>
-          </div>
-          <div className="split__right">
-            <div className="lp-photo lp-photo--portrait" aria-hidden="true">
-              <span style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== 05 · COMO NASCEU ===================== */}
-      <section className="section section--light" id="como-nasceu">
-        <div className="container">
-          <span className="eyebrow">Como nasceu</span>
-          <h2 className="h2">Da prática executiva à inteligência aplicável.</h2>
-          <p className="lede">
-            A CRIVO nasceu da prática executiva e da percepção de que a qualidade das decisões sob pressão molda
-            cultura, performance e resultados. Transformamos padrões invisíveis em inteligência aplicável para
-            lideranças que precisam decidir melhor em contextos reais.
-          </p>
-          <div className="cta-inline">
-            <a href="/sobre#como-nasceu" className="btn btn--outline-dark">
-              Ler a história completa e conhecer os fundadores →
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================== 06 · RISCOS PSICOSSOCIAIS E IA ===================== */}
+      {/* ===================== O DESAFIO · RISCOS PSICOSSOCIAIS E IA ===================== */}
       <section className="section section--dark" id="riscos-ia">
         <div className="container">
           <div className="riscos-head">
@@ -331,12 +283,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== 07 · MÉTODO · 08 · ICD · 09 · SOLUÇÕES ===================== */}
+      {/* ===================== SOLUÇÕES · MÉTODO · ICD ===================== */}
+      <PortfolioSection />
       <MetodoSection />
       <IcdSection />
-      <PortfolioSection />
 
-      {/* ===================== 10 · PORTAL EXECUTIVO (dashboard) · 12 · APP · 13 · ECOSSISTEMA ===================== */}
+      {/* ===================== PLATAFORMA · PORTAL · APP · ECOSSISTEMA ===================== */}
       <PortalSection />
       <AppSection />
       <EcossistemaSection />
@@ -421,6 +373,54 @@ export default function LandingPage() {
               </div>
             </div>
           </article>
+        </div>
+      </section>
+
+      {/* ===================== SOBRE · QUEM SOMOS ===================== */}
+      <section className="section section--dark" id="quem-somos">
+        <div className="container split">
+          <div className="split__left">
+            <span className="eyebrow eyebrow--terra">Quem somos</span>
+            <h2 className="h2 h2--light">
+              Consultoria estratégica de transformação organizacional por meio do desenvolvimento sustentável da
+              liderança.
+            </h2>
+            <p className="lede lede--light">
+              A CRIVO™ combina método proprietário, leitura organizacional, desenvolvimento da liderança e tecnologia
+              aplicada para transformar sinais dispersos em clareza, plano de ação e evolução sustentável.
+            </p>
+            <blockquote className="pull-quote">
+              &ldquo;A CRIVO™ transforma sinais invisíveis em clareza, liderança e evolução sustentável.&rdquo;
+            </blockquote>
+            <div className="cta-inline">
+              <a href="/sobre" className="btn btn--terra">
+                Conhecer a CRIVO · quem somos e fundadores →
+              </a>
+            </div>
+          </div>
+          <div className="split__right">
+            <div className="lp-photo lp-photo--portrait" aria-hidden="true">
+              <span style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== SOBRE · COMO NASCEU ===================== */}
+      <section className="section section--light" id="como-nasceu">
+        <div className="container">
+          <span className="eyebrow">Como nasceu</span>
+          <h2 className="h2">Da prática executiva à inteligência aplicável.</h2>
+          <p className="lede">
+            A CRIVO nasceu da prática executiva e da percepção de que a qualidade das decisões sob pressão molda
+            cultura, performance e resultados. Transformamos padrões invisíveis em inteligência aplicável para
+            lideranças que precisam decidir melhor em contextos reais.
+          </p>
+          <div className="cta-inline">
+            <a href="/sobre#como-nasceu" className="btn btn--outline-dark">
+              Ler a história completa e conhecer os fundadores →
+            </a>
+          </div>
         </div>
       </section>
 
