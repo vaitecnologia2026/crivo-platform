@@ -327,7 +327,7 @@ const APP_FEATURES = [
   { nome: "Meu Estado", desc: "Check-in diário da coerência decisória.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12h3.5l2-5.5 3.5 11 2-5.5H21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
   { nome: "CRIVO Pocket", desc: "Microaprendizados aplicados à liderança.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.5h10v17l-5-3.5-5 3.5v-17Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M9.5 8h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
   { nome: "Radar da Decisão · ICD™", desc: "Leitura contínua da coerência decisória sob pressão.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" /><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" /><path d="M12 12l6-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
-  { nome: "Simulador de Decisão", desc: "Ensaie decisões difíceis antes de agir.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="2.3" stroke="currentColor" strokeWidth="1.6" /><circle cx="6" cy="18" r="2.3" stroke="currentColor" strokeWidth="1.6" /><circle cx="18" cy="9" r="2.3" stroke="currentColor" strokeWidth="1.6" /><path d="M6 8.3v7.4M6 11h5.5a4 4 0 0 0 4-4V11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
+  { nome: "Registro de Decisão", desc: "Registre decisões reais e construa o histórico de coerência.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 3.5h7l4 4v13H7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M13 3.5V8h4M9.5 12.5h5M9.5 15.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
   { nome: "Mentor CRIVO", desc: "Apoio reflexivo e operacional à decisão.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3v-3H4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M8.5 10.5h7M8.5 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
   { nome: "Dashboard do Líder", desc: "Acompanhe sua evolução e plano de desenvolvimento.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
   { nome: "Academia CRIVO", desc: "Cursos, trilhas e conteúdos para desenvolver a liderança.", ic: (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4 3 9l9 5 9-5-9-5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M7 11.5V16c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>) },
@@ -404,7 +404,7 @@ export function AppSection() {
                   <span className="phone__label">Seu plano</span>
                   <div className="phone__card phone__card--plan">
                     <span className="phone__sub">Próximo passo sugerido</span>
-                    <span className="phone__tag">Simulador de Decisão →</span>
+                    <span className="phone__tag">Registro de Decisão →</span>
                   </div>
                   <div className="phone__nav" aria-hidden="true">
                     <span className="is-active">Início</span>
@@ -517,7 +517,7 @@ const IcShield = () => (<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
 
 const PORTFOLIO = [
   { ic: <IcSearch />, nome: "Diagnóstico Inicial", tag: "Entrada · Leitura Preliminar", desc: "Leitura rápida de riscos invisíveis, liderança e pontos de atenção. Relatório Preliminar CRIVO™ em até 24h." },
-  { ic: <IcChart />, nome: "CRIVO Diagnóstico™", tag: "Diagnóstico Organizacional", desc: "Diagnóstico estruturado com fatores psicossociais, liderança, cultura e evidências. Dashboard e plano de ação." },
+  { ic: <IcChart />, nome: "CRIVO Diagnóstico™", tag: "Essencial + Organizacional", desc: "Diagnóstico estruturado de fatores psicossociais, liderança e cultura — nas versões Essencial (empresas menores) e Organizacional (empresas maiores), conforme porte e complexidade. Dashboard, evidências e plano de ação." },
   { ic: <IcPeople />, nome: "CRIVO Liderança", tag: "Jornada de Liderança", desc: "Trilhas, mentorias e app (Radar da Decisão, Academia CRIVO) para desenvolver líderes com foco no que importa." },
   { ic: <IcCycle />, nome: "CRIVO Evolução", tag: "Mentoria & Governança", desc: "Mentoria em grupo, governança comportamental e Radar da Decisão evolutivo, com devolutivas estruturadas." },
   { ic: <IcBuilding />, nome: "CRIVO Enterprise", tag: "Transformação Organizacional", desc: "Jornada completa de transformação: PDCA, mentoria, workshops e sustentação. Ideal para M&A e crescimento." },
@@ -630,7 +630,7 @@ export function ComparativoSection() {
               <tr><td>App CRIVO de sustentação da rotina</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
               <tr><td>Desenvolvimento e Trilha de Liderança</td><td>—</td><td>parcial</td><td className="compare__crivo">✓</td></tr>
               <tr><td>Academia CRIVO (cursos, trilhas, conteúdos)</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
-              <tr><td>Mentor CRIVO e Simulador de Decisão</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
+              <tr><td>Mentor CRIVO e Radar da Decisão</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
               <tr><td>ICD™ — Índice de Coerência Decisória (métrica proprietária)</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
               <tr><td>Pocket — preparo rápido para decisões e conversas</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>
               <tr><td>Leitura contínua e evolutiva por ciclos</td><td>—</td><td>—</td><td className="compare__crivo">✓</td></tr>

@@ -18,12 +18,11 @@ type NavTop = { label: string; href: string; items?: NavItem[] };
 // por âncoras. "Sobre" concentra o institucional (submenu). As páginas dedicadas
 // (/metodo /plataforma /solucoes /sobre) seguem existindo como aprofundamento.
 const NAV: NavTop[] = [
-  { label: "O Problema", href: "/lp#o-problema" },
-  { label: "Método", href: "/lp#metodo" },
+  { label: "Início", href: "/lp#hero" },
   { label: "Soluções", href: "/lp#solucoes" },
-  { label: "ICD", href: "/lp#icd" },
-  { label: "Portal", href: "/lp#portal" },
-  { label: "App", href: "/lp#app" },
+  { label: "Método CRIVO", href: "/lp#metodo" },
+  { label: "Plataforma", href: "/lp#portal" },
+  { label: "Conteúdos", href: "/lp#conteudos" },
   {
     label: "Sobre",
     href: "/lp#quem-somos",
@@ -33,7 +32,6 @@ const NAV: NavTop[] = [
       { label: "Ecossistema CRIVO", href: "/lp#ecossistema" },
     ],
   },
-  { label: "NR-1", href: "/lp#nr1" },
 ];
 
 function NavLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {

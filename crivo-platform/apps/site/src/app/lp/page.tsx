@@ -62,7 +62,7 @@ export default function LandingPage() {
                 Agendar Conversa Estratégica
               </a>
             </div>
-            <p className="hero__micro">Leitura preliminar gratuita · Confidencial · Resposta em até 24h úteis</p>
+            <p className="hero__micro">Leitura preliminar gratuita + e-book complementar</p>
           </div>
 
           <div className="hero__visual">
@@ -82,39 +82,15 @@ export default function LandingPage() {
                 </span>
               </figcaption>
             </figure>
-
-            <div className="hero-float" aria-hidden="true">
-              <span className="hero-float__label">ICD · Coerência Decisória</span>
-              <div className="hero-float__row">
-                <strong className="hero-float__score">78</strong>
-                <span className="hero-float__of">/100</span>
-                <span className="hero-float__pill">Boa</span>
-              </div>
-              <div className="hero-float__bar">
-                <i style={{ width: "78%" }} />
-              </div>
-              <span className="hero-float__foot">Saúde da liderança sob pressão · +6 no ciclo</span>
-            </div>
           </div>
         </div>
 
-        <div className="container hero__trust">
-          <div className="trust__item">
-            <strong>ICD</strong>
-            <span>Métrica proprietária CRIVO</span>
-          </div>
-          <div className="trust__item">
-            <strong>LGPD</strong>
-            <span>Dados agregados e protegidos</span>
-          </div>
-          <div className="trust__item">
-            <strong>12 meses</strong>
-            <span>Jornada completa</span>
-          </div>
-          <div className="trust__item">
-            <strong>Evolução</strong>
-            <span>Plano de ação e resultado mensurável</span>
-          </div>
+        <div className="container hero__creed">
+          <p className="hero__creed-text">
+            <span>Clareza para decidir.</span>
+            <span>Estrutura para agir.</span>
+            <span>Evidência para evoluir.</span>
+          </p>
         </div>
       </section>
 
@@ -370,8 +346,8 @@ export default function LandingPage() {
         <div className="container">
           <span className="eyebrow eyebrow--terra">NR-1 · porta de entrada</span>
           <h2 className="h2 h2--light h2--center">
-            A NR-1 tornou visível uma parte do desafio. A evolução acontece quando diagnóstico vira ação, evidência e
-            sustentação.
+            A NR-1 gera urgência. A CRIVO entrega a <span className="terra-text">jornada completa</span>: diagnóstico,
+            plano de ação, evidências, liderança, app e evolução.
           </h2>
           <p className="lede lede--light">
             A NR-1 é porta de entrada, não o limite da CRIVO. A atualização ampliou a atenção das empresas sobre fatores
@@ -412,6 +388,39 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ===================== CONTEÚDOS · E-BOOK ===================== */}
+      <section className="section section--light" id="conteudos">
+        <div className="container">
+          <span className="eyebrow">Conteúdos</span>
+          <h2 className="h2">Materiais para decidir melhor.</h2>
+          <p className="lede">
+            E-books, materiais gratuitos e artigos sobre liderança, decisão, fatores psicossociais e governança — para
+            apoiar a evolução da sua organização.
+          </p>
+
+          <article className="ebook-card">
+            <div className="ebook-card__cover" aria-hidden="true">
+              <span className="ebook-card__kicker">E-book gratuito</span>
+              <span className="ebook-card__title">Liderança que sustenta decisões</span>
+              <span className="ebook-card__brand">CRIVO™</span>
+            </div>
+            <div className="ebook-card__body">
+              <span className="eyebrow">Material gratuito</span>
+              <h3>O e-book complementar ao Diagnóstico Inicial</h3>
+              <p>
+                Ao fazer o Diagnóstico Inicial, você recebe a leitura preliminar gratuita e o e-book complementar
+                sobre decisão, liderança e fatores psicossociais — uma porta de entrada prática para a jornada CRIVO.
+              </p>
+              <div className="cta-inline">
+                <a href="#diagnostico" className="btn btn--terra">
+                  Fazer Diagnóstico Inicial e receber o e-book →
+                </a>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -479,9 +488,9 @@ export default function LandingPage() {
               <summary>Qual é o papel do App CRIVO?</summary>
               <p>
                 O App CRIVO é a camada que sustenta a transformação na rotina do líder: Meu Estado, CRIVO Pocket, Radar
-                da Decisão (ICD™), Simulador de Decisão, Mentor Operacional e Mentor CRIVO, Academia CRIVO e Dashboard
-                do Líder. Enquanto o Portal organiza a visão executiva da empresa, o app ajuda a liderança a aplicar o
-                método no dia a dia — conectado aos planos de ação e aos indicadores agregados.
+                da Decisão (ICD™), Registro de Decisão, Mentor CRIVO, Academia CRIVO e Dashboard do Líder. Enquanto o
+                Portal organiza a visão executiva da empresa, o app ajuda a liderança a aplicar o método no dia a dia —
+                conectado aos planos de ação e aos indicadores agregados.
               </p>
             </details>
             <details>
@@ -545,8 +554,8 @@ export default function LandingPage() {
             <circle cx="60" cy="16" r="2.6" fill="#F2F0EC" />
           </svg>
           <p className="final__message">
-            A CRIVO identifica riscos psicossociais, custos invisíveis e padrões de liderança, organiza o diagnóstico no
-            Portal Executivo e sustenta a evolução por meio de planos de ação, desenvolvimento e acompanhamento contínuo.
+            A CRIVO ajuda empresas a enxergar riscos invisíveis, organizar planos de ação, sustentar a liderança,
+            registrar evidências e acompanhar a evolução.
           </p>
           <h2 className="display final__title">
             Decisão com critério é <span className="terra-text">infraestrutura</span> de qualidade e resultado.
