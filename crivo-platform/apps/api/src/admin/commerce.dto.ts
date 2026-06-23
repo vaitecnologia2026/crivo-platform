@@ -212,6 +212,15 @@ export class CreateDiagnosticLeadDto {
   @IsOptional() @IsString() @MaxLength(60)
   origin?: string;
 
+  @IsOptional() @IsString() @MaxLength(120)
+  role?: string;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  challenges?: string[];
+
+  @IsOptional() @IsString() @MaxLength(200)
+  challengeOther?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => DiagnosticAnswerDto)

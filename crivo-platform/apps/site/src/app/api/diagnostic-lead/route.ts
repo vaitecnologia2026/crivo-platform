@@ -12,11 +12,14 @@ export const runtime = "nodejs";
 type Answer = { questionId: number; value: number };
 type Payload = {
   name?: string;
+  role?: string;
   company?: string;
   email?: string;
   phone?: string;
   segment?: string;
   employeesCount?: string;
+  challenges?: string[];
+  challengeOther?: string;
   origin?: string;
   answers?: Answer[];
 };
@@ -28,11 +31,14 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: data.name,
+        role: data.role || undefined,
         company: data.company || undefined,
         email: data.email || undefined,
         phone: data.phone || undefined,
         segment: data.segment || undefined,
         employeesCount: data.employeesCount || undefined,
+        challenges: data.challenges?.length ? data.challenges : undefined,
+        challengeOther: data.challengeOther || undefined,
         origin: data.origin || "lp-diagnostico",
         answers: data.answers ?? [],
       }),
@@ -47,13 +53,18 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<boolean> {
 async function sendEmail(apiKey: string, data: Payload): Promise<boolean> {
   const to = process.env.LEAD_TO_EMAIL ?? "contato@crivolegacy.com.br";
   const from = process.env.LEAD_FROM_EMAIL ?? "CRIVO Leads <onboarding@resend.dev>";
+  const desafios = (data.challenges ?? [])
+    .map((c) => (c === "Outro" && data.challengeOther ? `Outro: ${data.challengeOther}` : c))
+    .join(", ");
   const linhas = [
     ["Nome", data.name],
+    ["Cargo / Função", data.role],
     ["Empresa", data.company],
     ["E-mail", data.email],
     ["Telefone", data.phone],
     ["Segmento", data.segment],
     ["Funcionários", data.employeesCount],
+    ["Principais desafios", desafios || undefined],
     ["Respostas", `${data.answers?.length ?? 0} respondidas`],
   ]
     .map(([k, v]) => `<strong>${k}:</strong> ${String(v ?? "—")}`)

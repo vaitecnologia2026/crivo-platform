@@ -100,6 +100,18 @@ export class PlatformLeadsService {
       orderBy: { createdAt: 'asc' },
     });
 
+    // Cargo + principais desafios entram nas observações do lead (visíveis no
+    // funil do CRM). Doc do cliente: o lead deve trazer porte/segmento/desafios.
+    const challengesText = (dto.challenges ?? [])
+      .map((c) =>
+        c === 'Outro' && dto.challengeOther?.trim() ? `Outro: ${dto.challengeOther.trim()}` : c,
+      )
+      .join('; ');
+    const noteParts: string[] = [];
+    if (dto.role?.trim()) noteParts.push(`Cargo/função: ${dto.role.trim()}`);
+    if (challengesText) noteParts.push(`Principais desafios: ${challengesText}`);
+    const notes = noteParts.length ? noteParts.join('\n') : null;
+
     const lead = await this.prisma.admin.platformLead.create({
       data: {
         name,
@@ -109,6 +121,7 @@ export class PlatformLeadsService {
         segment: dto.segment?.trim() || null,
         employeesCount: dto.employeesCount?.trim() || null,
         origin: dto.origin?.trim() || 'lp-diagnostico',
+        notes,
         productId: captureProduct?.id ?? null,
         diagnosticScore: result.score,
         diagnosticResult: result as unknown as object,

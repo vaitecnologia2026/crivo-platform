@@ -22,24 +22,47 @@ import {
 
 type Contact = {
   name: string;
+  role: string;
   company: string;
   phone: string;
   email: string;
   employeesCount: string;
   segment: string;
+  challenges: string[];
+  challengeOther: string;
 };
 
-const EMPLOYEE_RANGES = ["1–10", "11–50", "51–200", "201–500", "500+"];
+const EMPLOYEE_RANGES = [
+  "1 a 2", "3 a 9", "10 a 29", "30 a 50", "51 a 100",
+  "101 a 300", "301 a 500", "501 a 1.000", "Mais de 1.000",
+];
 const SEGMENTS = [
   "Indústria", "Varejo", "Saúde", "Serviços financeiros", "Tecnologia",
   "Construção / Engenharia", "Logística e transporte", "Educação",
   "Serviços", "Setor público", "Outro",
 ];
+const CHALLENGES = [
+  "Crescimento sem organização da rotina",
+  "Sobrecarga, urgências e excesso de demandas",
+  "Dificuldade para delegar e acompanhar responsabilidades",
+  "Falta de clareza de prioridades",
+  "Comunicação falha ou ruídos entre pessoas/áreas",
+  "Conflitos, clima pesado ou baixa colaboração",
+  "Turnover, faltas ou afastamentos",
+  "Liderança despreparada para conversas difíceis",
+  "Falta de plano de ação, registros ou evidências",
+  "Adequação à NR-1 e fatores psicossociais",
+  "Baixa produtividade, retrabalho ou perda de eficiência",
+  "Preparação da empresa para uso de IA",
+  "Outro",
+];
+const MAX_CHALLENGES = 3;
 
 export function DiagnosticoInicialQuiz() {
   const [step, setStep] = useState<"form" | "orientacao" | "quiz" | "result">("form");
   const [contact, setContact] = useState<Contact>({
-    name: "", company: "", phone: "", email: "", employeesCount: "", segment: "",
+    name: "", role: "", company: "", phone: "", email: "",
+    employeesCount: "", segment: "", challenges: [], challengeOther: "",
   });
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [idx, setIdx] = useState(0);
@@ -48,8 +71,21 @@ export function DiagnosticoInicialQuiz() {
   const [sent, setSent] = useState<"idle" | "sending" | "ok" | "error">("idle");
 
   const total = PRE_DIAGNOSTIC_QUESTIONS.length;
-  const formValid = contact.name.trim() && contact.email.trim();
-  const set = (k: keyof Contact) => (v: string) => setContact((c) => ({ ...c, [k]: v }));
+  const formValid =
+    contact.name.trim() && contact.role.trim() && contact.company.trim() &&
+    contact.phone.trim() && contact.email.trim() &&
+    contact.employeesCount.trim() && contact.segment.trim();
+  const set = (k: "name" | "role" | "company" | "phone" | "email" | "employeesCount" | "segment" | "challengeOther") =>
+    (v: string) => setContact((c) => ({ ...c, [k]: v }));
+  function toggleChallenge(c: string) {
+    setContact((prev) => {
+      if (prev.challenges.includes(c)) {
+        return { ...prev, challenges: prev.challenges.filter((x) => x !== c) };
+      }
+      if (prev.challenges.length >= MAX_CHALLENGES) return prev; // máximo de 3
+      return { ...prev, challenges: [...prev.challenges, c] };
+    });
+  }
 
   function startOrientacao(e: React.FormEvent) {
     e.preventDefault();
@@ -98,11 +134,14 @@ export function DiagnosticoInicialQuiz() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: contact.name,
+          role: contact.role,
           company: contact.company,
           phone: contact.phone,
           email: contact.email,
           employeesCount: contact.employeesCount,
           segment: contact.segment,
+          challenges: contact.challenges,
+          challengeOther: contact.challengeOther.trim() || undefined,
           origin: "lp-diagnostico",
           answers: payloadAnswers,
         }),
@@ -275,7 +314,8 @@ export function DiagnosticoInicialQuiz() {
         <span className="eyebrow eyebrow--terra">Diagnóstico Inicial · grátis</span>
       </div>
       <p className="diag-form__lead">
-        Preencha seus dados para iniciar a leitura preliminar. O resultado é enviado para seu e-mail ou WhatsApp.
+        Preencha os dados abaixo para iniciar uma leitura preliminar sobre liderança, cultura, rotina,
+        fatores psicossociais e governança. Ao final, você receberá uma devolutiva inicial por e-mail ou WhatsApp.
       </p>
 
       <div className="diag-form__grid">
@@ -284,31 +324,69 @@ export function DiagnosticoInicialQuiz() {
           <input value={contact.name} onChange={(e) => set("name")(e.target.value)} required />
         </label>
         <label className="diag-field">
-          <span>Empresa</span>
-          <input value={contact.company} onChange={(e) => set("company")(e.target.value)} />
+          <span>Cargo / Função*</span>
+          <input value={contact.role} onChange={(e) => set("role")(e.target.value)} required />
         </label>
         <label className="diag-field">
-          <span>Telefone / WhatsApp</span>
-          <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" />
+          <span>Empresa*</span>
+          <input value={contact.company} onChange={(e) => set("company")(e.target.value)} required />
         </label>
-        <label className="diag-field diag-field--full">
+        <label className="diag-field">
+          <span>Telefone / WhatsApp*</span>
+          <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" required />
+        </label>
+        <label className="diag-field">
           <span>E-mail*</span>
           <input type="email" value={contact.email} onChange={(e) => set("email")(e.target.value)} required />
         </label>
         <label className="diag-field">
-          <span>Funcionários</span>
-          <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)}>
+          <span>Funcionários*</span>
+          <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)} required>
             <option value="">Selecione…</option>
             {EMPLOYEE_RANGES.map((r) => (<option key={r} value={r}>{r}</option>))}
           </select>
         </label>
-        <label className="diag-field">
-          <span>Segmento</span>
-          <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)}>
+        <label className="diag-field diag-field--full">
+          <span>Segmento*</span>
+          <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)} required>
             <option value="">Selecione…</option>
             {SEGMENTS.map((s) => (<option key={s} value={s}>{s}</option>))}
           </select>
         </label>
+      </div>
+
+      <div className="diag-challenges">
+        <span className="diag-challenges__label">
+          Quais são os principais desafios da empresa atualmente?
+          <em> · até {MAX_CHALLENGES}</em>
+        </span>
+        <div className="diag-challenges__grid">
+          {CHALLENGES.map((c) => {
+            const on = contact.challenges.includes(c);
+            const full = !on && contact.challenges.length >= MAX_CHALLENGES;
+            return (
+              <button
+                key={c}
+                type="button"
+                className={`diag-chip${on ? " is-on" : ""}`}
+                aria-pressed={on}
+                disabled={full}
+                onClick={() => toggleChallenge(c)}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+        {contact.challenges.includes("Outro") && (
+          <input
+            className="diag-challenges__other"
+            placeholder="Descreva brevemente"
+            maxLength={160}
+            value={contact.challengeOther}
+            onChange={(e) => set("challengeOther")(e.target.value)}
+          />
+        )}
       </div>
 
       <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>

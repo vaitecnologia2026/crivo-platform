@@ -713,11 +713,14 @@ export interface PlatformLeadSummary {
 /** Payload público do Diagnóstico Inicial da LP (form + respostas). */
 export interface CreateDiagnosticLeadRequest {
   name: string;
+  role?: string;
   company?: string;
   email?: string;
   phone?: string;
   segment?: string;
   employeesCount?: string;
+  challenges?: string[];
+  challengeOther?: string;
   origin?: string;
   answers: IcdAnswer[];
 }

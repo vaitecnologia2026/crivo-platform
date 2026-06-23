@@ -1398,6 +1398,26 @@ th.compare__crivo { color: var(--terra) !important; }
 }
 .diag-field input:focus, .diag-field select:focus { outline: none; border-color: var(--terra); }
 
+/* Principais desafios — multi-seleção em chips (até 3) */
+.diag-challenges { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.diag-challenges__label { font-size: 12px; font-weight: 600; color: var(--text-dark-sec); }
+.diag-challenges__label em { font-weight: 400; font-style: normal; opacity: 0.65; }
+.diag-challenges__grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.diag-chip {
+  font-size: 12.5px; line-height: 1.2; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: #fff; color: var(--text-dark);
+  font-family: inherit; cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.diag-chip:hover:not(:disabled) { border-color: var(--terra); }
+.diag-chip.is-on { background: var(--terra); border-color: var(--terra); color: #fff; }
+.diag-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.diag-challenges__other {
+  margin-top: 2px; width: 100%; box-sizing: border-box; border: 1px solid var(--line);
+  border-radius: var(--r); background: #fff; padding: 11px 12px; font-size: 14px;
+  color: var(--text-dark); font-family: inherit;
+}
+.diag-challenges__other:focus { outline: none; border-color: var(--terra); }
+
 /* A11y — anel de foco VISÍVEL apenas no teclado (:focus-visible). Não altera o
    estado de mouse/hover; vem depois das regras outline:none, então vence p/ teclado. */
 a:focus-visible,
