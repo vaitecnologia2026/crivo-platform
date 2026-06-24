@@ -56,6 +56,8 @@ export class ProductsService {
         diagnostic: (dto.diagnostic ?? undefined) as object | undefined,
         aiConfig: (dto.aiConfig ?? undefined) as object | undefined,
         isLeadCapture: dto.isLeadCapture ?? false,
+        method: dto.method ?? null,
+        supportedOutputs: (dto.supportedOutputs ?? []) as object,
       },
     });
     await this.audit.record({ action: 'product.create', actor, target: created.id, meta: { name: created.name } });
@@ -82,6 +84,8 @@ export class ProductsService {
         diagnostic: (dto.diagnostic ?? (existing.diagnostic ?? undefined)) as object | undefined,
         aiConfig: (dto.aiConfig ?? (existing.aiConfig ?? undefined)) as object | undefined,
         isLeadCapture: dto.isLeadCapture ?? existing.isLeadCapture,
+        method: dto.method === undefined ? existing.method : dto.method,
+        supportedOutputs: (dto.supportedOutputs ?? (existing.supportedOutputs as object)) as object,
       },
     });
     await this.audit.record({ action: 'product.update', actor, target: id, meta: { name: dto.name } });
@@ -111,6 +115,8 @@ export class ProductsService {
     modules: unknown;
     diagnostic: unknown;
     isLeadCapture: boolean;
+    method: string | null;
+    supportedOutputs: unknown;
     createdAt: Date;
     updatedAt: Date;
   }): ProductSummary {
@@ -130,6 +136,8 @@ export class ProductsService {
       companyType: p.companyType,
       modules,
       isLeadCapture: p.isLeadCapture,
+      method: (p.method as ProductSummary['method']) ?? null,
+      supportedOutputs: Array.isArray(p.supportedOutputs) ? (p.supportedOutputs as ProductSummary['supportedOutputs']) : [],
       questionCount: diag?.questions?.length ?? 0,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),

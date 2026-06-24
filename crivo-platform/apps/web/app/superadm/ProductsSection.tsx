@@ -2,16 +2,22 @@
 
 import { useEffect, useState } from "react";
 import {
+  DIAGNOSTIC_METHOD_LABEL,
+  DIAGNOSTIC_METHODS,
   MODULES,
   PLANS,
   PRODUCT_STATUS_LABEL,
   PRODUCT_STATUSES,
+  TECHNICAL_OUTPUT_LABEL,
+  TECHNICAL_OUTPUTS,
+  type DiagnosticMethod,
   type Plan,
   type ProductAiConfig,
   type ProductDiagnostic,
   type ProductDetail,
   type ProductStatus,
   type ProductSummary,
+  type TechnicalOutput,
   type UpsertProductRequest,
 } from "@crivo/types";
 import {
@@ -117,7 +123,8 @@ export function ProductsSection() {
                 )}
               </div>
               <div className="prod-meta">
-                {p.isLeadCapture && <span className="prod-pill">Pré-diagnóstico</span>}
+                {p.isLeadCapture && <span className="prod-pill prod-pill--lp">Pré-Diagnóstico LP</span>}
+                {p.method && <span className="prod-pill">{DIAGNOSTIC_METHOD_LABEL[p.method]}</span>}
                 {p.plan && <span className="prod-pill">Plano {p.plan}</span>}
                 <span className="prod-pill">{p.modules.length} módulos</span>
                 <span className="prod-pill">{p.questionCount} perguntas</span>
@@ -171,6 +178,8 @@ function ProductForm({
     diagnostic: initial?.diagnostic ?? defaultDiagnostic(),
     aiConfig: initial?.aiConfig ?? {},
     isLeadCapture: initial?.isLeadCapture ?? false,
+    method: initial?.method ?? null,
+    supportedOutputs: initial?.supportedOutputs ?? [],
   }));
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof UpsertProductRequest>(k: K, v: UpsertProductRequest[K]) =>
@@ -263,6 +272,38 @@ function ProductForm({
               </Field>
               <Field label="Tipo de empresa atendida" full>
                 <input value={form.companyType ?? ""} onChange={(e) => set("companyType", e.target.value)} />
+              </Field>
+              <Field label="Tipo de diagnóstico (Método)">
+                <select
+                  value={form.method ?? ""}
+                  onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}
+                >
+                  <option value="">— não definido —</option>
+                  {DIAGNOSTIC_METHODS.map((m) => (
+                    <option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Saída técnica (documento gerado)" full>
+                <div className="prod-outputs">
+                  {TECHNICAL_OUTPUTS.map((o) => (
+                    <label key={o} className="prod-check">
+                      <input
+                        type="checkbox"
+                        checked={(form.supportedOutputs ?? []).includes(o)}
+                        onChange={(e) =>
+                          set(
+                            "supportedOutputs",
+                            e.target.checked
+                              ? [...(form.supportedOutputs ?? []), o]
+                              : (form.supportedOutputs ?? []).filter((x) => x !== o),
+                          )
+                        }
+                      />
+                      {TECHNICAL_OUTPUT_LABEL[o]}
+                    </label>
+                  ))}
+                </div>
               </Field>
               <Field label="" full>
                 <label className="prod-check">

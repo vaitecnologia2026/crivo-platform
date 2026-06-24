@@ -629,6 +629,8 @@ export interface ProductSummary {
   companyType: string | null;
   modules: string[];
   isLeadCapture: boolean;
+  method: DiagnosticMethod | null; // Tipo de diagnóstico: Inicial / Essencial / Organizacional
+  supportedOutputs: TechnicalOutput[]; // Saídas técnicas suportadas: Subsídio AEP / AEP+GRO-PGR / Sem integração
   questionCount: number;
   createdAt: string;
   updatedAt: string;
@@ -654,6 +656,8 @@ export interface UpsertProductRequest {
   diagnostic?: ProductDiagnostic | null;
   aiConfig?: ProductAiConfig | null;
   isLeadCapture?: boolean;
+  method?: DiagnosticMethod | null;
+  supportedOutputs?: TechnicalOutput[];
 }
 
 // ── CRM do Super Admin (funil comercial da CRIVO) ──

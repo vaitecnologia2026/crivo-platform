@@ -66,6 +66,12 @@ export class UpsertProductDto {
 
   @IsOptional() @IsBoolean()
   isLeadCapture?: boolean;
+
+  @IsOptional() @IsEnum(DiagnosticMethod)
+  method?: DiagnosticMethod | null;
+
+  @IsOptional() @IsArray() @IsEnum(TechnicalOutput, { each: true })
+  supportedOutputs?: TechnicalOutput[];
 }
 
 // ── CRM do super admin ──

@@ -1741,6 +1741,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .prod-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); }
 .prod-card--capture { border-bottom: 4px solid #1d9e75; }
+.prod-pill--lp { background: #e7f6ef; color: #0f6e56; border-color: rgba(29, 158, 117, .35); font-weight: 600; }
+.prod-outputs { display: flex; flex-direction: column; gap: 8px; }
 .prod-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .prod-card__head strong { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
 .prod-card__desc { font-size: 12.5px; color: var(--text-sec); line-height: 1.5; flex: 1; }
