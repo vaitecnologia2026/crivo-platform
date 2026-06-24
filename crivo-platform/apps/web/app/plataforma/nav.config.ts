@@ -83,10 +83,10 @@ export const NAV: NavGroup[] = [
     items: [
       {
         route: 'essencial',
-        label: 'Diagnóstico Essencial',
+        label: 'Diagnóstico',
         icon: '✦',
         module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico Essencial' },
+        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico' },
       },
       {
         route: 'campanhas',
@@ -110,13 +110,6 @@ export const NAV: NavGroup[] = [
         module: 'icd',
         perm: 'icd:submit',
         breadcrumb: { path: 'Aplicação', current: 'Instrumentos Diagnósticos' },
-      },
-      {
-        route: 'psicossocial',
-        label: 'Questionário Psicossocial',
-        icon: '☷',
-        module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Questionário Psicossocial' },
       },
     ],
   },
