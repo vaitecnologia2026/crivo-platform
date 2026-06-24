@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
+import nodemailer from "nodemailer";
 
 export const runtime = "nodejs";
 
-// Diagnóstico Inicial da LP → CRM do SUPER ADMIN (funil comercial da CRIVO).
-// Encaminha o formulário + respostas ao endpoint público da plataforma
-// (POST /public/diagnostic-lead), que calcula o pré-diagnóstico e cria o
-// PlatformLead. Sem segredo (endpoint público rate-limited). Resiliente: se a
-// plataforma não estiver configurada/indisponível, faz fallback por e-mail
-// (Resend) e NUNCA trava o usuário — o lead não se perde.
+// Diagnóstico Inicial da LP. Faz 3 coisas, todas best-effort (nunca trava o lead):
+//   1. encaminha o formulário ao endpoint público da plataforma (cria o lead no
+//      CRM + calcula o pré-diagnóstico, devolvido aqui);
+//   2. envia ao PRÓPRIO LEAD um e-mail profissional com o diagnóstico + o e-book
+//      em anexo (SMTP, ou Resend se configurado);
+//   3. envia ao lead um WhatsApp (via API da VAI) com o diagnóstico + o e-book.
+// Os envios saem DAQUI (Vercel) para não depender de variáveis no backend.
 
 type Answer = { questionId: number; value: number };
 type Payload = {
@@ -24,8 +26,53 @@ type Payload = {
   origin?: string;
   answers?: Answer[];
 };
+type DiagResult = {
+  score: number;
+  level: string;
+  byDimension?: Record<string, number>;
+  topAttention?: string;
+  topAttentions?: string[];
+};
 
-async function sendToPlatform(apiUrl: string, data: Payload): Promise<boolean> {
+const EBOOK_URL = process.env.EBOOK_URL ?? "https://crivo.vai-sistema.com/ebook-crivo.pdf";
+const SITE_URL = process.env.SITE_URL ?? "https://crivo.vai-sistema.com";
+
+const LEVEL_LABEL: Record<string, string> = {
+  CRITICO: "Crítico",
+  EM_ESTRUTURACAO: "Em estruturação",
+  EM_DESENVOLVIMENTO: "Em desenvolvimento",
+  ESTRUTURADO: "Estruturado",
+  CONSOLIDADO: "Consolidado",
+  REFERENCIA: "Referência",
+};
+const DIM_LABEL: Record<string, string> = {
+  pressao_rotina: "Pressão & Rotina",
+  lideranca_sustentacao: "Liderança & Sustentação",
+  cultura_comunicacao: "Cultura & Comunicação",
+  fatores_psicossociais: "Fatores Psicossociais",
+  governanca_plano: "Governança & Plano de Ação",
+};
+
+const NAVY = "#1b2a4a";
+const TERRA = "#c4894a";
+
+function firstName(name?: string): string {
+  return (name ?? "").trim().split(/\s+/)[0] || "tudo bem";
+}
+function levelLabel(level?: string): string {
+  return level ? LEVEL_LABEL[level] ?? level : "—";
+}
+function attentionLabels(result?: DiagResult): string[] {
+  const keys = result?.topAttentions?.length
+    ? result.topAttentions
+    : result?.topAttention
+      ? [result.topAttention]
+      : [];
+  return keys.map((k) => DIM_LABEL[k] ?? k);
+}
+
+// ── 1. Encaminha à plataforma e devolve o pré-diagnóstico ────────────────────
+async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: boolean; result?: DiagResult }> {
   try {
     const r = await fetch(`${apiUrl}/public/diagnostic-lead`, {
       method: "POST",
@@ -44,48 +91,231 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<boolean> {
         origin: data.origin || "lp-diagnostico",
         answers: data.answers ?? [],
       }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(9000),
     });
-    return r.ok;
+    if (!r.ok) return { ok: false };
+    const d = (await r.json()) as { result?: DiagResult };
+    return { ok: true, result: d?.result };
   } catch {
+    return { ok: false };
+  }
+}
+
+// ── E-mail profissional ao LEAD (HTML inline, email-safe) ────────────────────
+function leadEmailHtml(data: Payload, result?: DiagResult): string {
+  const empresa = data.company || "sua empresa";
+  const score = result?.score ?? null;
+  const nivel = levelLabel(result?.level);
+  const atencao = attentionLabels(result);
+  const scoreBlock =
+    score != null
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
+           <td style="text-align:center;background:${NAVY};border-radius:16px;padding:22px 30px">
+             <div style="font:700 46px/1 Georgia,serif;color:#fff">${score}<span style="font-size:20px;color:${TERRA}">/100</span></div>
+             <div style="font:600 12px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c9d2e6;margin-top:6px">Índice preliminar</div>
+           </td></tr></table>`
+      : "";
+  const atencaoBlock = atencao.length
+    ? `<p style="margin:18px 0 6px;font:600 13px Arial,sans-serif;color:${NAVY}">Principais pontos de atenção:</p>
+       <ul style="margin:0;padding-left:18px;font:14px/1.6 Arial,sans-serif;color:#333">${atencao
+         .map((a) => `<li>${a}</li>`)
+         .join("")}</ul>`
+    : "";
+
+  return `<!DOCTYPE html><html><body style="margin:0;background:#f4f1ec;padding:24px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(27,42,74,.08)">
+      <tr><td style="background:${NAVY};padding:26px 34px">
+        <div style="font:700 22px Georgia,serif;color:#fff;letter-spacing:.04em">CRIVO<span style="color:${TERRA}">™</span></div>
+        <div style="font:13px Arial,sans-serif;color:#c9d2e6;margin-top:2px">Inteligência decisória · Diagnóstico Inicial</div>
+      </td></tr>
+      <tr><td style="padding:30px 34px 8px">
+        <p style="margin:0 0 10px;font:16px/1.6 Georgia,serif;color:${NAVY}">Olá, ${firstName(data.name)}.</p>
+        <p style="margin:0 0 22px;font:14px/1.7 Arial,sans-serif;color:#444">
+          Recebemos o Diagnóstico Inicial de <strong>${empresa}</strong>. Abaixo, sua leitura preliminar — e
+          o <strong>e-book complementar</strong> segue em anexo neste e-mail.</p>
+        ${scoreBlock}
+        <p style="margin:18px 0 0;font:14px/1.7 Arial,sans-serif;color:#444">
+          Nível de maturidade: <strong style="color:${NAVY}">${nivel}</strong>.</p>
+        ${atencaoBlock}
+      </td></tr>
+      <tr><td style="padding:24px 34px 8px">
+        <a href="${SITE_URL}" style="display:inline-block;background:${TERRA};color:#fff;text-decoration:none;font:600 14px Arial,sans-serif;padding:13px 26px;border-radius:10px">Conhecer a jornada CRIVO</a>
+      </td></tr>
+      <tr><td style="padding:18px 34px 28px">
+        <p style="margin:0;font:11px/1.6 Arial,sans-serif;color:#8a8a8a;border-top:1px solid #eee;padding-top:14px">
+          Esta é uma <strong>leitura preliminar</strong> com base nas respostas informadas — não substitui uma análise
+          técnica presencial. A equipe CRIVO poderá avaliar o diagnóstico mais adequado à realidade da sua operação.</p>
+        <p style="margin:10px 0 0;font:11px Arial,sans-serif;color:${TERRA};font-weight:700">CRIVO™ · O2 Legacy</p>
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+}
+
+async function fetchEbook(): Promise<Buffer | null> {
+  try {
+    const r = await fetch(EBOOK_URL, { signal: AbortSignal.timeout(9000) });
+    if (!r.ok) return null;
+    return Buffer.from(await r.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+async function sendLeadEmail(data: Payload, result?: DiagResult): Promise<boolean> {
+  const to = data.email?.trim();
+  if (!to) return false;
+  const html = leadEmailHtml(data, result);
+  const subject = "Seu Diagnóstico Inicial CRIVO™ + e-book";
+  const pdf = await fetchEbook();
+  const resendKey = process.env.RESEND_API_KEY;
+
+  // Preferência: Resend (HTTP, ideal em serverless) se houver chave.
+  if (resendKey) {
+    try {
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: process.env.SMTP_FROM ?? "CRIVO <onboarding@resend.dev>",
+          to: [to],
+          subject,
+          html,
+          attachments: pdf ? [{ filename: "CRIVO-ebook.pdf", content: pdf.toString("base64") }] : undefined,
+        }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (r.ok) return true;
+    } catch {
+      /* tenta SMTP abaixo */
+    }
+  }
+
+  // SMTP (Zoho/Hostinger). Vercel/Lambda permite 587 de saída.
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return false;
+  try {
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM ?? `CRIVO <${user}>`,
+      to,
+      subject,
+      html,
+      attachments: pdf ? [{ filename: "CRIVO-ebook.pdf", content: pdf }] : undefined,
+    });
+    return true;
+  } catch (e) {
+    console.error("[lead-email] SMTP falhou:", e instanceof Error ? e.message : e);
     return false;
   }
 }
 
-async function sendEmail(apiKey: string, data: Payload): Promise<boolean> {
-  const to = process.env.LEAD_TO_EMAIL ?? "contato@crivolegacy.com.br";
-  const from = process.env.LEAD_FROM_EMAIL ?? "CRIVO Leads <onboarding@resend.dev>";
-  const desafios = (data.challenges ?? [])
-    .map((c) => (c === "Outro" && data.challengeOther ? `Outro: ${data.challengeOther}` : c))
-    .join(", ");
-  const linhas = [
-    ["Nome", data.name],
-    ["Cargo / Função", data.role],
-    ["Empresa", data.company],
-    ["E-mail", data.email],
-    ["Telefone", data.phone],
-    ["Segmento", data.segment],
-    ["Funcionários", data.employeesCount],
-    ["Principais desafios", desafios || undefined],
-    ["Respostas", `${data.answers?.length ?? 0} respondidas`],
-  ]
-    .map(([k, v]) => `<strong>${k}:</strong> ${String(v ?? "—")}`)
-    .join("<br>");
+// ── WhatsApp ao LEAD (API da VAI: login → canal → contato → chat → mensagem) ──
+async function vaiFetch(base: string, path: string, init: RequestInit, token: string): Promise<Response> {
+  return fetch(`${base}${path}`, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(12000),
+  });
+}
+
+async function sendLeadWhatsapp(data: Payload, result?: DiagResult): Promise<boolean> {
+  const to = (data.phone ?? "").replace(/\D/g, "");
+  if (!to) return false;
+  const base = process.env.VAI_API_URL ?? "https://api.vaicrm.com.br";
+  const email = process.env.VAI_API_EMAIL;
+  const password = process.env.VAI_API_PASSWORD;
+  if (!email || !password) return false;
+
   try {
-    const r = await fetch("https://api.resend.com/emails", {
+    const lr = await fetch(`${base}/auth/login`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        reply_to: data.email || undefined,
-        subject: `Novo diagnóstico inicial · ${data.company ?? data.name ?? "lead"}`,
-        html: `<h2>Diagnóstico Inicial (LP)</h2>${linhas}`,
-      }),
-      signal: AbortSignal.timeout(8000),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(12000),
     });
-    return r.ok;
-  } catch {
+    if (!lr.ok) return false;
+    const token = ((await lr.json()) as { access_token?: string }).access_token;
+    if (!token) return false;
+
+    let channelId = process.env.VAI_WA_CHANNEL_ID;
+    if (!channelId) {
+      const cr = await vaiFetch(base, "/channels/type/whatsapp", { method: "GET" }, token);
+      if (cr.ok) {
+        const list = (await cr.json()) as { id: string; status?: string }[];
+        channelId = (list.find((c) => c.status === "connected") ?? list[0])?.id;
+      }
+    }
+    if (!channelId) return false;
+
+    // contato (acha ou cria)
+    let contactId: string | undefined;
+    const f = await vaiFetch(base, `/contacts?phone=${encodeURIComponent(to)}&limit=1`, { method: "GET" }, token);
+    if (f.ok) contactId = ((await f.json()) as { data?: { id?: string }[] })?.data?.[0]?.id;
+    if (!contactId) {
+      const c = await vaiFetch(
+        base,
+        "/contacts",
+        { method: "POST", body: JSON.stringify({ channel: "whatsapp", identifier: to, phone: to, name: data.name || to }) },
+        token,
+      );
+      if (c.ok) contactId = ((await c.json()) as { id?: string }).id;
+    }
+    if (!contactId) return false;
+
+    // chat (cria; reusa no 409)
+    let chatId: string | undefined;
+    const ch = await vaiFetch(base, "/chats", { method: "POST", body: JSON.stringify({ contactId, channelId }) }, token);
+    if (ch.ok) chatId = ((await ch.json()) as { id?: string }).id;
+    else if (ch.status === 409) {
+      const gx = await vaiFetch(base, `/chats?contactId=${encodeURIComponent(contactId)}&limit=1`, { method: "GET" }, token);
+      if (gx.ok) chatId = ((await gx.json()) as { data?: { id?: string }[] })?.data?.[0]?.id;
+    }
+    if (!chatId) return false;
+
+    const nivel = levelLabel(result?.level);
+    const score = result?.score != null ? `${result.score}/100` : "";
+    const atencao = attentionLabels(result);
+    const msg =
+      `✅ *Diagnóstico Inicial CRIVO™ recebido*\n\n` +
+      `Olá, ${firstName(data.name)}! Aqui está sua leitura preliminar:\n` +
+      (score ? `• Índice preliminar: *${score}*\n` : "") +
+      `• Nível de maturidade: *${nivel}*\n` +
+      (atencao.length ? `• Pontos de atenção: ${atencao.join(", ")}\n` : "") +
+      `\n📘 Seu e-book complementar: ${EBOOK_URL}\n\n` +
+      `_Leitura preliminar com base nas respostas — a equipe CRIVO entra em contato para os próximos passos._`;
+
+    const sent = await vaiFetch(
+      base,
+      `/chats/${chatId}/messages`,
+      { method: "POST", body: JSON.stringify({ content: msg, type: "text" }) },
+      token,
+    );
+    if (!sent.ok) return false;
+
+    // E-book como documento (best-effort; o link no texto já garante o acesso).
+    await vaiFetch(
+      base,
+      `/chats/${chatId}/messages`,
+      { method: "POST", body: JSON.stringify({ type: "document", fileUrl: EBOOK_URL, content: "E-book CRIVO" }) },
+      token,
+    ).catch(() => undefined);
+
+    return true;
+  } catch (e) {
+    console.error("[lead-whatsapp] falhou:", e instanceof Error ? e.message : e);
     return false;
   }
 }
@@ -93,7 +323,7 @@ async function sendEmail(apiKey: string, data: Payload): Promise<boolean> {
 export async function POST(req: Request) {
   let data: Payload;
   try {
-    data = await req.json();
+    data = (await req.json()) as Payload;
   } catch {
     return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 });
   }
@@ -103,28 +333,31 @@ export async function POST(req: Request) {
   }
 
   const platformApi = process.env.PLATFORM_API_URL;
-  const resendKey = process.env.RESEND_API_KEY;
 
-  const tasks: Promise<boolean>[] = [];
-  if (platformApi) tasks.push(sendToPlatform(platformApi, data));
-  if (resendKey) tasks.push(sendEmail(resendKey, data));
+  // 1. Cria o lead no CRM e recupera o pré-diagnóstico.
+  let result: DiagResult | undefined;
+  let platformOk = false;
+  if (platformApi) {
+    const r = await sendToPlatform(platformApi, data);
+    platformOk = r.ok;
+    result = r.result;
+  }
 
-  if (tasks.length === 0) {
+  // 2/3. Envia ao lead (e-mail + WhatsApp) em paralelo — best-effort.
+  const [emailed, whatsapped] = await Promise.all([
+    sendLeadEmail(data, result).catch(() => false),
+    sendLeadWhatsapp(data, result).catch(() => false),
+  ]);
+
+  if (!platformApi) {
+    console.warn("[diagnostic-lead] PLATFORM_API_URL ausente — lead não registrado no CRM.");
+  }
+  if (!emailed && !whatsapped) {
     console.warn(
-      "[diagnostic-lead] Nenhum provider configurado (PLATFORM_API_URL / RESEND_API_KEY). Lead recebido:",
-      JSON.stringify({ ...data, answers: `${data.answers?.length ?? 0} respostas` }),
-    );
-    return NextResponse.json({ ok: true, warning: "no-provider" });
-  }
-
-  const results = await Promise.all(tasks);
-  if (!results.some(Boolean)) {
-    console.error("[diagnostic-lead] Todos os canais falharam.", JSON.stringify(data));
-    return NextResponse.json(
-      { ok: false, error: "Falha ao registrar. Tente novamente." },
-      { status: 502 },
+      "[diagnostic-lead] Nenhum canal entregou ao lead (verifique SMTP_*/RESEND_API_KEY e VAI_API_* no ambiente).",
     );
   }
 
-  return NextResponse.json({ ok: true });
+  // Nunca trava o usuário: o pré-diagnóstico aparece na tela mesmo se um canal falhar.
+  return NextResponse.json({ ok: platformOk || emailed || whatsapped, emailed, whatsapped });
 }
