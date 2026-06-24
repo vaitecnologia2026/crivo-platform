@@ -1557,3 +1557,68 @@ model PocketAiSummary {
   @@index([tenantId])
   @@map("pocket_ai_summaries")
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Motor de Decisão CNAE/NR-1 (control plane / global).
+// Classificação PRELIMINAR técnica por divisão CNAE → método de diagnóstico
+// (Essencial/Organizacional) + saídas técnicas. Editável por especialista.
+// ───────────────────────────────────────────────────────────────────────────
+
+enum CnaeRiskLevel {
+  BAIXO
+  BAIXO_MEDIO
+  MEDIO
+  MEDIO_ALTO
+  ALTO
+}
+
+/// Regra por divisão CNAE (2 dígitos). 87 divisões da CNAE 2.0. Global, sem RLS.
+model CnaeDivisionRule {
+  id                     String           @id @default(uuid()) @db.Uuid
+  divisionCode           String           @unique @map("division_code") // "01".."99" (string, 2 dígitos)
+  officialName           String           @map("official_name")
+  cnaeSection            String?          @map("cnae_section") // seção macro (A..U), quando disponível
+  preliminaryRiskLevel   CnaeRiskLevel    @map("preliminary_risk_level")
+  defaultMethod          DiagnosticMethod @map("default_method") // ESSENCIAL | ORGANIZACIONAL
+  defaultTechnicalOutput String           @map("default_technical_output")
+
+  pgrRequired             Boolean @default(false) @map("pgr_required")
+  riskInventoryRequired   Boolean @default(false) @map("risk_inventory_required")
+  aepRequired             Boolean @default(false) @map("aep_required")
+  evidenceRequired        Boolean @default(false) @map("evidence_required")
+  executiveReportRequired Boolean @default(false) @map("executive_report_required")
+  actionPlanRequired      Boolean @default(false) @map("action_plan_required")
+
+  organizationalTriggerRules Json?   @map("organizational_trigger_rules") // gatilhos que elevam p/ Organizacional
+  technicalObservation       String? @map("technical_observation")
+  isActive                   Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("cnae_division_rules")
+}
+
+/// Histórico/auditoria de cada execução do motor (cópia imutável da decisão).
+model CnaeDecisionHistory {
+  id                   String    @id @default(uuid()) @db.Uuid
+  companyId            String?   @map("company_id") @db.Uuid // lead/tenant, se houver
+  cnpj                 String?
+  cnaeCode             String?   @map("cnae_code")
+  divisionCode         String?   @map("division_code")
+  inputData            Json      @map("input_data_json")
+  divisionRule         Json?     @map("division_rule_json")
+  decisionResult       Json      @map("decision_result_json")
+  recommendedMethod    String?   @map("recommended_method")
+  riskLevel            String?   @map("risk_level")
+  manualReviewRequired Boolean   @default(false) @map("manual_review_required")
+  reviewedBy           String?   @map("reviewed_by")
+  reviewedAt           DateTime? @map("reviewed_at")
+  reviewNotes          String?   @map("review_notes")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  @@index([cnpj])
+  @@index([divisionCode])
+  @@index([createdAt])
+  @@map("cnae_decision_history")
+}

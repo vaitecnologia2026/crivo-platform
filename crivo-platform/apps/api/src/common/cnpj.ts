@@ -13,6 +13,7 @@ export interface CnpjData {
   situacao: string | null;
   cnaeCodigo: number | null;
   cnaePrincipal: string | null;
+  cnaesSecundarios: { codigo: string; descricao: string | null }[];
   porte: string | null;
   naturezaJuridica: string | null;
   capitalSocial: number | null;
@@ -52,6 +53,14 @@ export async function consultarCnpj(cnpj: string | null | undefined): Promise<Cn
       situacao: str(d.descricao_situacao_cadastral),
       cnaeCodigo: num(d.cnae_fiscal),
       cnaePrincipal: str(d.cnae_fiscal_descricao),
+      cnaesSecundarios: Array.isArray(d.cnaes_secundarios)
+        ? (d.cnaes_secundarios as Record<string, unknown>[])
+            .map((c) => ({
+              codigo: String((c.codigo ?? '') as string | number),
+              descricao: str(c.descricao),
+            }))
+            .filter((c) => c.codigo && c.codigo !== '0')
+        : [],
       porte: str(d.porte),
       naturezaJuridica: str(d.natureza_juridica),
       capitalSocial: num(d.capital_social),
