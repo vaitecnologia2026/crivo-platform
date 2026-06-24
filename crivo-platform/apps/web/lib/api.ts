@@ -190,6 +190,16 @@ export function getMyOnboardingStatus(): Promise<OnboardingStatus> {
   return apiFetch<OnboardingStatus>('/me/onboarding-status');
 }
 
+/** #8/#10 — Tipo de diagnóstico do produto contratado + saídas técnicas. */
+export interface DiagnosticContext {
+  method: string | null;
+  technicalOutputs: string[];
+  productName: string | null;
+}
+export function getDiagnosticContext(): Promise<DiagnosticContext> {
+  return apiFetch<DiagnosticContext>('/me/diagnostic-context');
+}
+
 /** #63 — People Analytics agregado do tenant. */
 export interface AnalyticsData {
   icdEvolution: Array<{

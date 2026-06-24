@@ -14,6 +14,7 @@ import {
 } from "@crivo/types";
 import {
   createEssentialRecord,
+  getDiagnosticContext,
   getSelfAssessment,
   listEssentialRecords,
   submitSelfAssessment,
@@ -24,23 +25,39 @@ import { ScaleHelpBox } from "@crivo/ui";
 export function DiagnosticoEssencialScreen() {
   const [assessment, setAssessment] = useState<SelfAssessmentData | null>(null);
   const [records, setRecords] = useState<EssentialRecordData[]>([]);
+  const [method, setMethod] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ok">("loading");
 
   async function refresh() {
-    const [a, r] = await Promise.all([getSelfAssessment(), listEssentialRecords()]);
+    const [a, r, ctx] = await Promise.all([
+      getSelfAssessment(),
+      listEssentialRecords(),
+      getDiagnosticContext().catch(() => null),
+    ]);
     setAssessment(a);
     setRecords(r);
+    setMethod(ctx?.method ?? null);
     setStatus("ok");
   }
   useEffect(() => { void refresh().catch(() => setStatus("ok")); }, []);
+
+  // #8/#10 — o título e a chamada se moldam ao tipo do produto do cliente.
+  const isOrg = method === "ORGANIZACIONAL";
+  const heading = isOrg
+    ? "Diagnóstico Organizacional"
+    : method === "ESSENCIAL"
+      ? "Diagnóstico Essencial"
+      : "Diagnóstico";
 
   return (
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Diagnóstico Essencial</h1>
+          <h1 className="page-title">{heading}</h1>
           <p className="page-sub">
-            Jornada guiada para empresas menores: autoavaliação + escuta dos empregados → pontos de atenção que viram Plano de Ação e dossiê (AEP/AEP+PGR).
+            {isOrg
+              ? "Jornada para empresas maiores: campanha estruturada e consolidação por áreas/grupos → pontos de atenção que viram Plano de Ação e dossiê organizacional."
+              : "Jornada guiada para empresas menores: autoavaliação + escuta dos empregados → pontos de atenção que viram Plano de Ação e dossiê (AEP/AEP+PGR)."}
           </p>
         </div>
       </div>

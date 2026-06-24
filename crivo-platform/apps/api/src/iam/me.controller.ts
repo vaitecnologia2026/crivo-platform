@@ -59,6 +59,34 @@ export class MeController {
     return { role: user.role, name: user.name };
   }
 
+  /** #8/#10 — Tipo de diagnóstico do produto contratado (Inicial/Essencial/
+   *  Organizacional) + saídas técnicas, para a tela Diagnóstico mostrar o tipo
+   *  correto e o Portal se moldar ao produto. */
+  @Get('diagnostic-context')
+  async diagnosticContext(@CurrentUser() user: SessionUser): Promise<{
+    method: string | null;
+    technicalOutputs: string[];
+    productName: string | null;
+  }> {
+    const tenant = await this.prisma.admin.tenant.findFirst({
+      where: { organizationId: user.tenantId },
+      select: { productId: true },
+    });
+    const product = tenant?.productId
+      ? await this.prisma.admin.product.findUnique({
+          where: { id: tenant.productId },
+          select: { method: true, supportedOutputs: true, name: true },
+        })
+      : null;
+    return {
+      method: product?.method ?? null,
+      technicalOutputs: Array.isArray(product?.supportedOutputs)
+        ? (product!.supportedOutputs as string[])
+        : [],
+      productName: product?.name ?? null,
+    };
+  }
+
   /** Telas liberadas para o usuário (null = sem restrição) — filtra o menu por usuário. */
   @Get('screens')
   async myScreens(@CurrentUser() user: SessionUser): Promise<string[] | null> {
