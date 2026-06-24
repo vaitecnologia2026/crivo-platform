@@ -69,7 +69,8 @@ export class CnpjProviderService {
       porte: d.porte,
       naturezaJuridica: d.naturezaJuridica,
       capitalSocial: d.capitalSocial,
-      cnaePrincipalCodigo: d.cnaeCodigo != null ? String(d.cnaeCodigo) : null,
+      // padStart(7) preserva o zero à esquerda (divisões 01-09 viram nº de 6 díg).
+      cnaePrincipalCodigo: d.cnaeCodigo != null ? String(d.cnaeCodigo).padStart(7, '0') : null,
       cnaePrincipalDescricao: d.cnaePrincipal,
       cnaesSecundarios: d.cnaesSecundarios ?? [],
       endereco: {

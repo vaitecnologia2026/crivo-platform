@@ -55,11 +55,11 @@ export async function consultarCnpj(cnpj: string | null | undefined): Promise<Cn
       cnaePrincipal: str(d.cnae_fiscal_descricao),
       cnaesSecundarios: Array.isArray(d.cnaes_secundarios)
         ? (d.cnaes_secundarios as Record<string, unknown>[])
-            .map((c) => ({
-              codigo: String((c.codigo ?? '') as string | number),
-              descricao: str(c.descricao),
-            }))
-            .filter((c) => c.codigo && c.codigo !== '0')
+            .map((c) => {
+              const codigo = String((c.codigo ?? '') as string | number).replace(/\D/g, '');
+              return { codigo: codigo ? codigo.padStart(7, '0') : '', descricao: str(c.descricao) };
+            })
+            .filter((c) => c.codigo && c.codigo !== '0000000')
         : [],
       porte: str(d.porte),
       naturezaJuridica: str(d.natureza_juridica),

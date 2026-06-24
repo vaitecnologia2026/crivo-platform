@@ -123,7 +123,17 @@ export class PlatformLeadsService {
     // se a API falhar/ausente, segue sem (cnpjData null) e não trava o cadastro.
     const cnpjLimpo = (dto.cnpj ?? '').replace(/\D/g, '') || null;
     const cnpjData = await consultarCnpj(cnpjLimpo);
-    const riskGrade = grauDeRiscoCnpj(cnpjData);
+    // Grau de risco = classificação da DIVISÃO CNAE (motor CNAE/NR-1 = fonte única).
+    // Fallback p/ a heurística porte×setor se a divisão não estiver cadastrada.
+    let riskGrade: string | null = grauDeRiscoCnpj(cnpjData);
+    if (cnpjData?.cnaeCodigo != null) {
+      const div = String(cnpjData.cnaeCodigo).padStart(7, '0').slice(0, 2);
+      const rule = await this.prisma.admin.cnaeDivisionRule.findUnique({
+        where: { divisionCode: div },
+        select: { preliminaryRiskLevel: true },
+      });
+      if (rule) riskGrade = rule.preliminaryRiskLevel;
+    }
 
     const lead = await this.prisma.admin.platformLead.create({
       data: {

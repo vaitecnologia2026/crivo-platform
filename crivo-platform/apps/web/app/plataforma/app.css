@@ -1624,7 +1624,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .kb-wpp { font-size: 11px; color: var(--success); font-weight: 500; }
 .kb-risk { font-size: 9.5px; font-weight: 700; letter-spacing: .03em; padding: 1px 6px; border-radius: 6px; text-transform: uppercase; white-space: nowrap; }
 .kb-risk--baixo { background: rgba(29, 158, 117, .15); color: #1d9e75; }
-.kb-risk--medio { background: rgba(197, 155, 95, .18); color: #c59b5f; }
+.kb-risk--baixo_medio { background: rgba(74, 158, 140, .16); color: #2f9e87; }
+.kb-risk--medio { background: rgba(197, 155, 95, .18); color: #b07d2e; }
+.kb-risk--medio_alto { background: rgba(208, 135, 74, .18); color: #c4702a; }
 .kb-risk--alto { background: rgba(208, 74, 74, .15); color: #d04a4a; }
 .kb-due { font-size: 11px; color: var(--gold-deep); font-weight: 600; }
 
