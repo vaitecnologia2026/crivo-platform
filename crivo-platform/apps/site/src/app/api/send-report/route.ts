@@ -11,6 +11,18 @@ export const runtime = "nodejs";
 const NAVY = "#1b2a4a";
 const TERRA = "#c4894a";
 
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+};
+const json = (data: unknown, init?: { status?: number }) =>
+  NextResponse.json(data, { status: init?.status, headers: CORS });
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
 type Body = {
   to?: string;
   leadName?: string;
@@ -105,18 +117,18 @@ async function isSuperAdmin(authHeader: string | null): Promise<boolean> {
 
 export async function POST(req: Request) {
   if (!(await isSuperAdmin(req.headers.get("authorization")))) {
-    return NextResponse.json({ ok: false, error: "Não autorizado." }, { status: 401 });
+    return json({ ok: false, error: "Não autorizado." }, { status: 401 });
   }
 
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
-    return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 });
+    return json({ ok: false, error: "Payload inválido." }, { status: 400 });
   }
   const to = body.to?.trim();
   if (!to || !body.markdown) {
-    return NextResponse.json({ ok: false, error: "Destinatário e conteúdo são obrigatórios." }, { status: 400 });
+    return json({ ok: false, error: "Destinatário e conteúdo são obrigatórios." }, { status: 400 });
   }
 
   const html = reportEmailHtml(body.leadName, body.company, mdToHtml(body.markdown), body.footer);
@@ -132,7 +144,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({ from: process.env.SMTP_FROM ?? "CRIVO <onboarding@resend.dev>", to: [to], subject, html }),
         signal: AbortSignal.timeout(12000),
       });
-      if (r.ok) return NextResponse.json({ ok: true, provider: "resend" });
+      if (r.ok) return json({ ok: true, provider: "resend" });
     } catch {
       /* tenta SMTP */
     }
@@ -142,15 +154,15 @@ export async function POST(req: Request) {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) {
-    return NextResponse.json({ ok: false, error: "E-mail não configurado." }, { status: 500 });
+    return json({ ok: false, error: "E-mail não configurado." }, { status: 500 });
   }
   try {
     const port = Number(process.env.SMTP_PORT ?? 587);
     const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
     await transporter.sendMail({ from: process.env.SMTP_FROM ?? `CRIVO <${user}>`, to, subject, html });
-    return NextResponse.json({ ok: true, provider: "smtp" });
+    return json({ ok: true, provider: "smtp" });
   } catch (e) {
     console.error("[send-report] SMTP falhou:", e instanceof Error ? e.message : e);
-    return NextResponse.json({ ok: false, error: "Falha ao enviar o e-mail." }, { status: 502 });
+    return json({ ok: false, error: "Falha ao enviar o e-mail." }, { status: 502 });
   }
 }

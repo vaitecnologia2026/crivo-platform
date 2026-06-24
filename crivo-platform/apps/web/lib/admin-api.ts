@@ -416,6 +416,37 @@ export function resendPreliminaryReport(id: string, sendTo: string): Promise<Pre
   });
 }
 
+/**
+ * Envia o Relatório Preliminar (gerado pela IA) por e-mail via RELAY no Vercel.
+ * O backend gera o conteúdo mas não consegue mandar SMTP (egress bloqueado no
+ * Railway); o relay (crivo-site) renderiza e envia. O relay valida o token de
+ * super admin contra a API, então é seguro.
+ */
+export async function sendReportEmailViaRelay(input: {
+  to: string;
+  leadName?: string;
+  company?: string | null;
+  markdown: string;
+  footer?: string;
+}): Promise<{ ok: boolean; provider?: string; error?: string }> {
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://crivo.vai-sistema.com";
+  const token = getAdminToken();
+  try {
+    const r = await fetch(`${base}/api/send-report`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(20000),
+    });
+    return (await r.json()) as { ok: boolean; provider?: string; error?: string };
+  } catch {
+    return { ok: false, error: "Relay de e-mail indisponível." };
+  }
+}
+
 // ── Super Admin extras (#54) ────────────────────────────────────────
 
 export function listMentorias(tenantId?: string): Promise<MentoriaData[]> {

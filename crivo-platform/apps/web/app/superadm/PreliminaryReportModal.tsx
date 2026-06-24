@@ -10,7 +10,7 @@ import {
 import {
   generatePreliminaryReport,
   listPreliminaryReportsByLead,
-  resendPreliminaryReport,
+  sendReportEmailViaRelay,
 } from "@/lib/admin-api";
 
 // Renderizador leve de Markdown → HTML (sem dependência): títulos, negrito,
@@ -141,7 +141,20 @@ export function PreliminaryReportModal({
     setError(null);
     setGenerating(true);
     try {
-      const r = await generatePreliminaryReport({ platformLeadId: lead.id, sendTo: sendTo || undefined });
+      let r = await generatePreliminaryReport({ platformLeadId: lead.id, sendTo: sendTo || undefined });
+      // O backend gera a IA, mas o e-mail é bloqueado no Railway (SMTP). Envia
+      // pelo relay no Vercel (que funciona) e marca como enviado.
+      const dest = (sendTo || lead.email || "").trim();
+      if (r.status !== "ENVIADO" && r.content && dest) {
+        const relay = await sendReportEmailViaRelay({
+          to: dest,
+          leadName: lead.name,
+          company: lead.company,
+          markdown: r.content,
+        });
+        if (relay.ok) r = { ...r, status: "ENVIADO", sentTo: dest, sentAt: new Date().toISOString() };
+        else setError(relay.error ?? "Relatório gerado, mas o envio do e-mail falhou.");
+      }
       setReports((cur) => [r, ...(cur ?? [])]);
       setOpenId(r.id);
     } catch (e) {
@@ -152,14 +165,28 @@ export function PreliminaryReportModal({
   }
 
   async function resend(id: string) {
-    if (!resendTo.trim()) return;
-    try {
-      const updated = await resendPreliminaryReport(id, resendTo.trim());
-      setReports((cur) => cur?.map((r) => (r.id === id ? updated : r)) ?? cur);
+    const dest = resendTo.trim();
+    if (!dest) return;
+    const rep = reports?.find((x) => x.id === id);
+    if (!rep?.content) {
+      setError("Relatório sem conteúdo para reenviar.");
+      return;
+    }
+    // Reenvio também pelo relay (o backend não consegue mandar SMTP).
+    const relay = await sendReportEmailViaRelay({
+      to: dest,
+      leadName: lead.name,
+      company: lead.company,
+      markdown: rep.content,
+    });
+    if (relay.ok) {
+      setReports((cur) =>
+        cur?.map((r) => (r.id === id ? { ...r, status: "ENVIADO", sentTo: dest } : r)) ?? cur,
+      );
       setResendId(null);
       setResendTo("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao reenviar.");
+    } else {
+      setError(relay.error ?? "Falha ao reenviar.");
     }
   }
 
