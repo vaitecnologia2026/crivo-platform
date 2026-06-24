@@ -241,7 +241,24 @@ export class PreliminaryReportsService {
       : 'Seu Relatório Preliminar CRIVO';
     const html = renderEmailHtml(input.leadName, input.markdown, input.footer);
 
-    const result = await sendMail({ to: input.to, subject, html, text: input.markdown });
+    // #5 — anexa o e-book complementar ao relatório (busca do /public da LP).
+    let ebook: Buffer | null = null;
+    try {
+      const url = process.env.EBOOK_URL ?? 'https://crivo.vai-sistema.com/ebook-crivo.pdf';
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (r.ok) ebook = Buffer.from(await r.arrayBuffer());
+    } catch {
+      /* segue sem o e-book — nunca trava o envio do relatório */
+    }
+    const result = await sendMail({
+      to: input.to,
+      subject,
+      html,
+      text: input.markdown,
+      attachments: ebook
+        ? [{ filename: 'E-book CRIVO - Lideranca que sustenta decisoes.pdf', content: ebook, contentType: 'application/pdf' }]
+        : undefined,
+    });
 
     if (result.provider === 'stub') {
       // Sem provider: não envia, só registra. Permite operar sem e-mail configurado.

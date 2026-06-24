@@ -370,6 +370,9 @@ export default function LandingPage() {
                 <a href="#diagnostico" className="btn btn--terra">
                   Fazer Diagnóstico Inicial e receber o e-book →
                 </a>
+                <a href="/ebook-crivo.pdf" target="_blank" rel="noopener" className="btn btn--outline-dark">
+                  Ver prévia (PDF)
+                </a>
               </div>
             </div>
           </article>

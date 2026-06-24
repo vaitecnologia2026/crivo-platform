@@ -21,6 +21,8 @@ export interface SendMailInput {
   text?: string;
   /** Para quem o destinatário deve responder (vira Reply-To no SMTP). */
   replyTo?: string;
+  /** Anexos (ex.: e-book). content em Buffer; vira base64 no Resend. */
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }
 
 export interface SendMailResult {
@@ -96,6 +98,7 @@ export async function sendMail(
         html: input.html,
         text: input.text,
         replyTo: input.replyTo,
+        attachments: input.attachments,
       });
       return { ok: true, provider: 'smtp' };
     } catch (e) {
@@ -120,6 +123,10 @@ export async function sendMail(
           html: input.html,
           text: input.text,
           reply_to: input.replyTo,
+          attachments: input.attachments?.map((a) => ({
+            filename: a.filename,
+            content: a.content.toString('base64'),
+          })),
         }),
         signal: AbortSignal.timeout(15000),
       });

@@ -17,6 +17,7 @@ import { ProvisioningService } from './provisioning.service';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { mailConfigured, sendMail } from '../common/mailer';
+import { sendWhatsapp, whatsappConfigured } from '../common/whatsapp';
 
 type Actor = { id: string; email: string };
 
@@ -158,6 +159,20 @@ export class PlatformLeadsService {
             }`,
           ),
         );
+    }
+
+    // WhatsApp (VAI) — confirmação + link do e-book. Best-effort: só envia se
+    // VAI_WA_API_URL/VAI_WA_TOKEN existirem; nunca bloqueia/derruba o intake.
+    if (lead.phone && whatsappConfigured()) {
+      const ebookUrl = process.env.EBOOK_URL ?? 'https://crivo.vai-sistema.com/ebook-crivo.pdf';
+      void sendWhatsapp({
+        to: lead.phone,
+        message:
+          `Olá, ${name}! Recebemos seu Diagnóstico Inicial CRIVO™. Em instantes você recebe o ` +
+          `Relatório Preliminar. Enquanto isso, baixe o e-book complementar: ${ebookUrl}`,
+      })
+        .then((r) => this.log.log(`WhatsApp do lead ${lead.id}: ok=${r.ok} provider=${r.provider}`))
+        .catch(() => {});
     }
 
     return { ok: true, result };
