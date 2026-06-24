@@ -14,6 +14,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { PreliminaryReportsService } from './preliminary-reports.service';
 import { ProvisioningService } from './provisioning.service';
+import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
+import { mailConfigured, sendMail } from '../common/mailer';
 
 type Actor = { id: string; email: string };
 
@@ -219,6 +222,64 @@ export class PlatformLeadsService {
     });
 
     return result;
+  }
+
+  /**
+   * #12 — "Enviar acesso por e-mail": gera nova senha temporária para o admin do
+   * cliente já convertido e envia o acesso (portal + login + senha) por e-mail.
+   * Sem provider de e-mail configurado, retorna sent=false (acesso PREPARADO — o
+   * admin pode copiar a senha retornada e enviar manualmente). Owner-only.
+   */
+  async sendAccess(leadId: string, actor: Actor): Promise<{
+    sent: boolean; provider: string; to: string; tempPassword: string; reason?: string;
+  }> {
+    const lead = await this.prisma.admin.platformLead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead não encontrado');
+    if (!lead.convertedTenantId) throw new BadRequestException('Lead ainda não foi convertido em cliente');
+    if (!lead.email) throw new BadRequestException('Lead sem e-mail');
+
+    const adminEmail = lead.email.toLowerCase().trim();
+    const admin = await this.prisma.admin.user.findFirst({
+      where: { tenantId: lead.convertedTenantId, email: adminEmail },
+    });
+    if (!admin) throw new NotFoundException('Usuário admin do cliente não encontrado');
+
+    // Gera nova senha temporária e atualiza o hash → o e-mail leva uma senha válida.
+    const tempPassword = this.genPassword();
+    await this.prisma.admin.user.update({
+      where: { id: admin.id },
+      data: { passwordHash: bcrypt.hashSync(tempPassword, 12) },
+    });
+
+    const portalUrl = process.env.PORTAL_URL ?? 'https://crivo-web.vercel.app';
+    const html = `
+      <h2 style="font-family:Georgia,serif;color:#0d1f3c;margin:0 0 12px">Seu acesso à plataforma CRIVO™</h2>
+      <p>Olá, ${lead.name}. Seu ambiente CRIVO está pronto.</p>
+      <p><strong>Portal:</strong> <a href="${portalUrl}">${portalUrl}</a><br>
+         <strong>Login:</strong> ${adminEmail}<br>
+         <strong>Senha temporária:</strong> ${tempPassword}</p>
+      <p>Recomendamos alterar a senha no primeiro acesso.</p>
+      <p style="color:#6b7280;font-size:12px">CRIVO™ — Decision Intelligence System</p>`;
+
+    let sent = false;
+    let provider = 'stub';
+    let reason: string | undefined;
+    if (mailConfigured()) {
+      const res = await sendMail({ to: adminEmail, subject: 'Seu acesso à plataforma CRIVO™', html });
+      sent = res.ok;
+      provider = res.provider;
+      reason = res.reason;
+    } else {
+      reason = 'email-not-configured';
+    }
+    await this.audit.record({ action: 'lead.send-access', actor, target: leadId, meta: { to: adminEmail, sent } });
+    return { sent, provider, to: adminEmail, tempPassword, reason };
+  }
+
+  /** Senha temporária legível (sem caracteres ambíguos). */
+  private genPassword(): string {
+    const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from(randomBytes(16), (b) => alphabet[b % alphabet.length]).join('');
   }
 
   private toSummary(l: {

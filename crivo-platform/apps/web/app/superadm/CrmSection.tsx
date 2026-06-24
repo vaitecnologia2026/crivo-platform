@@ -8,7 +8,7 @@ import {
   type ProductSummary,
   type ProvisionResult,
 } from "@crivo/types";
-import { convertLead, listLeads, listProducts, setLeadStage } from "@/lib/admin-api";
+import { convertLead, listLeads, listProducts, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 
 // Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
@@ -243,6 +243,7 @@ function ConvertModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<ProvisionResult | null>(null);
+  const [access, setAccess] = useState<{ sending: boolean; sent?: boolean; reason?: string }>({ sending: false });
 
   useEffect(() => {
     let alive = true;
@@ -267,6 +268,18 @@ function ConvertModal({
       setError(e instanceof Error ? e.message : "Falha na conversão");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // #12 — envia o acesso por e-mail (gera nova senha; atualiza a exibida p/ bater).
+  async function sendAccessEmail() {
+    setAccess({ sending: true });
+    try {
+      const r = await sendLeadAccess(lead.id);
+      setDone((d) => (d ? { ...d, tempPassword: r.tempPassword } : d));
+      setAccess({ sending: false, sent: r.sent, reason: r.reason });
+    } catch (e) {
+      setAccess({ sending: false, sent: false, reason: e instanceof Error ? e.message : "erro" });
     }
   }
 
@@ -297,6 +310,24 @@ function ConvertModal({
               {done.tempPassword && (
                 <p className="convert-warn">Copie a senha agora — não será exibida novamente.</p>
               )}
+              <div style={{ marginTop: 12 }}>
+                <button className="btn btn--terra btn--sm" onClick={sendAccessEmail} disabled={access.sending}>
+                  {access.sending ? "Enviando…" : "Enviar acesso por e-mail"}
+                </button>
+                {access.sent === true && (
+                  <p className="convert-warn" style={{ color: "#1d9e75" }}>
+                    Acesso enviado para {done.adminEmail} — a senha acima foi atualizada para a que foi enviada.
+                  </p>
+                )}
+                {access.sent === false && access.reason === "email-not-configured" && (
+                  <p className="convert-warn">
+                    E-mail ainda não configurado — acesso preparado. Copie a senha acima e envie manualmente.
+                  </p>
+                )}
+                {access.sent === false && access.reason && access.reason !== "email-not-configured" && (
+                  <p className="convert-warn">Não foi possível enviar agora. Copie a senha acima.</p>
+                )}
+              </div>
             </div>
           ) : (
             <>

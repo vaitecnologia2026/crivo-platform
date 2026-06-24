@@ -267,6 +267,13 @@ export function convertLead(id: string, productId: string): Promise<ProvisionRes
   });
 }
 
+/** #12 — Envia o acesso (login + senha) do cliente já convertido por e-mail. */
+export function sendLeadAccess(
+  id: string,
+): Promise<{ sent: boolean; provider: string; to: string; tempPassword: string; reason?: string }> {
+  return adminFetch(`/admin/leads/${id}/send-access`, { method: "POST" });
+}
+
 // ── Catálogo de produtos (product-driven) ──
 
 export function listProducts(): Promise<ProductSummary[]> {

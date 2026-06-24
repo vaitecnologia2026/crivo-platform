@@ -44,4 +44,13 @@ export class PlatformLeadsController {
   ) {
     return this.leads.convert(id, dto.productId, { id: admin.id, email: admin.email });
   }
+
+  /** #12 — Envia o acesso do cliente por e-mail (gera nova senha temporária). */
+  @Post(':id/send-access')
+  sendAccess(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.leads.sendAccess(id, { id: admin.id, email: admin.email });
+  }
 }
