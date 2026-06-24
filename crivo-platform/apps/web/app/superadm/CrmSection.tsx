@@ -225,7 +225,7 @@ export function CrmSection() {
                         onClick={() => setDataLead(l)}
                         title="Ver todos os dados capturados pelo CNPJ + recomendação CNAE"
                       >
-                        ⊙ Dados da empresa
+                        ⊙ Ver dados da empresa
                       </button>
                       {l.diagnosticScore != null && (
                         <button

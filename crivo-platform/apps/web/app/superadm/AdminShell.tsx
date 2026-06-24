@@ -15,6 +15,7 @@ import { AiSettingsSection } from "./AiSettingsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
+import { CnpjLookupCard } from "./CnpjLookupCard";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -190,6 +191,10 @@ function OverviewSection({ onGoToEmpresas }: { onGoToEmpresas: () => void }) {
           <h1 className="page-title">Visão geral</h1>
           <p className="page-sub">Indicadores da plataforma CRIVO — todas as empresas-cliente.</p>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <CnpjLookupCard />
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando indicadores…</p>}
