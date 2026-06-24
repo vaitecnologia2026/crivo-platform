@@ -151,6 +151,10 @@ export function DashboardScreen() {
   const icdSuppressed = leadersN > 0 && leadersN < MIN_LEADERS_FOR_DISCLOSURE;
   const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
   const orgAttention = attention(icdScore); // proxy temporário até termos Índice Geral CRIVO próprio
+  // #17 — estado vazio profissional: sem ICD e sem plano = nenhum diagnóstico concluído ainda.
+  const isEmpty = icdScore === null && (!plans || plans.length === 0);
+  const goToRoute = (route: string) =>
+    document.querySelector<HTMLElement>(`[data-route="${route}"]`)?.click();
 
   return (
     <>
@@ -181,6 +185,24 @@ export function DashboardScreen() {
         <>
           {/* #65 — Checklist de onboarding (some quando tudo está done). */}
           <OnboardingChecklist />
+
+          {/* #17 — Estado vazio profissional enquanto não há diagnóstico concluído. */}
+          {isEmpty && (
+            <div className="dash-empty">
+              <span className="dash-empty__ic" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M3 13.5 9 18l12-12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <h2 className="dash-empty__title">Nenhum diagnóstico concluído ainda</h2>
+              <p className="dash-empty__sub">
+                Inicie o diagnóstico para visualizar indicadores, plano de ação e evidências.
+              </p>
+              <button className="btn btn--terra btn--sm" onClick={() => goToRoute("essencial")}>
+                Iniciar diagnóstico
+              </button>
+            </div>
+          )}
 
           {/* ─── CARDS PRINCIPAIS (Diagnóstico + Plano de Ação) ─────────── */}
           <div className="kpi-grid">
