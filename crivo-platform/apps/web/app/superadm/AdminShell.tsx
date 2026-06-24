@@ -14,6 +14,7 @@ import { ProductsSection } from "./ProductsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
+import { CnaeSection } from "./CnaeSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -30,7 +31,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "empresas" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "cnae" | "empresas" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -38,6 +39,7 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Geral" },
   { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
   { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
+  { key: "cnae", label: "Motor CNAE/NR-1", icon: "◎", current: "Motor CNAE/NR-1", group: "Comercial" },
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
   { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
@@ -146,6 +148,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "overview" && <OverviewSection onGoToEmpresas={() => setSection("empresas")} />}
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
+          {section === "cnae" && <CnaeSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "ia" && <AiSettingsSection />}
           {section === "extras" && <ExtrasSection />}

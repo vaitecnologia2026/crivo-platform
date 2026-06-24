@@ -470,3 +470,139 @@ export function updateGlobalAcademy(id: string, dto: UpsertGlobalAcademyContentR
 export function removeGlobalAcademy(id: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/global-academy/${id}`, { method: "DELETE" });
 }
+
+// ── Motor de Decisão CNAE/NR-1 ───────────────────────────────────────────────
+export type CnaeRiskLevel = "BAIXO" | "BAIXO_MEDIO" | "MEDIO" | "MEDIO_ALTO" | "ALTO";
+
+export interface CnaeDivisionRule {
+  id: string;
+  divisionCode: string;
+  officialName: string;
+  cnaeSection: string | null;
+  preliminaryRiskLevel: CnaeRiskLevel;
+  defaultMethod: "ESSENCIAL" | "ORGANIZACIONAL" | "INICIAL";
+  defaultTechnicalOutput: string;
+  pgrRequired: boolean;
+  riskInventoryRequired: boolean;
+  aepRequired: boolean;
+  evidenceRequired: boolean;
+  executiveReportRequired: boolean;
+  actionPlanRequired: boolean;
+  organizationalTriggerRules: string[] | null;
+  technicalObservation: string | null;
+  isActive: boolean;
+}
+
+export interface CnpjCompanyData {
+  cnpj: string;
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  situacaoCadastral: string | null;
+  porte: string | null;
+  cnaePrincipalCodigo: string | null;
+  cnaePrincipalDescricao: string | null;
+  cnaesSecundarios: { codigo: string; descricao: string | null }[];
+  endereco: {
+    logradouro: string | null;
+    numero: string | null;
+    bairro: string | null;
+    municipio: string | null;
+    uf: string | null;
+    cep: string | null;
+  };
+  telefone: string | null;
+  email: string | null;
+  fonte: string;
+}
+
+export interface CnaeDecisionResult {
+  empresa: string | null;
+  cnpj: string | null;
+  cnaePrincipalCodigo: string | null;
+  cnaePrincipalDescricao: string | null;
+  divisionCode: string | null;
+  divisionName: string | null;
+  preliminaryRiskLevel: CnaeRiskLevel | null;
+  recommendedMethod: "ESSENCIAL" | "ORGANIZACIONAL" | null;
+  technicalOutputs: string[];
+  requiredDocuments: string[];
+  requiredEvidences: string[];
+  decisionScore: number;
+  decisionReason: string;
+  manualReviewRequired: boolean;
+  warnings: string[];
+  nextSteps: string[];
+  criteriaConsidered: string[];
+  isPreliminary: true;
+}
+
+export interface CnaeEvaluationInputPayload {
+  cnpj?: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  cnaePrincipalCodigo?: string;
+  cnaePrincipalDescricao?: string;
+  cnaesSecundarios?: string[];
+  situacaoCadastral?: string;
+  porte?: string;
+  numeroColaboradores?: number;
+  possuiMultiplasUnidades?: boolean;
+  possuiEquipeOperacional?: boolean;
+  possuiTurnos?: boolean;
+  possuiAtendimentoPublico?: boolean;
+  possuiTrabalhoExterno?: boolean;
+  possuiMetasComerciaisIntensas?: boolean;
+  possuiHistoricoAfastamentos?: boolean;
+  demandaNr1Completa?: boolean;
+  observacoesDoConsultor?: string;
+}
+
+export interface CnaeDecisionHistoryItem {
+  id: string;
+  cnpj: string | null;
+  divisionCode: string | null;
+  recommendedMethod: string | null;
+  riskLevel: string | null;
+  manualReviewRequired: boolean;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  decisionResult: CnaeDecisionResult;
+  createdAt: string;
+}
+
+export function consultCnpj(cnpj: string) {
+  return adminFetch<{ ok: boolean; data?: CnpjCompanyData; error?: string }>("/cnpj/consult", {
+    method: "POST",
+    body: JSON.stringify({ cnpj }),
+  });
+}
+export function evaluateFromCnpj(input: CnaeEvaluationInputPayload) {
+  return adminFetch<{ ok: boolean; company: CnpjCompanyData | null; decision: CnaeDecisionResult }>(
+    "/cnae-decision/from-cnpj",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+export function evaluateCnae(input: CnaeEvaluationInputPayload) {
+  return adminFetch<CnaeDecisionResult>("/cnae-decision/evaluate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+export function listCnaeDivisions(filters: { risk?: string; method?: string; q?: string; active?: string } = {}) {
+  const entries = Object.entries(filters).filter(([, v]) => v) as [string, string][];
+  const qs = new URLSearchParams(entries).toString();
+  return adminFetch<CnaeDivisionRule[]>(`/cnae-divisions${qs ? `?${qs}` : ""}`);
+}
+export function updateCnaeDivision(id: string, patch: Partial<CnaeDivisionRule>) {
+  return adminFetch<CnaeDivisionRule>(`/cnae-divisions/${id}`, { method: "PUT", body: JSON.stringify(patch) });
+}
+export function listCnaeHistory(limit = 50) {
+  return adminFetch<CnaeDecisionHistoryItem[]>(`/cnae-decision/history?limit=${limit}`);
+}
+export function reviewCnaeDecision(id: string, reviewNotes?: string) {
+  return adminFetch<CnaeDecisionHistoryItem>(`/cnae-decision/history/${id}/review`, {
+    method: "PATCH",
+    body: JSON.stringify({ reviewNotes }),
+  });
+}

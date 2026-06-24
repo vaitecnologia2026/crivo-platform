@@ -23,6 +23,51 @@ const ACTION_LABEL: Record<string, string> = {
   SUGERIDA: 'Sugerida', EM_REVISAO: 'Em revisão', APROVADA: 'Aprovada',
   EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Concluída', REAVALIADA: 'Reavaliada',
 };
+const CNAE_RISK_LABEL: Record<string, string> = {
+  BAIXO: 'Baixo', BAIXO_MEDIO: 'Baixo/Médio', MEDIO: 'Médio', MEDIO_ALTO: 'Médio/Alto', ALTO: 'Alto',
+};
+
+/** Seção "Base Técnica da Recomendação" — classificação CNAE/NR-1 que embasou o método. */
+type CnaeDecisionRow = {
+  cnpj: string | null;
+  divisionCode: string | null;
+  riskLevel: string | null;
+  recommendedMethod: string | null;
+  reviewedBy: string | null;
+  createdAt: Date;
+  decisionResult: unknown;
+};
+function buildBaseTecnicaSection(decision: CnaeDecisionRow | null): DocumentSection {
+  if (!decision) {
+    return {
+      heading: 'Base Técnica da Recomendação',
+      body:
+        'Nenhuma classificação CNAE/NR-1 vinculada a esta empresa. Execute o Motor de Decisão ' +
+        'CNAE/NR-1 (Super Admin) informando o CNPJ desta empresa para registrar a base técnica da recomendação.',
+    };
+  }
+  const r = (decision.decisionResult ?? {}) as Record<string, unknown>;
+  const arr = (k: string) => (Array.isArray(r[k]) ? (r[k] as string[]) : []);
+  const data: string[][] = [
+    ['CNPJ analisado', decision.cnpj ?? '—'],
+    ['CNAE principal', `${(r.cnaePrincipalCodigo as string) ?? '—'} — ${(r.cnaePrincipalDescricao as string) ?? '—'}`],
+    ['Divisão CNAE', `${decision.divisionCode ?? '—'} (${(r.divisionName as string) ?? '—'})`],
+    ['Risco preliminar', decision.riskLevel ? CNAE_RISK_LABEL[decision.riskLevel] ?? decision.riskLevel : '—'],
+    ['Método recomendado', METHOD_LABEL[decision.recommendedMethod ?? ''] ?? '—'],
+    ['Documentos recomendados', arr('requiredDocuments').join(', ') || '—'],
+    ['Evidências necessárias', arr('requiredEvidences').join('; ') || '—'],
+    ['Responsável pela validação', decision.reviewedBy ?? 'Pendente de validação por especialista'],
+    ['Data da análise', new Date(decision.createdAt).toLocaleString('pt-BR')],
+  ];
+  const criterios = arr('criteriaConsidered').join(' ');
+  const alertas = arr('warnings').join(' ');
+  const body =
+    'Classificação preliminar técnica que embasou o método de diagnóstico e as saídas técnicas. ' +
+    'Não substitui laudo ou parecer jurídico; sujeita à validação por especialista conforme a realidade operacional da empresa.' +
+    (criterios ? `\n\nCritérios considerados: ${criterios}` : '') +
+    (alertas ? `\n\nAlertas: ${alertas}` : '');
+  return { heading: 'Base Técnica da Recomendação', body, table: { columns: ['Item', 'Valor'], data } };
+}
 
 /**
  * Geração de documentos proporcionais ao produto/saída técnica (Briefing §15).
@@ -54,7 +99,13 @@ export class DocumentsService {
         include: { companyResult: true },
       }),
     );
-    return { contract, company: org?.name ?? 'Empresa', plans, cycles };
+    // Base Técnica da Recomendação: última decisão CNAE/NR-1 vinculada à empresa.
+    // rls-allow: cnae_decision_history é control-plane (global); filtrado por companyId = tenantId.
+    const cnaeDecision = await this.prisma.admin.cnaeDecisionHistory.findFirst({
+      where: { companyId: tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { contract, company: org?.name ?? 'Empresa', plans, cycles, cnaeDecision };
   }
 
   /** Documentos disponíveis conforme método + saída técnica do contrato. */
@@ -91,7 +142,7 @@ export class DocumentsService {
 
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
   async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
-    const { contract, company, plans, cycles } = await this.context(tenantId);
+    const { contract, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
     if (!DOCUMENT_TYPE_LABEL[type]) throw new BadRequestException('Tipo de documento inválido');
 
     const method = contract?.method ?? null;
@@ -214,6 +265,9 @@ export class DocumentsService {
           '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
       });
     }
+
+    // Base Técnica da Recomendação (Motor CNAE/NR-1) — embasa o método e as saídas.
+    sections.push(buildBaseTecnicaSection(cnaeDecision));
 
     // #13 — Conclusão e validação: fechamento formal com assinaturas (todos os documentos).
     sections.push({
