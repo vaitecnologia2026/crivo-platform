@@ -202,6 +202,35 @@ export class DocumentsService {
       });
     }
 
+    // #13 — Declaração de escopo: abertura formal dos dossiês AEP / AEP+PGR.
+    if (type === 'dossie_aep' || type === 'dossie_aep_pgr') {
+      sections.unshift({
+        heading: 'Declaração de escopo',
+        body:
+          'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
+          'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
+          'Preliminar (AEP)' +
+          (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
+          '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
+      });
+    }
+
+    // #13 — Conclusão e validação: fechamento formal com assinaturas (todos os documentos).
+    sections.push({
+      heading: 'Conclusão e validação',
+      body:
+        'A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e ' +
+        'às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do ' +
+        'responsável técnico/designado.',
+      table: {
+        columns: ['Responsável', 'Nome', 'Cargo', 'Data', 'Validação'],
+        data: [
+          ['Empresa', '—', '—', '—', 'Validação eletrônica'],
+          ['Responsável SST/designado', '—', '—', '—', 'Validação eletrônica'],
+        ],
+      },
+    });
+
     return {
       type,
       title: DOCUMENT_TYPE_LABEL[type],
