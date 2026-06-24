@@ -132,12 +132,25 @@ async function findOrCreateContactId(token: string, phone: string, name?: string
 
 async function createChatId(token: string, contactId: string, channelId: string): Promise<string | null> {
   const r = await vaiFetch('/chats', { method: 'POST', body: JSON.stringify({ contactId, channelId }) }, token);
-  if (!r.ok) {
-    log.warn(`Criar chat VAI falhou: HTTP ${r.status}`);
-    return null;
+  if (r.ok) {
+    const d = (await r.json()) as { id?: string; data?: { id?: string } };
+    return d?.id ?? d?.data?.id ?? null;
   }
-  const d = (await r.json()) as { id?: string; data?: { id?: string } };
-  return d?.id ?? d?.data?.id ?? null;
+  // 409: já existe conversa aberta para o contato neste canal → reusa a existente.
+  if (r.status === 409) {
+    const f = await vaiFetch(
+      `/chats?contactId=${encodeURIComponent(contactId)}&limit=1`,
+      { method: 'GET' },
+      token,
+    );
+    if (f.ok) {
+      const d = (await f.json()) as { data?: { id?: string }[] };
+      const id = d?.data?.[0]?.id;
+      if (id) return id;
+    }
+  }
+  log.warn(`Criar/obter chat VAI falhou: HTTP ${r.status}`);
+  return null;
 }
 
 export async function sendWhatsapp(input: SendWhatsappInput): Promise<SendWhatsappResult> {
