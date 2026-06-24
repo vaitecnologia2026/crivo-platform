@@ -352,6 +352,7 @@ export class PlatformLeadsService {
       cnpj: l.cnpj,
       riskGrade: l.riskGrade,
       razaoSocial: (l.cnpjData as { razaoSocial?: string } | null)?.razaoSocial ?? null,
+      cnpjData: (l.cnpjData as PlatformLeadSummary['cnpjData']) ?? null,
       diagnosticScore: l.diagnosticScore,
       diagnosticResult: (l.diagnosticResult as PreDiagnosticResult | null) ?? null,
       stage: l.stage as PlatformLeadStage,

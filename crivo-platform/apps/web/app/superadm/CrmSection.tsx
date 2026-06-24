@@ -10,6 +10,7 @@ import {
 } from "@crivo/types";
 import { convertLead, listLeads, listProducts, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
+import { LeadDataModal } from "./LeadDataModal";
 
 // Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
 // PERDIDO sai do board (continua no banco) — movido via o seletor do card.
@@ -49,6 +50,7 @@ export function CrmSection() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [converting, setConverting] = useState<PlatformLeadSummary | null>(null);
   const [reportingLead, setReportingLead] = useState<PlatformLeadSummary | null>(null);
+  const [dataLead, setDataLead] = useState<PlatformLeadSummary | null>(null);
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -217,6 +219,14 @@ export function CrmSection() {
                           Converter em cliente →
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="kb-report"
+                        onClick={() => setDataLead(l)}
+                        title="Ver todos os dados capturados pelo CNPJ + recomendação CNAE"
+                      >
+                        ⊙ Dados da empresa
+                      </button>
                       {l.diagnosticScore != null && (
                         <button
                           type="button"
@@ -257,6 +267,8 @@ export function CrmSection() {
           onClose={() => setReportingLead(null)}
         />
       )}
+
+      {dataLead && <LeadDataModal lead={dataLead} onClose={() => setDataLead(null)} />}
     </>
   );
 }

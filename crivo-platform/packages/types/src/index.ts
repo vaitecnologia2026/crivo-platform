@@ -697,6 +697,29 @@ export const PLATFORM_LEAD_STAGE_LABEL: Record<PlatformLeadStage, string> = {
   PERDIDO: 'Perdido',
 };
 
+/** Dados cadastrais capturados na consulta de CNPJ (BrasilAPI) — guardados no lead. */
+export interface LeadCnpjData {
+  cnpj: string;
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  situacao: string | null;
+  cnaeCodigo: number | null;
+  cnaePrincipal: string | null;
+  cnaesSecundarios: { codigo: string; descricao: string | null }[];
+  porte: string | null;
+  naturezaJuridica: string | null;
+  capitalSocial: number | null;
+  cidade: string | null;
+  uf: string | null;
+  bairro: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  cep: string | null;
+  telefone: string | null;
+  email: string | null;
+  socios: { nome?: string; qualificacao?: string }[];
+}
+
 export interface PlatformLeadSummary {
   id: string;
   name: string;
@@ -710,6 +733,7 @@ export interface PlatformLeadSummary {
   cnpj: string | null;
   riskGrade: string | null; // BAIXO | MEDIO | ALTO (preliminar — base do CNPJ)
   razaoSocial: string | null; // razão social da consulta CNPJ (BrasilAPI)
+  cnpjData: LeadCnpjData | null; // todos os dados cadastrais capturados pelo CNPJ
   diagnosticScore: number | null;
   diagnosticResult: PreDiagnosticResult | null;
   stage: PlatformLeadStage;
