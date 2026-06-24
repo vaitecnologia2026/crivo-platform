@@ -359,4 +359,39 @@ export class PlatformLeadsService {
     }));
     return { questions, source: productQs.length > 0 ? 'product' : 'default' };
   }
+
+  /**
+   * #18 — Zera os DADOS de teste do sistema, numa TRANSAÇÃO ATÔMICA (qualquer erro
+   * faz rollback — nunca deixa wipe parcial). Owner-only.
+   * APAGA: clientes/tenants (cascade → usuários, decisões, diagnósticos, planos,
+   *   evidências, ICD, pocket, campanhas…), leads do CRM, relatórios preliminares,
+   *   contratos, config de IA, branding/domínios/módulos por tenant, audit log.
+   * MANTÉM: super admins (login), catálogo de PRODUTOS, módulos, permissões/papéis
+   *   (RBAC) e textos editáveis (copy). Deixa o sistema "do zero", mas funcional.
+   */
+  async resetTestData(actor: Actor): Promise<{ ok: true; deleted: Record<string, number> }> {
+    const db = this.prisma.admin;
+    const deleted = await db.$transaction(
+      async (tx) => {
+        const d: Record<string, number> = {};
+        d.preliminaryReports = (await tx.preliminaryReport.deleteMany()).count;
+        d.platformLeads = (await tx.platformLead.deleteMany()).count;
+        d.contracts = (await tx.contract.deleteMany()).count;
+        d.aiSettings = (await tx.aiSettings.deleteMany()).count;
+        d.tenantModules = (await tx.tenantModule.deleteMany()).count;
+        d.tenantBrandings = (await tx.tenantBranding.deleteMany()).count;
+        d.tenantDomains = (await tx.tenantDomain.deleteMany()).count;
+        d.tenants = (await tx.tenant.deleteMany()).count;
+        d.auditLogs = (await tx.auditLog.deleteMany()).count;
+        // Organization é a raiz do data-plane: o cascade apaga users, teams, units,
+        // companies, decisions, assessments, icd, pocket, action_plans, evidences…
+        d.organizations = (await tx.organization.deleteMany()).count;
+        return d;
+      },
+      { timeout: 30000 },
+    );
+    await this.audit.record({ action: 'system.reset-test-data', actor, target: 'all', meta: deleted });
+    this.log.warn(`Base de teste ZERADA por ${actor.email}: ${JSON.stringify(deleted)}`);
+    return { ok: true, deleted };
+  }
 }

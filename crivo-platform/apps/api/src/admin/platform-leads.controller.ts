@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import type { PlatformAdmin } from '@crivo/types';
 import { PlatformLeadsService } from './platform-leads.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
@@ -52,5 +52,17 @@ export class PlatformLeadsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.leads.sendAccess(id, { id: admin.id, email: admin.email });
+  }
+
+  /**
+   * #18 — Zera os DADOS de teste (super admin + confirmação explícita).
+   * MANTÉM login, catálogo de produtos e RBAC. Exige body { "confirm": "ZERAR" }.
+   */
+  @Post('reset-data')
+  resetData(@CurrentAdmin() admin: PlatformAdmin, @Body() dto: { confirm?: string }) {
+    if (dto?.confirm !== 'ZERAR') {
+      throw new BadRequestException('Confirmação inválida. Envie { "confirm": "ZERAR" } para zerar a base.');
+    }
+    return this.leads.resetTestData({ id: admin.id, email: admin.email });
   }
 }

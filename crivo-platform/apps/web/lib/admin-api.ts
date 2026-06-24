@@ -274,6 +274,16 @@ export function sendLeadAccess(
   return adminFetch(`/admin/leads/${id}/send-access`, { method: "POST" });
 }
 
+/** #18 — Zera os dados de teste (mantém login, produtos e RBAC). Exige confirm "ZERAR". */
+export function resetTestData(
+  confirm: string,
+): Promise<{ ok: true; deleted: Record<string, number> }> {
+  return adminFetch(`/admin/leads/reset-data`, {
+    method: "POST",
+    body: JSON.stringify({ confirm }),
+  });
+}
+
 // ── Catálogo de produtos (product-driven) ──
 
 export function listProducts(): Promise<ProductSummary[]> {

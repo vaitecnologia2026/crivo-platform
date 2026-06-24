@@ -8,7 +8,7 @@ import {
   type ProductSummary,
   type ProvisionResult,
 } from "@crivo/types";
-import { convertLead, listLeads, listProducts, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
+import { convertLead, listLeads, listProducts, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 
 // Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
@@ -97,6 +97,26 @@ export function CrmSection() {
   const reunioes = byStage.get("OPORTUNIDADE")?.length ?? 0;
   const conv = total ? Math.round((fechados / total) * 100) : 0;
 
+  const [resetting, setResetting] = useState(false);
+  async function onResetData() {
+    const typed = window.prompt(
+      "Isto APAGA todos os clientes, leads e diagnósticos (mantém login, produtos e RBAC). " +
+        "É irreversível.\n\nDigite ZERAR para confirmar:",
+    );
+    if (typed !== "ZERAR") return;
+    setResetting(true);
+    try {
+      const r = await resetTestData("ZERAR");
+      const totalDel = Object.values(r.deleted).reduce((a, b) => a + b, 0);
+      window.alert(`Base zerada — ${totalDel} registros removidos. Recarregando…`);
+      window.location.reload();
+    } catch (e) {
+      window.alert("Falha ao zerar: " + (e instanceof Error ? e.message : "erro"));
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <>
       <div className="route__head">
@@ -105,6 +125,11 @@ export function CrmSection() {
           <p className="page-sub">
             Gestão da jornada comercial CRIVO — da captação do lead ao contrato e onboarding.
           </p>
+        </div>
+        <div className="route__actions">
+          <button className="btn btn--ghost btn--sm is-danger" onClick={onResetData} disabled={resetting}>
+            {resetting ? "Zerando…" : "⚠ Zerar base de teste"}
+          </button>
         </div>
       </div>
 
