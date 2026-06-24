@@ -1,11 +1,13 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   computePreDiagnostic,
+  PRE_DIAGNOSTIC_QUESTIONS,
   type CreateDiagnosticLeadRequest,
   type Plan,
   type PlatformLeadStage,
   type PlatformLeadSummary,
   type PreDiagnosticResult,
+  type ProductDiagnostic,
   type ProvisionResult,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -255,5 +257,30 @@ export class PlatformLeadsService {
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * #3/2C — Instrumento do Diagnóstico Inicial da LP: as perguntas vêm do produto
+   * de captura ("Pré-Diagnóstico LP"), permitindo editar o TEXTO no super admin.
+   * Faz merge sobre as 10 perguntas padrão (mantém id + dimensão → score intacto):
+   * usa o texto do produto quando existir, senão o padrão. Público (sem auth).
+   */
+  async getLpInstrument(): Promise<{
+    questions: { id: number; text: string; dimension: string }[];
+    source: 'product' | 'default';
+  }> {
+    const product = await this.prisma.admin.product.findFirst({
+      where: { isLeadCapture: true, status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const diag = (product?.diagnostic as ProductDiagnostic | null) ?? null;
+    const productQs = diag?.questions ?? [];
+    const textById = new Map(productQs.map((q) => [q.id, q.text]));
+    const questions = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({
+      id: q.id,
+      text: textById.get(q.id)?.trim() || q.text,
+      dimension: q.dimension,
+    }));
+    return { questions, source: productQs.length > 0 ? 'product' : 'default' };
   }
 }

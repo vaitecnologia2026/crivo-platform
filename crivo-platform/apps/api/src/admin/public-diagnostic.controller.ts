@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { PlatformLeadsService } from './platform-leads.service';
 import { CreateDiagnosticLeadDto, CreateSimpleLeadDto } from './commerce.dto';
@@ -25,5 +25,12 @@ export class PublicDiagnosticController {
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   lead(@Body() dto: CreateSimpleLeadDto) {
     return this.leads.intakeLead(dto);
+  }
+
+  /** GET /api/public/pre-diagnostic → perguntas do Diagnóstico Inicial (do produto Pré-Diagnóstico LP). */
+  @Get('pre-diagnostic')
+  @Throttle({ default: { ttl: 60_000, limit: 60 } })
+  preDiagnostic() {
+    return this.leads.getLpInstrument();
   }
 }

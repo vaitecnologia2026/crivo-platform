@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   computePreDiagnostic,
   MATURITY_LABEL,
@@ -69,8 +69,17 @@ export function DiagnosticoInicialQuiz() {
   const [locked, setLocked] = useState(false);
   const [result, setResult] = useState<PreDiagnosticResult | null>(null);
   const [sent, setSent] = useState<"idle" | "sending" | "ok" | "error">("idle");
+  // #3/2C — perguntas vêm do produto "Pré-Diagnóstico LP" (texto editável no super admin),
+  // com fallback para as perguntas padrão. Só o TEXTO muda; ids/dimensões/score seguem fixos.
+  const [questions, setQuestions] = useState<typeof PRE_DIAGNOSTIC_QUESTIONS>(PRE_DIAGNOSTIC_QUESTIONS);
+  useEffect(() => {
+    fetch("/api/pre-diagnostic")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d?.questions) && d.questions.length) setQuestions(d.questions); })
+      .catch(() => {});
+  }, []);
 
-  const total = PRE_DIAGNOSTIC_QUESTIONS.length;
+  const total = questions.length;
   const formValid =
     contact.name.trim() && contact.role.trim() && contact.company.trim() &&
     contact.phone.trim() && contact.email.trim() &&
@@ -100,7 +109,7 @@ export function DiagnosticoInicialQuiz() {
 
   function responder(value: number) {
     if (locked) return;
-    const q = PRE_DIAGNOSTIC_QUESTIONS[idx];
+    const q = questions[idx];
     const next = { ...answers, [q.id]: value };
     setAnswers(next);
     setLocked(true);
@@ -123,7 +132,7 @@ export function DiagnosticoInicialQuiz() {
   }
 
   async function finalizar(todas: Record<number, number>) {
-    const payloadAnswers = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value: todas[q.id] }));
+    const payloadAnswers = questions.map((q) => ({ questionId: q.id, value: todas[q.id] }));
     const r = computePreDiagnostic(payloadAnswers);
     setResult(r);
     setStep("result");
@@ -265,7 +274,7 @@ export function DiagnosticoInicialQuiz() {
 
   // ── PERGUNTAS (uma de cada vez) ──
   if (step === "quiz") {
-    const q = PRE_DIAGNOSTIC_QUESTIONS[idx];
+    const q = questions[idx];
     const selected = answers[q.id];
     return (
       <div className="diag-quiz diag-quiz--single">
