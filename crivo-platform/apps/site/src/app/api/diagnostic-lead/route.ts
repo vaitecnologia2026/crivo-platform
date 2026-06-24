@@ -162,12 +162,11 @@ async function fetchEbook(): Promise<Buffer | null> {
   }
 }
 
-async function sendLeadEmail(data: Payload, result?: DiagResult): Promise<boolean> {
+async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf: Buffer | null): Promise<boolean> {
   const to = data.email?.trim();
   if (!to) return false;
   const html = leadEmailHtml(data, result);
   const subject = "Seu Diagnóstico Inicial CRIVO™ + e-book";
-  const pdf = await fetchEbook();
   const resendKey = process.env.RESEND_API_KEY;
 
   // Preferência: Resend (HTTP, ideal em serverless) se houver chave.
@@ -231,7 +230,7 @@ async function vaiFetch(base: string, path: string, init: RequestInit, token: st
   });
 }
 
-async function sendLeadWhatsapp(data: Payload, result?: DiagResult): Promise<boolean> {
+async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, pdf: Buffer | null): Promise<boolean> {
   const to = (data.phone ?? "").replace(/\D/g, "");
   if (!to) return false;
   const base = process.env.VAI_API_URL ?? "https://api.vaicrm.com.br";
@@ -305,13 +304,35 @@ async function sendLeadWhatsapp(data: Payload, result?: DiagResult): Promise<boo
     );
     if (!sent.ok) return false;
 
-    // E-book como documento (best-effort; o link no texto já garante o acesso).
-    await vaiFetch(
-      base,
-      `/chats/${chatId}/messages`,
-      { method: "POST", body: JSON.stringify({ type: "document", fileUrl: EBOOK_URL, content: "E-book CRIVO" }) },
-      token,
-    ).catch(() => undefined);
+    // E-book como DOCUMENTO real (best-effort). A VAI exige o arquivo no storage
+    // dela: upload (multipart) → devolve a URL S3 → envia o documento com ela.
+    // Mandar a URL externa direto gera "arquivo vazio". O link no texto é o backup.
+    if (pdf) {
+      try {
+        const form = new FormData();
+        form.append("file", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), "CRIVO-ebook.pdf");
+        form.append("type", "document");
+        const up = await fetch(`${base}/chats/${chatId}/messages/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+          signal: AbortSignal.timeout(15000),
+        });
+        if (up.ok) {
+          const media = (await up.json()) as { url?: string };
+          if (media.url) {
+            await vaiFetch(
+              base,
+              `/chats/${chatId}/messages`,
+              { method: "POST", body: JSON.stringify({ type: "document", fileUrl: media.url, content: "E-book CRIVO™" }) },
+              token,
+            );
+          }
+        }
+      } catch {
+        /* o link do e-book no texto já garante o acesso ao PDF */
+      }
+    }
 
     return true;
   } catch (e) {
@@ -344,9 +365,10 @@ export async function POST(req: Request) {
   }
 
   // 2/3. Envia ao lead (e-mail + WhatsApp) em paralelo — best-effort.
+  const ebook = await fetchEbook();
   const [emailed, whatsapped] = await Promise.all([
-    sendLeadEmail(data, result).catch(() => false),
-    sendLeadWhatsapp(data, result).catch(() => false),
+    sendLeadEmail(data, result, ebook).catch(() => false),
+    sendLeadWhatsapp(data, result, ebook).catch(() => false),
   ]);
 
   if (!platformApi) {
