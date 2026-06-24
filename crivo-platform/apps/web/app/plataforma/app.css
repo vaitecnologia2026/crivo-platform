@@ -1619,9 +1619,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .kb-tag--ebook { background: var(--success-soft); color: var(--ink-600); }
 .kb-tag--ads { background: rgba(74,111,165,0.14); color: var(--azul-cobalto); }
 .kb-tag--won { background: var(--gold); color: var(--off-white, #F2F0EC); }
-.kb-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+.kb-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
 .kb-score { font-size: 11px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
 .kb-wpp { font-size: 11px; color: var(--success); font-weight: 500; }
+.kb-risk { font-size: 9.5px; font-weight: 700; letter-spacing: .03em; padding: 1px 6px; border-radius: 6px; text-transform: uppercase; white-space: nowrap; }
+.kb-risk--baixo { background: rgba(29, 158, 117, .15); color: #1d9e75; }
+.kb-risk--medio { background: rgba(197, 155, 95, .18); color: #c59b5f; }
+.kb-risk--alto { background: rgba(208, 74, 74, .15); color: #d04a4a; }
 .kb-due { font-size: 11px; color: var(--gold-deep); font-weight: 600; }
 
 /* ==================== CAMPANHAS ==================== */

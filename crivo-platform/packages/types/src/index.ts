@@ -707,6 +707,9 @@ export interface PlatformLeadSummary {
   employeesCount: string | null;
   origin: string | null;
   productId: string | null;
+  cnpj: string | null;
+  riskGrade: string | null; // BAIXO | MEDIO | ALTO (preliminar — base do CNPJ)
+  razaoSocial: string | null; // razão social da consulta CNPJ (BrasilAPI)
   diagnosticScore: number | null;
   diagnosticResult: PreDiagnosticResult | null;
   stage: PlatformLeadStage;
@@ -719,6 +722,7 @@ export interface PlatformLeadSummary {
 /** Payload público do Diagnóstico Inicial da LP (form + respostas). */
 export interface CreateDiagnosticLeadRequest {
   name: string;
+  cnpj?: string;
   role?: string;
   company?: string;
   email?: string;

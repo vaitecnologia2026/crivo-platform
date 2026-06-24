@@ -18,6 +18,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { sendWhatsapp, whatsappConfigured } from '../common/whatsapp';
+import { consultarCnpj, grauDeRiscoCnpj } from '../common/cnpj';
 
 type Actor = { id: string; email: string };
 
@@ -118,16 +119,25 @@ export class PlatformLeadsService {
     if (challengesText) noteParts.push(`Principais desafios: ${challengesText}`);
     const notes = noteParts.length ? noteParts.join('\n') : null;
 
+    // Enriquecimento por CNPJ (BrasilAPI) — base do grau de risco. Best-effort:
+    // se a API falhar/ausente, segue sem (cnpjData null) e não trava o cadastro.
+    const cnpjLimpo = (dto.cnpj ?? '').replace(/\D/g, '') || null;
+    const cnpjData = await consultarCnpj(cnpjLimpo);
+    const riskGrade = grauDeRiscoCnpj(cnpjData);
+
     const lead = await this.prisma.admin.platformLead.create({
       data: {
         name,
-        company: dto.company?.trim() || null,
+        company: dto.company?.trim() || cnpjData?.razaoSocial || null,
         email: dto.email?.trim() || null,
         phone: dto.phone?.trim() || null,
         segment: dto.segment?.trim() || null,
         employeesCount: dto.employeesCount?.trim() || null,
         origin: dto.origin?.trim() || 'lp-diagnostico',
         notes,
+        cnpj: cnpjLimpo,
+        cnpjData: (cnpjData as object) ?? undefined,
+        riskGrade,
         productId: captureProduct?.id ?? null,
         diagnosticScore: result.score,
         diagnosticResult: result as unknown as object,
@@ -307,6 +317,9 @@ export class PlatformLeadsService {
     employeesCount: string | null;
     origin: string | null;
     productId: string | null;
+    cnpj: string | null;
+    riskGrade: string | null;
+    cnpjData: unknown;
     diagnosticScore: number | null;
     diagnosticResult: unknown;
     stage: string;
@@ -325,6 +338,9 @@ export class PlatformLeadsService {
       employeesCount: l.employeesCount,
       origin: l.origin,
       productId: l.productId,
+      cnpj: l.cnpj,
+      riskGrade: l.riskGrade,
+      razaoSocial: (l.cnpjData as { razaoSocial?: string } | null)?.razaoSocial ?? null,
       diagnosticScore: l.diagnosticScore,
       diagnosticResult: (l.diagnosticResult as PreDiagnosticResult | null) ?? null,
       stage: l.stage as PlatformLeadStage,

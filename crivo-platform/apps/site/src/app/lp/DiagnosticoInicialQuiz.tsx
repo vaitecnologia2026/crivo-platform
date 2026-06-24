@@ -22,6 +22,7 @@ import {
 
 type Contact = {
   name: string;
+  cnpj: string;
   role: string;
   company: string;
   phone: string;
@@ -61,7 +62,7 @@ const MAX_CHALLENGES = 3;
 export function DiagnosticoInicialQuiz() {
   const [step, setStep] = useState<"form" | "orientacao" | "quiz" | "result">("form");
   const [contact, setContact] = useState<Contact>({
-    name: "", role: "", company: "", phone: "", email: "",
+    name: "", cnpj: "", role: "", company: "", phone: "", email: "",
     employeesCount: "", segment: "", challenges: [], challengeOther: "",
   });
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -84,7 +85,7 @@ export function DiagnosticoInicialQuiz() {
     contact.name.trim() && contact.role.trim() && contact.company.trim() &&
     contact.phone.trim() && contact.email.trim() &&
     contact.employeesCount.trim() && contact.segment.trim();
-  const set = (k: "name" | "role" | "company" | "phone" | "email" | "employeesCount" | "segment" | "challengeOther") =>
+  const set = (k: "name" | "cnpj" | "role" | "company" | "phone" | "email" | "employeesCount" | "segment" | "challengeOther") =>
     (v: string) => setContact((c) => ({ ...c, [k]: v }));
   function toggleChallenge(c: string) {
     setContact((prev) => {
@@ -143,6 +144,7 @@ export function DiagnosticoInicialQuiz() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: contact.name,
+          cnpj: contact.cnpj,
           role: contact.role,
           company: contact.company,
           phone: contact.phone,
@@ -355,6 +357,15 @@ export function DiagnosticoInicialQuiz() {
         <label className="diag-field">
           <span>Empresa*</span>
           <input value={contact.company} onChange={(e) => set("company")(e.target.value)} required />
+        </label>
+        <label className="diag-field">
+          <span>CNPJ</span>
+          <input
+            value={contact.cnpj}
+            onChange={(e) => set("cnpj")(e.target.value)}
+            inputMode="numeric"
+            placeholder="00.000.000/0000-00"
+          />
         </label>
         <label className="diag-field">
           <span>Telefone / WhatsApp*</span>

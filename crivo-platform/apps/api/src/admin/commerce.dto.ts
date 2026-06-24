@@ -200,6 +200,9 @@ export class CreateDiagnosticLeadDto {
   @IsString() @MaxLength(160)
   name!: string;
 
+  @IsOptional() @IsString() @MaxLength(20)
+  cnpj?: string;
+
   @IsOptional() @IsString() @MaxLength(160)
   company?: string;
 

@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 type Answer = { questionId: number; value: number };
 type Payload = {
   name?: string;
+  cnpj?: string;
   role?: string;
   company?: string;
   email?: string;
@@ -31,6 +32,7 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<boolean> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: data.name,
+        cnpj: data.cnpj || undefined,
         role: data.role || undefined,
         company: data.company || undefined,
         email: data.email || undefined,

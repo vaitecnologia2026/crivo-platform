@@ -578,6 +578,11 @@ model PlatformLead {
   origin         String? // lp-diagnostico | qrcode | indicacao | anuncio…
   productId      String? @db.Uuid // produto de origem (ex.: pré-diagnóstico)
 
+  // Enriquecimento por CNPJ (BrasilAPI) — base do grau de risco (NR-1).
+  cnpj      String? // só dígitos
+  cnpjData  Json? // razão social, CNAE, porte, situação, endereço, sócios…
+  riskGrade String? // grau de risco preliminar: BAIXO | MEDIO | ALTO
+
   // Resultado do pré-diagnóstico (leitura preliminar — não é ICD oficial).
   diagnosticScore  Int? // 0–100 (score geral)
   diagnosticResult Json? // { score, level, byDimension, topConcern, recommendation }

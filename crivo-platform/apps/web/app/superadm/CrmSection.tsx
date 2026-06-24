@@ -189,6 +189,14 @@ export function CrmSection() {
                         <span className="kb-score">
                           {l.diagnosticScore != null ? `Pré ${l.diagnosticScore}` : "Sem pré-diag."}
                         </span>
+                        {l.riskGrade && (
+                          <span
+                            className={`kb-risk kb-risk--${l.riskGrade.toLowerCase()}`}
+                            title="Grau de risco preliminar (base: CNPJ)"
+                          >
+                            Risco {l.riskGrade}
+                          </span>
+                        )}
                         {l.phone && <span className="kb-wpp">{l.phone}</span>}
                       </div>
                       <select
