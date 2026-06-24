@@ -36,125 +36,100 @@ export function riskRank(level: CnaeRiskLevel): number {
 }
 
 export interface MethodDecision {
-  method: CnaeMethod;
+  method: CnaeMethod | null; // null = dispensa documental da NR-1 (0 funcionários)
+  dispensa: boolean;
+  headcountUnknown: boolean;
+  altoRisco: boolean; // grupo de risco: MEDIO_ALTO/ALTO = true; baixo/baixo_médio/médio = false
   reasons: string[];
   criteria: string[];
   score: number;
-  activeTriggers: string[];
+}
+
+/** Grupo de risco do enquadramento NR-1: "Médio/Alto ou Alto" (true) vs "Baixo" (false). */
+export function isAltoRisco(level: CnaeRiskLevel): boolean {
+  return riskRank(level) >= 3; // MEDIO_ALTO ou ALTO
 }
 
 /**
- * Aplica as regras 1–5 (por nível de risco) + pesos complementares por porte.
- * Elevação MONOTÔNICA: gatilhos só empurram para Organizacional, nunca rebaixam.
+ * Enquadramento NR-1 (regra de negócio do cliente). Cruza o GRUPO de risco da
+ * divisão CNAE com o número de funcionários (corte em 9):
+ *   • 0 funcionários            → dispensa documental da NR-1.
+ *   • Baixo + até 9             → Diagnóstico Essencial.
+ *   • Baixo + mais de 9         → Diagnóstico Organizacional.
+ *   • Médio/Alto/Alto + até 9   → Diagnóstico Essencial (com PGR/Inventário).
+ *   • Médio/Alto/Alto + mais 9  → Diagnóstico Organizacional (completo).
+ * Grupo "Baixo" = BAIXO/BAIXO_MEDIO/MEDIO; "Médio/Alto ou Alto" = MEDIO_ALTO/ALTO.
  */
 export function recommendMethod(input: CnaeEvaluationInput, rule: DivisionRuleLike): MethodDecision {
   const risk = rule.preliminaryRiskLevel;
-  const rank = riskRank(risk);
-  const hc = Math.max(0, Math.floor(input.numeroColaboradores ?? 0));
+  const altoRisco = isAltoRisco(risk);
+  const grupo = altoRisco ? 'Médio/Alto ou Alto' : 'Baixo';
+  const hcRaw = input.numeroColaboradores;
+  const hc = hcRaw != null ? Math.max(0, Math.floor(hcRaw)) : null;
+  const criteria: string[] = [`Divisão CNAE ${rule.divisionCode} — risco ${RISK_LABEL[risk]} (grupo ${grupo}).`];
   const reasons: string[] = [];
-  const criteria: string[] = [`Divisão CNAE ${rule.divisionCode} — risco preliminar ${RISK_LABEL[risk]}.`];
 
-  const triggerDefs: [string, boolean | undefined][] = [
-    ['múltiplas unidades', input.possuiMultiplasUnidades],
-    ['equipe operacional', input.possuiEquipeOperacional],
-    ['turnos', input.possuiTurnos],
-    ['atendimento ao público', input.possuiAtendimentoPublico],
-    ['trabalho externo/campo', input.possuiTrabalhoExterno],
-    ['metas comerciais intensas', input.possuiMetasComerciaisIntensas],
-    ['histórico de afastamentos', input.possuiHistoricoAfastamentos],
-    ['demanda por NR-1 completa', input.demandaNr1Completa],
-  ];
-  const activeTriggers = triggerDefs.filter(([, v]) => v).map(([k]) => k);
-  if (activeTriggers.length) criteria.push(`Gatilhos operacionais: ${activeTriggers.join(', ')}.`);
-  if (hc > 0) criteria.push(`Número de colaboradores informado: ${hc}.`);
-
-  let method: CnaeMethod = rule.defaultMethod === 'ORGANIZACIONAL' ? 'ORGANIZACIONAL' : 'ESSENCIAL';
-  let score = rank * 12; // 0..48 do risco
-  score += activeTriggers.length * 6;
-
-  // Regras 1–5 (por nível de risco)
-  if (rank >= 3) {
-    method = 'ORGANIZACIONAL';
-    reasons.push(
-      risk === 'ALTO' ? 'Divisão CNAE de alto risco ocupacional.' : 'Divisão CNAE de risco médio-alto.',
-    );
-  } else if (risk === 'MEDIO') {
-    if (activeTriggers.length > 0) {
-      method = 'ORGANIZACIONAL';
-      reasons.push('Risco médio com gatilho(s) operacional(is) relevante(s).');
-    } else {
-      reasons.push('Risco médio sem gatilho operacional relevante — Essencial como base.');
-    }
-  } else if (risk === 'BAIXO_MEDIO') {
-    if (hc > 20 || activeTriggers.length > 0) {
-      method = 'ORGANIZACIONAL';
-      reasons.push('Risco baixo-médio elevado por porte (>20 colaboradores) e/ou gatilho operacional.');
-    }
-  } else {
-    // BAIXO
-    if (hc > 50 || input.possuiMultiplasUnidades || input.demandaNr1Completa) {
-      method = 'ORGANIZACIONAL';
-      reasons.push('Risco baixo elevado por porte (>50), múltiplas unidades ou demanda formal de NR-1.');
-    }
+  // ETAPA 1 — 0 funcionários: dispensa documental.
+  if (hc === 0) {
+    criteria.push('Funcionários: 0.');
+    reasons.push('Empresa com 0 funcionários: dispensa documental da NR-1.');
+    return { method: null, dispensa: true, headcountUnknown: false, altoRisco, reasons, criteria, score: 0 };
   }
 
-  // Pesos complementares por porte (elevação monotônica)
-  if (hc >= 200) {
-    method = 'ORGANIZACIONAL';
-    score += 30;
-    reasons.push('Mais de 200 colaboradores: Organizacional como recomendação padrão.');
-  } else if (hc >= 51) {
-    method = 'ORGANIZACIONAL';
-    score += 20;
-    reasons.push('51 a 200 colaboradores: prioriza Organizacional.');
-  } else if (hc >= 21) {
-    const presencial = !!(
-      input.possuiEquipeOperacional ||
-      input.possuiAtendimentoPublico ||
-      input.possuiTurnos ||
-      input.possuiTrabalhoExterno ||
-      input.possuiMultiplasUnidades
-    );
-    if (presencial) {
-      method = 'ORGANIZACIONAL';
-      score += 12;
-      reasons.push('21 a 50 colaboradores com operação presencial/estruturada.');
-    }
-  } else if (hc >= 6) {
-    if (rank >= 2) {
-      method = 'ORGANIZACIONAL';
-      score += 8;
-      reasons.push('6 a 20 colaboradores em divisão de risco médio ou maior.');
-    }
+  // Número de funcionários não informado — recomendação provisória pelo risco.
+  if (hc == null) {
+    criteria.push('Funcionários: não informado.');
+    reasons.push('Número de funcionários não informado — confirme para o enquadramento definitivo (corte em 9).');
+    const method: CnaeMethod = altoRisco ? 'ORGANIZACIONAL' : 'ESSENCIAL';
+    return { method, dispensa: false, headcountUnknown: true, altoRisco, reasons, criteria, score: altoRisco ? 60 : 35 };
   }
-  // 1–5 colaboradores: mantém Essencial, exceto alto/médio-alto (já forçado acima).
 
-  if (method === 'ORGANIZACIONAL') score = Math.max(score, 60);
-  score = Math.min(100, Math.max(0, Math.round(score)));
-  return { method, reasons, criteria, score, activeTriggers };
+  // ETAPA 2 — corte em 9 funcionários.
+  criteria.push(`Funcionários: ${hc}.`);
+  const method: CnaeMethod = hc > 9 ? 'ORGANIZACIONAL' : 'ESSENCIAL';
+  reasons.push(`Risco ${grupo} com ${hc > 9 ? 'mais de 9' : 'até 9'} funcionário(s) → ${METHOD_LABEL[method]}.`);
+  const score = method === 'ORGANIZACIONAL' ? (altoRisco ? 100 : 75) : altoRisco ? 60 : 35;
+  return { method, dispensa: false, headcountUnknown: false, altoRisco, reasons, criteria, score };
 }
 
-/** Monta saídas técnicas / documentos / evidências a partir das flags da regra. */
+/** Saídas técnicas conforme as 4 regras de enquadramento NR-1. */
 export function buildTechnicalOutputs(
   input: CnaeEvaluationInput,
   rule: DivisionRuleLike,
-  method: CnaeMethod,
+  md: MethodDecision,
 ): { outputs: string[]; documents: string[]; evidences: string[] } {
-  const outputs: string[] = [METHOD_LABEL[method]];
-  // AEP: pela regra OU por operação com esforço físico/turno/campo.
-  const aep =
-    rule.aepRequired ||
-    !!(input.possuiEquipeOperacional || input.possuiTurnos || input.possuiTrabalhoExterno);
-  if (rule.pgrRequired) outputs.push('PGR');
-  if (rule.riskInventoryRequired) outputs.push('Inventário de Riscos');
-  if (aep) outputs.push('AEP');
-  if (rule.evidenceRequired) outputs.push('Evidências');
-  if (rule.executiveReportRequired) outputs.push('Relatório Executivo');
-  if (rule.actionPlanRequired) outputs.push('Plano de Ação');
+  if (md.dispensa || !md.method) return { outputs: [], documents: [], evidences: [] };
+  const org = md.method === 'ORGANIZACIONAL';
+  // AEP "quando aplicável" na REGRA 1 (Baixo, ≤9): só com esforço físico/turno/campo.
+  const aepAplicavel = !!(
+    input.possuiEquipeOperacional ||
+    input.possuiTurnos ||
+    input.possuiTrabalhoExterno ||
+    rule.aepRequired
+  );
 
-  const docSet = new Set(['PGR', 'Inventário de Riscos', 'AEP', 'Relatório Executivo', 'Plano de Ação']);
-  const documents = outputs.filter((o) => docSet.has(o));
-  const evidences = rule.evidenceRequired
+  let saidas: string[];
+  if (!md.altoRisco) {
+    saidas = org
+      ? ['AEP', 'Relatório Executivo', 'Evidências', 'Dashboard Executivo', 'Plano de Ação'] // REGRA 2
+      : ['Leitura Preliminar', ...(aepAplicavel ? ['AEP'] : []), 'Relatório Executivo', 'Evidências']; // REGRA 1
+  } else {
+    saidas = org
+      ? ['AEP', 'PGR', 'Inventário de Riscos', 'Plano de Ação', 'Evidências', 'Dashboard Executivo', 'Relatório Executivo'] // REGRA 4
+      : ['AEP', 'PGR', 'Inventário de Riscos', 'Plano de Ação', 'Evidências']; // REGRA 3
+  }
+
+  const outputs = [METHOD_LABEL[md.method], ...saidas];
+  const docSet = new Set([
+    'PGR',
+    'Inventário de Riscos',
+    'AEP',
+    'Relatório Executivo',
+    'Plano de Ação',
+    'Dashboard Executivo',
+  ]);
+  const documents = saidas.filter((s) => docSet.has(s));
+  const evidences = saidas.includes('Evidências')
     ? ['Evidências documentais das ações, controles e comunicações']
     : [];
   return { outputs, documents, evidences };
@@ -163,15 +138,15 @@ export function buildTechnicalOutputs(
 export function buildDecisionReason(
   input: CnaeEvaluationInput,
   rule: DivisionRuleLike,
-  method: CnaeMethod,
-  reasons: string[],
+  md: MethodDecision,
 ): string {
   const empresa = input.razaoSocial || input.nomeFantasia || 'A empresa';
-  return (
-    `${empresa} foi classificada na divisão CNAE ${rule.divisionCode} (${rule.officialName}), ` +
-    `com risco preliminar ${RISK_LABEL[rule.preliminaryRiskLevel]}. ${reasons.join(' ')} ` +
-    `Recomenda-se ${METHOD_LABEL[method]}${method === 'ORGANIZACIONAL' ? ' com documentação técnica ampliada' : ''}.`
-  );
+  const grupo = md.altoRisco ? 'Médio/Alto ou Alto' : 'Baixo';
+  const base =
+    `${empresa} — divisão CNAE ${rule.divisionCode} (${rule.officialName}), risco ${RISK_LABEL[rule.preliminaryRiskLevel]} ` +
+    `(grupo ${grupo}). ${md.reasons.join(' ')}`;
+  if (md.dispensa) return `${base} Não se aplica AEP, PGR, Inventário de Riscos ou Plano de Ação.`;
+  return `${base} Recomenda-se ${md.method ? METHOD_LABEL[md.method] : '—'}.`;
 }
 
 function buildNextSteps(method: CnaeMethod, documents: string[]): string[] {
@@ -295,15 +270,23 @@ export function evaluateDecision(params: {
     );
   }
 
-  // Risco médio sem porte informado → confirmar antes de fechar.
-  if (rule.preliminaryRiskLevel === 'MEDIO' && input.numeroColaboradores == null) {
+  // Número de funcionários não informado → confirmar (o corte do enquadramento é em 9).
+  if (md.headcountUnknown) {
     manualReviewRequired = true;
-    warnings.push('Risco médio sem número de colaboradores informado — confirmar porte para a decisão definitiva.');
+    warnings.push('Número de funcionários não informado — confirme para o enquadramento NR-1 definitivo (corte em 9).');
+  }
+  // 0 funcionários → dispensa documental da NR-1.
+  if (md.dispensa) {
+    warnings.unshift('Dispensa documental da NR-1 — empresa com 0 funcionários.');
   }
 
-  const { outputs, documents, evidences } = buildTechnicalOutputs(input, rule, method);
-  const decisionReason = buildDecisionReason(input, rule, method, md.reasons);
-  const nextSteps = buildNextSteps(method, documents);
+  const { outputs, documents, evidences } = buildTechnicalOutputs(input, rule, md);
+  const decisionReason = buildDecisionReason(input, rule, md);
+  const nextSteps = md.dispensa
+    ? ['Reavaliar o enquadramento quando a empresa tiver funcionários']
+    : method
+      ? buildNextSteps(method, documents)
+      : ['Confirmar o número de funcionários para o enquadramento'];
 
   return {
     empresa,

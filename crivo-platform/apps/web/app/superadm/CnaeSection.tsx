@@ -514,11 +514,11 @@ function EditRuleModal({
   }
 
   return (
-    <div className="modal" role="dialog" aria-modal="true">
-      <div className="modal__panel cnae-modal">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal cnae-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
-          <h3>Divisão {rule.divisionCode} — {rule.officialName}</h3>
-          <button className="modal__close" onClick={onClose} aria-label="Fechar">×</button>
+          <h2>Divisão {rule.divisionCode} — {rule.officialName}</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Fechar" title="Fechar">✕</button>
         </div>
         <div className="modal__body">
           <div className="cnae-edit-row">

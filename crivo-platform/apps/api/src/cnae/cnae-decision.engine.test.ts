@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { divisionFromCnae, evaluateDecision, recommendMethod, riskRank } from './cnae-decision.engine';
+import { divisionFromCnae, evaluateDecision, riskRank } from './cnae-decision.engine';
 import { CnaeEvaluationInput, DivisionRuleLike, SecondaryDivision } from './cnae-decision.types';
 
 function mkRule(over: Partial<DivisionRuleLike> = {}): DivisionRuleLike {
@@ -148,13 +148,41 @@ describe('evaluateDecision — validações', () => {
   });
 });
 
-describe('recommendMethod — pontuação', () => {
-  it('gera score maior quando há mais gatilhos', () => {
-    const base = recommendMethod({ cnaePrincipalCodigo: '47' }, mkRule({ preliminaryRiskLevel: 'MEDIO' }));
-    const comGatilhos = recommendMethod(
-      { cnaePrincipalCodigo: '47', possuiTurnos: true, possuiAtendimentoPublico: true, possuiEquipeOperacional: true },
-      mkRule({ preliminaryRiskLevel: 'MEDIO' }),
+describe('Enquadramento NR-1 — corte em 9 funcionários + dispensa', () => {
+  it('0 funcionários → dispensa documental (método nulo, sem saídas)', () => {
+    const r = evaluateDecision({
+      input: { cnaePrincipalCodigo: '4711-3/01', numeroColaboradores: 0 },
+      rule: mkRule({ divisionCode: '47', officialName: 'Comércio varejista', preliminaryRiskLevel: 'MEDIO' }),
+    });
+    expect(r.recommendedMethod).toBeNull();
+    expect(r.technicalOutputs).toEqual([]);
+    expect(r.warnings.some((w) => /dispensa/i.test(w))).toBe(true);
+  });
+  it('REGRA 1 — Baixo + até 9 → Essencial (Leitura Preliminar, sem PGR)', () => {
+    const r = evaluateDecision({ input: { cnaePrincipalCodigo: '6201-5/00', numeroColaboradores: 5 }, rule: mkRule() });
+    expect(r.recommendedMethod).toBe('ESSENCIAL');
+    expect(r.technicalOutputs).toContain('Leitura Preliminar');
+    expect(r.technicalOutputs).not.toContain('PGR');
+  });
+  it('REGRA 2 — Baixo + mais de 9 → Organizacional (com Dashboard + Plano, sem PGR)', () => {
+    const r = evaluateDecision({ input: { cnaePrincipalCodigo: '6201-5/00', numeroColaboradores: 10 }, rule: mkRule() });
+    expect(r.recommendedMethod).toBe('ORGANIZACIONAL');
+    expect(r.technicalOutputs).toEqual(expect.arrayContaining(['Dashboard Executivo', 'Plano de Ação']));
+    expect(r.technicalOutputs).not.toContain('PGR');
+  });
+  it('REGRA 3 — Médio/Alto ou Alto + até 9 → Essencial com PGR + Inventário', () => {
+    const r = evaluateDecision({ input: { cnaePrincipalCodigo: '8610-1/01', numeroColaboradores: 5 }, rule: ALTO });
+    expect(r.recommendedMethod).toBe('ESSENCIAL');
+    expect(r.technicalOutputs).toEqual(
+      expect.arrayContaining(['AEP', 'PGR', 'Inventário de Riscos', 'Plano de Ação', 'Evidências']),
     );
-    expect(comGatilhos.score).toBeGreaterThan(base.score);
+    expect(r.technicalOutputs).not.toContain('Dashboard Executivo');
+  });
+  it('REGRA 4 — Médio/Alto ou Alto + mais de 9 → Organizacional completo', () => {
+    const r = evaluateDecision({ input: { cnaePrincipalCodigo: '8610-1/01', numeroColaboradores: 50 }, rule: ALTO });
+    expect(r.recommendedMethod).toBe('ORGANIZACIONAL');
+    expect(r.technicalOutputs).toEqual(
+      expect.arrayContaining(['AEP', 'PGR', 'Inventário de Riscos', 'Plano de Ação', 'Dashboard Executivo', 'Relatório Executivo']),
+    );
   });
 });

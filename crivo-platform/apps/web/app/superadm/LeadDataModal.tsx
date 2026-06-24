@@ -49,12 +49,18 @@ export function LeadDataModal({ lead, onClose }: { lead: PlatformLeadSummary; on
     : "";
 
   return (
-    <div className="modal" role="dialog" aria-modal="true">
-      <div className="modal__panel cnae-modal" style={{ maxWidth: 660 }}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        style={{ maxWidth: 660 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal__head">
-          <h3>{lead.company || lead.name}</h3>
-          <button className="modal__close" onClick={onClose} aria-label="Fechar">
-            ×
+          <h2>{lead.company || lead.name}</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Fechar" title="Fechar">
+            ✕
           </button>
         </div>
         <div className="modal__body">
