@@ -50,6 +50,17 @@ describe("computePreDiagnostic (Briefing §5)", () => {
     expect(r.score).toBe(50);
     expect(r.level).toBe("EM_ESTRUTURACAO");
   });
+
+  it("#4 — empate: todas as dimensões com a menor maturidade entram em topAttentions", () => {
+    // q1-q4 baixos → pressao_rotina e lideranca_sustentacao empatam na menor nota (25); demais 100.
+    const low = new Set([1, 2, 3, 4]);
+    const answers = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value: low.has(q.id) ? 2 : 5 }));
+    const r = computePreDiagnostic(answers);
+    expect(r.byDimension.pressao_rotina).toBe(25);
+    expect(r.byDimension.lideranca_sustentacao).toBe(25);
+    expect(r.topAttentions).toEqual(["pressao_rotina", "lideranca_sustentacao"]);
+    expect(r.topAttentions).toContain(r.topAttention);
+  });
 });
 
 // ============================================================

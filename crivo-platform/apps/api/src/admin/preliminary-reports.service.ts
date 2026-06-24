@@ -322,12 +322,12 @@ com a seguinte estrutura — use exatamente esses títulos e ordem:
    - 2-3 pontos fortes a preservar (use a(s) dimensão(ões) com maior pontuação).
 
 5. **Próximos Passos com a CRIVO**
-   - 3 itens em bullet. O PRIMEIRO recomenda o diagnóstico CRIVO adequado ao
-     PORTE e à COMPLEXIDADE da empresa — use EXATAMENTE o "Diagnóstico recomendado"
-     informado nos dados (Essencial = empresas menores, baixa complexidade ou
-     grupos reduzidos; Organizacional = empresas maiores, com áreas, unidades,
-     líderes, turnos, grupos expostos ou necessidade de campanha estruturada).
-     NUNCA recomende "Essencial" por padrão — siga o porte informado.
+   - 3 itens em bullet. O PRIMEIRO deve transmitir EXATAMENTE esta ideia, sem
+     escolher produto: "Com base nas respostas iniciais, a equipe CRIVO poderá
+     avaliar o diagnóstico mais adequado para a realidade da empresa."
+     PROIBIDO recomendar, citar ou escolher "Diagnóstico Essencial" ou
+     "Diagnóstico Organizacional" — essa definição acontece DEPOIS, na análise
+     comercial/consultiva da CRIVO, não neste relatório preliminar.
    - Os outros 2 itens: ativação do App CRIVO/ICD, mentoria de liderança ou
      plano de ação, conforme fizer sentido para o quadro observado.
    - NÃO prometa entrega imediata nem prazo específico — fale em termos
@@ -358,20 +358,6 @@ com a seguinte estrutura — use exatamente esses títulos e ordem:
 `.trim();
 }
 
-/**
- * Enquadramento por porte (regra do cliente — tabela "Métodos de diagnóstico"):
- * empresas menores → Essencial; maiores/estruturadas → Organizacional. Determinístico
- * (a IA recebe e justifica), para o relatório não cair sempre em "Essencial".
- * Extrai o MAIOR número da faixa ("51 a 100" → 100; "501 a 1.000" → 1000; "500+"/"Mais de 1.000" → Organizacional).
- */
-function recommendedDiagnostic(employeesCount: string | null): 'Essencial' | 'Organizacional' {
-  if (!employeesCount) return 'Essencial';
-  if (/mais de|acima|\+/i.test(employeesCount)) return 'Organizacional';
-  const nums = (employeesCount.replace(/\./g, '').match(/\d+/g) ?? []).map(Number);
-  const max = nums.length ? Math.max(...nums) : 0;
-  return max > 50 ? 'Organizacional' : 'Essencial';
-}
-
 function buildUserMessage(
   lead: { name: string; company: string | null; segment: string | null; employeesCount: string | null },
   diagnostic: PreDiagnosticResult,
@@ -384,12 +370,11 @@ function buildUserMessage(
 Empresa / Líder solicitante: ${lead.name}${lead.company ? ` (${lead.company})` : ''}
 Segmento: ${lead.segment ?? 'não informado'}
 Porte aproximado: ${lead.employeesCount ?? 'não informado'}
-Diagnóstico recomendado pelo porte: ${recommendedDiagnostic(lead.employeesCount)} (use ESTE no item 1 dos Próximos Passos)
 
 Diagnóstico Inicial (escala 0–100):
 - Score geral: ${diagnostic.score}
 - Nível de maturidade: ${diagnostic.level}
-- Dimensão de maior atenção: ${PRE_DIAGNOSTIC_DIMENSION_LABEL[diagnostic.topAttention]}
+- Dimensão(ões) de maior atenção: ${(diagnostic.topAttentions ?? [diagnostic.topAttention]).map((d) => PRE_DIAGNOSTIC_DIMENSION_LABEL[d]).join(', ')}
 
 Pontuações por dimensão:
 ${dimsText}

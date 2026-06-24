@@ -446,7 +446,8 @@ export interface PreDiagnosticResult {
   score: number; // 0–100 (maturidade geral)
   level: MaturityLevel;
   byDimension: Record<PreDiagnosticDimension, number>; // 0–100 por dimensão
-  topAttention: PreDiagnosticDimension; // dimensão de menor maturidade
+  topAttention: PreDiagnosticDimension; // dimensão de menor maturidade (1ª em caso de empate; ver topAttentions)
+  topAttentions?: PreDiagnosticDimension[]; // #4 — TODAS as dimensões empatadas na menor maturidade (não descarta empate)
 }
 
 /** Calcula o resultado do Diagnóstico Inicial. Pura — usável no front e no back. */
@@ -470,12 +471,13 @@ export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult 
   const score = Math.round(
     PRE_DIAGNOSTIC_DIMENSIONS.reduce((s, d) => s + byDimension[d], 0) / PRE_DIAGNOSTIC_DIMENSIONS.length,
   );
-  const topAttention = PRE_DIAGNOSTIC_DIMENSIONS.reduce((min, d) =>
-    byDimension[d] < byDimension[min] ? d : min,
-  );
+  // #4 — empate: TODAS as dimensões com a menor maturidade entram como pontos de atenção (não só uma).
+  const minDim = Math.min(...PRE_DIAGNOSTIC_DIMENSIONS.map((d) => byDimension[d]));
+  const topAttentions = PRE_DIAGNOSTIC_DIMENSIONS.filter((d) => byDimension[d] === minDim);
+  const topAttention = topAttentions[0];
   const level: MaturityLevel =
     score >= 80 ? 'AVANCADO' : score >= 60 ? 'ESTRUTURADO' : score >= 40 ? 'EM_ESTRUTURACAO' : 'INICIAL';
-  return { score, level, byDimension, topAttention };
+  return { score, level, byDimension, topAttention, topAttentions };
 }
 
 // ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO) ──

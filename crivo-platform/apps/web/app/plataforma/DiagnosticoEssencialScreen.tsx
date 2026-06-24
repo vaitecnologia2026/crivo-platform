@@ -82,7 +82,7 @@ function AssessmentResult({ a, onRedo }: { a: SelfAssessmentData; onRedo: () => 
         <div className="kpi">
           <span className="kpi__label">Ponto de atenção</span>
           <strong className="kpi__value" style={{ fontSize: 18, fontFamily: "var(--font-display)" }}>
-            {PRE_DIAGNOSTIC_DIMENSION_LABEL[a.result.topAttention]}
+            {(a.result.topAttentions ?? [a.result.topAttention]).map((d) => PRE_DIAGNOSTIC_DIMENSION_LABEL[d]).join(" · ")}
           </strong>
           <span className="kpi__delta">menor maturidade</span>
         </div>
@@ -92,7 +92,7 @@ function AssessmentResult({ a, onRedo }: { a: SelfAssessmentData; onRedo: () => 
         <tbody>
           {PRE_DIAGNOSTIC_DIMENSIONS.map((d) => (
             <tr key={d}>
-              <td>{PRE_DIAGNOSTIC_DIMENSION_LABEL[d]}{d === a.result.topAttention && <span className="card__sub"> · atenção</span>}</td>
+              <td>{PRE_DIAGNOSTIC_DIMENSION_LABEL[d]}{(a.result.topAttentions ?? [a.result.topAttention]).includes(d) && <span className="card__sub"> · atenção</span>}</td>
               <td><strong>{a.result.byDimension[d]}</strong></td>
             </tr>
           ))}

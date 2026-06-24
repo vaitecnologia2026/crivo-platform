@@ -179,7 +179,7 @@ export function DiagnosticoInicialQuiz() {
         <ul className="diag-quiz__dims">
           {PRE_DIAGNOSTIC_DIMENSIONS.map((d) => {
             const v = result.byDimension[d];
-            const attention = d === result.topAttention;
+            const attention = (result.topAttentions ?? [result.topAttention]).includes(d);
             return (
               <li key={d} className="diag-quiz__dim">
                 <span className="diag-quiz__dim-label">
@@ -210,9 +210,14 @@ export function DiagnosticoInicialQuiz() {
           {sent === "idle" && "Seu diagnóstico foi enviado para seu WhatsApp ou e-mail."}
         </div>
 
+        <p className="diag-form__lead diag-encerramento">
+          Obrigado por responder ao Diagnóstico Inicial CRIVO™. Seu <strong>Relatório Preliminar</strong> foi gerado e
+          será enviado junto com o <strong>e-book complementar</strong>. Em breve, nossa equipe poderá entrar em contato
+          para aprofundar a análise da sua empresa.
+        </p>
         <p className="objection">
-          Resultado <strong>preliminar</strong>. Não substitui o CRIVO Diagnóstico™ completo — é uma leitura inicial dos
-          riscos invisíveis que afetam liderança, cultura e resultados. Um especialista CRIVO entrará em contato.
+          Esta é uma <strong>leitura preliminar</strong> e não substitui o diagnóstico CRIVO completo — uma leitura
+          inicial dos riscos invisíveis que afetam liderança, cultura e resultados.
         </p>
         <div className="diag-result-cta">
           <a href={waUrl} target="_blank" rel="noopener" className="btn btn--whats btn--block">
