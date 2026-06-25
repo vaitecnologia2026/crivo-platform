@@ -725,3 +725,91 @@ export function createCharge(body: {
     signal: AbortSignal.timeout(45000),
   });
 }
+
+// ── Metodologia configurável (Fase 1) ──
+export type MethodologyInstrument = "PRE_DIAGNOSTIC" | "PSYCHOSOCIAL";
+export type MethodologyStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
+export type MethodologyBandKind = "MATURITY" | "RISK";
+
+export interface MethodologyDimension {
+  id?: string;
+  slug: string;
+  label: string;
+  weight: number;
+  order?: number;
+}
+export interface MethodologyQuestion {
+  id?: string;
+  dimensionSlug: string;
+  text: string;
+  weight: number;
+  inverse: boolean;
+  order?: number;
+}
+export interface MethodologyBand {
+  id?: string;
+  kind: MethodologyBandKind;
+  code: string;
+  label: string;
+  min: number;
+  max: number;
+  color?: string | null;
+  order?: number;
+}
+export interface MethodologyVersion {
+  id: string;
+  instrument: MethodologyInstrument;
+  version: number;
+  label: string;
+  status: MethodologyStatus;
+  notes?: string | null;
+  createdAt: string;
+  publishedAt?: string | null;
+  dimensions: MethodologyDimension[];
+  questions: MethodologyQuestion[];
+  bands: MethodologyBand[];
+}
+export interface MethodologyVersionSummary {
+  id: string;
+  instrument: MethodologyInstrument;
+  version: number;
+  label: string;
+  status: MethodologyStatus;
+  createdAt: string;
+  publishedAt?: string | null;
+  _count: { dimensions: number; questions: number; bands: number };
+}
+
+export function getActiveMethodology(instrument: MethodologyInstrument) {
+  return adminFetch<MethodologyVersion | null>(`/admin/methodology/instrument/${instrument}/active`);
+}
+export function listMethodologyVersions(instrument: MethodologyInstrument) {
+  return adminFetch<MethodologyVersionSummary[]>(`/admin/methodology/instrument/${instrument}/versions`);
+}
+export function getMethodologyVersion(id: string) {
+  return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}`);
+}
+export function createMethodologyDraft(instrument: MethodologyInstrument) {
+  return adminFetch<MethodologyVersion>(`/admin/methodology/instrument/${instrument}/draft`, { method: "POST" });
+}
+export function updateMethodologyDraft(
+  id: string,
+  body: {
+    label?: string;
+    notes?: string;
+    dimensions?: Array<{ slug: string; label: string; weight?: number }>;
+    questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean }>;
+    bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string }>;
+  },
+) {
+  return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+export function publishMethodology(id: string) {
+  return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}/publish`, { method: "POST" });
+}
+export function deleteMethodologyDraft(id: string) {
+  return adminFetch<{ ok: boolean }>(`/admin/methodology/version/${id}`, { method: "DELETE" });
+}
