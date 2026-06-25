@@ -102,6 +102,9 @@ export class CreateLeadFromCnpjDto {
   @IsOptional() @IsString() @MaxLength(160)
   name?: string;
 
+  @IsOptional() @IsString() @MaxLength(200)
+  email?: string;
+
   @IsOptional() @IsString()
   productId?: string;
 }

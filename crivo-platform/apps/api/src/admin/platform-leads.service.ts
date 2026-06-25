@@ -205,7 +205,7 @@ export class PlatformLeadsService {
    * `productId`, já converte o lead em empresa-cliente (provisiona o tenant).
    */
   async createFromCnpj(
-    dto: { cnpj?: string; numeroColaboradores?: number; name?: string; productId?: string },
+    dto: { cnpj?: string; numeroColaboradores?: number; name?: string; email?: string; productId?: string },
     actor: Actor,
   ): Promise<{ lead: PlatformLeadSummary } & Partial<ProvisionResult>> {
     const cnpjLimpo = (dto.cnpj ?? '').replace(/\D/g, '') || null;
@@ -233,7 +233,7 @@ export class PlatformLeadsService {
       data: {
         name: dto.name?.trim() || cnpjData.razaoSocial || 'Empresa (CNPJ)',
         company: cnpjData.razaoSocial,
-        email: cnpjData.email,
+        email: dto.email?.trim() || cnpjData.email,
         phone: cnpjData.telefone,
         segment: cnpjData.cnaePrincipal,
         employeesCount: dto.numeroColaboradores != null ? String(dto.numeroColaboradores) : null,

@@ -49,6 +49,7 @@ export function CnpjLookupCard() {
   const [converting, setConverting] = useState(false);
   const [products, setProducts] = useState<ProductSummary[] | null>(null);
   const [productId, setProductId] = useState("");
+  const [email, setEmail] = useState("");
   const [actBusy, setActBusy] = useState<"save" | "convert" | null>(null);
   const [actErr, setActErr] = useState<string | null>(null);
 
@@ -56,6 +57,7 @@ export function CnpjLookupCard() {
     setProv(null);
     setConverting(false);
     setProductId("");
+    setEmail("");
     setActErr(null);
   }
 
@@ -72,6 +74,7 @@ export function CnpjLookupCard() {
       else {
         setCompany(r.company);
         setRec(r.decision);
+        setEmail(r.company.email ?? "");
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha na consulta.");
@@ -108,7 +111,14 @@ export function CnpjLookupCard() {
     setActBusy("convert");
     setActErr(null);
     try {
-      setProv(await createLeadFromCnpj({ cnpj, numeroColaboradores: hc ? Number(hc) : undefined, productId }));
+      setProv(
+        await createLeadFromCnpj({
+          cnpj,
+          numeroColaboradores: hc ? Number(hc) : undefined,
+          email: email.trim() || undefined,
+          productId,
+        }),
+      );
     } catch (e) {
       setActErr(e instanceof Error ? e.message : "Falha ao converter em cliente.");
     } finally {
@@ -260,7 +270,7 @@ export function CnpjLookupCard() {
                     <select
                       value={productId}
                       onChange={(e) => setProductId(e.target.value)}
-                      style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+                      style={{ ...inputStyle, flex: 1, minWidth: 200 }}
                     >
                       <option value="">Selecione o produto…</option>
                       {(products ?? []).map((p) => (
@@ -269,7 +279,18 @@ export function CnpjLookupCard() {
                         </option>
                       ))}
                     </select>
-                    <button className="btn btn--primary" onClick={converter} disabled={actBusy !== null || !productId}>
+                    <input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      type="email"
+                      placeholder="e-mail do cliente (acesso admin)"
+                      style={{ ...inputStyle, flex: 1, minWidth: 200 }}
+                    />
+                    <button
+                      className="btn btn--primary"
+                      onClick={converter}
+                      disabled={actBusy !== null || !productId || !email.trim()}
+                    >
                       {actBusy === "convert" ? "Convertendo…" : "Confirmar conversão"}
                     </button>
                   </div>

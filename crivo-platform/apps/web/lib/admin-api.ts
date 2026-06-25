@@ -272,6 +272,7 @@ export function createLeadFromCnpj(input: {
   cnpj: string;
   numeroColaboradores?: number;
   name?: string;
+  email?: string;
   productId?: string;
 }): Promise<{ lead: PlatformLeadSummary } & Partial<ProvisionResult>> {
   return adminFetch("/admin/leads/from-cnpj", { method: "POST", body: JSON.stringify(input) });
