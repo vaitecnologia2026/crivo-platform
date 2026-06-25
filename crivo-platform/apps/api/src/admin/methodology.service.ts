@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { MethodologyConfig } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 
@@ -12,6 +13,32 @@ const CONTENT_INCLUDE = {
   questions: { orderBy: { order: 'asc' as const } },
   bands: { orderBy: { order: 'asc' as const } },
 };
+
+/**
+ * Carrega a metodologia ATIVA de um instrumento no formato `MethodologyConfig`
+ * (consumido por `scoreWithMethodology`). Standalone para o motor (intake/LP/
+ * psicossocial) usar sem injetar o service. Retorna null se não houver ativa.
+ */
+export async function loadActiveMethodologyConfig(
+  prisma: PrismaService,
+  instrument: Instrument,
+): Promise<MethodologyConfig | null> {
+  const v = await prisma.admin.methodologyVersion.findFirst({
+    where: { instrument, status: 'ACTIVE' },
+    include: CONTENT_INCLUDE,
+  });
+  if (!v) return null;
+  return {
+    dimensions: v.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight })),
+    questions: v.questions.map((q) => ({
+      dimensionSlug: q.dimensionSlug,
+      text: q.text,
+      weight: q.weight,
+      inverse: q.inverse,
+    })),
+    bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
+  };
+}
 
 /**
  * Metodologia configurável (Fase 1): dimensões, perguntas, pesos e faixas dos

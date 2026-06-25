@@ -377,10 +377,13 @@ com a seguinte estrutura — use exatamente esses títulos e ordem:
 
 function buildUserMessage(
   lead: { name: string; company: string | null; segment: string | null; employeesCount: string | null },
-  diagnostic: PreDiagnosticResult,
+  diagnostic: PreDiagnosticResult & { dimensionLabels?: Record<string, string>; levelLabel?: string },
 ): string {
-  const dimsText = (Object.entries(diagnostic.byDimension) as [PreDiagnosticDimension, number][])
-    .map(([d, v]) => `- ${PRE_DIAGNOSTIC_DIMENSION_LABEL[d]}: ${v}`)
+  // Rótulo da dimensão: prioriza a metodologia ATIVA (Fase 1C); fallback ao padrão.
+  const labelOf = (d: string) =>
+    diagnostic.dimensionLabels?.[d] ?? PRE_DIAGNOSTIC_DIMENSION_LABEL[d as PreDiagnosticDimension] ?? d;
+  const dimsText = (Object.entries(diagnostic.byDimension) as [string, number][])
+    .map(([d, v]) => `- ${labelOf(d)}: ${v}`)
     .join('\n');
 
   return `
@@ -390,8 +393,8 @@ Porte aproximado: ${lead.employeesCount ?? 'não informado'}
 
 Diagnóstico Inicial (escala 0–100):
 - Score geral: ${diagnostic.score}
-- Nível de maturidade: ${diagnostic.level}
-- Dimensão(ões) de maior atenção: ${(diagnostic.topAttentions ?? [diagnostic.topAttention]).map((d) => PRE_DIAGNOSTIC_DIMENSION_LABEL[d]).join(', ')}
+- Nível de maturidade: ${diagnostic.levelLabel ?? diagnostic.level}
+- Dimensão(ões) de maior atenção: ${(diagnostic.topAttentions ?? [diagnostic.topAttention]).map(labelOf).join(', ')}
 
 Pontuações por dimensão:
 ${dimsText}

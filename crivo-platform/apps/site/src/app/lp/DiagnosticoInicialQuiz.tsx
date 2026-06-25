@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import {
   computePreDiagnostic,
+  scoreWithMethodology,
   MATURITY_LABEL,
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
   PRE_DIAGNOSTIC_DIMENSIONS,
   PRE_DIAGNOSTIC_QUESTIONS,
   PRE_DIAGNOSTIC_SCALE,
-  type PreDiagnosticResult,
+  type MethodologyConfig,
 } from "@crivo/types";
 
 /**
@@ -59,6 +60,14 @@ const CHALLENGES = [
 ];
 const MAX_CHALLENGES = 3;
 
+// Resultado normalizado para render (vem da metodologia ATIVA ou do fallback padrão).
+type RenderResult = {
+  score: number;
+  levelLabel: string;
+  byDimension: { slug: string; label: string; value: number }[];
+  topAttentions: string[];
+};
+
 export function DiagnosticoInicialQuiz() {
   const [step, setStep] = useState<"form" | "orientacao" | "quiz" | "result">("form");
   const [contact, setContact] = useState<Contact>({
@@ -68,7 +77,8 @@ export function DiagnosticoInicialQuiz() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [idx, setIdx] = useState(0);
   const [locked, setLocked] = useState(false);
-  const [result, setResult] = useState<PreDiagnosticResult | null>(null);
+  const [result, setResult] = useState<RenderResult | null>(null);
+  const [methodology, setMethodology] = useState<MethodologyConfig | null>(null);
   const [sent, setSent] = useState<"idle" | "sending" | "ok" | "error">("idle");
   // #3/2C — perguntas vêm do produto "Pré-Diagnóstico LP" (texto editável no super admin),
   // com fallback para as perguntas padrão. Só o TEXTO muda; ids/dimensões/score seguem fixos.
@@ -76,7 +86,10 @@ export function DiagnosticoInicialQuiz() {
   useEffect(() => {
     fetch("/api/pre-diagnostic")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (Array.isArray(d?.questions) && d.questions.length) setQuestions(d.questions); })
+      .then((d) => {
+        if (Array.isArray(d?.questions) && d.questions.length) setQuestions(d.questions);
+        if (d?.methodology) setMethodology(d.methodology as MethodologyConfig);
+      })
       .catch(() => {});
   }, []);
 
@@ -134,7 +147,24 @@ export function DiagnosticoInicialQuiz() {
 
   async function finalizar(todas: Record<number, number>) {
     const payloadAnswers = questions.map((q) => ({ questionId: q.id, value: todas[q.id] }));
-    const r = computePreDiagnostic(payloadAnswers);
+    // Pontua pela metodologia ATIVA (Fase 1C) quando servida; senão, padrão hardcoded.
+    let r: RenderResult;
+    if (methodology) {
+      const s = scoreWithMethodology(payloadAnswers, methodology);
+      r = { score: s.score, levelLabel: s.levelLabel, byDimension: s.byDimension, topAttentions: s.topAttentions };
+    } else {
+      const s = computePreDiagnostic(payloadAnswers);
+      r = {
+        score: s.score,
+        levelLabel: MATURITY_LABEL[s.level],
+        byDimension: PRE_DIAGNOSTIC_DIMENSIONS.map((d) => ({
+          slug: d,
+          label: PRE_DIAGNOSTIC_DIMENSION_LABEL[d],
+          value: s.byDimension[d],
+        })),
+        topAttentions: (s.topAttentions ?? [s.topAttention]) as string[],
+      };
+    }
     setResult(r);
     setStep("result");
     setSent("sending");
@@ -176,7 +206,7 @@ export function DiagnosticoInicialQuiz() {
   if (step === "result" && result) {
     const waMsg =
       `Olá! Sou ${contact.name || "—"}. Acabei de fazer o Diagnóstico Inicial CRIVO ` +
-      `(resultado: ${result.score}/100 · ${MATURITY_LABEL[result.level]}) e gostaria de falar com a equipe.`;
+      `(resultado: ${result.score}/100 · ${result.levelLabel}) e gostaria de falar com a equipe.`;
     const waUrl = `https://wa.me/5511918531796?text=${encodeURIComponent(waMsg)}`;
     return (
       <div id="diag-resultado" className="diag-quiz diag-quiz--result">
@@ -184,23 +214,22 @@ export function DiagnosticoInicialQuiz() {
         <div className="diag-quiz__score">
           <strong>{result.score}</strong>
           <small>/100</small>
-          <span className="diag-quiz__level">Maturidade: {MATURITY_LABEL[result.level]}</span>
+          <span className="diag-quiz__level">Maturidade: {result.levelLabel}</span>
         </div>
 
         <ul className="diag-quiz__dims">
-          {PRE_DIAGNOSTIC_DIMENSIONS.map((d) => {
-            const v = result.byDimension[d];
-            const attention = (result.topAttentions ?? [result.topAttention]).includes(d);
+          {result.byDimension.map((dim) => {
+            const attention = result.topAttentions.includes(dim.slug);
             return (
-              <li key={d} className="diag-quiz__dim">
+              <li key={dim.slug} className="diag-quiz__dim">
                 <span className="diag-quiz__dim-label">
-                  {PRE_DIAGNOSTIC_DIMENSION_LABEL[d]}
+                  {dim.label}
                   {attention && <em className="diag-quiz__flag"> · ponto de atenção</em>}
                 </span>
                 <span className="diag-quiz__bar">
-                  <span className="diag-quiz__bar-fill" style={{ width: `${v}%` }} />
+                  <span className="diag-quiz__bar-fill" style={{ width: `${dim.value}%` }} />
                 </span>
-                <span className="diag-quiz__dim-val">{v}</span>
+                <span className="diag-quiz__dim-val">{dim.value}</span>
               </li>
             );
           })}

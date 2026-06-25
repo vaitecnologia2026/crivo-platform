@@ -1,8 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   computePreDiagnostic,
+  scoreWithMethodology,
   PRE_DIAGNOSTIC_QUESTIONS,
   type CreateDiagnosticLeadRequest,
+  type MethodologyConfig,
   type Plan,
   type PlatformLeadStage,
   type PlatformLeadSummary,
@@ -12,6 +14,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { loadActiveMethodologyConfig } from './methodology.service';
 import { PreliminaryReportsService } from './preliminary-reports.service';
 import { ProvisioningService } from './provisioning.service';
 import * as bcrypt from 'bcryptjs';
@@ -102,9 +105,48 @@ export class PlatformLeadsService {
     const name = dto.name?.trim();
     if (!name) throw new BadRequestException('Nome é obrigatório');
 
-    let result: PreDiagnosticResult;
+    // Pontuação dirigida pela metodologia ATIVA (Fase 1C) — com fallback ao
+    // padrão hardcoded. Armazena um superset compatível: byDimension como Record
+    // (slug→valor) + rótulos, para o relatório/CRM antigos seguirem lendo.
+    type DiagResult = {
+      score: number;
+      level: string;
+      levelLabel?: string;
+      byDimension: Record<string, number>;
+      dimensionLabels?: Record<string, string>;
+      topAttention: string;
+      topAttentions: string[];
+    };
+    let result: DiagResult;
     try {
-      result = computePreDiagnostic(dto.answers ?? []);
+      const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC');
+      if (cfg) {
+        const r = scoreWithMethodology(dto.answers ?? [], cfg);
+        const byDimension: Record<string, number> = {};
+        const dimensionLabels: Record<string, string> = {};
+        for (const d of r.byDimension) {
+          byDimension[d.slug] = d.value;
+          dimensionLabels[d.slug] = d.label;
+        }
+        result = {
+          score: r.score,
+          level: r.levelCode,
+          levelLabel: r.levelLabel,
+          byDimension,
+          dimensionLabels,
+          topAttention: r.topAttentions[0] ?? '',
+          topAttentions: r.topAttentions,
+        };
+      } else {
+        const r = computePreDiagnostic(dto.answers ?? []);
+        result = {
+          score: r.score,
+          level: r.level,
+          byDimension: r.byDimension as Record<string, number>,
+          topAttention: r.topAttention,
+          topAttentions: r.topAttentions ?? [r.topAttention],
+        };
+      }
     } catch (err) {
       throw new BadRequestException(
         err instanceof Error ? err.message : 'Respostas do diagnóstico inválidas',
@@ -217,7 +259,7 @@ export class PlatformLeadsService {
         .catch(() => {});
     }
 
-    return { ok: true, result };
+    return { ok: true, result: result as unknown as PreDiagnosticResult };
   }
 
   /**
@@ -453,8 +495,16 @@ export class PlatformLeadsService {
    */
   async getLpInstrument(): Promise<{
     questions: { id: number; text: string; dimension: string }[];
-    source: 'product' | 'default';
+    source: 'methodology' | 'product' | 'default';
+    methodology: MethodologyConfig | null;
   }> {
+    // Fonte da verdade: metodologia ATIVA (Fase 1C). A config segue junto para a
+    // LP pontuar client-side com o mesmo motor. Fallback: produto de captura → padrão.
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC');
+    if (cfg) {
+      const questions = cfg.questions.map((q, i) => ({ id: i + 1, text: q.text, dimension: q.dimensionSlug }));
+      return { questions, source: 'methodology', methodology: cfg };
+    }
     const product = await this.prisma.admin.product.findFirst({
       where: { isLeadCapture: true, status: 'ACTIVE' },
       orderBy: { createdAt: 'asc' },
@@ -467,7 +517,7 @@ export class PlatformLeadsService {
       text: textById.get(q.id)?.trim() || q.text,
       dimension: q.dimension,
     }));
-    return { questions, source: productQs.length > 0 ? 'product' : 'default' };
+    return { questions, source: productQs.length > 0 ? 'product' : 'default', methodology: null };
   }
 
   /**
