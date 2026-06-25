@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
 import { listActionPlans } from "@/lib/api";
 import { OnboardingChecklist } from "./OnboardingChecklist";
+import { OperationalAlerts } from "./OperationalAlerts";
 import {
   ACTION_STATUS_LABEL,
   getIcdMaturityBand,
@@ -185,6 +186,9 @@ export function DashboardScreen() {
         <>
           {/* #65 — Checklist de onboarding (some quando tudo está done). */}
           <OnboardingChecklist />
+
+          {/* Fase 3 §12 — Notificações & travas operacionais (some quando não há pendências). */}
+          <OperationalAlerts />
 
           {/* #17 — Estado vazio profissional enquanto não há diagnóstico concluído. */}
           {isEmpty && (

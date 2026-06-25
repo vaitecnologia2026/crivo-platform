@@ -49,6 +49,7 @@ import type {
   InvisibleCostItem,
   InvisibleCostScenarios,
   PeoplePeriod,
+  OperationalAlertsResult,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -727,4 +728,9 @@ export function getDecisionIcd(decisionId: string): Promise<DecisionIcdData | nu
  */
 export function logout(): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>('/auth/logout', { method: 'POST' }, { redirectOn401: false });
+}
+
+/** Notificações & Travas operacionais (§12) — derivadas do plano de ação. */
+export function getOperationalAlerts(): Promise<OperationalAlertsResult> {
+  return apiFetch<OperationalAlertsResult>('/alerts');
 }

@@ -2544,3 +2544,71 @@ export function aggregateBenchmarks(records: BenchmarkRecord[], minCount = 3): B
     .sort((a, b) => b.count - a.count);
   return { minCount, totalRecords: records.length, groups, suppressedGroups };
 }
+
+// ── Notificações & Travas operacionais (Fase 3 — §12) ───────────────────────
+// O sistema CONDUZ a operação: deriva alertas e travas críticas do estado atual
+// (campanhas, plano de ação) — não substitui decisão humana, sinaliza.
+
+export type AlertSeverity = 'info' | 'warn' | 'high';
+export const LOW_ADHESION_PCT = 30;
+
+export interface OperationalAlert {
+  kind: string;
+  severity: AlertSeverity;
+  message: string;
+}
+export interface OperationalLock {
+  kind: string;
+  message: string;
+}
+
+export interface AlertsSnapshot {
+  campaigns: { name: string; active: boolean; adesao: number }[];
+  actionItems: { title: string; status: string; dueDateMs: number | null; hasExpectedEvidence: boolean; hasResponsible: boolean }[];
+  unvalidatedPlans: { title: string; itemCount: number }[];
+}
+
+export interface OperationalAlertsResult {
+  alerts: OperationalAlert[];
+  locks: OperationalLock[];
+}
+
+/** Deriva alertas (§12) + travas críticas do estado do tenant. Pura — `nowMs`
+ * é injetado pelo chamador para manter a função determinística/testável. */
+export function computeOperationalAlerts(s: AlertsSnapshot, nowMs: number): OperationalAlertsResult {
+  const alerts: OperationalAlert[] = [];
+  const locks: OperationalLock[] = [];
+
+  for (const c of s.campaigns) {
+    if (c.active && c.adesao < LOW_ADHESION_PCT) {
+      alerts.push({ kind: 'baixa-adesao', severity: 'warn', message: `Campanha "${c.name}": adesão baixa (${c.adesao}%).` });
+    }
+  }
+
+  for (const it of s.actionItems) {
+    const done = it.status === 'CONCLUIDA';
+    if (done) continue;
+    if (it.dueDateMs != null && it.dueDateMs < nowMs) {
+      alerts.push({ kind: 'acao-atrasada', severity: 'high', message: `Ação "${it.title}" está atrasada.` });
+    }
+    if (it.dueDateMs == null) {
+      locks.push({ kind: 'sem-prazo', message: `Ação "${it.title}" sem prazo definido.` });
+    }
+    if (!it.hasResponsible) {
+      locks.push({ kind: 'sem-responsavel', message: `Ação "${it.title}" sem responsável definido.` });
+    }
+    if (!it.hasExpectedEvidence) {
+      locks.push({ kind: 'sem-evidencia-esperada', message: `Ação "${it.title}" sem evidência esperada.` });
+    } else if (it.status === 'EM_ANDAMENTO' || it.status === 'APROVADA') {
+      alerts.push({ kind: 'evidencia-pendente', severity: 'warn', message: `Ação "${it.title}": evidência pendente.` });
+    }
+  }
+
+  for (const p of s.unvalidatedPlans) {
+    if (p.itemCount > 0) {
+      locks.push({ kind: 'plano-nao-validado', message: `Plano "${p.title}" não validado — dossiê bloqueado até a validação.` });
+    }
+  }
+
+  return { alerts, locks };
+}

@@ -30,6 +30,7 @@ import {
   computePeopleTrends,
   aggregateBenchmarks,
   porteBandOf,
+  computeOperationalAlerts,
 } from "./index";
 
 // ============================================================
@@ -575,5 +576,54 @@ describe("aggregateBenchmarks + porteBandOf", () => {
     expect(b.suppressed).toBe(true);
     expect(Object.keys(b.averages)).toHaveLength(0);
     expect(r.suppressedGroups).toBe(1);
+  });
+});
+
+// ============================================================
+// Notificações & Travas operacionais (Fase 3 — §12)
+// ============================================================
+describe("computeOperationalAlerts", () => {
+  const now = 1_700_000_000_000;
+
+  it("ação atrasada (high) + baixa adesão (warn) + evidência pendente", () => {
+    const r = computeOperationalAlerts(
+      {
+        campaigns: [{ name: "C1", active: true, adesao: 12 }],
+        actionItems: [{ title: "A1", status: "EM_ANDAMENTO", dueDateMs: now - 1000, hasExpectedEvidence: true, hasResponsible: true }],
+        unvalidatedPlans: [],
+      },
+      now,
+    );
+    expect(r.alerts.some((a) => a.kind === "baixa-adesao")).toBe(true);
+    expect(r.alerts.some((a) => a.kind === "acao-atrasada" && a.severity === "high")).toBe(true);
+    expect(r.alerts.some((a) => a.kind === "evidencia-pendente")).toBe(true);
+  });
+
+  it("travas: sem prazo, sem evidência esperada, plano não validado", () => {
+    const r = computeOperationalAlerts(
+      {
+        campaigns: [],
+        actionItems: [{ title: "A2", status: "APROVADA", dueDateMs: null, hasExpectedEvidence: false, hasResponsible: false }],
+        unvalidatedPlans: [{ title: "P1", itemCount: 3 }],
+      },
+      now,
+    );
+    expect(r.locks.some((l) => l.kind === "sem-prazo")).toBe(true);
+    expect(r.locks.some((l) => l.kind === "sem-responsavel")).toBe(true);
+    expect(r.locks.some((l) => l.kind === "sem-evidencia-esperada")).toBe(true);
+    expect(r.locks.some((l) => l.kind === "plano-nao-validado")).toBe(true);
+  });
+
+  it("ação concluída não gera alerta nem trava", () => {
+    const r = computeOperationalAlerts(
+      {
+        campaigns: [],
+        actionItems: [{ title: "ok", status: "CONCLUIDA", dueDateMs: now - 9999, hasExpectedEvidence: false, hasResponsible: false }],
+        unvalidatedPlans: [],
+      },
+      now,
+    );
+    expect(r.alerts).toHaveLength(0);
+    expect(r.locks).toHaveLength(0);
   });
 });

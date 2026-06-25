@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { IconCheck, IconLink } from "./Icons";
 import {
   closeCampaign,
@@ -25,6 +26,66 @@ function periodOf(iso: string): string {
   return new Date(iso).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
 }
 
+function IconQr({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="M14 14h3v3M21 14v7M17 21h4M14 21v0" />
+    </svg>
+  );
+}
+
+/**
+ * QR Code do link público da campanha (Fase 3 §4 — modelo de disparo "QR geral").
+ * Overlay autossuficiente (estilo inline, sem depender de CSS de modal). A empresa
+ * imprime/exibe o QR; o colaborador aponta a câmera e abre o questionário anônimo.
+ */
+function CampaignQrModal({ slug, name, onClose }: { slug: string; name: string; onClose: () => void }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const url = typeof window !== "undefined" ? `${window.location.origin}/p/c/${slug}` : `/p/c/${slug}`;
+
+  function downloadSvg() {
+    const svg = boxRef.current?.querySelector("svg");
+    if (!svg) return;
+    const data = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n', data], { type: "image/svg+xml" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `qr-${slug}.svg`;
+    a.click();
+    URL.revokeObjectURL(href);
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`QR Code da campanha ${name}`}
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", display: "grid", placeItems: "center", zIndex: 1000, padding: 20 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "#fff", borderRadius: 14, padding: "24px 24px 20px", maxWidth: 340, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}
+      >
+        <h3 style={{ margin: "0 0 2px", fontSize: 17 }}>QR Code da campanha</h3>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--muted, #64748b)" }}>{name}</p>
+        <div ref={boxRef} style={{ display: "inline-block", padding: 14, background: "#fff", border: "1px solid var(--border, #e2e8f0)", borderRadius: 10 }}>
+          <QRCodeSVG value={url} size={220} level="M" marginSize={0} />
+        </div>
+        <p style={{ margin: "14px 0 16px", fontSize: 12, color: "var(--muted, #64748b)", wordBreak: "break-all" }}>{url}</p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button className="btn btn--outline-dark btn--sm" onClick={downloadSvg}>Baixar SVG</button>
+          <button className="btn btn--sm" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Portal §7 — Campanhas de Diagnóstico editáveis (criar, link público por
  *  setor, encerrar). Lembrete por agora é só um campo de data; o envio
  *  efetivo do e-mail entra na task #52 (Relatório Preliminar via IA) e nas
@@ -36,6 +97,7 @@ export function CampanhasScreen() {
   const [showNew, setShowNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [qrFor, setQrFor] = useState<{ slug: string; name: string } | null>(null);
 
   async function load(sector?: string) {
     setStatus("loading");
@@ -176,6 +238,15 @@ export function CampanhasScreen() {
                             {copiedSlug === c.publicSlug ? <><IconCheck size={13} /> copiado</> : <><IconLink size={13} /> link</>}
                           </button>
                         )}
+                        {c.publicSlug && (
+                          <button
+                            className="lib-act"
+                            onClick={() => setQrFor({ slug: c.publicSlug!, name: c.name })}
+                            title="Gerar QR Code do link público"
+                          >
+                            <IconQr size={13} /> QR
+                          </button>
+                        )}
                         {c.status === "OPEN" && (
                           <>
                             <button
@@ -243,6 +314,10 @@ export function CampanhasScreen() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {qrFor && (
+        <CampaignQrModal slug={qrFor.slug} name={qrFor.name} onClose={() => setQrFor(null)} />
       )}
     </>
   );
