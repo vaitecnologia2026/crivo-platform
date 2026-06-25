@@ -86,6 +86,16 @@ export class PlatformLeadsService {
    * Diagnóstico Inicial, calcula o resultado preliminar e cria o lead NOVO no
    * CRM do super admin, vinculado ao produto de captura (PRÉ-DIAGNÓSTICO).
    */
+  /** Lead "aberto" (não convertido, não perdido) com o mesmo CNPJ — para não
+   * duplicar o card a cada reenvio/teste do mesmo CNPJ. */
+  private findOpenLeadByCnpj(cnpj: string | null) {
+    if (!cnpj) return Promise.resolve(null);
+    return this.prisma.admin.platformLead.findFirst({
+      where: { cnpj, convertedTenantId: null, stage: { not: 'PERDIDO' } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async intakeDiagnostic(
     dto: CreateDiagnosticLeadRequest,
   ): Promise<{ ok: true; result: PreDiagnosticResult }> {
@@ -135,25 +145,36 @@ export class PlatformLeadsService {
       if (rule) riskGrade = rule.preliminaryRiskLevel;
     }
 
-    const lead = await this.prisma.admin.platformLead.create({
-      data: {
-        name,
-        company: dto.company?.trim() || cnpjData?.razaoSocial || null,
-        email: dto.email?.trim() || null,
-        phone: dto.phone?.trim() || null,
-        segment: dto.segment?.trim() || null,
-        employeesCount: dto.employeesCount?.trim() || null,
-        origin: dto.origin?.trim() || 'lp-diagnostico',
-        notes,
-        cnpj: cnpjLimpo,
-        cnpjData: (cnpjData as object) ?? undefined,
-        riskGrade,
-        productId: captureProduct?.id ?? null,
-        diagnosticScore: result.score,
-        diagnosticResult: result as unknown as object,
-        stage: 'NOVO',
-      },
-    });
+    const base = {
+      name,
+      company: dto.company?.trim() || cnpjData?.razaoSocial || null,
+      email: dto.email?.trim() || null,
+      phone: dto.phone?.trim() || null,
+      segment: dto.segment?.trim() || null,
+      employeesCount: dto.employeesCount?.trim() || null,
+      origin: dto.origin?.trim() || 'lp-diagnostico',
+      notes,
+      cnpj: cnpjLimpo,
+      cnpjData: (cnpjData as object) ?? undefined,
+      riskGrade,
+      productId: captureProduct?.id ?? null,
+      diagnosticScore: result.score,
+      diagnosticResult: result as unknown as object,
+    };
+    // Dedup por CNPJ: se já existe um lead ABERTO com o mesmo CNPJ, atualiza-o em
+    // vez de criar outro card (evita a empresa repetida no funil). Mantém o estágio.
+    const dup = await this.findOpenLeadByCnpj(cnpjLimpo);
+    const lead = dup
+      ? await this.prisma.admin.platformLead.update({
+          where: { id: dup.id },
+          data: {
+            ...base,
+            email: base.email ?? dup.email,
+            phone: base.phone ?? dup.phone,
+            company: base.company ?? dup.company,
+          },
+        })
+      : await this.prisma.admin.platformLead.create({ data: { ...base, stage: 'NOVO' } });
 
     await this.audit.record({
       action: 'lead.intake',
@@ -229,22 +250,28 @@ export class PlatformLeadsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const lead = await this.prisma.admin.platformLead.create({
-      data: {
-        name: dto.name?.trim() || cnpjData.razaoSocial || 'Empresa (CNPJ)',
-        company: cnpjData.razaoSocial,
-        email: dto.email?.trim() || cnpjData.email,
-        phone: cnpjData.telefone,
-        segment: cnpjData.cnaePrincipal,
-        employeesCount: dto.numeroColaboradores != null ? String(dto.numeroColaboradores) : null,
-        origin: 'dashboard-cnpj',
-        notes: 'Lead criado a partir da consulta de CNPJ no Dashboard.',
-        cnpj: cnpjLimpo,
-        cnpjData: cnpjData as object,
-        riskGrade,
-        productId: captureProduct?.id ?? null,
-      },
-    });
+    const base = {
+      name: dto.name?.trim() || cnpjData.razaoSocial || 'Empresa (CNPJ)',
+      company: cnpjData.razaoSocial,
+      email: dto.email?.trim() || cnpjData.email,
+      phone: cnpjData.telefone,
+      segment: cnpjData.cnaePrincipal,
+      employeesCount: dto.numeroColaboradores != null ? String(dto.numeroColaboradores) : null,
+      origin: 'dashboard-cnpj',
+      notes: 'Lead criado a partir da consulta de CNPJ no Dashboard.',
+      cnpj: cnpjLimpo,
+      cnpjData: cnpjData as object,
+      riskGrade,
+      productId: captureProduct?.id ?? null,
+    };
+    // Dedup por CNPJ — atualiza o lead aberto existente em vez de duplicar o card.
+    const dup = await this.findOpenLeadByCnpj(cnpjLimpo);
+    const lead = dup
+      ? await this.prisma.admin.platformLead.update({
+          where: { id: dup.id },
+          data: { ...base, email: base.email ?? dup.email, phone: base.phone ?? dup.phone },
+        })
+      : await this.prisma.admin.platformLead.create({ data: base });
 
     if (dto.productId) {
       const prov = await this.convert(lead.id, dto.productId, actor);
@@ -452,6 +479,50 @@ export class PlatformLeadsService {
    * MANTÉM: super admins (login), catálogo de PRODUTOS, módulos, permissões/papéis
    *   (RBAC) e textos editáveis (copy). Deixa o sistema "do zero", mas funcional.
    */
+  /**
+   * Remove leads DUPLICADOS pelo mesmo CNPJ — mantém os já convertidos (têm
+   * empresa) e, entre os abertos, o mais avançado/recente; apaga o resto + seus
+   * relatórios preliminares. Owner-only.
+   */
+  async dedupLeads(actor: Actor): Promise<{ ok: true; deleted: number; kept: number }> {
+    const STAGE_RANK: Record<string, number> = {
+      NOVO: 0, PRE_DIAGNOSTICO: 1, REUNIAO: 1, OPORTUNIDADE: 2, PROPOSTA: 3,
+      FECHADO: 4, CONTRATO: 5, ONBOARDING: 6, IMPLANTACAO: 7, ENTREGA: 8,
+      SUSTENTACAO: 9, RENOVACAO: 10, UPSELL: 11, PERDIDO: -1,
+    };
+    const leads = await this.prisma.admin.platformLead.findMany({ where: { cnpj: { not: null } } });
+    const groups = new Map<string, typeof leads>();
+    for (const l of leads) {
+      const arr = groups.get(l.cnpj!) ?? [];
+      arr.push(l);
+      groups.set(l.cnpj!, arr);
+    }
+    const toDelete: string[] = [];
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      const open = group.filter((l) => !l.convertedTenantId);
+      const hasConverted = group.some((l) => l.convertedTenantId);
+      if (hasConverted) {
+        // Empresa já é cliente → todos os leads abertos são duplicados.
+        toDelete.push(...open.map((l) => l.id));
+      } else {
+        // Mantém o mais avançado (e, em empate, o mais recente).
+        open.sort(
+          (a, b) =>
+            (STAGE_RANK[b.stage] ?? 0) - (STAGE_RANK[a.stage] ?? 0) ||
+            b.createdAt.getTime() - a.createdAt.getTime(),
+        );
+        toDelete.push(...open.slice(1).map((l) => l.id));
+      }
+    }
+    if (toDelete.length) {
+      await this.prisma.admin.preliminaryReport.deleteMany({ where: { platformLeadId: { in: toDelete } } });
+      await this.prisma.admin.platformLead.deleteMany({ where: { id: { in: toDelete } } });
+    }
+    await this.audit.record({ action: 'lead.dedup', actor, target: 'leads', meta: { deleted: toDelete.length } });
+    return { ok: true, deleted: toDelete.length, kept: leads.length - toDelete.length };
+  }
+
   async resetTestData(actor: Actor): Promise<{ ok: true; deleted: Record<string, number> }> {
     const db = this.prisma.admin;
     const deleted = await db.$transaction(

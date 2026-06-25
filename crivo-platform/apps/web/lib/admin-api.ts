@@ -295,6 +295,11 @@ export function resetTestData(
   });
 }
 
+/** Remove leads duplicados pelo mesmo CNPJ (mantém convertidos + o melhor aberto). */
+export function dedupLeads(): Promise<{ ok: true; deleted: number; kept: number }> {
+  return adminFetch(`/admin/leads/dedup`, { method: "POST" });
+}
+
 // ── Catálogo de produtos (product-driven) ──
 
 export function listProducts(): Promise<ProductSummary[]> {

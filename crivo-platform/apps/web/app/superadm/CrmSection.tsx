@@ -8,7 +8,7 @@ import {
   type ProductSummary,
   type ProvisionResult,
 } from "@crivo/types";
-import { convertLead, listLeads, listProducts, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
+import { convertLead, dedupLeads, listLeads, listProducts, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 import { LeadDataModal } from "./LeadDataModal";
 
@@ -106,6 +106,25 @@ export function CrmSection() {
   const conv = total ? Math.round((fechados / total) * 100) : 0;
 
   const [resetting, setResetting] = useState(false);
+  const [deduping, setDeduping] = useState(false);
+  async function onDedup() {
+    if (
+      !window.confirm(
+        "Remover leads duplicados pelo mesmo CNPJ?\n\nMantém os clientes já habilitados e o lead mais avançado de cada empresa; apaga as cópias abertas.",
+      )
+    )
+      return;
+    setDeduping(true);
+    try {
+      const r = await dedupLeads();
+      window.alert(`${r.deleted} duplicado(s) removido(s). ${r.kept} lead(s) no funil.`);
+      await refresh();
+    } catch (e) {
+      window.alert("Falha ao limpar: " + (e instanceof Error ? e.message : "erro"));
+    } finally {
+      setDeduping(false);
+    }
+  }
   async function onResetData() {
     const typed = window.prompt(
       "Isto APAGA todos os clientes, leads e diagnósticos (mantém login, produtos e RBAC). " +
@@ -135,6 +154,9 @@ export function CrmSection() {
           </p>
         </div>
         <div className="route__actions">
+          <button className="btn btn--ghost btn--sm" onClick={onDedup} disabled={deduping}>
+            {deduping ? "Limpando…" : "Limpar duplicados"}
+          </button>
           <button className="btn btn--ghost btn--sm is-danger" onClick={onResetData} disabled={resetting}>
             {resetting ? "Zerando…" : "⚠ Zerar base de teste"}
           </button>

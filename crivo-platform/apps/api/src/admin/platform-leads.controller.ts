@@ -71,4 +71,10 @@ export class PlatformLeadsController {
     }
     return this.leads.resetTestData({ id: admin.id, email: admin.email });
   }
+
+  /** Remove leads duplicados pelo mesmo CNPJ (mantém convertidos + o melhor aberto). */
+  @Post('dedup')
+  dedup(@CurrentAdmin() admin: PlatformAdmin) {
+    return this.leads.dedupLeads({ id: admin.id, email: admin.email });
+  }
 }
