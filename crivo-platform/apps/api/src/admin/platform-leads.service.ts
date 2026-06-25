@@ -199,6 +199,61 @@ export class PlatformLeadsService {
     return { ok: true, result };
   }
 
+  /**
+   * Cria um lead a partir de uma consulta de CNPJ (Dashboard) — sem diagnóstico.
+   * Enriquece com os dados cadastrais + grau de risco (divisão CNAE). Se vier
+   * `productId`, já converte o lead em empresa-cliente (provisiona o tenant).
+   */
+  async createFromCnpj(
+    dto: { cnpj?: string; numeroColaboradores?: number; name?: string; productId?: string },
+    actor: Actor,
+  ): Promise<{ lead: PlatformLeadSummary } & Partial<ProvisionResult>> {
+    const cnpjLimpo = (dto.cnpj ?? '').replace(/\D/g, '') || null;
+    if (!cnpjLimpo || cnpjLimpo.length !== 14) throw new BadRequestException('CNPJ inválido.');
+    const cnpjData = await consultarCnpj(cnpjLimpo);
+    if (!cnpjData) throw new BadRequestException('CNPJ não encontrado ou indisponível no provedor.');
+
+    // Grau de risco pela divisão CNAE (fonte única); fallback heurístico.
+    let riskGrade: string | null = grauDeRiscoCnpj(cnpjData);
+    if (cnpjData.cnaeCodigo != null) {
+      const div = String(cnpjData.cnaeCodigo).padStart(7, '0').slice(0, 2);
+      const rule = await this.prisma.admin.cnaeDivisionRule.findUnique({
+        where: { divisionCode: div },
+        select: { preliminaryRiskLevel: true },
+      });
+      if (rule) riskGrade = rule.preliminaryRiskLevel;
+    }
+
+    const captureProduct = await this.prisma.admin.product.findFirst({
+      where: { isLeadCapture: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const lead = await this.prisma.admin.platformLead.create({
+      data: {
+        name: dto.name?.trim() || cnpjData.razaoSocial || 'Empresa (CNPJ)',
+        company: cnpjData.razaoSocial,
+        email: cnpjData.email,
+        phone: cnpjData.telefone,
+        segment: cnpjData.cnaePrincipal,
+        employeesCount: dto.numeroColaboradores != null ? String(dto.numeroColaboradores) : null,
+        origin: 'dashboard-cnpj',
+        notes: 'Lead criado a partir da consulta de CNPJ no Dashboard.',
+        cnpj: cnpjLimpo,
+        cnpjData: cnpjData as object,
+        riskGrade,
+        productId: captureProduct?.id ?? null,
+      },
+    });
+
+    if (dto.productId) {
+      const prov = await this.convert(lead.id, dto.productId, actor);
+      const updated = await this.prisma.admin.platformLead.findUnique({ where: { id: lead.id } });
+      return { lead: this.toSummary(updated ?? lead), ...prov };
+    }
+    return { lead: this.toSummary(lead) };
+  }
+
   async setStage(id: string, stage: PlatformLeadStage, actor: Actor): Promise<PlatformLeadSummary> {
     const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Lead não encontrado');

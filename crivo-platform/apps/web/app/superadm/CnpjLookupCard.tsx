@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import type { ProductSummary } from "@crivo/types";
 import {
+  createLeadFromCnpj,
   evaluateFromCnpj,
+  listProducts,
   type CnaeDecisionResult,
   type CnaeRiskLevel,
   type CnpjCompanyData,
@@ -29,7 +32,10 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13,
 };
 
-/** Ferramenta do Dashboard: digita o CNPJ → dados da empresa + enquadramento NR-1. */
+type ProvResult = Awaited<ReturnType<typeof createLeadFromCnpj>>;
+
+/** Ferramenta do Dashboard: digita o CNPJ → dados da empresa + enquadramento NR-1,
+ * e ações "Salvar como lead" / "Converter em cliente" usando a API vinculada. */
 export function CnpjLookupCard() {
   const [cnpj, setCnpj] = useState("");
   const [hc, setHc] = useState("");
@@ -38,12 +44,28 @@ export function CnpjLookupCard() {
   const [company, setCompany] = useState<CnpjCompanyData | null>(null);
   const [rec, setRec] = useState<CnaeDecisionResult | null>(null);
 
+  // Ações sobre o resultado.
+  const [prov, setProv] = useState<ProvResult | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [products, setProducts] = useState<ProductSummary[] | null>(null);
+  const [productId, setProductId] = useState("");
+  const [actBusy, setActBusy] = useState<"save" | "convert" | null>(null);
+  const [actErr, setActErr] = useState<string | null>(null);
+
+  function resetActions() {
+    setProv(null);
+    setConverting(false);
+    setProductId("");
+    setActErr(null);
+  }
+
   async function consultar() {
     if (!cnpj.replace(/\D/g, "")) return;
     setBusy(true);
     setErr(null);
     setCompany(null);
     setRec(null);
+    resetActions();
     try {
       const r = await evaluateFromCnpj({ cnpj, numeroColaboradores: hc ? Number(hc) : undefined });
       if (!r.company) setErr("CNPJ não encontrado ou indisponível no provedor.");
@@ -55,6 +77,42 @@ export function CnpjLookupCard() {
       setErr(e instanceof Error ? e.message : "Falha na consulta.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function salvarLead() {
+    setActBusy("save");
+    setActErr(null);
+    try {
+      setProv(await createLeadFromCnpj({ cnpj, numeroColaboradores: hc ? Number(hc) : undefined }));
+    } catch (e) {
+      setActErr(e instanceof Error ? e.message : "Falha ao salvar o lead.");
+    } finally {
+      setActBusy(null);
+    }
+  }
+
+  async function abrirConverter() {
+    setConverting(true);
+    if (!products) {
+      try {
+        setProducts((await listProducts()).filter((p) => !p.isLeadCapture && p.status === "ACTIVE"));
+      } catch {
+        setProducts([]);
+      }
+    }
+  }
+
+  async function converter() {
+    if (!productId) return;
+    setActBusy("convert");
+    setActErr(null);
+    try {
+      setProv(await createLeadFromCnpj({ cnpj, numeroColaboradores: hc ? Number(hc) : undefined, productId }));
+    } catch (e) {
+      setActErr(e instanceof Error ? e.message : "Falha ao converter em cliente.");
+    } finally {
+      setActBusy(null);
     }
   }
 
@@ -169,6 +227,61 @@ export function CnpjLookupCard() {
               {rec.decisionReason}
             </p>
           )}
+
+          {/* Ações: salvar como lead / converter em cliente */}
+          <div style={{ marginTop: 16, borderTop: "1px solid var(--border, #eee7db)", paddingTop: 14 }}>
+            {prov?.adminEmail ? (
+              <div className="cnae-block">
+                <h4>Empresa-cliente criada ✓</h4>
+                <p>
+                  <strong>{prov.lead.company ?? prov.lead.name}</strong> provisionada.
+                </p>
+                <p style={{ fontSize: 12.5 }}>
+                  Login: <strong>{prov.adminEmail}</strong> · Senha temporária:{" "}
+                  <code style={{ background: "var(--panel-soft,#f0ebe1)", padding: "1px 6px", borderRadius: 4 }}>
+                    {prov.tempPassword}
+                  </code>
+                </p>
+              </div>
+            ) : prov?.lead ? (
+              <p className="cnae-note">Lead salvo no CRM (Funil) ✓ — {prov.lead.company ?? prov.lead.name}.</p>
+            ) : (
+              <>
+                <div className="cnae-actions">
+                  <button className="btn" onClick={salvarLead} disabled={actBusy !== null}>
+                    {actBusy === "save" ? "Salvando…" : "Salvar como lead"}
+                  </button>
+                  <button className="btn btn--primary" onClick={abrirConverter} disabled={actBusy !== null}>
+                    Converter em cliente
+                  </button>
+                </div>
+                {converting && (
+                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <select
+                      value={productId}
+                      onChange={(e) => setProductId(e.target.value)}
+                      style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+                    >
+                      <option value="">Selecione o produto…</option>
+                      {(products ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="btn btn--primary" onClick={converter} disabled={actBusy !== null || !productId}>
+                      {actBusy === "convert" ? "Convertendo…" : "Confirmar conversão"}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+            {actErr && (
+              <p className="cnae-error" style={{ marginTop: 8 }}>
+                {actErr}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

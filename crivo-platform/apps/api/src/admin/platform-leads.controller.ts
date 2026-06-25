@@ -3,7 +3,7 @@ import type { PlatformAdmin } from '@crivo/types';
 import { PlatformLeadsService } from './platform-leads.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { ConvertLeadDto, SetLeadNotesDto, SetLeadStageDto } from './commerce.dto';
+import { ConvertLeadDto, CreateLeadFromCnpjDto, SetLeadNotesDto, SetLeadStageDto } from './commerce.dto';
 
 /** CRM do super admin (funil comercial da CRIVO). Exclusivo de super admins. */
 @Controller('admin/leads')
@@ -43,6 +43,12 @@ export class PlatformLeadsController {
     @Body() dto: ConvertLeadDto,
   ) {
     return this.leads.convert(id, dto.productId, { id: admin.id, email: admin.email });
+  }
+
+  /** Cria um lead a partir da consulta de CNPJ (Dashboard); converte se houver productId. */
+  @Post('from-cnpj')
+  fromCnpj(@CurrentAdmin() admin: PlatformAdmin, @Body() dto: CreateLeadFromCnpjDto) {
+    return this.leads.createFromCnpj(dto, { id: admin.id, email: admin.email });
   }
 
   /** #12 — Envia o acesso do cliente por e-mail (gera nova senha temporária). */

@@ -267,6 +267,16 @@ export function convertLead(id: string, productId: string): Promise<ProvisionRes
   });
 }
 
+/** Cria um lead a partir de uma consulta de CNPJ (Dashboard); se houver productId, já converte. */
+export function createLeadFromCnpj(input: {
+  cnpj: string;
+  numeroColaboradores?: number;
+  name?: string;
+  productId?: string;
+}): Promise<{ lead: PlatformLeadSummary } & Partial<ProvisionResult>> {
+  return adminFetch("/admin/leads/from-cnpj", { method: "POST", body: JSON.stringify(input) });
+}
+
 /** #12 — Envia o acesso (login + senha) do cliente já convertido por e-mail. */
 export function sendLeadAccess(
   id: string,

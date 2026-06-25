@@ -91,6 +91,21 @@ export class ConvertLeadDto {
   productId!: string;
 }
 
+/** Cria um lead a partir de uma consulta de CNPJ (Dashboard). productId opcional → já converte. */
+export class CreateLeadFromCnpjDto {
+  @IsString() @MaxLength(20)
+  cnpj!: string;
+
+  @IsOptional() @IsInt() @Min(0)
+  numeroColaboradores?: number;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  name?: string;
+
+  @IsOptional() @IsString()
+  productId?: string;
+}
+
 // ── Configuração de IA ──
 
 export class UpsertAiSettingsDto {
