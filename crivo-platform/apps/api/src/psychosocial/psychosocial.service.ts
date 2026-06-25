@@ -2,15 +2,27 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { randomBytes } from 'node:crypto';
 import {
   computePsychosocial,
+  scoreWithMethodology,
   MIN_LEADERS_FOR_DISCLOSURE,
   psychosocialLevel,
   PSYCHOSOCIAL_DIMENSIONS,
+  PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_QUESTIONS,
-  type PsychosocialDimension,
-  type PsychosocialRiskLevel,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { loadActiveMethodologyConfig } from '../admin/methodology.service';
 import { SubmitPsychosocialDto } from './dto';
+
+// Resultado psicossocial em formato "superset" — compatível com o storage/telas
+// antigos (level/byDimension) + rótulos da metodologia ATIVA (Fase 1C).
+type PsyResult = {
+  score: number;
+  level: string;
+  levelLabel?: string;
+  byDimension: Record<string, number>;
+  dimensionLabels?: Record<string, string>;
+  topRisk: string;
+};
 
 /** Slug curto e legível: base do nome + sufixo aleatório (colisão ~nula). */
 function makeSlug(orgName: string): string {
@@ -41,9 +53,23 @@ export class PsychosocialService {
 
   /** Submete uma resposta anônima. Retorna o resultado individual ao respondente. */
   async submit(tenantId: string, dto: SubmitPsychosocialDto) {
-    let result;
+    // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    let result: PsyResult;
     try {
-      result = computePsychosocial(dto.answers ?? []);
+      if (cfg) {
+        const s = scoreWithMethodology(dto.answers ?? [], cfg);
+        const byDimension: Record<string, number> = {};
+        const dimensionLabels: Record<string, string> = {};
+        for (const d of s.byDimension) {
+          byDimension[d.slug] = d.value;
+          dimensionLabels[d.slug] = d.label;
+        }
+        result = { score: s.score, level: s.levelCode, levelLabel: s.levelLabel, byDimension, dimensionLabels, topRisk: s.topAttentions[0] ?? '' };
+      } else {
+        const r = computePsychosocial(dto.answers ?? []);
+        result = { score: r.score, level: r.level, byDimension: r.byDimension as Record<string, number>, topRisk: r.topRisk };
+      }
     } catch (e) {
       throw new BadRequestException(e instanceof Error ? e.message : 'Respostas inválidas');
     }
@@ -62,6 +88,14 @@ export class PsychosocialService {
       // Devolve só o resultado próprio (anônimo) — nenhum identificador é guardado.
       return { ok: true as const, result };
     });
+  }
+
+  /** Perguntas do questionário — da metodologia ATIVA (Fase 1C); fallback ao padrão. */
+  async getQuestions() {
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    return cfg
+      ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
+      : PSYCHOSOCIAL_QUESTIONS;
   }
 
   // ── Link público anônimo (Briefing §6) ────────────────────────────────────
@@ -108,7 +142,11 @@ export class PsychosocialService {
       select: { name: true },
     });
     if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
-    return { tenantName: org.name, questions: PSYCHOSOCIAL_QUESTIONS };
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    const questions = cfg
+      ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
+      : PSYCHOSOCIAL_QUESTIONS;
+    return { tenantName: org.name, questions };
   }
 
   /** Submissão pública anônima via slug. Resolve o tenant e grava sob a RLS dele. */
@@ -128,12 +166,18 @@ export class PsychosocialService {
    */
   async results(tenantId: string) {
     const minRespondents = MIN_LEADERS_FOR_DISCLOSURE;
+    // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    const dims = cfg
+      ? cfg.dimensions.map((d) => ({ slug: d.slug, label: d.label }))
+      : PSYCHOSOCIAL_DIMENSIONS.map((d) => ({ slug: d as string, label: PSYCHOSOCIAL_DIMENSION_LABEL[d] }));
+    const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
         select: { sector: true, score: true, byDimension: true },
       });
 
-      const overall = aggregate(rows);
+      const overall = aggregate(rows, dims, bands);
       const overallSuppressed = rows.length < minRespondents;
 
       // Agrupa por setor.
@@ -151,7 +195,7 @@ export class PsychosocialService {
             sector,
             respondents: list.length,
             suppressed,
-            ...(suppressed ? {} : aggregate(list)),
+            ...(suppressed ? {} : aggregate(list, dims, bands)),
           };
         })
         .sort((a, b) => b.respondents - a.respondents);
@@ -169,22 +213,38 @@ export class PsychosocialService {
 }
 
 type Row = { score: number; byDimension: unknown };
+type AggDim = { slug: string; label: string };
+type AggBand = { code: string; label: string; min: number; max: number };
 
-/** Média do score geral + por dimensão + nível + dimensão de maior risco. */
-function aggregate(rows: Row[]): {
+/** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven. */
+function aggregate(
+  rows: Row[],
+  dims: AggDim[],
+  bands: AggBand[] | null,
+): {
   score: number;
-  level: PsychosocialRiskLevel;
-  byDimension: Record<PsychosocialDimension, number>;
-  topRisk: PsychosocialDimension;
+  level: string;
+  levelLabel?: string;
+  byDimension: Record<string, number>;
+  dimensionLabels: Record<string, string>;
+  topRisk: string;
 } {
   const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
-  const byDimension = {} as Record<PsychosocialDimension, number>;
-  for (const d of PSYCHOSOCIAL_DIMENSIONS) {
-    const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d] ?? 0));
-    byDimension[d] = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+  const byDimension: Record<string, number> = {};
+  const dimensionLabels: Record<string, string> = {};
+  for (const d of dims) {
+    const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
+    byDimension[d.slug] = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+    dimensionLabels[d.slug] = d.label;
   }
-  const topRisk = PSYCHOSOCIAL_DIMENSIONS.reduce((min, d) =>
-    byDimension[d] < byDimension[min] ? d : min,
-  );
-  return { score, level: psychosocialLevel(score), byDimension, topRisk };
+  const topRisk = dims.reduce((min, d) => (byDimension[d.slug] < byDimension[min] ? d.slug : min), dims[0]?.slug ?? '');
+  const band = bands?.find((b) => score >= b.min && score <= b.max);
+  return {
+    score,
+    level: band?.code ?? psychosocialLevel(score),
+    levelLabel: band?.label,
+    byDimension,
+    dimensionLabels,
+    topRisk,
+  };
 }

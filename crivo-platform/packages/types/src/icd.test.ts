@@ -25,6 +25,7 @@ import {
   psychosocialLevel,
   PSYCHOSOCIAL_QUESTIONS,
   PSYCHOSOCIAL_DIMENSIONS,
+  PSYCHOSOCIAL_DIMENSION_LABEL,
 } from "./index";
 
 // ============================================================
@@ -421,5 +422,47 @@ describe("scoreWithMethodology vs computePreDiagnostic (v1 = padrão CRIVO)", ()
     };
     expect(scoreWithMethodology([{ questionId: 1, value: 5 }], cfg).score).toBe(0);
     expect(scoreWithMethodology([{ questionId: 1, value: 1 }], cfg).score).toBe(100);
+  });
+});
+
+describe("scoreWithMethodology vs computePsychosocial (v1 = padrão Organizacional)", () => {
+  const V1: MethodologyConfig = {
+    dimensions: PSYCHOSOCIAL_DIMENSIONS.map((slug) => ({
+      slug,
+      label: PSYCHOSOCIAL_DIMENSION_LABEL[slug],
+      weight: 1,
+    })),
+    questions: PSYCHOSOCIAL_QUESTIONS.map((q) => ({
+      dimensionSlug: q.dimension,
+      text: q.text,
+      weight: 1,
+      inverse: false,
+    })),
+    bands: [
+      { code: "CRITICO", label: "Risco crítico", min: 0, max: 34 },
+      { code: "ALTO", label: "Risco alto", min: 35, max: 54 },
+      { code: "MODERADO", label: "Risco moderado", min: 55, max: 74 },
+      { code: "BAIXO", label: "Risco baixo", min: 75, max: 100 },
+    ],
+  };
+
+  const cases: number[][] = [
+    PSYCHOSOCIAL_QUESTIONS.map(() => 5),
+    PSYCHOSOCIAL_QUESTIONS.map(() => 1),
+    PSYCHOSOCIAL_QUESTIONS.map((_, i) => (i % 5) + 1),
+    [5, 4, 3, 2, 1, 2, 3, 4, 5, 1, 2, 4],
+  ];
+
+  cases.forEach((values, idx) => {
+    it(`caso ${idx}: score, nível (risco) e dimensões batem`, () => {
+      const answers = PSYCHOSOCIAL_QUESTIONS.map((q, i) => ({ questionId: q.id, value: values[i] }));
+      const hard = computePsychosocial(answers);
+      const cfg = scoreWithMethodology(answers, V1);
+      expect(cfg.score).toBe(hard.score);
+      expect(cfg.levelCode).toBe(hard.level);
+      const hardByDim = hard.byDimension as Record<string, number>;
+      for (const d of cfg.byDimension) expect(d.value).toBe(hardByDim[d.slug]);
+      expect(cfg.topAttentions[0]).toBe(hard.topRisk);
+    });
   });
 });

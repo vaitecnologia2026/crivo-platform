@@ -41,6 +41,19 @@ const RISK_COLOR: Record<PsychosocialRiskLevel, string> = {
   CRITICO: "#c0392b",
 };
 
+// Fase 1C — a metodologia ATIVA pode trazer rótulos/códigos próprios; helpers caem
+// no padrão se vier um código/slug desconhecido (nunca quebram a tela).
+const riskColor = (lvl: string | undefined) =>
+  RISK_COLOR[lvl as PsychosocialRiskLevel] ?? "var(--ink-soft, #8a8174)";
+const dimLabel = (src: unknown, k: string) =>
+  (src as { dimensionLabels?: Record<string, string> }).dimensionLabels?.[k] ??
+  PSYCHOSOCIAL_DIMENSION_LABEL[k as PsychosocialDimension] ??
+  k;
+const riskLabel = (src: unknown) => {
+  const s = src as { level?: string; levelLabel?: string };
+  return s.levelLabel ?? PSYCHOSOCIAL_RISK_LABEL[s.level as PsychosocialRiskLevel] ?? s.level ?? "—";
+};
+
 export function PsicossocialScreen() {
   const [tab, setTab] = useState<"responder" | "resultados">("responder");
   return (
@@ -127,20 +140,20 @@ function Responder() {
     return (
       <div className="card card--feature q-result">
         <span className="card__eyebrow">RESPOSTA REGISTRADA · ANÔNIMA</span>
-        <strong className="big-num" style={{ color: RISK_COLOR[result.level] }}>
+        <strong className="big-num" style={{ color: riskColor(result.level) }}>
           {result.score}
           <small>/100</small>
         </strong>
         <span className="card__hint">
           Proteção psicossocial percebida ·{" "}
-          <strong style={{ color: RISK_COLOR[result.level] }}>
-            {PSYCHOSOCIAL_RISK_LABEL[result.level]}
+          <strong style={{ color: riskColor(result.level) }}>
+            {riskLabel(result)}
           </strong>
         </span>
         <div className="q-result__dims">
           {(Object.entries(result.byDimension) as [PsychosocialDimension, number][]).map(([k, v]) => (
             <span key={k} className="dash-dist__item">
-              {PSYCHOSOCIAL_DIMENSION_LABEL[k]}: <strong>{v}</strong>
+              {dimLabel(result, k)}: <strong>{v}</strong>
             </span>
           ))}
         </div>
@@ -359,12 +372,12 @@ function ResultadosBody({
             </>
           ) : (
             <>
-              <strong className="kpi__value" style={{ color: RISK_COLOR[data.overall.level] }}>
+              <strong className="kpi__value" style={{ color: riskColor(data.overall.level) }}>
                 {data.overall.score}
                 <small style={{ fontSize: 16 }}>/100</small>
               </strong>
               <span className="kpi__delta">
-                {PSYCHOSOCIAL_RISK_LABEL[data.overall.level]} · {data.totalRespondents} respostas ·
+                {riskLabel(data.overall)} · {data.totalRespondents} respostas ·
                 maior risco: {PSYCHOSOCIAL_DIMENSION_LABEL[data.overall.topRisk]}
               </span>
             </>
@@ -389,7 +402,7 @@ function ResultadosBody({
             {(Object.entries(data.overall.byDimension) as [PsychosocialDimension, number][]).map(
               ([k, v]) => (
                 <div className="bar-row" key={k}>
-                  <span className="bar-row__label">{PSYCHOSOCIAL_DIMENSION_LABEL[k]}</span>
+                  <span className="bar-row__label">{dimLabel(data.overall, k)}</span>
                   <div className="bar">
                     <div
                       className="bar__fill"
@@ -435,12 +448,12 @@ function ResultadosBody({
                 ) : (
                   <>
                     <td>
-                      <strong style={{ color: RISK_COLOR[s.level!] }}>{s.score}</strong>
+                      <strong style={{ color: riskColor(s.level) }}>{s.score}</strong>
                     </td>
-                    <td style={{ color: RISK_COLOR[s.level!] }}>
-                      {PSYCHOSOCIAL_RISK_LABEL[s.level!]}
+                    <td style={{ color: riskColor(s.level) }}>
+                      {riskLabel(s)}
                     </td>
-                    <td>{PSYCHOSOCIAL_DIMENSION_LABEL[s.topRisk!]}</td>
+                    <td>{dimLabel(s, s.topRisk ?? "")}</td>
                   </>
                 )}
               </tr>

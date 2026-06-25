@@ -7,7 +7,7 @@ import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { Roles } from '../iam/roles.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
-import { PSYCHOSOCIAL_QUESTIONS, type SessionUser } from '@crivo/types';
+import { type SessionUser } from '@crivo/types';
 
 /**
  * Questionário Psicossocial Organizacional (Briefing §6). Submissão anônima
@@ -23,7 +23,7 @@ export class PsychosocialController {
   /** Catálogo de perguntas (para renderizar o questionário no front). */
   @Get('questions')
   questions() {
-    return PSYCHOSOCIAL_QUESTIONS;
+    return this.psychosocial.getQuestions();
   }
 
   /** Submete uma resposta anônima ao questionário. */
