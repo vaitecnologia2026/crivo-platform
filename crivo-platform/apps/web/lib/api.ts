@@ -46,6 +46,8 @@ import type {
   UpdateLibraryItemRequest,
   UpsertParecerRequest,
   UpsertPocketReflectionRequest,
+  InvisibleCostItem,
+  InvisibleCostScenarios,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -585,6 +587,27 @@ export function submitPsychosocial(dto: {
 }
 export function getPsychosocialResults(): Promise<PsychosocialResults> {
   return apiFetch<PsychosocialResults>('/psychosocial/results');
+}
+
+// ── Custos Invisíveis (Fase 2) ──
+export interface InvisibleCostsData {
+  items: InvisibleCostItem[];
+  scenarios: InvisibleCostScenarios;
+  confidence: string;
+  notes: string | null;
+  updatedAt: string | null;
+  isDefault: boolean;
+}
+export function getInvisibleCosts(): Promise<InvisibleCostsData> {
+  return apiFetch<InvisibleCostsData>('/invisible-costs');
+}
+export function saveInvisibleCosts(dto: {
+  items: InvisibleCostItem[];
+  scenarios: InvisibleCostScenarios;
+  confidence?: string;
+  notes?: string;
+}): Promise<InvisibleCostsData> {
+  return apiFetch<InvisibleCostsData>('/invisible-costs', { method: 'PUT', body: JSON.stringify(dto) });
 }
 
 // ── Gestão de usuários / equipe (telas por usuário + limite por produto) ──

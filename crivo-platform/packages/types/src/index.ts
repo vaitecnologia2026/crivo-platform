@@ -2319,3 +2319,91 @@ export interface UpsertGlobalAcademyContentRequest {
   tags?: string[];
   published?: boolean;
 }
+
+// ── Custos Invisíveis (Fase 2 — §10/§14) ────────────────────────────────────
+// Estimativa gerencial do custo oculto: por item, custo = variação × volume ×
+// custo unitário. Três cenários (faixa) + nível de confiança. É ESTIMATIVA de
+// apoio à decisão — nunca afirma economia garantida nem causalidade automática.
+
+export interface InvisibleCostItem {
+  key: string;
+  label: string;
+  indicator?: string; // indicador-base (turnover, absenteísmo…)
+  variation: number; // variação do indicador (ex.: nº de saídas, dias, %)
+  volume: number; // volume afetado (ex.: colaboradores, horas)
+  unitCost: number; // custo unitário estimado (R$)
+  note?: string;
+}
+
+export interface InvisibleCostScenarios {
+  conservador: number; // multiplicador cauteloso → assume custo MAIOR
+  moderado: number;
+  otimista: number; // melhor caso → custo MENOR
+}
+
+export const DEFAULT_COST_SCENARIOS: InvisibleCostScenarios = {
+  conservador: 1.3,
+  moderado: 1,
+  otimista: 0.7,
+};
+
+export type CostConfidence = 'ALTA' | 'MEDIA' | 'BAIXA';
+
+export const COST_CONFIDENCE_LABEL: Record<CostConfidence, string> = {
+  ALTA: 'Alta',
+  MEDIA: 'Média',
+  BAIXA: 'Baixa',
+};
+
+export interface InvisibleCostItemResult {
+  key: string;
+  label: string;
+  base: number;
+  conservador: number;
+  moderado: number;
+  otimista: number;
+}
+
+export interface InvisibleCostResult {
+  items: InvisibleCostItemResult[];
+  total: { base: number; conservador: number; moderado: number; otimista: number };
+}
+
+/**
+ * Estima os custos invisíveis: base = variação × volume × custo unitário; aplica
+ * os cenários (faixa) por item e soma. Pura — usável no front e no back.
+ */
+export function computeInvisibleCosts(
+  items: InvisibleCostItem[],
+  scenarios: InvisibleCostScenarios = DEFAULT_COST_SCENARIOS,
+): InvisibleCostResult {
+  const results: InvisibleCostItemResult[] = items.map((it) => {
+    const base = (Number(it.variation) || 0) * (Number(it.volume) || 0) * (Number(it.unitCost) || 0);
+    return {
+      key: it.key,
+      label: it.label,
+      base,
+      conservador: base * scenarios.conservador,
+      moderado: base * scenarios.moderado,
+      otimista: base * scenarios.otimista,
+    };
+  });
+  const sum = (f: 'base' | 'conservador' | 'moderado' | 'otimista') =>
+    results.reduce((s, x) => s + x[f], 0);
+  return {
+    items: results,
+    total: {
+      base: sum('base'),
+      conservador: sum('conservador'),
+      moderado: sum('moderado'),
+      otimista: sum('otimista'),
+    },
+  };
+}
+
+/** Itens-modelo (presets) dos vetores clássicos do custo psicossocial. Editáveis. */
+export const INVISIBLE_COST_PRESETS: InvisibleCostItem[] = [
+  { key: 'turnover', label: 'Reposição (turnover)', indicator: 'Saídas/ano', variation: 18, volume: 1, unitCost: 9000 },
+  { key: 'absenteismo', label: 'Absenteísmo', indicator: 'Dias perdidos/ano', variation: 600, volume: 1, unitCost: 205 },
+  { key: 'presenteismo', label: 'Presenteísmo', indicator: 'Perda de produtividade (%)', variation: 0.08, volume: 100, unitCost: 54000 },
+];

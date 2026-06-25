@@ -43,7 +43,9 @@ DECLARE
                          'leader_quarterly_icd','sustentation_actions',
                          'pocket_sessions','pocket_reflections','pocket_ai_summaries',
                          -- Questionário Psicossocial amplo (Briefing §6) — anônimo por tenant.
-                         'psychosocial_responses'];
+                         'psychosocial_responses',
+                         -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant.
+                         'invisible_cost_estimates'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

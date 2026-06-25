@@ -20,6 +20,7 @@ import { IcdCyclesModule } from './icd-cycles/icd-cycles.module';
 import { PocketModule } from './pocket/pocket.module';
 import { PsychosocialModule } from './psychosocial/psychosocial.module';
 import { CnaeModule } from './cnae/cnae.module';
+import { InvisibleCostsModule } from './invisible-costs/invisible-costs.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { HealthController } from './health/health.controller';
     PocketModule,
     PsychosocialModule,
     CnaeModule,
+    InvisibleCostsModule,
   ],
   controllers: [HealthController],
   providers: [

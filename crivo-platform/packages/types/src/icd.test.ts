@@ -26,6 +26,7 @@ import {
   PSYCHOSOCIAL_QUESTIONS,
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
+  computeInvisibleCosts,
 } from "./index";
 
 // ============================================================
@@ -464,5 +465,39 @@ describe("scoreWithMethodology vs computePsychosocial (v1 = padrão Organizacion
       for (const d of cfg.byDimension) expect(d.value).toBe(hardByDim[d.slug]);
       expect(cfg.topAttentions[0]).toBe(hard.topRisk);
     });
+  });
+});
+
+// ============================================================
+// Custos Invisíveis (Fase 2)
+// ============================================================
+describe("computeInvisibleCosts", () => {
+  it("base = variação × volume × custo unitário, cenários e soma", () => {
+    const r = computeInvisibleCosts(
+      [
+        { key: "a", label: "A", variation: 10, volume: 2, unitCost: 100 }, // base 2000
+        { key: "b", label: "B", variation: 5, volume: 1, unitCost: 1000 }, // base 5000
+      ],
+      { conservador: 1.3, moderado: 1, otimista: 0.7 },
+    );
+    expect(r.items[0].base).toBe(2000);
+    expect(r.items[0].conservador).toBe(2600);
+    expect(r.items[0].otimista).toBe(1400);
+    expect(r.total.base).toBe(7000);
+    expect(r.total.conservador).toBeCloseTo(9100);
+    expect(r.total.moderado).toBe(7000);
+    expect(r.total.otimista).toBeCloseTo(4900);
+  });
+
+  it("usa cenários padrão e trata valores ausentes como 0", () => {
+    const r = computeInvisibleCosts([{ key: "x", label: "X", variation: 3, volume: 4, unitCost: 5 }]);
+    expect(r.total.base).toBe(60);
+    expect(r.total.moderado).toBe(60);
+  });
+
+  it("lista vazia → zeros", () => {
+    const r = computeInvisibleCosts([]);
+    expect(r.total.base).toBe(0);
+    expect(r.items).toHaveLength(0);
   });
 });
