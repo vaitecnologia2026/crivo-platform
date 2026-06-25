@@ -1653,3 +1653,89 @@ model ContractTemplate {
 
   @@map("contract_templates")
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Metodologia configurável (Fase 1): dimensões, perguntas, pesos e faixas dos
+// instrumentos de diagnóstico ficam em DADOS (editáveis no Super Admin, sem
+// depender do desenvolvedor) e versionados. O motor lê a versão ATIVA.
+// ───────────────────────────────────────────────────────────────────────────
+
+enum MethodologyInstrument {
+  PRE_DIAGNOSTIC // Diagnóstico Inicial (LP)
+  PSYCHOSOCIAL // Diagnóstico Organizacional (psicossocial)
+}
+
+enum MethodologyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum MethodologyBandKind {
+  MATURITY // maturidade (maior = melhor)
+  RISK // risco (proteção; maior = menor risco)
+}
+
+/// Uma versão de metodologia de um instrumento. Só UMA fica ACTIVE por instrumento.
+model MethodologyVersion {
+  id          String                @id @default(uuid()) @db.Uuid
+  instrument  MethodologyInstrument
+  version     Int
+  label       String
+  status      MethodologyStatus     @default(DRAFT)
+  notes       String?               @db.Text
+  createdBy   String?               @map("created_by")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  publishedAt DateTime?             @map("published_at")
+
+  dimensions MethodologyDimension[]
+  questions  MethodologyQuestion[]
+  bands      MethodologyBand[]
+
+  @@unique([instrument, version])
+  @@index([instrument, status])
+  @@map("methodology_versions")
+}
+
+model MethodologyDimension {
+  id        String             @id @default(uuid()) @db.Uuid
+  versionId String             @map("version_id") @db.Uuid
+  version   MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  slug      String
+  label     String
+  weight    Float              @default(1)
+  order     Int                @default(0)
+
+  @@unique([versionId, slug])
+  @@map("methodology_dimensions")
+}
+
+model MethodologyQuestion {
+  id            String             @id @default(uuid()) @db.Uuid
+  versionId     String             @map("version_id") @db.Uuid
+  version       MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  dimensionSlug String             @map("dimension_slug")
+  text          String             @db.Text
+  weight        Float              @default(1)
+  inverse       Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)
+  order         Int                @default(0)
+
+  @@index([versionId])
+  @@map("methodology_questions")
+}
+
+model MethodologyBand {
+  id        String              @id @default(uuid()) @db.Uuid
+  versionId String              @map("version_id") @db.Uuid
+  version   MethodologyVersion  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  kind      MethodologyBandKind
+  code      String
+  label     String
+  min       Int
+  max       Int
+  color     String?
+  order     Int                 @default(0)
+
+  @@index([versionId])
+  @@map("methodology_bands")
+}
