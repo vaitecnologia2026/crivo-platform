@@ -13,6 +13,7 @@ import {
 } from "@crivo/types";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
+import { OnboardingModal } from "./OnboardingModal";
 import { BrandingModal } from "./BrandingModal";
 import { ContractModal } from "./ContractModal";
 import { TenantUsersModal } from "./TenantUsersModal";
@@ -40,6 +41,7 @@ export function TenantsManager({
   const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
   const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
   const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
+  const [onboardingOf, setOnboardingOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -160,7 +162,26 @@ export function TenantsManager({
               <tbody>
                 {tenants.map((t) => (
                   <tr key={t.id}>
-                    <td><strong>{t.name}</strong></td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => setOnboardingOf(t)}
+                        title="Ver dados / onboarding"
+                        style={{
+                          background: "none",
+                          border: 0,
+                          padding: 0,
+                          font: "inherit",
+                          fontWeight: 700,
+                          color: "inherit",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          textUnderlineOffset: 3,
+                        }}
+                      >
+                        {t.name}
+                      </button>
+                    </td>
                     <td className="cell-mute">{t.slug}</td>
                     <td className="cell-mute">{PLAN_LABELS[t.plan]}</td>
                     <td>
@@ -234,6 +255,7 @@ export function TenantsManager({
       {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
 
       {usersOf && <TenantUsersModal tenant={usersOf} onClose={() => setUsersOf(null)} />}
+      {onboardingOf && <OnboardingModal tenant={onboardingOf} onClose={() => setOnboardingOf(null)} />}
     </div>
   );
 }

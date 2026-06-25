@@ -20,6 +20,12 @@ const BOARD: PlatformLeadStage[] = [
   "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL",
 ];
 const ALL_STAGES: PlatformLeadStage[] = [...BOARD, "PRE_DIAGNOSTICO", "REUNIAO", "PERDIDO"];
+
+/** Próxima etapa do funil (BOARD em sequência); null se não houver. */
+function nextStage(stage: PlatformLeadStage): PlatformLeadStage | null {
+  const i = BOARD.indexOf(stage);
+  return i >= 0 && i < BOARD.length - 1 ? BOARD[i + 1] : null;
+}
 // Estágios legados que aparecem dentro de "Oportunidade" no board.
 const FOLD_INTO_OPORTUNIDADE: PlatformLeadStage[] = ["PRE_DIAGNOSTICO", "REUNIAO"];
 
@@ -214,11 +220,23 @@ export function CrmSection() {
                       </select>
                       {l.convertedTenantId ? (
                         <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
-                      ) : (
+                      ) : l.stage === "ONBOARDING" ? (
                         <button type="button" className="kb-convert" onClick={() => setConverting(l)}>
-                          Converter em cliente →
+                          Habilitar cliente (sistema) →
                         </button>
-                      )}
+                      ) : nextStage(l.stage) ? (
+                        <button
+                          type="button"
+                          className="kb-convert"
+                          disabled={busyId === l.id}
+                          onClick={() => {
+                            const n = nextStage(l.stage);
+                            if (n) move(l.id, n);
+                          }}
+                        >
+                          Avançar → {PLATFORM_LEAD_STAGE_LABEL[nextStage(l.stage)!]}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="kb-report"
