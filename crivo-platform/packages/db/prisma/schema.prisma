@@ -1622,3 +1622,34 @@ model CnaeDecisionHistory {
   @@index([createdAt])
   @@map("cnae_decision_history")
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Integrações externas (assinatura/cobrança) + modelos de contrato.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Credenciais de uma integração externa (cifradas). 1 linha por provedor.
+model PlatformIntegration {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String   @unique // 'clicksign' | 'asaas' | 'mercadopago'
+  enabled     Boolean  @default(false)
+  credentialEnc  String? @map("credential_enc") // chave/token cifrado (secret-crypto)
+  credentialIv   String? @map("credential_iv")
+  credentialTag  String? @map("credential_tag")
+  credentialHint String? @map("credential_hint")
+  sandbox     Boolean  @default(false) // ambiente de teste (Asaas/MercadoPago)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_integrations")
+}
+
+/// Modelo de contrato (PDF/DOCX) carregado pelo admin, guardado em base64.
+model ContractTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  fileName  String   @map("file_name")
+  mimeType  String   @map("mime_type")
+  data      String   @db.Text // base64 do arquivo
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contract_templates")
+}

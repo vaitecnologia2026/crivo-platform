@@ -648,3 +648,75 @@ export function reviewCnaeDecision(id: string, reviewNotes?: string) {
     body: JSON.stringify({ reviewNotes }),
   });
 }
+
+// ── Integrações (Clicksign/Asaas/Mercado Pago) + modelos de contrato ──
+export type IntegrationProvider = "clicksign" | "asaas" | "mercadopago";
+
+export interface IntegrationStatus {
+  provider: IntegrationProvider;
+  enabled: boolean;
+  hasCredential: boolean;
+  hint: string | null;
+  sandbox: boolean;
+}
+
+export interface ContractTemplateSummary {
+  id: string;
+  name: string;
+  fileName: string;
+  mimeType: string;
+  createdAt: string;
+}
+
+export function listIntegrations() {
+  return adminFetch<IntegrationStatus[]>("/admin/integrations");
+}
+
+export function saveIntegration(
+  provider: IntegrationProvider,
+  body: { credential?: string; enabled?: boolean; sandbox?: boolean },
+) {
+  return adminFetch<IntegrationStatus[]>(`/admin/integrations/${provider}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listContractTemplates() {
+  return adminFetch<ContractTemplateSummary[]>("/admin/contract-templates");
+}
+
+export function uploadContractTemplate(body: { name: string; fileName: string; mimeType: string; data: string }) {
+  return adminFetch<ContractTemplateSummary>("/admin/contract-templates", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000),
+  });
+}
+
+export function deleteContractTemplate(id: string) {
+  return adminFetch<{ ok: boolean }>(`/admin/contract-templates/${id}`, { method: "DELETE" });
+}
+
+export function sendForSignature(body: { name: string; email: string; templateId: string; message?: string }) {
+  return adminFetch<{ ok: boolean; sentTo: string; documentKey: string }>("/admin/integrations/sign", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  });
+}
+
+export function createCharge(body: {
+  provider: "asaas" | "mercadopago";
+  name: string;
+  email: string;
+  cpfCnpj?: string;
+  value: number;
+  description?: string;
+}) {
+  return adminFetch<{ ok: boolean; url: string | null }>("/admin/integrations/charge", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000),
+  });
+}

@@ -16,6 +16,8 @@ import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
 import { CnpjLookupCard } from "./CnpjLookupCard";
+import { ContractsSection } from "./ContractsSection";
+import { IntegrationsSection } from "./IntegrationsSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -32,7 +34,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "cnae" | "empresas" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "cnae" | "contratos" | "empresas" | "integracoes" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -41,7 +43,9 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
   { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
   { key: "cnae", label: "Motor CNAE/NR-1", icon: "◎", current: "Motor CNAE/NR-1", group: "Comercial" },
+  { key: "contratos", label: "Contratos", icon: "▦", current: "Contratos", group: "Comercial" },
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
+  { key: "integracoes", label: "Integrações", icon: "◬", current: "Integrações", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
   { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
   { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
@@ -150,7 +154,9 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
           {section === "cnae" && <CnaeSection />}
+          {section === "contratos" && <ContractsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
+          {section === "integracoes" && <IntegrationsSection />}
           {section === "ia" && <AiSettingsSection />}
           {section === "extras" && <ExtrasSection />}
           {section === "rbac" && <RbacSection />}

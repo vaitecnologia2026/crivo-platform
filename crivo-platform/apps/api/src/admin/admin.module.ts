@@ -34,6 +34,8 @@ import { ActionTemplatesService } from './action-templates.service';
 import { EditableTextsService } from './editable-texts.service';
 import { GlobalAcademyService } from './global-academy.service';
 import { MeteringModule } from '../metering/metering.module';
+import { IntegrationsController } from './integrations.controller';
+import { IntegrationsService } from './integrations.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -57,6 +59,7 @@ import { MeteringModule } from '../metering/metering.module';
     EditableTextsController,
     GlobalAcademyController,
     AdminUsersController,
+    IntegrationsController,
   ],
   providers: [
     AdminAuthService,
@@ -77,6 +80,7 @@ import { MeteringModule } from '../metering/metering.module';
     ActionTemplatesService,
     EditableTextsService,
     GlobalAcademyService,
+    IntegrationsService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService],
 })

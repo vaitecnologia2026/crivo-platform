@@ -3,10 +3,16 @@
 import { useEffect, useState } from "react";
 import type { PlatformLeadSummary, TenantSummary } from "@crivo/types";
 import {
+  createCharge,
   evaluateFromCnpj,
+  listContractTemplates,
+  listIntegrations,
   listLeads,
+  sendForSignature,
   type CnaeDecisionResult,
   type CnaeRiskLevel,
+  type ContractTemplateSummary,
+  type IntegrationStatus,
 } from "../../lib/admin-api";
 import "./cnae.css";
 
@@ -35,6 +41,14 @@ function parseHeadcount(range?: string | null): number | undefined {
 export function OnboardingModal({ tenant, onClose }: { tenant: TenantSummary; onClose: () => void }) {
   const [lead, setLead] = useState<PlatformLeadSummary | null | undefined>(undefined);
   const [rec, setRec] = useState<CnaeDecisionResult | null>(null);
+  const [templates, setTemplates] = useState<ContractTemplateSummary[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationStatus[]>([]);
+  const [tplId, setTplId] = useState("");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [actionErr, setActionErr] = useState<string | null>(null);
+  const [chargeUrl, setChargeUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -56,6 +70,64 @@ export function OnboardingModal({ tenant, onClose }: { tenant: TenantSummary; on
       alive = false;
     };
   }, [tenant.id]);
+
+  useEffect(() => {
+    listContractTemplates().then(setTemplates).catch(() => undefined);
+    listIntegrations().then(setIntegrations).catch(() => undefined);
+  }, []);
+
+  const on = (p: string) => !!integrations.find((i) => i.provider === p && i.enabled && i.hasCredential);
+
+  async function sign() {
+    if (!lead?.email || !tplId) return;
+    setBusy("sign");
+    setActionErr(null);
+    setActionMsg(null);
+    try {
+      const r = await sendForSignature({ name: lead.name || tenant.name, email: lead.email, templateId: tplId });
+      setActionMsg(`Contrato enviado para ${r.sentTo} assinar (Clicksign).`);
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Falha ao enviar para assinatura.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function charge(provider: "asaas" | "mercadopago") {
+    if (!lead?.email) {
+      setActionErr("Lead sem e-mail para a cobrança.");
+      return;
+    }
+    const v = Number(value.replace(",", "."));
+    if (!v || v <= 0) {
+      setActionErr("Informe um valor válido.");
+      return;
+    }
+    setBusy(provider);
+    setActionErr(null);
+    setActionMsg(null);
+    setChargeUrl(null);
+    try {
+      const r = await createCharge({
+        provider,
+        name: lead.name || tenant.name,
+        email: lead.email,
+        cpfCnpj: lead.cnpj ?? undefined,
+        value: v,
+        description: `Contrato CRIVO — ${tenant.name}`,
+      });
+      if (r.url) {
+        setChargeUrl(r.url);
+        setActionMsg("Cobrança gerada.");
+      } else {
+        setActionMsg("Cobrança criada.");
+      }
+    } catch (e) {
+      setActionErr(e instanceof Error ? e.message : "Falha ao gerar cobrança.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const d = lead?.cnpjData;
   const endereco = d
@@ -159,6 +231,93 @@ export function OnboardingModal({ tenant, onClose }: { tenant: TenantSummary; on
               <dt>Nº de colaboradores</dt>
               <dd>{lead?.employeesCount ?? "—"}</dd>
             </dl>
+          </div>
+
+          {/* Contrato & cobrança */}
+          <div className="cnae-block">
+            <h4>Contrato &amp; cobrança</h4>
+            {actionMsg && (
+              <div className="cnae-note cnae-note--ok" style={{ marginBottom: 8 }}>
+                {actionMsg}
+              </div>
+            )}
+            {actionErr && (
+              <div className="cnae-note cnae-block--warn" style={{ marginBottom: 8 }}>
+                {actionErr}
+              </div>
+            )}
+
+            {on("clicksign") ? (
+              <div className="ct-form" style={{ marginBottom: 10 }}>
+                <label className="prod-field">
+                  <span>Modelo de contrato</span>
+                  <select value={tplId} onChange={(e) => setTplId(e.target.value)}>
+                    <option value="">Selecione…</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn btn--terra btn--sm"
+                  disabled={!tplId || !lead?.email || busy === "sign"}
+                  onClick={sign}
+                >
+                  {busy === "sign" ? "Enviando…" : "Enviar p/ assinatura"}
+                </button>
+              </div>
+            ) : (
+              <p className="cnae-muted" style={{ marginTop: 0 }}>
+                Ative a <strong>Clicksign</strong> em Integrações para enviar o contrato à assinatura.
+              </p>
+            )}
+
+            {on("asaas") || on("mercadopago") ? (
+              <div className="ct-form">
+                <label className="prod-field">
+                  <span>Valor (R$)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={value}
+                    placeholder="0,00"
+                    onChange={(e) => setValue(e.target.value)}
+                  />
+                </label>
+                {on("asaas") && (
+                  <button
+                    className="btn btn--outline-dark btn--sm"
+                    disabled={!value || busy === "asaas"}
+                    onClick={() => charge("asaas")}
+                  >
+                    {busy === "asaas" ? "…" : "Cobrar via Asaas"}
+                  </button>
+                )}
+                {on("mercadopago") && (
+                  <button
+                    className="btn btn--outline-dark btn--sm"
+                    disabled={!value || busy === "mercadopago"}
+                    onClick={() => charge("mercadopago")}
+                  >
+                    {busy === "mercadopago" ? "…" : "Cobrar via Mercado Pago"}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="cnae-muted" style={{ marginTop: 0 }}>
+                Ative <strong>Asaas</strong> ou <strong>Mercado Pago</strong> em Integrações para gerar cobrança.
+              </p>
+            )}
+            {chargeUrl && (
+              <p style={{ marginTop: 8 }}>
+                <a href={chargeUrl} target="_blank" rel="noreferrer">
+                  Abrir link de pagamento →
+                </a>
+              </p>
+            )}
           </div>
 
           {/* Checklist de onboarding */}

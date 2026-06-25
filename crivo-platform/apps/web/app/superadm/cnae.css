@@ -103,3 +103,17 @@
 .cnae-edit-row { display: flex; gap: 12px; margin-bottom: 12px; }
 .cnae-modal .cnae-checks { margin: 8px 0 14px; }
 .cnae-modal .cnae-field { margin-bottom: 12px; }
+
+/* ── Integrações ── */
+.int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; margin-top: 16px; }
+.int-card { display: flex; flex-direction: column; gap: 10px; }
+.int-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.int-card__head h3 { margin: 0 0 2px; font-size: 15px; }
+.int-help { font-size: 11.5px; line-height: 1.5; margin: 0; }
+.cnae-note--ok { background: rgba(29,158,117,.12); color: #1d7d5e; border-color: rgba(29,158,117,.3); }
+
+/* ── Modelos de contrato ── */
+.ct-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.ct-list { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ct-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border, #e7e1d6); border-radius: 10px; background: var(--surface, #fff); }
+.ct-item__meta { font-size: 12px; color: var(--text-muted, #8a8174); margin-top: 2px; }
