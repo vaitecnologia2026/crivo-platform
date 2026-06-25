@@ -6,6 +6,10 @@ import {
   // Diagnóstico Inicial (Briefing §5 — pré-diagnóstico da LP)
   computePreDiagnostic,
   PRE_DIAGNOSTIC_QUESTIONS,
+  PRE_DIAGNOSTIC_DIMENSIONS,
+  PRE_DIAGNOSTIC_DIMENSION_LABEL,
+  scoreWithMethodology,
+  type MethodologyConfig,
   // Ciclo trimestral (Anexo §9.4-§9.6, §10, §11)
   computeLeaderQuarterlyIcd,
   computeCompanyQuarterlyIcd,
@@ -356,5 +360,66 @@ describe("computePsychosocial (Briefing §6)", () => {
     expect(psychosocialLevel(60)).toBe("MODERADO");
     expect(psychosocialLevel(40)).toBe("ALTO");
     expect(psychosocialLevel(10)).toBe("CRITICO");
+  });
+});
+
+// ============================================================
+// Metodologia configurável (Fase 1C) — equivalência com o hardcode
+// ============================================================
+describe("scoreWithMethodology vs computePreDiagnostic (v1 = padrão CRIVO)", () => {
+  const V1: MethodologyConfig = {
+    dimensions: PRE_DIAGNOSTIC_DIMENSIONS.map((slug) => ({
+      slug,
+      label: PRE_DIAGNOSTIC_DIMENSION_LABEL[slug],
+      weight: 1,
+    })),
+    questions: PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({
+      dimensionSlug: q.dimension,
+      text: q.text,
+      weight: 1,
+      inverse: false,
+    })),
+    bands: [
+      { code: "INICIAL", label: "Inicial", min: 0, max: 39 },
+      { code: "EM_ESTRUTURACAO", label: "Em estruturação", min: 40, max: 59 },
+      { code: "ESTRUTURADO", label: "Estruturado", min: 60, max: 79 },
+      { code: "AVANCADO", label: "Avançado", min: 80, max: 100 },
+    ],
+  };
+
+  const cases: number[][] = [
+    PRE_DIAGNOSTIC_QUESTIONS.map(() => 5),
+    PRE_DIAGNOSTIC_QUESTIONS.map(() => 1),
+    PRE_DIAGNOSTIC_QUESTIONS.map(() => 3),
+    PRE_DIAGNOSTIC_QUESTIONS.map((_, i) => (i % 5) + 1),
+    [5, 4, 3, 2, 1, 2, 3, 4, 5, 1],
+  ];
+
+  cases.forEach((values, idx) => {
+    it(`caso ${idx}: score, faixa, dimensões e pontos de atenção batem`, () => {
+      const answers = PRE_DIAGNOSTIC_QUESTIONS.map((q, i) => ({ questionId: q.id, value: values[i] }));
+      const hard = computePreDiagnostic(answers);
+      const cfg = scoreWithMethodology(answers, V1);
+      expect(cfg.score).toBe(hard.score);
+      expect(cfg.levelCode).toBe(hard.level);
+      const hardByDim = hard.byDimension as Record<string, number>;
+      for (const d of cfg.byDimension) {
+        expect(d.value).toBe(hardByDim[d.slug]);
+      }
+      expect([...cfg.topAttentions].sort()).toEqual([...(hard.topAttentions ?? [hard.topAttention])].sort());
+    });
+  });
+
+  it("inverse: inverte a pontuação da pergunta", () => {
+    const cfg: MethodologyConfig = {
+      dimensions: [{ slug: "d", label: "D", weight: 1 }],
+      questions: [{ dimensionSlug: "d", text: "q", weight: 1, inverse: true }],
+      bands: [
+        { code: "BAIXO", label: "Baixo", min: 0, max: 49 },
+        { code: "ALTO", label: "Alto", min: 50, max: 100 },
+      ],
+    };
+    expect(scoreWithMethodology([{ questionId: 1, value: 5 }], cfg).score).toBe(0);
+    expect(scoreWithMethodology([{ questionId: 1, value: 1 }], cfg).score).toBe(100);
   });
 });

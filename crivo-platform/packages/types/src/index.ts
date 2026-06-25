@@ -480,6 +480,93 @@ export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult 
   return { score, level, byDimension, topAttention, topAttentions };
 }
 
+// ── Metodologia configurável (Fase 1C): scoring dirigido por config ──────────
+// O motor passa a ler a metodologia ATIVA do banco (dimensões/perguntas/pesos/
+// faixas). Mantém computePreDiagnostic (hardcode) como fallback. As perguntas da
+// config são ORDENADAS: questionId = índice + 1 (mesmo contrato do fio com a LP).
+
+export interface MethodologyConfigDimension {
+  slug: string;
+  label: string;
+  weight: number;
+}
+export interface MethodologyConfigQuestion {
+  dimensionSlug: string;
+  text: string;
+  weight: number;
+  inverse: boolean;
+}
+export interface MethodologyConfigBand {
+  code: string;
+  label: string;
+  min: number;
+  max: number;
+}
+export interface MethodologyConfig {
+  dimensions: MethodologyConfigDimension[];
+  questions: MethodologyConfigQuestion[];
+  bands: MethodologyConfigBand[];
+}
+
+export interface MethodologyScoreResult {
+  score: number; // 0–100
+  levelCode: string; // código da faixa (ex.: AVANCADO / BAIXO)
+  levelLabel: string; // rótulo da faixa
+  byDimension: { slug: string; label: string; value: number }[]; // 0–100 por dimensão
+  topAttentions: string[]; // slugs das dimensões de menor valor (pontos de atenção)
+}
+
+/**
+ * Pontua respostas usando uma metodologia configurável. Pura. Com a metodologia
+ * v1 (seed = padrão CRIVO) produz EXATAMENTE o mesmo resultado de
+ * computePreDiagnostic (provado em teste) — por isso ligar à v1 não muda nada.
+ */
+export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfig): MethodologyScoreResult {
+  if (!cfg.dimensions.length || !cfg.questions.length || !cfg.bands.length) {
+    throw new Error('Metodologia incompleta (faltam dimensões, perguntas ou faixas).');
+  }
+  const byId = new Map(answers.map((a) => [a.questionId, a.value]));
+  const acc = new Map<string, { wsum: number; w: number }>();
+  for (const d of cfg.dimensions) acc.set(d.slug, { wsum: 0, w: 0 });
+
+  cfg.questions.forEach((q, i) => {
+    const id = i + 1; // questionId = índice 1-based
+    const v = byId.get(id);
+    if (v == null || !Number.isFinite(v) || v < 1 || v > 5) {
+      throw new Error(`Resposta inválida ou ausente para a questão ${id}`);
+    }
+    let norm = ((v - 1) / 4) * 100;
+    if (q.inverse) norm = 100 - norm;
+    const a = acc.get(q.dimensionSlug);
+    if (a) {
+      const w = q.weight ?? 1;
+      a.wsum += norm * w;
+      a.w += w;
+    }
+  });
+
+  const byDimension = cfg.dimensions.map((d) => {
+    const a = acc.get(d.slug)!;
+    return { slug: d.slug, label: d.label, value: a.w > 0 ? Math.round(a.wsum / a.w) : 0 };
+  });
+
+  let wsum = 0;
+  let w = 0;
+  for (const d of cfg.dimensions) {
+    const val = byDimension.find((x) => x.slug === d.slug)!.value;
+    const dw = d.weight ?? 1;
+    wsum += val * dw;
+    w += dw;
+  }
+  const score = w > 0 ? Math.round(wsum / w) : 0;
+
+  const band = cfg.bands.find((b) => score >= b.min && score <= b.max) ?? cfg.bands[cfg.bands.length - 1];
+  const minVal = Math.min(...byDimension.map((d) => d.value));
+  const topAttentions = byDimension.filter((d) => d.value === minVal).map((d) => d.slug);
+
+  return { score, levelCode: band?.code ?? '', levelLabel: band?.label ?? '', byDimension, topAttentions };
+}
+
 // ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO) ──
 // Instrumento por COLABORADOR (anônimo, agregado por setor), DISTINTO do ICD
 // (líder/coerência decisória) e do Pré-Diagnóstico (autoavaliação de maturidade).
