@@ -813,3 +813,21 @@ export function publishMethodology(id: string) {
 export function deleteMethodologyDraft(id: string) {
   return adminFetch<{ ok: boolean }>(`/admin/methodology/version/${id}`, { method: "DELETE" });
 }
+
+// ── Base CRIVO / Benchmarks (Fase 5) ──
+export interface BenchmarkGroupData {
+  group: string;
+  count: number;
+  suppressed: boolean;
+  averages: Record<string, number>;
+}
+export interface BenchmarksData {
+  minCount: number;
+  totalRecords: number;
+  totalCompanies: number;
+  suppressedGroups: number;
+  groups: BenchmarkGroupData[];
+}
+export function getBenchmarks(): Promise<BenchmarksData> {
+  return adminFetch<BenchmarksData>("/admin/benchmarks");
+}

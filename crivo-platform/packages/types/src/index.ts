@@ -2478,3 +2478,69 @@ export function computePeopleTrends(periods: PeoplePeriod[]): PeopleTrendsResult
   });
   return { periodsCount: n, latestPeriod: last?.period ?? null, trends };
 }
+
+// ── Base CRIVO / Benchmarks (Fase 5 — §11) ──────────────────────────────────
+// Agregação ANONIMIZADA entre empresas (benchmarks por grupo: porte/setor), com
+// SUPRESSÃO por volume mínimo — nenhum recorte com poucas empresas é revelado.
+
+export const PORTE_BANDS: { key: string; label: string; min: number; max: number }[] = [
+  { key: 'micro', label: 'Micro (1–9)', min: 1, max: 9 },
+  { key: 'pequeno', label: 'Pequeno (10–49)', min: 10, max: 49 },
+  { key: 'medio', label: 'Médio (50–249)', min: 50, max: 249 },
+  { key: 'grande', label: 'Grande (250+)', min: 250, max: Number.POSITIVE_INFINITY },
+];
+
+export function porteBandOf(headcount: number | null | undefined): string | null {
+  if (headcount == null || !Number.isFinite(headcount) || headcount < 1) return null;
+  return PORTE_BANDS.find((x) => headcount >= x.min && headcount <= x.max)?.label ?? null;
+}
+
+export interface BenchmarkRecord {
+  group: string; // rótulo do recorte (ex.: "Pequeno · Saúde")
+  indicators: Record<string, number | null>;
+}
+
+export interface BenchmarkGroup {
+  group: string;
+  count: number;
+  suppressed: boolean;
+  averages: Record<string, number>; // só preenchido quando não suprimido
+}
+
+export interface BenchmarkResult {
+  minCount: number;
+  totalRecords: number;
+  groups: BenchmarkGroup[];
+  suppressedGroups: number;
+}
+
+/**
+ * Agrupa registros por `group`, calcula a média por indicador e SUPRIME recortes
+ * com menos de `minCount` empresas (anonimização §11). Pura.
+ */
+export function aggregateBenchmarks(records: BenchmarkRecord[], minCount = 3): BenchmarkResult {
+  const map = new Map<string, BenchmarkRecord[]>();
+  for (const r of records) {
+    const arr = map.get(r.group) ?? [];
+    arr.push(r);
+    map.set(r.group, arr);
+  }
+  let suppressedGroups = 0;
+  const groups: BenchmarkGroup[] = Array.from(map.entries())
+    .map(([group, list]) => {
+      const suppressed = list.length < minCount;
+      if (suppressed) suppressedGroups += 1;
+      const averages: Record<string, number> = {};
+      if (!suppressed) {
+        const keys = new Set<string>();
+        for (const r of list) for (const k of Object.keys(r.indicators)) keys.add(k);
+        for (const k of keys) {
+          const vals = list.map((r) => r.indicators[k]).filter((v): v is number => v != null && Number.isFinite(v));
+          if (vals.length) averages[k] = Math.round((vals.reduce((s, x) => s + x, 0) / vals.length) * 100) / 100;
+        }
+      }
+      return { group, count: list.length, suppressed, averages };
+    })
+    .sort((a, b) => b.count - a.count);
+  return { minCount, totalRecords: records.length, groups, suppressedGroups };
+}

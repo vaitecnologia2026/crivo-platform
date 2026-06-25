@@ -28,6 +28,8 @@ import {
   PSYCHOSOCIAL_DIMENSION_LABEL,
   computeInvisibleCosts,
   computePeopleTrends,
+  aggregateBenchmarks,
+  porteBandOf,
 } from "./index";
 
 // ============================================================
@@ -538,5 +540,40 @@ describe("computePeopleTrends", () => {
     const r = computePeopleTrends([]);
     expect(r.periodsCount).toBe(0);
     expect(r.trends.every((t) => t.direction === "na")).toBe(true);
+  });
+});
+
+// ============================================================
+// Base CRIVO / Benchmarks (Fase 5)
+// ============================================================
+describe("aggregateBenchmarks + porteBandOf", () => {
+  it("porteBandOf classifica por headcount", () => {
+    expect(porteBandOf(5)).toBe("Micro (1–9)");
+    expect(porteBandOf(30)).toBe("Pequeno (10–49)");
+    expect(porteBandOf(120)).toBe("Médio (50–249)");
+    expect(porteBandOf(500)).toBe("Grande (250+)");
+    expect(porteBandOf(0)).toBeNull();
+    expect(porteBandOf(null)).toBeNull();
+  });
+
+  it("agrupa, calcula média e SUPRIME recorte com menos de minCount", () => {
+    const r = aggregateBenchmarks(
+      [
+        { group: "A", indicators: { turnover: 10 } },
+        { group: "A", indicators: { turnover: 20 } },
+        { group: "A", indicators: { turnover: 30 } },
+        { group: "B", indicators: { turnover: 5 } }, // só 1 → suprimido
+      ],
+      3,
+    );
+    expect(r.totalRecords).toBe(4);
+    const a = r.groups.find((g) => g.group === "A")!;
+    expect(a.count).toBe(3);
+    expect(a.suppressed).toBe(false);
+    expect(a.averages.turnover).toBe(20);
+    const b = r.groups.find((g) => g.group === "B")!;
+    expect(b.suppressed).toBe(true);
+    expect(Object.keys(b.averages)).toHaveLength(0);
+    expect(r.suppressedGroups).toBe(1);
   });
 });

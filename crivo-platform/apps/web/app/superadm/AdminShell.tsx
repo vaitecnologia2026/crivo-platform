@@ -19,6 +19,7 @@ import { CnpjLookupCard } from "./CnpjLookupCard";
 import { ContractsSection } from "./ContractsSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { MethodologySection } from "./MethodologySection";
+import { BaseCrivoSection } from "./BaseCrivoSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -35,7 +36,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -48,6 +49,7 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
   { key: "integracoes", label: "Integrações", icon: "◬", current: "Integrações", group: "Plataforma" },
   { key: "metodologia", label: "Metodologia", icon: "❖", current: "Metodologia configurável", group: "Plataforma" },
+  { key: "basecrivo", label: "Base CRIVO", icon: "◍", current: "Base CRIVO · Benchmarks", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
   { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
   { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
@@ -160,6 +162,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "integracoes" && <IntegrationsSection />}
           {section === "metodologia" && <MethodologySection />}
+          {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}
           {section === "extras" && <ExtrasSection />}
           {section === "rbac" && <RbacSection />}
