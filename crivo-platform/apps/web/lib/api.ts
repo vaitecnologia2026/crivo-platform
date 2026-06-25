@@ -48,6 +48,7 @@ import type {
   UpsertPocketReflectionRequest,
   InvisibleCostItem,
   InvisibleCostScenarios,
+  PeoplePeriod,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -608,6 +609,33 @@ export function saveInvisibleCosts(dto: {
   notes?: string;
 }): Promise<InvisibleCostsData> {
   return apiFetch<InvisibleCostsData>('/invisible-costs', { method: 'PUT', body: JSON.stringify(dto) });
+}
+
+// ── People Analytics (Fase 4) ──
+export interface PeopleAnalysis {
+  summary: string;
+  alerts: string[];
+  hypotheses: string[];
+  recommendations: string[];
+}
+export interface PeopleIndicatorsData {
+  periods: PeoplePeriod[];
+  analysis: PeopleAnalysis | null;
+  analysisAt: string | null;
+  updatedAt: string | null;
+}
+export function getPeopleIndicators(): Promise<PeopleIndicatorsData> {
+  return apiFetch<PeopleIndicatorsData>('/people-analytics');
+}
+export function savePeopleIndicators(periods: PeoplePeriod[]): Promise<PeopleIndicatorsData> {
+  return apiFetch<PeopleIndicatorsData>('/people-analytics', { method: 'PUT', body: JSON.stringify({ periods }) });
+}
+export function analyzePeople(context?: string): Promise<{ analysis: PeopleAnalysis; analysisAt: string }> {
+  return apiFetch<{ analysis: PeopleAnalysis; analysisAt: string }>('/people-analytics/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ context }),
+    signal: AbortSignal.timeout(60000),
+  });
 }
 
 // ── Gestão de usuários / equipe (telas por usuário + limite por produto) ──

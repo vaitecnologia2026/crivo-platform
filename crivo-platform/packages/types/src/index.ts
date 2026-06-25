@@ -2407,3 +2407,74 @@ export const INVISIBLE_COST_PRESETS: InvisibleCostItem[] = [
   { key: 'absenteismo', label: 'Absenteísmo', indicator: 'Dias perdidos/ano', variation: 600, volume: 1, unitCost: 205 },
   { key: 'presenteismo', label: 'Presenteísmo', indicator: 'Perda de produtividade (%)', variation: 0.08, volume: 100, unitCost: 54000 },
 ];
+
+// ── People Analytics (Fase 4 — §10/§14) ─────────────────────────────────────
+// Indicadores de RH da empresa por período, com tendência (Δ vs período anterior).
+// Cruza com os dados CRIVO; a IA Analítica interpreta — sem afirmar causalidade.
+
+export interface PeopleIndicatorDef {
+  key: string;
+  label: string;
+  unit: string;
+  higherIsBetter: boolean; // produtividade ↑ é bom; turnover ↑ é ruim
+}
+
+export const PEOPLE_INDICATORS: PeopleIndicatorDef[] = [
+  { key: 'turnover', label: 'Turnover', unit: '%', higherIsBetter: false },
+  { key: 'absenteismo', label: 'Absenteísmo', unit: '%', higherIsBetter: false },
+  { key: 'afastamentos', label: 'Afastamentos', unit: 'nº', higherIsBetter: false },
+  { key: 'horasExtras', label: 'Horas extras', unit: 'h', higherIsBetter: false },
+  { key: 'retrabalho', label: 'Retrabalho', unit: '%', higherIsBetter: false },
+  { key: 'produtividade', label: 'Produtividade', unit: 'índice', higherIsBetter: true },
+  { key: 'reclamacoes', label: 'Reclamações', unit: 'nº', higherIsBetter: false },
+  { key: 'denuncias', label: 'Denúncias', unit: 'nº', higherIsBetter: false },
+];
+
+export interface PeoplePeriod {
+  period: string; // ex.: "2026-Q1" ou "2026-01"
+  headcount?: number | null;
+  values: Record<string, number | null>; // indicatorKey → valor
+}
+
+export interface PeopleTrend {
+  key: string;
+  label: string;
+  unit: string;
+  higherIsBetter: boolean;
+  latest: number | null;
+  previous: number | null;
+  delta: number | null;
+  deltaPct: number | null;
+  direction: 'up' | 'down' | 'flat' | 'na';
+  good: boolean | null; // a direção é favorável? (null se sem dado)
+}
+
+export interface PeopleTrendsResult {
+  periodsCount: number;
+  latestPeriod: string | null;
+  trends: PeopleTrend[];
+}
+
+/** Tendência período-a-período de cada indicador. Pura — usável no front e no back. */
+export function computePeopleTrends(periods: PeoplePeriod[]): PeopleTrendsResult {
+  const sorted = [...periods].sort((a, b) => a.period.localeCompare(b.period));
+  const n = sorted.length;
+  const last = n > 0 ? sorted[n - 1] : null;
+  const prev = n > 1 ? sorted[n - 2] : null;
+  const trends: PeopleTrend[] = PEOPLE_INDICATORS.map((def) => {
+    const latest = last?.values?.[def.key] ?? null;
+    const previous = prev?.values?.[def.key] ?? null;
+    let delta: number | null = null;
+    let deltaPct: number | null = null;
+    let direction: PeopleTrend['direction'] = 'na';
+    let good: boolean | null = null;
+    if (latest != null && previous != null) {
+      delta = Math.round((latest - previous) * 100) / 100;
+      deltaPct = previous !== 0 ? Math.round(((latest - previous) / Math.abs(previous)) * 1000) / 10 : null;
+      direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+      good = direction === 'flat' ? null : def.higherIsBetter ? direction === 'up' : direction === 'down';
+    }
+    return { key: def.key, label: def.label, unit: def.unit, higherIsBetter: def.higherIsBetter, latest, previous, delta, deltaPct, direction, good };
+  });
+  return { periodsCount: n, latestPeriod: last?.period ?? null, trends };
+}

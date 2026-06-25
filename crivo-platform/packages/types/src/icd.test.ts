@@ -27,6 +27,7 @@ import {
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
   computeInvisibleCosts,
+  computePeopleTrends,
 } from "./index";
 
 // ============================================================
@@ -499,5 +500,43 @@ describe("computeInvisibleCosts", () => {
     const r = computeInvisibleCosts([]);
     expect(r.total.base).toBe(0);
     expect(r.items).toHaveLength(0);
+  });
+});
+
+// ============================================================
+// People Analytics (Fase 4)
+// ============================================================
+describe("computePeopleTrends", () => {
+  it("latest/previous/delta/direção/good por indicador", () => {
+    const r = computePeopleTrends([
+      { period: "2026-Q1", values: { turnover: 20, produtividade: 70 } },
+      { period: "2026-Q2", values: { turnover: 15, produtividade: 80 } },
+    ]);
+    expect(r.periodsCount).toBe(2);
+    expect(r.latestPeriod).toBe("2026-Q2");
+    const turn = r.trends.find((t) => t.key === "turnover")!;
+    expect(turn.latest).toBe(15);
+    expect(turn.previous).toBe(20);
+    expect(turn.delta).toBe(-5);
+    expect(turn.direction).toBe("down");
+    expect(turn.good).toBe(true); // turnover caindo = bom
+    const prod = r.trends.find((t) => t.key === "produtividade")!;
+    expect(prod.direction).toBe("up");
+    expect(prod.good).toBe(true); // produtividade subindo = bom
+  });
+
+  it("ordena por período e marca 'na' quando falta dado", () => {
+    const r = computePeopleTrends([
+      { period: "2026-Q2", values: {} },
+      { period: "2026-Q1", values: { turnover: 10 } },
+    ]);
+    expect(r.latestPeriod).toBe("2026-Q2");
+    expect(r.trends.find((t) => t.key === "turnover")!.direction).toBe("na");
+  });
+
+  it("lista vazia → tudo 'na'", () => {
+    const r = computePeopleTrends([]);
+    expect(r.periodsCount).toBe(0);
+    expect(r.trends.every((t) => t.direction === "na")).toBe(true);
   });
 });

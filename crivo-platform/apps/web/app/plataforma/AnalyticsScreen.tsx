@@ -1,16 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ACTION_STATUS_LABEL,
   DECISION_PRESSURE_FACTOR_LABEL,
   MIN_LEADERS_FOR_DISCLOSURE,
   POCKET_MOMENT_LABEL,
+  PEOPLE_INDICATORS,
+  computePeopleTrends,
   type ActionStatus,
   type DecisionPressureFactor,
   type PocketMomentOfUse,
+  type PeoplePeriod,
 } from "@crivo/types";
-import { getMyAnalytics, type AnalyticsData } from "@/lib/api";
+import {
+  getMyAnalytics,
+  getPeopleIndicators,
+  savePeopleIndicators,
+  analyzePeople,
+  type AnalyticsData,
+  type PeopleAnalysis,
+} from "@/lib/api";
 
 type LoadStatus = "loading" | "ok" | "error";
 
@@ -187,26 +197,191 @@ export function AnalyticsScreen() {
             </div>
           </div>
 
-          {/* Indicadores importados — placeholder honesto */}
-          <div className="card" style={{ marginBottom: 16, borderTop: "3px solid var(--gold-soft)" }}>
-            <div className="card__head">
-              <div>
-                <h3>Indicadores Importados <span className="pill" style={{ marginLeft: 8, verticalAlign: "middle" }}>Em breve</span></h3>
-                <span className="card__sub">
-                  Cruzamentos com turnover, absenteísmo, clima e custos invisíveis — entram quando esses indicadores
-                  forem conectados via Super Admin (importação CSV / integração HR).
-                </span>
-              </div>
-            </div>
-            <p className="dash-state" style={{ margin: 0 }}>
-              <strong>Não inventamos números.</strong> Quando a empresa conectar suas fontes de dados,
-              o sistema cruza com o ICD, fatores psicossociais e plano de ação automaticamente.
-            </p>
-          </div>
+          {/* Indicadores de RH + IA Analítica (Fase 4) */}
+          <PeopleIndicators crivo={data} />
         </>
       )}
     </>
   );
+}
+
+// ── People Analytics: indicadores de RH editáveis + IA Analítica (Fase 4) ──
+
+function PeopleIndicators({ crivo }: { crivo: AnalyticsData }) {
+  const [periods, setPeriods] = useState<PeoplePeriod[]>([]);
+  const [analysis, setAnalysis] = useState<PeopleAnalysis | null>(null);
+  const [analysisAt, setAnalysisAt] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "done">("idle");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPeopleIndicators()
+      .then((d) => {
+        setPeriods(d.periods ?? []);
+        setAnalysis(d.analysis);
+        setAnalysisAt(d.analysisAt);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  const trends = useMemo(() => computePeopleTrends(periods), [periods]);
+
+  const setPeriodField = (i: number, patch: Partial<PeoplePeriod>) =>
+    setPeriods((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const setVal = (i: number, key: string, v: string) =>
+    setPeriods((ps) =>
+      ps.map((p, j) => (j === i ? { ...p, values: { ...p.values, [key]: v === "" ? null : Number(v.replace(",", ".")) } } : p)),
+    );
+  const addPeriod = () => setPeriods((ps) => [...ps, { period: "", headcount: null, values: {} }]);
+  const removePeriod = (i: number) => setPeriods((ps) => ps.filter((_, j) => j !== i));
+
+  async function save() {
+    setSaveState("saving");
+    setErr(null);
+    try {
+      const d = await savePeopleIndicators(periods);
+      setPeriods(d.periods);
+      setSaveState("done");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao salvar.");
+      setSaveState("idle");
+    }
+  }
+
+  async function analyze() {
+    setAnalyzing(true);
+    setErr(null);
+    try {
+      await savePeopleIndicators(periods); // analisa o que está na tela
+      const r = await analyzePeople(buildCrivoContext(crivo));
+      setAnalysis(r.analysis);
+      setAnalysisAt(r.analysisAt);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha na análise.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16, borderTop: "3px solid var(--gold-deep)" }}>
+      <div className="card__head">
+        <div>
+          <h3>Indicadores de RH &amp; IA Analítica</h3>
+          <span className="card__sub">
+            Informe seus indicadores por período; a IA cruza com os dados CRIVO e sugere — sem afirmar causalidade.
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn--outline-dark btn--sm" onClick={addPeriod}>+ período</button>
+          <button className="btn btn--gold btn--sm" onClick={save} disabled={saveState === "saving"}>
+            {saveState === "saving" ? "Salvando…" : saveState === "done" ? "Salvo ✓" : "Salvar"}
+          </button>
+        </div>
+      </div>
+
+      {err && <div className="dash-state dash-state--error" style={{ marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ overflowX: "auto" }}>
+        <table className="data-table cost-table" style={{ minWidth: 760 }}>
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Headcount</th>
+              {PEOPLE_INDICATORS.map((d) => (
+                <th key={d.key} title={d.unit}>{d.label}</th>
+              ))}
+              <th aria-label="remover" />
+            </tr>
+          </thead>
+          <tbody>
+            {periods.map((p, i) => (
+              <tr key={i}>
+                <td><input className="cost-in" style={{ minWidth: 88 }} value={p.period} placeholder="2026-Q1" onChange={(e) => setPeriodField(i, { period: e.target.value })} /></td>
+                <td><input className="cost-in cost-in--num" inputMode="decimal" value={p.headcount ?? ""} onChange={(e) => setPeriodField(i, { headcount: e.target.value === "" ? null : Number(e.target.value) })} /></td>
+                {PEOPLE_INDICATORS.map((d) => (
+                  <td key={d.key}><input className="cost-in cost-in--num" inputMode="decimal" value={p.values?.[d.key] ?? ""} onChange={(e) => setVal(i, d.key, e.target.value)} /></td>
+                ))}
+                <td><button className="cost-del" title="Remover" onClick={() => removePeriod(i)}>✕</button></td>
+              </tr>
+            ))}
+            {loaded && periods.length === 0 && (
+              <tr><td colSpan={PEOPLE_INDICATORS.length + 3} style={{ color: "var(--ink-soft, #888)" }}>Sem períodos — clique "+ período" e informe turnover, absenteísmo, etc.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {trends.trends.some((t) => t.latest != null) && (
+        <div className="dash-dist" style={{ marginTop: 14 }}>
+          {trends.trends.filter((t) => t.latest != null).map((t) => (
+            <span key={t.key} className="dash-dist__item" title={`Δ ${t.delta ?? "—"}`}>
+              {t.label}: <strong>{t.latest}{t.unit === "%" ? "%" : ""}</strong>
+              {t.direction !== "na" && t.direction !== "flat" && (
+                <em style={{ marginLeft: 4, color: t.good ? "var(--green,#2f9e64)" : "#c0392b" }}>
+                  {t.direction === "up" ? "▲" : "▼"}{t.deltaPct != null ? ` ${Math.abs(t.deltaPct)}%` : ""}
+                </em>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <strong>Análise por IA</strong>
+          <button className="btn btn--terra btn--sm" onClick={analyze} disabled={analyzing || periods.length === 0}>
+            {analyzing ? "Analisando…" : analysis ? "Gerar novamente" : "Gerar análise"}
+          </button>
+        </div>
+        {analysisAt && <span className="card__sub" style={{ fontSize: 11 }}>Última análise: {new Date(analysisAt).toLocaleString("pt-BR")}</span>}
+        {analysis ? (
+          <div style={{ marginTop: 10 }}>
+            {analysis.summary && <p style={{ fontSize: 13.5, lineHeight: 1.6 }}>{analysis.summary}</p>}
+            <IaList title="Alertas" items={analysis.alerts} color="#c0392b" />
+            <IaList title="Hipóteses (a investigar)" items={analysis.hypotheses} color="var(--gold-deep)" />
+            <IaList title="Recomendações" items={analysis.recommendations} color="var(--green,#2f9e64)" />
+          </div>
+        ) : (
+          <p className="card__sub" style={{ marginTop: 8 }}>
+            Informe ao menos um período e clique em "Gerar análise" — a IA interpreta os indicadores + o contexto CRIVO.
+          </p>
+        )}
+        <p className="card__sub" style={{ fontSize: 11, marginTop: 10 }}>
+          A IA interpreta e sugere — <strong>não afirma causalidade automática nem economia garantida</strong>. As decisões são da gestão.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function IaList({ title, items, color }: { title: string; items: string[]; color: string }) {
+  if (!items?.length) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <strong style={{ fontSize: 12.5, color }}>{title}</strong>
+      <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
+        {items.map((s, i) => <li key={i}>{s}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function buildCrivoContext(c: AnalyticsData): string {
+  const parts: string[] = [];
+  const lastIcd = [...(c.icdEvolution ?? [])].reverse().find((x) => x.score != null);
+  if (lastIcd) parts.push(`ICD oficial mais recente: ${lastIcd.score}/100 (${lastIcd.cycleName}).`);
+  if (c.planSummary?.total) {
+    const st = Object.entries(c.planSummary.byStatus ?? {}).map(([k, v]) => `${k}:${v}`).join(", ");
+    parts.push(`Plano de ação: ${c.planSummary.total} itens (${st}).`);
+  }
+  if (c.pocketUsage?.totalSessions) parts.push(`Pocket CRIVO: ${c.pocketUsage.totalSessions} sessões (${c.pocketUsage.concluded} concluídas).`);
+  if (c.decisionsByCategory?.length) parts.push(`Decisões registradas em ${c.decisionsByCategory.length} categorias.`);
+  return parts.join(" ") || "(sem dados CRIVO agregados ainda)";
 }
 
 // ── Componentes auxiliares (sem dependências de chart libs) ──────────

@@ -45,7 +45,9 @@ DECLARE
                          -- Questionário Psicossocial amplo (Briefing §6) — anônimo por tenant.
                          'psychosocial_responses',
                          -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant.
-                         'invisible_cost_estimates'];
+                         'invisible_cost_estimates',
+                         -- People Analytics (Fase 4) — indicadores de RH por tenant.
+                         'people_analytics_data'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.
