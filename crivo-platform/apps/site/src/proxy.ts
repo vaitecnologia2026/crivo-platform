@@ -14,7 +14,9 @@ export function proxy(req: NextRequest) {
   const url = req.nextUrl.clone();
   if (url.pathname === "/") {
     url.pathname = "/lp";
-    return NextResponse.redirect(url);
+    // rewrite (não redirect): serve a landing NA raiz, URL fica limpa
+    // (crivolegacy.com.br/ mostra a LP sem virar /lp). Funciona como site.
+    return NextResponse.rewrite(url);
   }
   return NextResponse.next();
 }
