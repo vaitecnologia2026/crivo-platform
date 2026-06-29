@@ -399,8 +399,22 @@ export class PlatformLeadsService {
     if (!lead.email) throw new BadRequestException('Lead sem e-mail');
 
     const adminEmail = lead.email.toLowerCase().trim();
+    // ATENÇÃO ao "tenant": o admin vive no DATA PLANE, escopado pela Organization
+    // (User.tenantId → Organization.id). Mas convertedTenantId guarda o id do
+    // registro Tenant do CONTROL PLANE (provisionFromProduct grava result.tenant.id
+    // via toTenantSummary → tenant.id), que é DIFERENTE do organizationId. Buscar o
+    // user por tenantId = convertedTenantId nunca casa (Tenant.id ≠ Organization.id)
+    // → era o 404. Resolve a Organization a partir do Tenant antes de achar o admin;
+    // aceita também um id já-Organization (defensivo, caso a semântica mude).
+    const tenantRow = await this.prisma.admin.tenant.findFirst({
+      where: { OR: [{ id: lead.convertedTenantId }, { organizationId: lead.convertedTenantId }] },
+      select: { organizationId: true },
+    });
+    const organizationId = tenantRow?.organizationId ?? lead.convertedTenantId;
+    // (tenantId, email) é único por org → casa exatamente o admin provisionado
+    // (provisionFromProduct cria role ADMIN com email = e-mail do lead).
     const admin = await this.prisma.admin.user.findFirst({
-      where: { tenantId: lead.convertedTenantId, email: adminEmail },
+      where: { tenantId: organizationId, email: adminEmail },
     });
     if (!admin) throw new NotFoundException('Usuário admin do cliente não encontrado');
 
