@@ -23,6 +23,7 @@ import { CnaeModule } from './cnae/cnae.module';
 import { InvisibleCostsModule } from './invisible-costs/invisible-costs.module';
 import { PeopleAnalyticsModule } from './people-analytics/people-analytics.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -50,6 +51,7 @@ import { HealthController } from './health/health.controller';
     InvisibleCostsModule,
     PeopleAnalyticsModule,
     AlertsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [

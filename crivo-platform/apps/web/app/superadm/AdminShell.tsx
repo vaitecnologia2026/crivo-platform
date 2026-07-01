@@ -12,6 +12,7 @@ import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
+import { NotificationsSection } from "./NotificationsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
@@ -36,7 +37,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -51,6 +52,7 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "metodologia", label: "Metodologia", icon: "❖", current: "Metodologia configurável", group: "Plataforma" },
   { key: "basecrivo", label: "Base CRIVO", icon: "◍", current: "Base CRIVO · Benchmarks", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
+  { key: "notificacoes", label: "Notificações", icon: "◮", current: "Configuração de Notificações", group: "Plataforma" },
   { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
   { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
   { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
@@ -164,6 +166,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "metodologia" && <MethodologySection />}
           {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}
+          {section === "notificacoes" && <NotificationsSection />}
           {section === "extras" && <ExtrasSection />}
           {section === "rbac" && <RbacSection />}
           {section === "auditoria" && <AuditSection />}

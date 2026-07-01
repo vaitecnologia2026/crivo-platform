@@ -125,6 +125,31 @@ async function sendEmail(apiKey: string, data: Lead, email: string): Promise<boo
   }
 }
 
+// Consulta o painel de Notificações (backend) e dispara o push da equipe CRIVO.
+// Fail-open: se o gate estiver indisponível, o e-mail de aviso continua saindo
+// (nunca se perde um lead por causa do gate). Requer PLATFORM_API_URL; o
+// SITE_NOTIFY_SECRET autoriza o efeito de push no backend.
+async function notifyGate(key: string, title: string, body: string): Promise<{ emailEnabled: boolean }> {
+  const api = process.env.PLATFORM_API_URL;
+  if (!api) return { emailEnabled: true };
+  try {
+    const r = await fetch(`${api}/notifications/site-event/${key}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-site-secret": process.env.SITE_NOTIFY_SECRET ?? "",
+      },
+      body: JSON.stringify({ title, body }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return { emailEnabled: true };
+    const j = (await r.json()) as { emailEnabled?: boolean };
+    return { emailEnabled: j.emailEnabled !== false };
+  } catch {
+    return { emailEnabled: true };
+  }
+}
+
 export async function POST(req: Request) {
   let data: Lead;
   try {
@@ -143,12 +168,22 @@ export async function POST(req: Request) {
   const platformApi = process.env.PLATFORM_API_URL;
   const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
+  // Gate do painel de Notificações (e dispara o push da equipe CRIVO).
+  const gate = await notifyGate(
+    "site.lead_novo",
+    "Novo lead do site",
+    String(data.empresa ?? data.nome ?? email),
+  );
+
   const tasks: Promise<boolean>[] = [];
   if (platformApi) tasks.push(sendIntake(platformApi, data, email));
   if (webhook) tasks.push(sendWebhook(webhook, data));
-  // E-mail: SMTP (Hostinger) preferido; Resend como fallback.
-  if (smtpConfigured) tasks.push(sendEmailSmtp(data, email));
-  else if (resendKey) tasks.push(sendEmail(resendKey, data, email));
+  // E-mail de aviso: só se o admin não desativou no painel. SMTP (Hostinger)
+  // preferido; Resend como fallback. Intake/webhook seguem independentes.
+  if (gate.emailEnabled) {
+    if (smtpConfigured) tasks.push(sendEmailSmtp(data, email));
+    else if (resendKey) tasks.push(sendEmail(resendKey, data, email));
+  }
 
   if (tasks.length === 0) {
     console.warn(

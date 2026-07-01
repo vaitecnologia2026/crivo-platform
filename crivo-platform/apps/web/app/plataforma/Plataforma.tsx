@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
 import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken, logout } from "@/lib/api";
+import { registerPushForCurrentUser } from "@/lib/push";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -249,6 +250,8 @@ export function Plataforma() {
       }
       login.classList.remove("is-active");
       app.classList.add("is-active");
+      // Registra push (FCM) do dispositivo — no-op no navegador, só age no app nativo.
+      void registerPushForCurrentUser();
       const home = accessLoaded ? homeForRole(role) : DEFAULT_ROUTE;
       if (home !== DEFAULT_ROUTE) setRoute(home);
       else mountIsland("dash-root", <DashboardScreen />);

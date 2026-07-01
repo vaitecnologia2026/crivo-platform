@@ -14,6 +14,7 @@ import type {
   GeneratePreliminaryReportRequest,
   GlobalAcademyContentData,
   MentoriaData,
+  NotificationSettingData,
   Plan,
   PlatformLeadStage,
   PlatformLeadSummary,
@@ -28,6 +29,7 @@ import type {
   TenantSummary,
   UpdateBrandingRequest,
   UpdateMentoriaRequest,
+  UpdateNotificationSettingRequest,
   UpdateUserRequest,
   UserSummary,
   UpsertActionTemplateRequest,
@@ -346,6 +348,22 @@ export function testAiConnection(apiKey?: string): Promise<AiTestResult> {
     method: "POST",
     body: JSON.stringify(apiKey ? { apiKey } : {}),
   });
+}
+
+// ── Configuração de Notificações (push FCM + gates por gatilho) ──
+
+export function getNotificationSettings(): Promise<NotificationSettingData[]> {
+  return adminFetch<NotificationSettingData[]>("/admin/notification-settings");
+}
+
+export function updateNotificationSetting(
+  key: string,
+  dto: UpdateNotificationSettingRequest,
+): Promise<NotificationSettingData> {
+  return adminFetch<NotificationSettingData>(
+    `/admin/notification-settings/${encodeURIComponent(key)}`,
+    { method: "PUT", body: JSON.stringify(dto) },
+  );
 }
 
 // ── Contrato por empresa (Briefing §11) ──

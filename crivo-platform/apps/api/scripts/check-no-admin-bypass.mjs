@@ -13,9 +13,11 @@ const ALLOW = [
   'iam/auth.service.ts',
   'prisma/prisma.service.ts',
 ];
-// Módulos control-plane inteiros: admin (provisionamento/super admin) e iam
-// (identidade, papéis, permissões — atravessam tenants no login/RBAC por design).
-const ALLOW_DIRS = ['admin/', 'iam/'];
+// Módulos control-plane inteiros: admin (provisionamento/super admin), iam
+// (identidade, papéis, permissões — atravessam tenants no login/RBAC por design)
+// e notifications (config global de gatilhos + tokens push; tabelas owner-only
+// registradas no sql/rls.sql, push_tokens filtrado por tenantId/userId no app).
+const ALLOW_DIRS = ['admin/', 'iam/', 'notifications/'];
 
 const PATTERN = /\bprisma\.admin\b/;
 // Marcador inline para um bypass legítimo e REVISADO (tabela control-plane ou

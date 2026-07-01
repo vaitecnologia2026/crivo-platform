@@ -15,6 +15,7 @@
   "dependencies": {
     "@capacitor/android": "^8",
     "@capacitor/core": "^8",
+    "@capacitor/push-notifications": "^8.1.1",
     "@crivo/types": "workspace:*",
     "@crivo/ui": "workspace:*",
     "next": "16.2.7",
