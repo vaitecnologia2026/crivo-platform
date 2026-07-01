@@ -77,6 +77,9 @@ async function adminFetch<T>(
   try {
     res = await fetch(`${apiBase()}${path}`, {
       ...init,
+      // Nunca servir do cache do navegador: o funil/dashboard tem que refletir
+      // o estado atual do banco (leads recém-criados aparecem na hora).
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -21,6 +21,7 @@ const nextConfig = {
     // Capacitor força a API de produção, pois o app roda offline-of-server.
     NEXT_PUBLIC_API_URL:
       process.env.API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
       (isCapExport || process.env.NODE_ENV === "production"
         ? "https://crivo-platform-production.up.railway.app/api"
         : "http://localhost:3333"),
