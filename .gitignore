@@ -28,6 +28,7 @@ crivo-platform/apps/web/public/dev-login.html
 **/android/app/build/
 **/android/app/release/
 **/android/capacitor-cordova-android-plugins/
+**/android/app/google-services.json
 *.jks
 *.keystore
 *.aab
