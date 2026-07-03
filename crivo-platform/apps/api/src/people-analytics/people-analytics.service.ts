@@ -67,6 +67,10 @@ export class PeopleAnalyticsService {
     if (!settings.enabled) {
       throw new BadRequestException('IA desativada nas Configurações de IA (Super Admin).');
     }
+    // Respeita o escopo de módulos da IA (vazio = todos liberados).
+    if (settings.enabledModules.length > 0 && !settings.enabledModules.includes('analytics')) {
+      throw new BadRequestException('IA não está habilitada para People Analytics em Configurações de IA.');
+    }
     const key = await this.ai.getApiKey();
     if (!key) {
       throw new BadRequestException('IA não configurada. Defina a chave da OpenAI em Configurações de IA (Super Admin).');
@@ -125,7 +129,7 @@ export class PeopleAnalyticsService {
     } catch {
       throw new BadRequestException('A IA demorou demais para responder. Tente novamente.');
     }
-    if (!res.ok) throw new BadRequestException(`IA: ${await res.text().catch(() => res.status)}`);
+    if (!res.ok) throw new BadRequestException('A IA não conseguiu gerar a análise agora. Tente novamente.');
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const content = data?.choices?.[0]?.message?.content ?? '{}';
     let parsed: Partial<PeopleAnalysis> = {};

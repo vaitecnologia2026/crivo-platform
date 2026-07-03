@@ -48,7 +48,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <a href="#" class="link-gold">Falar com a CRIVO</a>
       </div>
 
-      <a href="https://crivo.vai-sistema.com/lp" class="login__back">← Voltar ao site</a>
+      <a href="https://crivolegacy.com.br" class="login__back">← Voltar ao site</a>
     </div>
   </div>
 

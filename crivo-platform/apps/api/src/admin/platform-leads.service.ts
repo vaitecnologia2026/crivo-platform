@@ -425,12 +425,14 @@ export class PlatformLeadsService {
       data: { passwordHash: bcrypt.hashSync(tempPassword, 12) },
     });
 
-    const portalUrl = process.env.PORTAL_URL ?? 'https://crivo-web.vercel.app';
+    const portalUrl = process.env.PORTAL_URL ?? 'https://app.crivolegacy.com.br';
+    // Escapa entradas controladas pelo lead (nome/e-mail) para não injetar HTML no e-mail.
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const html = `
       <h2 style="font-family:Georgia,serif;color:#0d1f3c;margin:0 0 12px">Seu acesso à plataforma CRIVO™</h2>
-      <p>Olá, ${lead.name}. Seu ambiente CRIVO está pronto.</p>
+      <p>Olá, ${esc(lead.name)}. Seu ambiente CRIVO está pronto.</p>
       <p><strong>Portal:</strong> <a href="${portalUrl}">${portalUrl}</a><br>
-         <strong>Login:</strong> ${adminEmail}<br>
+         <strong>Login:</strong> ${esc(adminEmail)}<br>
          <strong>Senha temporária:</strong> ${tempPassword}</p>
       <p>Recomendamos alterar a senha no primeiro acesso.</p>
       <p style="color:#6b7280;font-size:12px">CRIVO™ — Decision Intelligence System</p>`;

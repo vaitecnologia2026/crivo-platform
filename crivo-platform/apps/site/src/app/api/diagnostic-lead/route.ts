@@ -382,12 +382,14 @@ export async function POST(req: Request) {
   if (!ok) {
     // RESGATE: falha TOTAL — nenhum canal reteve o lead. Registra o contato para
     // recuperação manual: um lead NUNCA pode sumir com mensagem de sucesso.
+    const rescueEmail = data.email ? data.email.replace(/^(.).*(@.*)$/, "$1***$2") : undefined;
+    const rescuePhone = data.phone ? "***" + String(data.phone).slice(-4) : undefined;
     console.error(
       "[diagnostic-lead][RESGATE] lead não retido em nenhum canal:",
       JSON.stringify({
         name: data.name,
-        email: data.email,
-        phone: data.phone,
+        email: rescueEmail,
+        phone: rescuePhone,
         company: data.company,
         cnpj: data.cnpj,
       }),

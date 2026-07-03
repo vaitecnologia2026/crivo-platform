@@ -15,7 +15,7 @@ const nextConfig = {
   env: {
     // URL da API. Usa API_URL do ambiente se definida e NÃO vazia (|| cobre
     // string vazia, que o ?? deixaria passar); senão cai no padrão: a API de
-    // produção (Railway) em prod, ou o localhost em dev. Hardcode do default de
+    // produção (app.crivolegacy.com.br) em prod, ou o localhost em dev. Hardcode do default de
     // produção garante a URL embutida mesmo que o build não receba a env
     // (ex.: Turborepo filtra variáveis não declaradas). No empacotamento
     // Capacitor força a API de produção, pois o app roda offline-of-server.

@@ -73,6 +73,12 @@ export class PreliminaryReportsService {
         'IA não está configurada/ativa. Configure em Super Admin · Configurações de IA.',
       );
     }
+    // Respeita o escopo de módulos da IA (vazio = todos liberados).
+    if (settings.enabledModules.length > 0 && !settings.enabledModules.includes('relatorios')) {
+      throw new BadRequestException(
+        'IA não está habilitada para Relatórios em Configurações de IA (Super Admin).',
+      );
+    }
     // Relatório é curto (600–900 palavras) → modelo RÁPIDO para caber no limite
     // da função serverless (60s). Mantém o configurado só se for da família "4o"
     // (rápida); gpt-4/gpt-4-turbo legados (lentos → timeout) caem p/ gpt-4o-mini.

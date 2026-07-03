@@ -151,16 +151,26 @@ export async function POST(req: Request) {
   else if (resendKey) tasks.push(sendEmail(resendKey, data, email));
 
   if (tasks.length === 0) {
+    const maskedNoProvider = {
+      ...data,
+      email: data.email ? String(data.email).replace(/^(.).*(@.*)$/, "$1***$2") : data.email,
+      phone: data.phone ? "***" + String(data.phone).slice(-4) : data.phone,
+    };
     console.warn(
       "[lead] Nenhum provider configurado (PLATFORM_API_URL / SMTP_* / RESEND_API_KEY / LEAD_WEBHOOK_URL). Lead recebido:",
-      JSON.stringify(data),
+      JSON.stringify(maskedNoProvider),
     );
     return NextResponse.json({ ok: true, warning: "no-provider" });
   }
 
   const results = await Promise.all(tasks);
   if (!results.some(Boolean)) {
-    console.error("[lead] Todos os canais falharam. Lead:", JSON.stringify(data));
+    const maskedFail = {
+      ...data,
+      email: data.email ? String(data.email).replace(/^(.).*(@.*)$/, "$1***$2") : data.email,
+      phone: data.phone ? "***" + String(data.phone).slice(-4) : data.phone,
+    };
+    console.error("[lead] Todos os canais falharam. Lead:", JSON.stringify(maskedFail));
     return NextResponse.json(
       { ok: false, error: "Falha ao registrar. Tente novamente." },
       { status: 502 },

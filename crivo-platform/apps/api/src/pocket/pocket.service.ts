@@ -194,6 +194,8 @@ export class PocketService {
   ): Promise<void> {
     const settings = await this.ai.get();
     if (!settings.enabled || !settings.hasKey) return; // IA off → encerra sem síntese
+    // Respeita o escopo de módulos da IA (vazio = todos liberados).
+    if (settings.enabledModules.length > 0 && !settings.enabledModules.includes('pocket')) return;
 
     // Lê as reflexões numa transação CURTA (sem I/O de rede).
     const session = await this.prisma.forTenant(tenantId, async (tx) =>

@@ -145,7 +145,6 @@ export class IcdCyclesService {
       // §11 (Anexo ICD): a gestão NÃO recebe o ranking individual por líder.
       // O líder vê o próprio ICD via /icd-cycles/current/me. `leaderResults`
       // segue só como insumo do agregado da empresa (calculado acima).
-      void leaderResults;
       return { cycle: toCycleData(cycle), leaders: [], company };
     });
   }

@@ -69,6 +69,14 @@ export class PlatformLeadsController {
     if (dto?.confirm !== 'ZERAR') {
       throw new BadRequestException('Confirmação inválida. Envie { "confirm": "ZERAR" } para zerar a base.');
     }
+    // Trava de ambiente: além da confirmação, exige uma env deliberada no servidor.
+    // O operador seta CRIVO_ALLOW_RESET=1 só quando for zerar (ex.: antes do go-live)
+    // e remove depois — evita reset acidental em produção.
+    if (process.env.CRIVO_ALLOW_RESET !== '1') {
+      throw new BadRequestException(
+        'Reset bloqueado por segurança. Defina CRIVO_ALLOW_RESET=1 no ambiente do servidor para liberar.',
+      );
+    }
     return this.leads.resetTestData({ id: admin.id, email: admin.email });
   }
 

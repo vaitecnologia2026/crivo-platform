@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -6,6 +7,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -179,10 +181,10 @@ export class UpsertContractDto {
 // ── Diagnóstico Inicial público (LP) ──
 
 class DiagnosticAnswerDto {
-  @IsInt()
+  @IsInt() @Min(1) @Max(200)
   questionId!: number;
 
-  @IsInt() @Min(1)
+  @IsInt() @Min(1) @Max(5)
   value!: number;
 }
 
@@ -249,6 +251,7 @@ export class CreateDiagnosticLeadDto {
   challengeOther?: string;
 
   @IsArray()
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => DiagnosticAnswerDto)
   answers!: DiagnosticAnswerDto[];

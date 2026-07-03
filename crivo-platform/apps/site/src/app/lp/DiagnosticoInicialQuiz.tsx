@@ -113,6 +113,17 @@ export function DiagnosticoInicialQuiz() {
   function startOrientacao(e: React.FormEvent) {
     e.preventDefault();
     if (!formValid) return;
+    // Validação leve: telefone com DDD (10–13 dígitos) e CNPJ, se informado, com 14.
+    const phoneDigits = contact.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+      alert("Confira o telefone com DDD (ex.: (47) 99999-9999).");
+      return;
+    }
+    const cnpjDigits = contact.cnpj.replace(/\D/g, "");
+    if (cnpjDigits && cnpjDigits.length !== 14) {
+      alert("Confira o CNPJ (14 dígitos) ou deixe o campo em branco.");
+      return;
+    }
     setStep("orientacao");
   }
 
