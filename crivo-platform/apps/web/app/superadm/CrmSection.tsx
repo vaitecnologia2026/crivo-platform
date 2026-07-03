@@ -606,7 +606,13 @@ function ConvertModal({
     (async () => {
       try {
         const all = await listProducts();
-        if (alive) setProducts(all.filter((p) => !p.isLeadCapture && p.status === "ACTIVE"));
+        if (!alive) return;
+        const active = all.filter((p) => !p.isLeadCapture && p.status === "ACTIVE");
+        setProducts(active);
+        // Pré-seleciona a solução de interesse do lead (Tela 02 [4]→[3]), se ativa.
+        if (lead.interestProductId && active.some((p) => p.id === lead.interestProductId)) {
+          setProductId(lead.interestProductId);
+        }
       } catch {
         if (alive) setProducts([]);
       }

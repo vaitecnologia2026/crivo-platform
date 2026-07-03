@@ -14,6 +14,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { ContractsService } from './contracts.service';
 import { loadActiveMethodologyConfig } from './methodology.service';
 import { PreliminaryReportsService } from './preliminary-reports.service';
 import { ProvisioningService } from './provisioning.service';
@@ -40,6 +41,7 @@ export class PlatformLeadsService {
     private readonly audit: AuditService,
     private readonly provisioning: ProvisioningService,
     private readonly preliminaryReports: PreliminaryReportsService,
+    private readonly contracts: ContractsService,
   ) {}
 
   async list(): Promise<PlatformLeadSummary[]> {
@@ -454,6 +456,28 @@ export class PlatformLeadsService {
       target: leadId,
       meta: { product: product.name, tenant: result.tenant.slug },
     });
+
+    // [3] Caderno Tela 02 — gera um Contrato RASCUNHO já ligado à empresa criada,
+    // com a solução contratada. O time finaliza (prazo, respondentes, integração)
+    // e assina depois na ficha da empresa. Best-effort: se falhar, a conversão
+    // segue válida (o cliente já está provisionado).
+    try {
+      await this.contracts.upsert(
+        result.tenant.id,
+        {
+          productId: product.id,
+          status: 'RASCUNHO',
+          model: 'PONTUAL',
+          notes: `Rascunho gerado na conversão do lead "${lead.name}".`,
+        },
+        actor,
+      );
+    } catch (e) {
+      this.log.warn(
+        `Não foi possível gerar o contrato rascunho na conversão do lead ${leadId}: ` +
+          (e instanceof Error ? e.message : String(e)),
+      );
+    }
 
     return result;
   }

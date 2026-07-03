@@ -104,6 +104,7 @@ describe('PlatformLeadsService.sendAccess (org vs tenant id)', () => {
       audit as never,
       {} as never, // provisioning — não usado por sendAccess
       {} as never, // preliminaryReports — não usado por sendAccess
+      {} as never, // contracts — não usado por sendAccess
     );
     return { service, audit, prisma, ...rest };
   }
