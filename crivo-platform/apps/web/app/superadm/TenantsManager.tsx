@@ -77,7 +77,7 @@ export function TenantsManager({
       <div className={embedded ? "" : "mx-auto max-w-[1040px] px-6 py-8"}>
         <div className="route__head">
           <div>
-            <h1 className="page-title">Empresas-cliente</h1>
+            <h1 className="page-title">Grupos e Empresas-cliente</h1>
             <p className="page-sub">
               {status === "ok"
                 ? `${tenants.length} empresa(s) na plataforma CRIVO`

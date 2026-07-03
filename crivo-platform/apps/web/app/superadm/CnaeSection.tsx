@@ -46,7 +46,7 @@ export function CnaeSection() {
     <div className="route">
       <div className="route__head">
         <div>
-          <h2>Motor de Decisão CNAE/NR-1</h2>
+          <h2>Motor de Enquadramento CRIVO</h2>
           <p className="route__sub">
             Classificação preliminar técnica por divisão CNAE → método de diagnóstico + saídas técnicas.
             Não substitui laudo ou parecer; sujeito à validação por especialista.
@@ -357,7 +357,7 @@ function RecommendationCard({ d }: { d: CnaeDecisionResult }) {
           Enviar para revisão técnica
         </button>
         <button className="btn" onClick={copy}>Copiar recomendação</button>
-        <button className="btn" onClick={() => setNote("O diagnóstico é aplicado na empresa-cliente (provisionamento do tenant pelo produto correspondente).")}>
+        <button className="btn" onClick={() => setNote("O diagnóstico é aplicado na empresa-cliente (provisionamento do tenant pela solução correspondente).")}>
           Gerar diagnóstico
         </button>
         <button className="btn" onClick={() => setNote("O relatório técnico é gerado na ficha da empresa-cliente (seção \"Base Técnica da Recomendação\").")}>

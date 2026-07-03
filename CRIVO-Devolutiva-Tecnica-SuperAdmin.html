@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRIVO — Devolutiva Técnica · Caderno Visual do Super Admin</title>
+<style>
+  :root{
+    --azul:#14263C; --azul-2:#1E3A5C; --terra:#A8693D; --off:#F7F4EF;
+    --ink:#22303F; --sec:#5B6B7B; --line:#E3DDD3;
+    --ok:#2E7D4F; --ok-bg:#EAF4EE;
+    --adj:#8A6D1F; --adj-bg:#FAF3DC;
+    --est:#A34A2A; --est-bg:#F9E9E1;
+    --dec:#1E4B8F; --dec-bg:#E8F0FB;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Poppins","Segoe UI",-apple-system,sans-serif;background:var(--off);color:var(--ink);font-size:13.5px;line-height:1.55;padding:48px 20px}
+  .page{max-width:960px;margin:0 auto}
+  header{border-bottom:3px solid var(--azul);padding-bottom:20px;margin-bottom:28px}
+  .brand{font-family:Georgia,"Lora",serif;font-size:30px;letter-spacing:.16em;color:var(--azul);font-weight:700}
+  h1{font-family:Georgia,"Lora",serif;font-size:21px;color:var(--azul);margin-top:6px;font-weight:600}
+  .meta{color:var(--sec);font-size:12px;margin-top:6px}
+  h2{font-family:Georgia,"Lora",serif;font-size:17px;color:var(--azul);margin:34px 0 6px;padding-top:8px;border-top:1px solid var(--line)}
+  h2:first-of-type{border-top:none;padding-top:0}
+  .lead{color:var(--sec);margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;background:#fff}
+  th{background:var(--azul);color:#fff;text-align:left;padding:8px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#FBF9F5}
+  .tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+  .t-ok{background:var(--ok-bg);color:var(--ok)}
+  .t-adj{background:var(--adj-bg);color:var(--adj)}
+  .t-est{background:var(--est-bg);color:var(--est)}
+  .t-dec{background:var(--dec-bg);color:var(--dec)}
+  .imp{font-weight:600}
+  .box{background:#fff;border:1px solid var(--line);border-left:4px solid var(--terra);padding:14px 16px;margin:14px 0}
+  .box strong{color:var(--azul)}
+  .dec-item{background:#fff;border:1px solid var(--line);padding:14px 16px;margin:10px 0;border-left:4px solid var(--dec)}
+  .dec-item h3{font-size:14px;color:var(--azul);margin-bottom:4px}
+  .dec-item p{color:var(--sec);font-size:12.8px}
+  .dec-item .rec{margin-top:6px;font-size:12.8px;color:var(--ink)}
+  .dec-item .rec b{color:var(--terra)}
+  ul{margin:8px 0 8px 20px}
+  li{margin:3px 0}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 4px}
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--sec);font-size:11.5px}
+  @media print{body{padding:0;background:#fff}.page{max-width:100%}h2{break-after:avoid}table,.dec-item{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="brand">CRIVO</div>
+  <h1>Devolutiva Técnica do Programador — Caderno Visual de Ajustes do Super Admin</h1>
+  <div class="meta">Resposta à seção 11 do caderno (checklist obrigatória) · VAI Tecnologia · Julho/2026</div>
+</header>
+
+<h2>1. O que já foi aplicado em produção</h2>
+<p class="lead">Ajustes de nomenclatura solicitados no caderno, aplicados em app.crivolegacy.com.br sem alteração de estrutura ou de dados:</p>
+<table>
+  <tr><th>Tela</th><th>Antes</th><th>Depois</th></tr>
+  <tr><td>01</td><td>Visão geral</td><td>Dashboard de Gestão CRIVO</td></tr>
+  <tr><td>03</td><td>Produtos</td><td>Soluções CRIVO (título: Catálogo de Soluções CRIVO; todos os textos da tela seguem "solução")</td></tr>
+  <tr><td>04</td><td>Motor CNAE/NR-1 · "Motor de Decisão"</td><td>Motor de Enquadramento CRIVO (sem a palavra "decisão", conforme regra de recomendação com validação humana)</td></tr>
+  <tr><td>06</td><td>Empresas-cliente</td><td>Grupos e Empresas-cliente</td></tr>
+  <tr><td>11</td><td>Extras CRIVO</td><td>Recursos da Entrega (aguardando confirmação do nome — ver Decisão 6)</td></tr>
+</table>
+
+<h2>2. Resposta à checklist técnica (seção 11 do caderno)</h2>
+<div class="legend">
+  <span class="tag t-ok">Suporta hoje</span>
+  <span class="tag t-adj">Ajuste simples</span>
+  <span class="tag t-est">Mudança estrutural</span>
+  <span class="tag t-dec">Precisa decisão da CRIVO</span>
+</div>
+<table>
+  <tr><th style="width:14%">Área</th><th>Pergunta técnica</th><th style="width:15%">Status</th><th style="width:8%">Impacto</th><th style="width:33%">Observação do programador</th></tr>
+  <tr><td>Modelo comercial</td><td>Contrato com múltiplas soluções no mesmo cliente?</td><td><span class="tag t-adj">Ajuste simples</span></td><td class="imp">Médio</td><td>Hoje 1 contrato referencia 1 solução. Solução: tabela de vínculo contrato–soluções. Alternativa imediata já suportada: vários contratos por cliente.</td></tr>
+  <tr><td>Modelo comercial</td><td>Adicionais/upsells por contrato, com regras de dependência, preço e recorrência?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Médio</td><td>Não existe objeto comercial "Adicional". Hoje há apenas módulos opcionais marcáveis no contrato, sem preço/recorrência próprios. Exige novo modelo + telas.</td></tr>
+  <tr><td>Modelo comercial</td><td>LP consome o Catálogo sem expor configurações internas (diagnóstico, metodologia, IA)?</td><td><span class="tag t-ok">Suporta hoje</span></td><td class="imp">Baixo</td><td>No banco os blocos já são separados; a LP consome somente os dados comerciais. A mistura apontada no caderno é da tela do Super Admin (reorganização visual), não do dado.</td></tr>
+  <tr><td>Contrato</td><td>Contrato ativa soluções, módulos, adicionais, limites, ciclos, usuários, CNPJs, IA e documentos?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>Módulos, limites, ciclos, usuários e documentos: já ativa hoje. Faltam: múltiplas soluções (ajuste simples), adicionais (estrutural) e CNPJs por contrato (depende da decisão Grupo/CNPJ).</td></tr>
+  <tr><td>Contrato</td><td>Lead convertido no CRM gera empresa/grupo e contrato rascunho, sem criar produto novo?</td><td><span class="tag t-adj">Ajuste simples</span></td><td class="imp">Baixo</td><td>A conversão lead → empresa com solução já existe e nunca cria produto novo. Falta apenas gerar automaticamente o contrato em status Rascunho no mesmo gesto.</td></tr>
+  <tr><td>Grupo/CNPJ</td><td>A base separa Grupo Empresarial, CNPJ e Unidade/Área?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>Existe Organização → Empresa (CNPJ) → Unidade → Time. Falta o nível "Grupo Empresarial" e o uso do CNPJ como fronteira real de dados.</td></tr>
+  <tr><td>Grupo/CNPJ</td><td>Cada CNPJ pode ter enquadramento, ciclo, diagnóstico, plano, evidências, indicadores e dossiê próprios?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>É a maior mudança do caderno. Hoje todo o isolamento de dados é por empresa-cliente (organização), não por CNPJ. CNPJs da mesma organização compartilham os dados. Exige migração do modelo + regras de segurança em todas as tabelas do plano de dados.</td></tr>
+  <tr><td>Metodologia</td><td>Metodologia possui versão ativa, rascunho, histórico e vínculo com o ciclo aplicado?</td><td><span class="tag t-ok">Suporta hoje</span></td><td class="imp">Baixo</td><td>Já implementado e versionado (rascunho / ativa / arquivada). Ciclos antigos preservam a versão aplicada; não há recálculo retroativo.</td></tr>
+  <tr><td>IA</td><td>IA liberada por contrato, módulo e caso de uso, com prompts versionados e logs?</td><td><span class="tag t-adj">Ajuste simples</span></td><td class="imp">Médio</td><td>Hoje: configuração de IA por solução + ativação por módulo + registro de versão do modelo nos relatórios. Faltam: exceção por contrato, casos de uso e log de aceitação/edição/recusa de sugestões.</td></tr>
+  <tr><td>IA</td><td>IA personalizada permite diretrizes do cliente sem permitir que ele edite o prompt técnico?</td><td><span class="tag t-adj">Ajuste simples</span></td><td class="imp">Médio</td><td>O prompt técnico já vive apenas no Super Admin (cliente não acessa). Falta a área "Políticas e Diretrizes do Cliente" com aprovação e rastreabilidade.</td></tr>
+  <tr><td>Permissões</td><td>Permissões aplicáveis por papel, grupo, CNPJ, contrato, módulo e ciclo?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>Hoje: papel + empresa-cliente + módulo (parcial). Escopos por CNPJ, contrato e ciclo dependem diretamente da decisão Grupo/CNPJ.</td></tr>
+  <tr><td>Dados</td><td>Há proteção para não misturar dados de CNPJs diferentes sem filtro/permissão?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>A proteção atual é entre empresas-cliente (forte, em nível de banco). Entre CNPJs da mesma organização não há separação — mesma raiz do item Grupo/CNPJ.</td></tr>
+</table>
+
+<h2>3. Checklist — Inteligência CRIVO, Base e Auditoria</h2>
+<table>
+  <tr><th style="width:14%">Área</th><th>Pergunta técnica</th><th style="width:15%">Status</th><th style="width:8%">Impacto</th><th style="width:33%">Observação do programador</th></tr>
+  <tr><td>Dashboard/Inteligência/Base</td><td>As três áreas ficam tecnicamente separadas?</td><td><span class="tag t-dec">Precisa decisão</span></td><td class="imp">Médio</td><td>Dashboard e Base CRIVO já são separados hoje. A camada "Inteligência CRIVO" não existe — é tela/área nova a construir (ver Decisão 4).</td></tr>
+  <tr><td>Inteligência CRIVO</td><td>Filtros por grupo, CNPJ, contrato, ciclo, solução, módulo e período?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Alto</td><td>Tela nova. Filtros por CNPJ/grupo dependem da decisão Grupo/CNPJ; os demais filtros são viáveis com o modelo atual.</td></tr>
+  <tr><td>Inteligência CRIVO</td><td>Cruza diagnóstico, plano, evidências, indicadores, ICD/liderança, rotina, custos e evolução?</td><td><span class="tag t-est">Estrutural</span></td><td class="imp">Médio</td><td>Os dados de origem existem (diagnóstico, plano, evidências, ICD, custos invisíveis). Falta a camada de cruzamento e a interface.</td></tr>
+  <tr><td>Inteligência CRIVO</td><td>Diferencia análise individual dos dados que alimentam a Base (autorizados/anonimizados)?</td><td><span class="tag t-ok">Suporta hoje</span></td><td class="imp">Baixo</td><td>A Base CRIVO já aplica agregação, anonimização, volume mínimo (supressão de recortes pequenos) e log de acesso.</td></tr>
+  <tr><td>Auditoria</td><td>Logs registram nome amigável, usuário, ação, alvo, data/hora e contexto suficiente?</td><td><span class="tag t-ok">Suporta hoje</span></td><td class="imp">Baixo</td><td>Registro completo (usuário, ação, alvo, data/hora, contexto). Exibir "nome amigável" além do código da ação é ajuste simples de exibição.</td></tr>
+  <tr><td>Impacto técnico</td><td>O que muda para cumprir os P0?</td><td>—</td><td>—</td><td>Novo nível Grupo + fronteira por CNPJ (migração + segurança de dados), vínculo contrato–soluções, modelo de Adicionais, áreas de Diretrizes de IA + log de ações de IA, e a tela Inteligência CRIVO.</td></tr>
+</table>
+
+<div class="box">
+  <strong>Resumo executivo da devolutiva:</strong> a arquitetura atual já cumpre a regra central do caderno — solução comercial, módulo técnico, metodologia, contrato e IA são blocos separados no banco, e a flexibilidade nasce no contrato (não se cria produto por cliente). Os pontos que exigem mudança estrutural concentram-se em <strong>uma decisão-raiz: a fronteira de dados por CNPJ</strong> (Grupo → CNPJ → Unidade). Dela dependem permissões por CNPJ, enquadramento por CNPJ e os filtros da Inteligência CRIVO.
+</div>
+
+<h2>4. Decisões pendentes — para confirmação da CRIVO</h2>
+
+<div class="dec-item">
+  <h3>Decisão 1 — Fronteira de dados por CNPJ (decisão-raiz)</h3>
+  <p>Hoje o isolamento é por empresa-cliente. Implantar agora a separação Grupo → CNPJ → Unidade (migração de banco + segurança + telas) ou manter por empresa-cliente nesta fase e tratar CNPJs como cadastro informativo?</p>
+  <p class="rec"><b>Impacto:</b> é a maior obra do caderno; destrava permissões por CNPJ, enquadramento por CNPJ e Inteligência com filtro por CNPJ.</p>
+</div>
+
+<div class="dec-item">
+  <h3>Decisão 2 — Adicionais como objeto comercial</h3>
+  <p>Criar o modelo de Adicional com preço, recorrência e regras de dependência próprias, ou manter adicionais como módulos marcáveis no contrato (sem preço próprio), resolvendo valores na proposta?</p>
+</div>
+
+<div class="dec-item">
+  <h3>Decisão 3 — Múltiplas soluções no mesmo contrato</h3>
+  <p>Confirmar prioridade. Ajuste de baixo risco (tabela de vínculo contrato–soluções). Alternativa já disponível: um contrato por solução no mesmo cliente.</p>
+</div>
+
+<div class="dec-item">
+  <h3>Decisão 4 — Escopo mínimo da Inteligência CRIVO</h3>
+  <p>A camada não existe hoje. Qual recorte inicial gera valor: indicadores + abas de análise por cliente/ciclo com os filtros viáveis agora (grupo/CNPJ depois da Decisão 1), ou aguardar a Decisão 1 para lançar completa?</p>
+</div>
+
+<div class="dec-item">
+  <h3>Decisão 5 — Governança de IA completa</h3>
+  <p>Implantar agora a área "Políticas e Diretrizes do Cliente" + log de aceitação/edição/recusa de sugestões de IA, ou na fase seguinte? (O prompt técnico já é restrito ao Super Admin.)</p>
+</div>
+
+<div class="dec-item">
+  <h3>Decisão 6 — Nome da tela 11</h3>
+  <p>O caderno oferece dois nomes: "Sustentação CRIVO" ou "Recursos da Entrega". Aplicamos provisoriamente <b>Recursos da Entrega</b>. Confirmar o nome definitivo.</p>
+</div>
+
+<footer>
+  CRIVO — Devolutiva técnica referente ao "Caderno Visual de Ajustes do Super Admin" (Junho/2026). Preparado pela equipe de desenvolvimento · VAI Tecnologia. Uso interno.
+</footer>
+
+</div>
+</body>
+</html>

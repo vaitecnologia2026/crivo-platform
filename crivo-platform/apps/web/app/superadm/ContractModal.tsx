@@ -108,10 +108,10 @@ export function ContractModal({
         {status === "ok" && (
           <form onSubmit={save} className="modal__body prod-form">
             <fieldset className="prod-fs">
-              <legend>Produto e modelo</legend>
+              <legend>Solução e modelo</legend>
               <div className="prod-form__grid">
                 <label className="prod-field prod-field--full">
-                  <span>Produto contratado</span>
+                  <span>Solução contratada</span>
                   <select value={form.productId ?? ""} onChange={(e) => set("productId", e.target.value || null)}>
                     <option value="">— selecione —</option>
                     {products.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
@@ -138,7 +138,7 @@ export function ContractModal({
                 <label className="prod-field">
                   <span>Método CRIVO</span>
                   <select value={form.method ?? ""} onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}>
-                    <option value="">— herdar do produto —</option>
+                    <option value="">— herdar da solução —</option>
                     {DIAGNOSTIC_METHODS.map((m) => (<option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>))}
                   </select>
                 </label>
@@ -183,7 +183,7 @@ export function ContractModal({
             </fieldset>
 
             <fieldset className="prod-fs">
-              <legend>Módulos opcionais (além do CORE do produto)</legend>
+              <legend>Módulos opcionais (além do CORE da solução)</legend>
               <div className="prod-modules">
                 {MODULES.map((m) => (
                   <label key={m.code} className="prod-check">

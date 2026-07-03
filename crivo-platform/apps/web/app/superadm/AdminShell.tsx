@@ -41,17 +41,17 @@ type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contr
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
 const NAV: { key: Section; label: string; icon: string; current: string; group: string }[] = [
-  { key: "overview", label: "Visão geral", icon: "▣", current: "Visão Geral", group: "Geral" },
+  { key: "overview", label: "Dashboard de Gestão", icon: "▣", current: "Dashboard de Gestão CRIVO", group: "Geral" },
   { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
-  { key: "produtos", label: "Produtos", icon: "◈", current: "Produtos", group: "Comercial" },
-  { key: "cnae", label: "Motor CNAE/NR-1", icon: "◎", current: "Motor CNAE/NR-1", group: "Comercial" },
+  { key: "produtos", label: "Soluções CRIVO", icon: "◈", current: "Soluções CRIVO", group: "Comercial" },
+  { key: "cnae", label: "Motor de Enquadramento", icon: "◎", current: "Motor de Enquadramento CRIVO", group: "Comercial" },
   { key: "contratos", label: "Contratos", icon: "▦", current: "Contratos", group: "Comercial" },
-  { key: "empresas", label: "Empresas-cliente", icon: "◧", current: "Empresas-cliente", group: "Plataforma" },
+  { key: "empresas", label: "Grupos e Empresas-cliente", icon: "◧", current: "Grupos e Empresas-cliente", group: "Plataforma" },
   { key: "integracoes", label: "Integrações", icon: "◬", current: "Integrações", group: "Plataforma" },
   { key: "metodologia", label: "Metodologia", icon: "❖", current: "Metodologia configurável", group: "Plataforma" },
   { key: "basecrivo", label: "Base CRIVO", icon: "◍", current: "Base CRIVO · Benchmarks", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
-  { key: "extras", label: "Extras CRIVO", icon: "◑", current: "Extras CRIVO", group: "Plataforma" },
+  { key: "extras", label: "Recursos da Entrega", icon: "◑", current: "Recursos da Entrega", group: "Plataforma" },
   { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
   { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
 ];
@@ -200,7 +200,7 @@ function OverviewSection({ onGoToEmpresas }: { onGoToEmpresas: () => void }) {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Visão geral</h1>
+          <h1 className="page-title">Dashboard de Gestão CRIVO</h1>
           <p className="page-sub">Indicadores da plataforma CRIVO — todas as empresas-cliente.</p>
         </div>
       </div>

@@ -73,10 +73,10 @@ export function ProductsSection() {
   useEffect(() => { void refresh(); }, []);
 
   async function openEdit(id: string) {
-    try { setEditing(await getProduct(id)); } catch { alert("Não foi possível abrir o produto."); }
+    try { setEditing(await getProduct(id)); } catch { alert("Não foi possível abrir a solução."); }
   }
   async function remove(p: ProductSummary) {
-    if (!confirm(`Excluir o produto "${p.name}"? Esta ação é definitiva.`)) return;
+    if (!confirm(`Excluir a solução "${p.name}"? Esta ação é definitiva.`)) return;
     try { await deleteProduct(p.id); await refresh(); } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao excluir");
     }
@@ -86,19 +86,19 @@ export function ProductsSection() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Produtos</h1>
+          <h1 className="page-title">Catálogo de Soluções CRIVO</h1>
           <p className="page-sub">
-            Tudo nasce de um produto: preço, limites, módulos liberados, diagnóstico e IA.
+            Tudo nasce de uma solução: preço, limites, módulos liberados, diagnóstico e IA.
           </p>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setEditing("new")}>
-          Novo produto
+          Nova solução
         </button>
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando catálogo…</p>}
       {status === "error" && (
-        <div className="dash-state dash-state--error">Não foi possível carregar os produtos.</div>
+        <div className="dash-state dash-state--error">Não foi possível carregar as soluções.</div>
       )}
 
       {status === "ok" && products && (
@@ -139,7 +139,7 @@ export function ProductsSection() {
             </article>
           ))}
           {products.length === 0 && (
-            <p className="dash-state">Nenhum produto. Crie o primeiro em “Novo produto”.</p>
+            <p className="dash-state">Nenhuma solução. Crie a primeira em “Nova solução”.</p>
           )}
         </div>
       )}
@@ -204,7 +204,7 @@ function ProductForm({
       else await createProduct(payload);
       onSaved();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao salvar o produto");
+      alert(err instanceof Error ? err.message : "Falha ao salvar a solução");
     } finally {
       setSaving(false);
     }
@@ -214,7 +214,7 @@ function ProductForm({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
-          <h2>{initial ? `Editar — ${initial.name}` : "Novo produto"}</h2>
+          <h2>{initial ? `Editar — ${initial.name}` : "Nova solução"}</h2>
           <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
         </header>
 
@@ -222,7 +222,7 @@ function ProductForm({
           <fieldset className="prod-fs">
             <legend>Dados gerais</legend>
             <div className="prod-form__grid">
-              <Field label="Nome do produto" full>
+              <Field label="Nome da solução" full>
                 <input value={form.name} onChange={(e) => set("name", e.target.value)} required />
               </Field>
               <Field label="Descrição" full>
@@ -365,7 +365,7 @@ function ProductForm({
               Cancelar
             </button>
             <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !form.name.trim()}>
-              {saving ? "Salvando…" : initial ? "Salvar alterações" : "Criar produto"}
+              {saving ? "Salvando…" : initial ? "Salvar alterações" : "Criar solução"}
             </button>
           </div>
         </form>

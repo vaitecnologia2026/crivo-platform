@@ -41,7 +41,7 @@ export function ExtrasSection() {
     <div>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Extras CRIVO</h1>
+          <h1 className="page-title">Recursos da Entrega</h1>
           <p className="page-sub">
             Mentorias, biblioteca de ações modelo, textos editáveis e Academia CRIVO global.
           </p>

@@ -127,7 +127,7 @@ export function CrmSection() {
   }
   async function onResetData() {
     const typed = window.prompt(
-      "Isto APAGA todos os clientes, leads e diagnósticos (mantém login, produtos e RBAC). " +
+      "Isto APAGA todos os clientes, leads e diagnósticos (mantém login, soluções e RBAC). " +
         "É irreversível.\n\nDigite ZERAR para confirmar:",
     );
     if (typed !== "ZERAR") return;
@@ -423,7 +423,7 @@ function ConvertModal({
                 <p className="convert-warn">Este lead não tem e-mail — necessário para criar o acesso do admin.</p>
               )}
               <label className="prod-field prod-field--full" style={{ marginTop: 10 }}>
-                <span>Produto contratado</span>
+                <span>Solução contratada</span>
                 <select value={productId} onChange={(e) => setProductId(e.target.value)} disabled={!products}>
                   <option value="">{products ? "Selecione…" : "Carregando…"}</option>
                   {(products ?? []).map((p) => (

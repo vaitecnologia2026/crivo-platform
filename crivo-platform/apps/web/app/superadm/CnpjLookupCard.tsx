@@ -272,7 +272,7 @@ export function CnpjLookupCard() {
                       onChange={(e) => setProductId(e.target.value)}
                       style={{ ...inputStyle, flex: 1, minWidth: 200 }}
                     >
-                      <option value="">Selecione o produto…</option>
+                      <option value="">Selecione a solução…</option>
                       {(products ?? []).map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
