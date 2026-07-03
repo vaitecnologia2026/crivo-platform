@@ -196,6 +196,7 @@ const ACTION_LABEL: Record<string, string> = {
   "tenant.activate": "Empresa reativada",
   "tenant.delete": "Empresa excluída",
   "tenant.plan.change": "Plano alterado",
+  "tenant.profile.update": "Dados da empresa (CNPJ) atualizados",
   "tenant.module.enable": "Módulo ativado",
   "tenant.module.disable": "Módulo desativado",
   "tenant.branding.update": "Marca atualizada",

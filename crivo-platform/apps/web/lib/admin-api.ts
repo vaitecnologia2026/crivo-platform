@@ -150,6 +150,17 @@ export function deleteTenant(id: string): Promise<TenantSummary> {
   return adminFetch<TenantSummary>(`/admin/tenants/${id}`, { method: "DELETE" });
 }
 
+/** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */
+export function setTenantProfile(
+  id: string,
+  input: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null },
+): Promise<TenantSummary> {
+  return adminFetch<TenantSummary>(`/admin/tenants/${id}/profile`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
 // ── Grupos Empresariais (F1 · Caderno Tela 06) ──
 
 export function listGroups(): Promise<BusinessGroupSummary[]> {

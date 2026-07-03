@@ -140,6 +140,33 @@ export class TenantsService {
     return toTenantSummary(updated);
   }
 
+  /** Cadastro do CNPJ (Caderno Tela 06 · Incluir): CNPJ, matriz/filial, responsável interno. */
+  async setProfile(
+    id: string,
+    input: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null },
+    actor?: AuditActor,
+  ): Promise<TenantSummary> {
+    const existing = await this.prisma.admin.tenant.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Empresa não encontrada');
+    const data: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null } = {};
+    if (input.cnpj !== undefined) data.cnpj = input.cnpj?.replace(/\D/g, '') || null;
+    if (input.headquarterType !== undefined) {
+      const v = input.headquarterType?.toUpperCase() || null;
+      data.headquarterType = v === 'MATRIZ' || v === 'FILIAL' ? v : null;
+    }
+    if (input.internalResponsible !== undefined) {
+      data.internalResponsible = input.internalResponsible?.trim() || null;
+    }
+    const updated = await this.prisma.admin.tenant.update({ where: { id }, data });
+    await this.audit.record({
+      action: 'tenant.profile.update',
+      actor,
+      target: updated.slug,
+      tenantId: existing.organizationId,
+    });
+    return toTenantSummary(updated);
+  }
+
   /** Uso corrente da empresa (período atual) vs. limites do plano. */
   async usage(id: string): Promise<UsageSummary> {
     const tenant = await this.prisma.admin.tenant.findUnique({ where: { id } });

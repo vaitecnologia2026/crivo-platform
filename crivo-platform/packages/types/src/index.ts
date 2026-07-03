@@ -311,6 +311,10 @@ export interface TenantSummary {
   groupId: string | null;
   /** Nome do grupo — presente quando a listagem o resolve; ausente em respostas pontuais. */
   groupName?: string | null;
+  /** Cadastro do CNPJ (Caderno Tela 06 · Incluir). */
+  cnpj: string | null;
+  headquarterType: string | null; // MATRIZ | FILIAL
+  internalResponsible: string | null;
   createdAt: string;
 }
 

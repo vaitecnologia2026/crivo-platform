@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsEnum,
   IsHexColor,
+  IsIn,
   IsOptional,
   IsString,
   IsUrl,
@@ -81,6 +82,18 @@ export class SetModuleDto {
 export class SetPlanDto {
   @IsEnum(Plan)
   plan!: Plan;
+}
+
+export class SetTenantProfileDto {
+  // Cadastro do CNPJ (Tela 06). Todos opcionais; null/'' limpa.
+  @IsOptional() @IsString() @MaxLength(20)
+  cnpj?: string | null;
+
+  @IsOptional() @IsIn(['MATRIZ', 'FILIAL'])
+  headquarterType?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  internalResponsible?: string | null;
 }
 
 export class AddDomainDto {

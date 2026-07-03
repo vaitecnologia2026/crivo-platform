@@ -491,6 +491,15 @@ export class PlatformLeadsService {
       actor,
     });
 
+    // Carimba o CNPJ da empresa recém-criada (Tela 06 · cadastro do CNPJ). Best-effort.
+    if (lead.cnpj) {
+      try {
+        await this.prisma.admin.tenant.update({ where: { id: result.tenant.id }, data: { cnpj: lead.cnpj } });
+      } catch {
+        /* não bloqueia a conversão */
+      }
+    }
+
     await this.prisma.admin.platformLead.update({
       where: { id: leadId },
       data: { stage: 'FECHADO', convertedTenantId: result.tenant.id, productId: product.id },

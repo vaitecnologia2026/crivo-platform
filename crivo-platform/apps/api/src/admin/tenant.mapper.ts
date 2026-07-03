@@ -13,6 +13,9 @@ export function toTenantSummary(t: Tenant, groupName?: string | null): TenantSum
     plan: t.plan as Plan,
     status: t.status as TenantStatus,
     groupId: t.groupId ?? null,
+    cnpj: t.cnpj ?? null,
+    headquarterType: t.headquarterType ?? null,
+    internalResponsible: t.internalResponsible ?? null,
     createdAt: t.createdAt.toISOString(),
   };
   if (groupName !== undefined) summary.groupName = groupName;

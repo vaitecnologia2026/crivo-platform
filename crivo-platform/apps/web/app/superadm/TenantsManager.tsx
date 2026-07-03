@@ -12,7 +12,14 @@ import {
   type TenantStatus,
   type TenantSummary,
 } from "@crivo/types";
-import { createGroup, deleteGroup, listGroups, setTenantGroup } from "@/lib/admin-api";
+import { createGroup, deleteGroup, listGroups, setTenantGroup, setTenantProfile } from "@/lib/admin-api";
+
+/** CNPJ (14 dígitos) → 00.000.000/0000-00; devolve cru se não tiver 14 dígitos. */
+function formatCnpj(cnpj: string): string {
+  const d = cnpj.replace(/\D/g, "");
+  if (d.length !== 14) return cnpj;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
 import { GroupOverviewModal } from "./GroupOverviewModal";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
@@ -97,6 +104,7 @@ export function TenantsManager({
   const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
   const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
   const [onboardingOf, setOnboardingOf] = useState<TenantSummary | null>(null);
+  const [profileOf, setProfileOf] = useState<TenantSummary | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -289,6 +297,13 @@ export function TenantsManager({
                       >
                         {t.name}
                       </button>
+                      {(t.cnpj || t.headquarterType || t.internalResponsible) && (
+                        <div className="cell-mute" style={{ fontSize: 11, marginTop: 2 }}>
+                          {t.cnpj && <span>{formatCnpj(t.cnpj)}</span>}
+                          {t.headquarterType && <span>{t.cnpj ? " · " : ""}{t.headquarterType === "MATRIZ" ? "Matriz" : "Filial"}</span>}
+                          {t.internalResponsible && <span> · resp. {t.internalResponsible}</span>}
+                        </div>
+                      )}
                     </td>
                     <td className="cell-mute">{t.slug}</td>
                     <td>
@@ -345,6 +360,9 @@ export function TenantsManager({
                         {t.status !== "DELETED" && (
                           <ActionLink onClick={() => setUsersOf(t)}>Usuários</ActionLink>
                         )}
+                        {t.status !== "DELETED" && (
+                          <ActionLink onClick={() => setProfileOf(t)}>Dados</ActionLink>
+                        )}
                         {t.status === "ACTIVE" ? (
                           <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
                             Bloquear
@@ -392,6 +410,14 @@ export function TenantsManager({
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
 
       {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
+
+      {profileOf && (
+        <TenantProfileModal
+          tenant={profileOf}
+          onClose={() => setProfileOf(null)}
+          onSaved={(t) => { applyTenant(t); setProfileOf(null); }}
+        />
+      )}
 
       {usersOf && <TenantUsersModal tenant={usersOf} onClose={() => setUsersOf(null)} />}
       {onboardingOf && <OnboardingModal tenant={onboardingOf} onClose={() => setOnboardingOf(null)} />}
@@ -563,5 +589,73 @@ function Input({
         className="w-full rounded-[3px] border border-line bg-white px-3 py-2.5 text-[14px] text-text outline-none transition-colors focus:border-terra"
       />
     </label>
+  );
+}
+
+/** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial e responsável interno da empresa. */
+function TenantProfileModal({
+  tenant,
+  onClose,
+  onSaved,
+}: {
+  tenant: TenantSummary;
+  onClose: () => void;
+  onSaved: (t: TenantSummary) => void;
+}) {
+  const [cnpj, setCnpj] = useState(tenant.cnpj ?? "");
+  const [hq, setHq] = useState(tenant.headquarterType ?? "");
+  const [resp, setResp] = useState(tenant.internalResponsible ?? "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save() {
+    setSaving(true);
+    setErr(null);
+    try {
+      const updated = await setTenantProfile(tenant.id, {
+        cnpj: cnpj.trim() || null,
+        headquarterType: hq || null,
+        internalResponsible: resp.trim() || null,
+      });
+      onSaved(updated);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <h2>Dados da empresa — {tenant.name}</h2>
+          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+        </header>
+        <div className="modal__body" style={{ display: "grid", gap: 14 }}>
+          <Input label="CNPJ" value={cnpj} onChange={setCnpj} placeholder="00.000.000/0000-00" />
+          <label className="block">
+            <span className="mb-1.5 block text-[11px] uppercase tracking-[0.1em] text-text-sec">Matriz / Filial</span>
+            <select
+              value={hq}
+              onChange={(e) => setHq(e.target.value)}
+              className="w-full rounded-[3px] border border-line bg-white px-3 py-2.5 text-[14px] text-text outline-none focus:border-terra"
+            >
+              <option value="">— não informado —</option>
+              <option value="MATRIZ">Matriz</option>
+              <option value="FILIAL">Filial</option>
+            </select>
+          </label>
+          <Input label="Responsável interno" value={resp} onChange={setResp} placeholder="Quem responde pela conta" />
+          {err && <p className="dash-state dash-state--error" style={{ margin: 0 }}>{err}</p>}
+        </div>
+        <div className="modal__foot">
+          <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
+          <button type="button" className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
+            {saving ? "Salvando…" : "Salvar dados"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -360,6 +360,10 @@ model Tenant {
   status         TenantStatus @default(ACTIVE)
   productId      String?      @db.Uuid // → products.id: produto que originou a empresa (FASE 3)
   groupId        String?      @db.Uuid // → business_groups.id: Grupo Empresarial (Caderno Tela 06; F1)
+  // Cadastro do CNPJ (Caderno Tela 06 · Incluir).
+  cnpj                String? // CNPJ da empresa (só dígitos)
+  headquarterType     String? // MATRIZ | FILIAL
+  internalResponsible String? // responsável interno pela conta
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

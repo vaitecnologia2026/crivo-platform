@@ -20,7 +20,7 @@ import { DomainsService } from './domains.service';
 import { ContractsService } from './contracts.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
-import { AddDomainDto, CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBrandingDto } from './dto';
+import { AddDomainDto, CreateTenantDto, SetModuleDto, SetPlanDto, SetTenantProfileDto, UpdateBrandingDto } from './dto';
 import { UpsertContractDto } from './commerce.dto';
 import type { PlatformAdmin } from '@crivo/types';
 
@@ -115,6 +115,16 @@ export class TenantsController {
     @Body() dto: SetPlanDto,
   ) {
     return this.tenants.setPlan(id, dto.plan, { id: admin.id, email: admin.email });
+  }
+
+  /** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */
+  @Patch(':id/profile')
+  setProfile(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetTenantProfileDto,
+  ) {
+    return this.tenants.setProfile(id, dto, { id: admin.id, email: admin.email });
   }
 
   /** Uso corrente da empresa vs. limites do plano. */
