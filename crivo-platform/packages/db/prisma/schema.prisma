@@ -587,6 +587,14 @@ model Product {
   // SEM app, SEM IA. Usado pelo funil comercial da CRIVO.
   isLeadCapture Boolean @default(false)
 
+  // Enquadramento comercial da solução (Caderno Tela 03 — Incluir).
+  appearsOnLp        Boolean  @default(false) // aparece na LP / vitrine comercial
+  sellableStandalone Boolean  @default(true) // pode ser vendida isolada
+  canBeAddon         Boolean  @default(false) // pode ser adicional de outra solução
+  allowsAi           Boolean  @default(false) // permite IA padrão
+  allowsCustomAi     Boolean  @default(false) // permite IA personalizada
+  allowedAddons      String[] @default([]) // adicionais permitidos (moduleCode)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

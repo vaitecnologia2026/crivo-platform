@@ -837,7 +837,15 @@ export interface ProductSummary {
   maxLeaders: number;
   companyType: string | null;
   modules: string[];
+  coreModules: string[]; // módulos incluídos por padrão (CORE)
   isLeadCapture: boolean;
+  // Enquadramento comercial (Tela 03 — Incluir).
+  appearsOnLp: boolean;
+  sellableStandalone: boolean;
+  canBeAddon: boolean;
+  allowsAi: boolean;
+  allowsCustomAi: boolean;
+  allowedAddons: string[]; // adicionais permitidos (moduleCode)
   method: DiagnosticMethod | null; // Tipo de diagnóstico: Inicial / Essencial / Organizacional
   supportedOutputs: TechnicalOutput[]; // Saídas técnicas suportadas: Subsídio AEP / AEP+GRO-PGR / Sem integração
   questionCount: number;
@@ -862,9 +870,16 @@ export interface UpsertProductRequest {
   maxLeaders?: number;
   companyType?: string | null;
   modules?: string[];
+  coreModules?: string[];
   diagnostic?: ProductDiagnostic | null;
   aiConfig?: ProductAiConfig | null;
   isLeadCapture?: boolean;
+  appearsOnLp?: boolean;
+  sellableStandalone?: boolean;
+  canBeAddon?: boolean;
+  allowsAi?: boolean;
+  allowsCustomAi?: boolean;
+  allowedAddons?: string[];
   method?: DiagnosticMethod | null;
   supportedOutputs?: TechnicalOutput[];
 }

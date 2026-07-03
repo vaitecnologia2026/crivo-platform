@@ -124,10 +124,15 @@ export function ProductsSection() {
               </div>
               <div className="prod-meta">
                 {p.isLeadCapture && <span className="prod-pill prod-pill--lp">Pré-Diagnóstico LP</span>}
-                {p.method && <span className="prod-pill">{DIAGNOSTIC_METHOD_LABEL[p.method]}</span>}
+                {p.appearsOnLp && <span className="prod-pill prod-pill--lp">Na LP</span>}
+                {p.sellableStandalone && <span className="prod-pill">Vende isolada</span>}
+                {p.canBeAddon && <span className="prod-pill">Adicional</span>}
+                {(p.allowsAi || p.allowsCustomAi) && (
+                  <span className="prod-pill">IA{p.allowsCustomAi ? " personalizada" : ""}</span>
+                )}
                 {p.plan && <span className="prod-pill">Plano {p.plan}</span>}
                 <span className="prod-pill">{p.modules.length} módulos</span>
-                <span className="prod-pill">{p.questionCount} perguntas</span>
+                {p.coreModules.length > 0 && <span className="prod-pill">{p.coreModules.length} CORE</span>}
                 <span className="prod-pill">
                   {p.maxUsers === 0 ? "Usuários ∞" : `${p.maxUsers} usuários`}
                 </span>
@@ -175,9 +180,16 @@ function ProductForm({
     maxLeaders: initial?.maxLeaders ?? 0,
     companyType: initial?.companyType ?? "",
     modules: initial?.modules ?? [],
+    coreModules: initial?.coreModules ?? [],
     diagnostic: initial?.diagnostic ?? defaultDiagnostic(),
     aiConfig: initial?.aiConfig ?? {},
     isLeadCapture: initial?.isLeadCapture ?? false,
+    appearsOnLp: initial?.appearsOnLp ?? false,
+    sellableStandalone: initial?.sellableStandalone ?? true,
+    canBeAddon: initial?.canBeAddon ?? false,
+    allowsAi: initial?.allowsAi ?? false,
+    allowsCustomAi: initial?.allowsCustomAi ?? false,
+    allowedAddons: initial?.allowedAddons ?? [],
     method: initial?.method ?? null,
     supportedOutputs: initial?.supportedOutputs ?? [],
   }));
@@ -193,6 +205,11 @@ function ProductForm({
   function toggleModule(code: string) {
     const cur = form.modules ?? [];
     set("modules", cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]);
+  }
+
+  function toggleArr(key: "coreModules" | "allowedAddons", code: string) {
+    const cur = (form[key] as string[] | undefined) ?? [];
+    set(key, cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -273,38 +290,6 @@ function ProductForm({
               <Field label="Tipo de empresa atendida" full>
                 <input value={form.companyType ?? ""} onChange={(e) => set("companyType", e.target.value)} />
               </Field>
-              <Field label="Tipo de diagnóstico (Método)">
-                <select
-                  value={form.method ?? ""}
-                  onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}
-                >
-                  <option value="">— não definido —</option>
-                  {DIAGNOSTIC_METHODS.map((m) => (
-                    <option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Saída técnica (documento gerado)" full>
-                <div className="prod-outputs">
-                  {TECHNICAL_OUTPUTS.map((o) => (
-                    <label key={o} className="prod-check">
-                      <input
-                        type="checkbox"
-                        checked={(form.supportedOutputs ?? []).includes(o)}
-                        onChange={(e) =>
-                          set(
-                            "supportedOutputs",
-                            e.target.checked
-                              ? [...(form.supportedOutputs ?? []), o]
-                              : (form.supportedOutputs ?? []).filter((x) => x !== o),
-                          )
-                        }
-                      />
-                      {TECHNICAL_OUTPUT_LABEL[o]}
-                    </label>
-                  ))}
-                </div>
-              </Field>
               <Field label="" full>
                 <label className="prod-check">
                   <input
@@ -315,6 +300,64 @@ function ProductForm({
                   Produto de captura (pré-diagnóstico) — sem portal, app ou IA
                 </label>
               </Field>
+            </div>
+          </fieldset>
+
+          <fieldset className="prod-fs">
+            <legend>Enquadramento comercial</legend>
+            <div className="prod-modules">
+              <label className="prod-check">
+                <input type="checkbox" checked={form.appearsOnLp ?? false} onChange={(e) => set("appearsOnLp", e.target.checked)} />
+                Aparece na LP / vitrine
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.sellableStandalone ?? true} onChange={(e) => set("sellableStandalone", e.target.checked)} />
+                Pode ser vendida isolada
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.canBeAddon ?? false} onChange={(e) => set("canBeAddon", e.target.checked)} />
+                Pode ser um adicional
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.allowsAi ?? false} onChange={(e) => set("allowsAi", e.target.checked)} />
+                Permite IA padrão
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.allowsCustomAi ?? false} onChange={(e) => set("allowsCustomAi", e.target.checked)} />
+                Permite IA personalizada
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="prod-fs">
+            <legend>Componentes incluídos por padrão (CORE)</legend>
+            <div className="prod-modules">
+              {MODULES.map((m) => (
+                <label key={m.code} className="prod-check">
+                  <input
+                    type="checkbox"
+                    checked={(form.coreModules ?? []).includes(m.code)}
+                    onChange={() => toggleArr("coreModules", m.code)}
+                  />
+                  {m.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="prod-fs">
+            <legend>Adicionais permitidos</legend>
+            <div className="prod-modules">
+              {MODULES.map((m) => (
+                <label key={m.code} className="prod-check">
+                  <input
+                    type="checkbox"
+                    checked={(form.allowedAddons ?? []).includes(m.code)}
+                    onChange={() => toggleArr("allowedAddons", m.code)}
+                  />
+                  {m.name}
+                </label>
+              ))}
             </div>
           </fieldset>
 
@@ -334,31 +377,80 @@ function ProductForm({
             </div>
           </fieldset>
 
-          <fieldset className="prod-fs">
-            <legend>Diagnóstico — perguntas editáveis</legend>
-            <DiagnosticEditor value={diag} onChange={setDiag} />
-          </fieldset>
+          {/* Configuração TÉCNICA — separada do comercial (Caderno Tela 03: diagnóstico,
+              saída técnica, método e prompt de IA "saem desta tela"). Fica recolhida;
+              a edição definitiva migra para Metodologia. */}
+          <details className="prod-fs" style={{ padding: 0, border: "1px dashed var(--line, #E3DDD3)", borderRadius: 10 }}>
+            <summary style={{ cursor: "pointer", padding: "10px 14px", fontWeight: 600, fontSize: 13 }}>
+              ⚙ Configuração técnica (avançado) — método, saída técnica, diagnóstico e IA
+            </summary>
+            <div style={{ padding: "0 14px 14px" }}>
+              <p className="prod-note" style={{ marginTop: 4 }}>
+                Estes itens são técnicos (não comerciais) e serão gerenciados em <strong>Metodologia</strong>.
+                Mantidos aqui só para não perder configurações existentes.
+              </p>
+              <div className="prod-form__grid">
+                <Field label="Tipo de diagnóstico (Método)">
+                  <select
+                    value={form.method ?? ""}
+                    onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}
+                  >
+                    <option value="">— não definido —</option>
+                    {DIAGNOSTIC_METHODS.map((m) => (
+                      <option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Saída técnica (documento gerado)" full>
+                  <div className="prod-outputs">
+                    {TECHNICAL_OUTPUTS.map((o) => (
+                      <label key={o} className="prod-check">
+                        <input
+                          type="checkbox"
+                          checked={(form.supportedOutputs ?? []).includes(o)}
+                          onChange={(e) =>
+                            set(
+                              "supportedOutputs",
+                              e.target.checked
+                                ? [...(form.supportedOutputs ?? []), o]
+                                : (form.supportedOutputs ?? []).filter((x) => x !== o),
+                            )
+                          }
+                        />
+                        {TECHNICAL_OUTPUT_LABEL[o]}
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              </div>
 
-          <fieldset className="prod-fs">
-            <legend>IA dos líderes</legend>
-            <div className="prod-form__grid">
-              <Field label="Objetivo da IA" full>
-                <input value={ai.objective ?? ""} onChange={(e) => setAi("objective", e.target.value)} />
-              </Field>
-              <Field label="Prompt da IA" full>
-                <textarea rows={3} value={ai.prompt ?? ""} onChange={(e) => setAi("prompt", e.target.value)} />
-              </Field>
-              <Field label="Base de conhecimento" full>
-                <textarea rows={2} value={ai.knowledgeBase ?? ""} onChange={(e) => setAi("knowledgeBase", e.target.value)} />
-              </Field>
-              <Field label="Regras da IA" full>
-                <textarea rows={2} value={ai.rules ?? ""} onChange={(e) => setAi("rules", e.target.value)} />
-              </Field>
-              <Field label="Limitações" full>
-                <textarea rows={2} value={ai.limitations ?? ""} onChange={(e) => setAi("limitations", e.target.value)} />
-              </Field>
+              <fieldset className="prod-fs">
+                <legend>Diagnóstico — perguntas editáveis</legend>
+                <DiagnosticEditor value={diag} onChange={setDiag} />
+              </fieldset>
+
+              <fieldset className="prod-fs">
+                <legend>IA dos líderes</legend>
+                <div className="prod-form__grid">
+                  <Field label="Objetivo da IA" full>
+                    <input value={ai.objective ?? ""} onChange={(e) => setAi("objective", e.target.value)} />
+                  </Field>
+                  <Field label="Prompt da IA" full>
+                    <textarea rows={3} value={ai.prompt ?? ""} onChange={(e) => setAi("prompt", e.target.value)} />
+                  </Field>
+                  <Field label="Base de conhecimento" full>
+                    <textarea rows={2} value={ai.knowledgeBase ?? ""} onChange={(e) => setAi("knowledgeBase", e.target.value)} />
+                  </Field>
+                  <Field label="Regras da IA" full>
+                    <textarea rows={2} value={ai.rules ?? ""} onChange={(e) => setAi("rules", e.target.value)} />
+                  </Field>
+                  <Field label="Limitações" full>
+                    <textarea rows={2} value={ai.limitations ?? ""} onChange={(e) => setAi("limitations", e.target.value)} />
+                  </Field>
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
+          </details>
 
           <div className="modal__foot">
             <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>

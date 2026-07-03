@@ -61,6 +61,19 @@ export class UpsertProductDto {
   @IsOptional() @IsArray() @IsString({ each: true })
   modules?: string[];
 
+  @IsOptional() @IsArray() @IsString({ each: true })
+  coreModules?: string[];
+
+  // Enquadramento comercial da solução (Tela 03 — Incluir).
+  @IsOptional() @IsBoolean() appearsOnLp?: boolean;
+  @IsOptional() @IsBoolean() sellableStandalone?: boolean;
+  @IsOptional() @IsBoolean() canBeAddon?: boolean;
+  @IsOptional() @IsBoolean() allowsAi?: boolean;
+  @IsOptional() @IsBoolean() allowsCustomAi?: boolean;
+
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(50)
+  allowedAddons?: string[];
+
   // Instrumento de diagnóstico e config de IA: JSON livre (shape validado no service).
   @IsOptional() @IsObject()
   diagnostic?: Record<string, unknown> | null;

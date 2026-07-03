@@ -53,9 +53,16 @@ export class ProductsService {
         maxLeaders: dto.maxLeaders ?? 0,
         companyType: dto.companyType ?? null,
         modules: (dto.modules ?? []) as object,
+        coreModules: (dto.coreModules ?? []) as object,
         diagnostic: (dto.diagnostic ?? undefined) as object | undefined,
         aiConfig: (dto.aiConfig ?? undefined) as object | undefined,
         isLeadCapture: dto.isLeadCapture ?? false,
+        appearsOnLp: dto.appearsOnLp ?? false,
+        sellableStandalone: dto.sellableStandalone ?? true,
+        canBeAddon: dto.canBeAddon ?? false,
+        allowsAi: dto.allowsAi ?? false,
+        allowsCustomAi: dto.allowsCustomAi ?? false,
+        allowedAddons: dto.allowedAddons ?? [],
         method: dto.method ?? null,
         supportedOutputs: (dto.supportedOutputs ?? []) as object,
       },
@@ -81,9 +88,16 @@ export class ProductsService {
         maxLeaders: dto.maxLeaders ?? existing.maxLeaders,
         companyType: dto.companyType ?? existing.companyType,
         modules: (dto.modules ?? (existing.modules as string[])) as object,
+        coreModules: (dto.coreModules ?? (existing.coreModules as string[])) as object,
         diagnostic: (dto.diagnostic ?? (existing.diagnostic ?? undefined)) as object | undefined,
         aiConfig: (dto.aiConfig ?? (existing.aiConfig ?? undefined)) as object | undefined,
         isLeadCapture: dto.isLeadCapture ?? existing.isLeadCapture,
+        appearsOnLp: dto.appearsOnLp ?? existing.appearsOnLp,
+        sellableStandalone: dto.sellableStandalone ?? existing.sellableStandalone,
+        canBeAddon: dto.canBeAddon ?? existing.canBeAddon,
+        allowsAi: dto.allowsAi ?? existing.allowsAi,
+        allowsCustomAi: dto.allowsCustomAi ?? existing.allowsCustomAi,
+        allowedAddons: dto.allowedAddons ?? existing.allowedAddons,
         method: dto.method === undefined ? existing.method : dto.method,
         supportedOutputs: (dto.supportedOutputs ?? (existing.supportedOutputs as object)) as object,
       },
@@ -113,14 +127,22 @@ export class ProductsService {
     maxLeaders: number;
     companyType: string | null;
     modules: unknown;
+    coreModules: unknown;
     diagnostic: unknown;
     isLeadCapture: boolean;
+    appearsOnLp: boolean;
+    sellableStandalone: boolean;
+    canBeAddon: boolean;
+    allowsAi: boolean;
+    allowsCustomAi: boolean;
+    allowedAddons: string[];
     method: string | null;
     supportedOutputs: unknown;
     createdAt: Date;
     updatedAt: Date;
   }): ProductSummary {
     const modules = Array.isArray(p.modules) ? (p.modules as string[]) : [];
+    const coreModules = Array.isArray(p.coreModules) ? (p.coreModules as string[]) : [];
     const diag = (p.diagnostic as ProductDiagnostic | null) ?? null;
     return {
       id: p.id,
@@ -135,7 +157,14 @@ export class ProductsService {
       maxLeaders: p.maxLeaders,
       companyType: p.companyType,
       modules,
+      coreModules,
       isLeadCapture: p.isLeadCapture,
+      appearsOnLp: p.appearsOnLp,
+      sellableStandalone: p.sellableStandalone,
+      canBeAddon: p.canBeAddon,
+      allowsAi: p.allowsAi,
+      allowsCustomAi: p.allowsCustomAi,
+      allowedAddons: p.allowedAddons ?? [],
       method: (p.method as ProductSummary['method']) ?? null,
       supportedOutputs: Array.isArray(p.supportedOutputs) ? (p.supportedOutputs as ProductSummary['supportedOutputs']) : [],
       questionCount: diag?.questions?.length ?? 0,
