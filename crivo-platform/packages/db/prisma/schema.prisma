@@ -621,6 +621,8 @@ model PlatformLead {
 
   stage             PlatformLeadStage @default(NOVO)
   notes             String?
+  lostReason        String? // motivo de perda estruturado (só quando stage=PERDIDO)
+  firstContactedAt  DateTime? // 1º contato registrado — mede o tempo de resposta
   convertedTenantId String?           @db.Uuid // tenant criado na conversão (FASE 3)
 
   createdAt DateTime @default(now())

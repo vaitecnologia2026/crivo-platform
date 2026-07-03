@@ -323,11 +323,38 @@ export class PlatformLeadsService {
     return { lead: this.toSummary(lead) };
   }
 
-  async setStage(id: string, stage: PlatformLeadStage, actor: Actor): Promise<PlatformLeadSummary> {
+  async setStage(
+    id: string,
+    stage: PlatformLeadStage,
+    actor: Actor,
+    lostReason?: string | null,
+  ): Promise<PlatformLeadSummary> {
     const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Lead não encontrado');
-    const updated = await this.prisma.admin.platformLead.update({ where: { id }, data: { stage } });
-    await this.audit.record({ action: 'lead.stage', actor, target: id, meta: { stage } });
+    // O motivo de perda só faz sentido em PERDIDO; ao sair de PERDIDO, limpa.
+    const lost = stage === 'PERDIDO' ? (lostReason?.trim() || null) : null;
+    const updated = await this.prisma.admin.platformLead.update({
+      where: { id },
+      data: { stage, lostReason: lost },
+    });
+    await this.audit.record({ action: 'lead.stage', actor, target: id, meta: { stage, lostReason: lost } });
+    return this.toSummary(updated);
+  }
+
+  /** Registra o 1º contato com o lead (idempotente — não sobrescreve). Mede o
+   *  tempo de resposta comercial (lead → 1º contato) no dashboard. */
+  async markFirstContact(id: string, actor: Actor): Promise<PlatformLeadSummary> {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const updated = existing.firstContactedAt
+      ? existing
+      : await this.prisma.admin.platformLead.update({
+          where: { id },
+          data: { firstContactedAt: new Date() },
+        });
+    if (!existing.firstContactedAt) {
+      await this.audit.record({ action: 'lead.first_contact', actor, target: id });
+    }
     return this.toSummary(updated);
   }
 
@@ -475,6 +502,8 @@ export class PlatformLeadsService {
     diagnosticResult: unknown;
     stage: string;
     notes: string | null;
+    lostReason: string | null;
+    firstContactedAt: Date | null;
     convertedTenantId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -497,6 +526,8 @@ export class PlatformLeadsService {
       diagnosticResult: (l.diagnosticResult as PreDiagnosticResult | null) ?? null,
       stage: l.stage as PlatformLeadStage,
       notes: l.notes,
+      lostReason: l.lostReason,
+      firstContactedAt: l.firstContactedAt?.toISOString() ?? null,
       convertedTenantId: l.convertedTenantId,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),

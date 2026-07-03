@@ -211,6 +211,7 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.intake": "Lead capturado (LP)",
   "lead.stage": "Lead movido no funil",
   "lead.notes": "Nota do lead",
+  "lead.first_contact": "1º contato registrado",
   "lead.convert": "Lead convertido em cliente",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",

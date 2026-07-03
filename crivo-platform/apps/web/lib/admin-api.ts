@@ -325,11 +325,20 @@ export function listLeads(): Promise<PlatformLeadSummary[]> {
   return adminFetch<PlatformLeadSummary[]>("/admin/leads");
 }
 
-export function setLeadStage(id: string, stage: PlatformLeadStage): Promise<PlatformLeadSummary> {
+export function setLeadStage(
+  id: string,
+  stage: PlatformLeadStage,
+  lostReason?: string,
+): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/stage`, {
     method: "PATCH",
-    body: JSON.stringify({ stage }),
+    body: JSON.stringify(lostReason !== undefined ? { stage, lostReason } : { stage }),
   });
+}
+
+/** Registra o 1º contato com o lead (mede o tempo de resposta comercial). */
+export function markFirstContact(id: string): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/first-contact`, { method: "PATCH" });
 }
 
 export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSummary> {

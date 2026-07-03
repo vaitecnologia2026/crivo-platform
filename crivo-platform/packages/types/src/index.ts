@@ -346,6 +346,9 @@ export interface DashboardData {
     funnel: { key: string; label: string; count: number }[];
     porOrigem: { origem: string; count: number }[];
     porSolucao: { produto: string; count: number; receitaMensalCents: number }[];
+    motivosPerda: { motivo: string; count: number }[]; // leads PERDIDO por motivo
+    tempoRespostaMedioMin: number | null; // lead → 1º contato (min); null = sem dado
+    leadsSemPrimeiroContato: number; // leads do período ainda sem 1º contato
   };
   contratos: {
     ativos: number;
@@ -366,6 +369,7 @@ export interface DashboardData {
     mentoriasAgendadas: number;
     mentoriasAtrasadas: number;
     clientesSemResponsavel: number;
+    clientesSemAvanco: number; // clientes ativos sem nenhum diagnóstico iniciado
   };
   executivo: {
     clientesAtivos: number;
@@ -941,10 +945,31 @@ export interface PlatformLeadSummary {
   diagnosticResult: PreDiagnosticResult | null;
   stage: PlatformLeadStage;
   notes: string | null;
+  lostReason: string | null; // motivo de perda (só quando stage === 'PERDIDO')
+  firstContactedAt: string | null; // ISO — 1º contato registrado (tempo de resposta)
   convertedTenantId: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Motivos de perda estruturados (Caderno) — usados no CRM e no dashboard. */
+export const PLATFORM_LEAD_LOST_REASONS = [
+  { value: 'PRECO', label: 'Preço' },
+  { value: 'SEM_RETORNO', label: 'Sem retorno' },
+  { value: 'SEM_ORCAMENTO', label: 'Sem orçamento' },
+  { value: 'CONCORRENCIA', label: 'Concorrência' },
+  { value: 'SEM_INTERESSE', label: 'Sem interesse' },
+  { value: 'OUTRO', label: 'Outro' },
+] as const;
+export type PlatformLeadLostReason = (typeof PLATFORM_LEAD_LOST_REASONS)[number]['value'];
+export const PLATFORM_LEAD_LOST_REASON_LABEL: Record<PlatformLeadLostReason, string> = {
+  PRECO: 'Preço',
+  SEM_RETORNO: 'Sem retorno',
+  SEM_ORCAMENTO: 'Sem orçamento',
+  CONCORRENCIA: 'Concorrência',
+  SEM_INTERESSE: 'Sem interesse',
+  OUTRO: 'Outro',
+};
 
 /** Payload público do Diagnóstico Inicial da LP (form + respostas). */
 export interface CreateDiagnosticLeadRequest {

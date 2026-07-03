@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { DashboardData } from '@crivo/types';
+import { PLATFORM_LEAD_LOST_REASON_LABEL, type DashboardData, type PlatformLeadLostReason } from '@crivo/types';
 
 /** Filtros globais do dashboard (Caderno Tela 01 · [6]). Período sempre; os
  *  demais são opcionais e compõem o recorte. `groupId`/`tenantId` recortam a
@@ -20,9 +20,7 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   private static readonly NAO_MODELADO = [
-    'Tempo médio de resposta (sem timestamp de primeiro contato)',
     'Valor negociado por lead / proposta',
-    'Motivo de perda (sem campo estruturado)',
     'Meta de faturamento',
     'Comissões (pendentes/pagas)',
     'Cobranças e inadimplência',
@@ -92,11 +90,21 @@ export class DashboardService {
       clientesAtivos,
       clientesBloqueados,
       novosClientes,
+      activeTenantOrgs,
+      assessmentOrgs,
     ] = await Promise.all([
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
       this.prisma.admin.platformLead.findMany({
         where: { createdAt: { gte: since }, ...originWhere },
-        select: { stage: true, origin: true, convertedTenantId: true, productId: true },
+        select: {
+          stage: true,
+          origin: true,
+          convertedTenantId: true,
+          productId: true,
+          lostReason: true,
+          firstContactedAt: true,
+          createdAt: true,
+        },
       }),
       this.prisma.admin.platformLead.count({
         where: { createdAt: { gte: prevSince, lt: since }, ...originWhere },
@@ -124,6 +132,11 @@ export class DashboardService {
       this.prisma.admin.tenant.count({ where: { ...tenantWhere, status: 'ACTIVE' } }),
       this.prisma.admin.tenant.count({ where: { ...tenantWhere, status: 'SUSPENDED' } }),
       this.prisma.admin.tenant.count({ where: { ...tenantWhere, createdAt: { gte: since } } }),
+      this.prisma.admin.tenant.findMany({
+        where: { ...tenantWhere, status: 'ACTIVE' },
+        select: { organizationId: true },
+      }),
+      this.prisma.admin.assessment.groupBy({ by: ['tenantId'], where: orgWhere, _count: { _all: true } }),
     ]);
 
     const priceOf = new Map(products.map((p) => [p.id, p]));
@@ -157,6 +170,34 @@ export class DashboardService {
       }
     }
     const ticketMedioCents = fechadas ? Math.round(faturamentoEstimadoCents / fechadas) : 0;
+
+    // Motivos de perda (leads PERDIDO no período, por motivo estruturado).
+    const motivoMap = new Map<string, number>();
+    for (const l of leadsPeriod) {
+      if (l.stage !== 'PERDIDO') continue;
+      const label = l.lostReason
+        ? (PLATFORM_LEAD_LOST_REASON_LABEL[l.lostReason as PlatformLeadLostReason] ?? l.lostReason)
+        : '(não informado)';
+      motivoMap.set(label, (motivoMap.get(label) ?? 0) + 1);
+    }
+    const motivosPerda = [...motivoMap.entries()]
+      .map(([motivo, count]) => ({ motivo, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Tempo de resposta: lead → 1º contato (só quem tem firstContactedAt).
+    const contatados = leadsPeriod.filter((l) => l.firstContactedAt);
+    const somaMin = contatados.reduce(
+      (s, l) => s + (l.firstContactedAt!.getTime() - l.createdAt.getTime()) / 60_000,
+      0,
+    );
+    const tempoRespostaMedioMin = contatados.length ? Math.round(somaMin / contatados.length) : null;
+    const leadsSemPrimeiroContato = leadsPeriod.filter(
+      (l) => !l.firstContactedAt && !l.convertedTenantId,
+    ).length;
+
+    // Clientes sem avanço: ativos (no recorte) sem nenhum diagnóstico iniciado.
+    const assessedOrgs = new Set(assessmentOrgs.map((a) => a.tenantId));
+    const clientesSemAvanco = activeTenantOrgs.filter((t) => !assessedOrgs.has(t.organizationId)).length;
 
     // ── Contratos (recortados por grupo/empresa) ──
     const scopedContracts = orgIds
@@ -245,6 +286,9 @@ export class DashboardService {
         funnel,
         porOrigem,
         porSolucao,
+        motivosPerda,
+        tempoRespostaMedioMin,
+        leadsSemPrimeiroContato,
       },
       contratos: {
         ativos: ativos.length,
@@ -265,6 +309,7 @@ export class DashboardService {
         mentoriasAgendadas: mentorias.length,
         mentoriasAtrasadas,
         clientesSemResponsavel: semResponsavel.length,
+        clientesSemAvanco,
       },
       executivo: {
         clientesAtivos,

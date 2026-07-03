@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  PLATFORM_LEAD_LOST_REASONS,
   PLATFORM_LEAD_STAGE_LABEL,
   type PlatformLeadStage,
   type PlatformLeadSummary,
   type ProductSummary,
   type ProvisionResult,
 } from "@crivo/types";
-import { convertLead, dedupLeads, listLeads, listProducts, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
+import { convertLead, dedupLeads, listLeads, listProducts, markFirstContact, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 import { LeadDataModal } from "./LeadDataModal";
 
@@ -83,6 +84,32 @@ export function CrmSection() {
       await setLeadStage(id, stage);
     } catch {
       // Reverte recarregando.
+      try { setLeads(await listLeads()); } catch { /* mantém estado atual */ }
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** Grava o motivo de perda (mantém o lead em PERDIDO). */
+  async function setLostReason(id: string, lostReason: string) {
+    setBusyId(id);
+    setLeads((prev) => prev?.map((l) => (l.id === id ? { ...l, lostReason } : l)) ?? prev);
+    try {
+      await setLeadStage(id, "PERDIDO", lostReason);
+    } catch {
+      try { setLeads(await listLeads()); } catch { /* mantém estado atual */ }
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** Registra o 1º contato (idempotente no backend). */
+  async function markContact(id: string) {
+    setBusyId(id);
+    try {
+      const updated = await markFirstContact(id);
+      setLeads((prev) => prev?.map((l) => (l.id === id ? updated : l)) ?? prev);
+    } catch {
       try { setLeads(await listLeads()); } catch { /* mantém estado atual */ }
     } finally {
       setBusyId(null);
@@ -240,6 +267,38 @@ export function CrmSection() {
                           <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
                         ))}
                       </select>
+                      {l.stage === "PERDIDO" && (
+                        <select
+                          value={l.lostReason ?? ""}
+                          disabled={busyId === l.id}
+                          onChange={(e) => setLostReason(l.id, e.target.value)}
+                          className="kb-stage-select"
+                          style={{ marginTop: 6 }}
+                          aria-label="Motivo da perda"
+                        >
+                          <option value="">Motivo da perda…</option>
+                          {PLATFORM_LEAD_LOST_REASONS.map((r) => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                      )}
+                      {!l.convertedTenantId && l.stage !== "PERDIDO" && (
+                        l.firstContactedAt ? (
+                          <span className="kb-meta" style={{ marginTop: 6, color: "#2E7D4F" }}>
+                            ✓ 1º contato {new Date(l.firstContactedAt).toLocaleDateString("pt-BR")}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="kb-report"
+                            style={{ marginTop: 6 }}
+                            disabled={busyId === l.id}
+                            onClick={() => markContact(l.id)}
+                          >
+                            ◷ Marcar 1º contato
+                          </button>
+                        )
+                      )}
                       {l.convertedTenantId ? (
                         <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
                       ) : l.stage === "ONBOARDING" ? (

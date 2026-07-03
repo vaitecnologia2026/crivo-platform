@@ -81,6 +81,10 @@ export class UpsertProductDto {
 export class SetLeadStageDto {
   @IsEnum(PlatformLeadStage)
   stage!: PlatformLeadStage;
+
+  // Motivo de perda — só aplicado quando stage === 'PERDIDO' (validado no service).
+  @IsOptional() @IsString() @MaxLength(60)
+  lostReason?: string;
 }
 
 export class SetLeadNotesDto {

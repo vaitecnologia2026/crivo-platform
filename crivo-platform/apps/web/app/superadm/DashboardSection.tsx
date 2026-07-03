@@ -32,6 +32,15 @@ const SHORTCUTS: { section: string; label: string }[] = [
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
+/** Minutos → duração legível (min / h / dias). null = sem dado. */
+function fmtDuration(min: number | null): string {
+  if (min == null) return "—";
+  if (min < 60) return `${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `${h} h`;
+  return `${Math.round(h / 24)} dias`;
+}
+
 const SEV_COLOR: Record<string, string> = { CRITICO: "#C0392B", ATENCAO: "#8A6D1F", OK: "#2E7D4F" };
 const SEV_BG: Record<string, string> = { CRITICO: "#F9E9E1", ATENCAO: "#FAF3DC", OK: "#EAF4EE" };
 const SEV_LABEL: Record<string, string> = { CRITICO: "🔴 Crítico", ATENCAO: "🟠 Atenção", OK: "🟢 Em dia" };
@@ -248,6 +257,30 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
             </div>
           </div>
 
+          <div className="grid grid--2" style={{ marginTop: 16 }}>
+            <div className="card">
+              <div className="card__head"><div><h3>Motivos de perda</h3><span className="card__sub">Leads marcados como perdidos (período)</span></div></div>
+              <Bars items={d.comercial.motivosPerda.map((m) => ({ label: m.motivo, value: m.count }))} color="#C0392B" />
+            </div>
+            <div className="card">
+              <div className="card__head"><div><h3>Tempo de resposta</h3><span className="card__sub">Do lead ao 1º contato registrado</span></div></div>
+              <div className="kpi-grid" style={{ marginTop: 4 }}>
+                <div className="kpi">
+                  <span className="kpi__label">Tempo médio de resposta</span>
+                  <strong className="kpi__value" style={{ fontSize: 26 }}>{fmtDuration(d.comercial.tempoRespostaMedioMin)}</strong>
+                  <span className="kpi__delta">lead → 1º contato</span>
+                </div>
+                <div className="kpi">
+                  <span className="kpi__label">Sem 1º contato</span>
+                  <strong className="kpi__value" style={{ color: d.comercial.leadsSemPrimeiroContato > 0 ? "#8A6D1F" : undefined }}>
+                    {d.comercial.leadsSemPrimeiroContato}
+                  </strong>
+                  <span className="kpi__delta">leads aguardando retorno</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {d.comercial.porSolucao.length > 0 && (
             <div className="card" style={{ marginTop: 16 }}>
               <div className="card__head"><div><h3>Soluções mais contratadas</h3><span className="card__sub">Contratos ativos por solução + receita mensal estimada</span></div></div>
@@ -317,6 +350,13 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
               <span className="kpi__label">Clientes sem responsável</span>
               <strong className="kpi__value">{d.entregas.clientesSemResponsavel}</strong>
               <span className="kpi__delta">{d.entregas.evidencias} evidências registradas</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Clientes sem avanço</span>
+              <strong className="kpi__value" style={{ color: d.entregas.clientesSemAvanco > 0 ? "#8A6D1F" : undefined }}>
+                {d.entregas.clientesSemAvanco}
+              </strong>
+              <span className="kpi__delta">ativos sem diagnóstico iniciado</span>
             </div>
           </div>
 

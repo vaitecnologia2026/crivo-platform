@@ -16,14 +16,23 @@ export class PlatformLeadsController {
     return this.leads.list();
   }
 
-  /** Move o lead no funil (Kanban). */
+  /** Move o lead no funil (Kanban). Em PERDIDO, aceita o motivo estruturado. */
   @Patch(':id/stage')
   setStage(
     @CurrentAdmin() admin: PlatformAdmin,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetLeadStageDto,
   ) {
-    return this.leads.setStage(id, dto.stage, { id: admin.id, email: admin.email });
+    return this.leads.setStage(id, dto.stage, { id: admin.id, email: admin.email }, dto.lostReason);
+  }
+
+  /** Registra o 1º contato com o lead (mede o tempo de resposta comercial). */
+  @Patch(':id/first-contact')
+  markFirstContact(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.leads.markFirstContact(id, { id: admin.id, email: admin.email });
   }
 
   @Patch(':id/notes')
