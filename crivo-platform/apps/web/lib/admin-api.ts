@@ -303,9 +303,16 @@ export function getOverview(): Promise<AdminOverview> {
   return adminFetch<AdminOverview>("/admin/overview");
 }
 
-/** Dashboard de Gestão CRIVO (Caderno Tela 01). `days` = janela do período. */
-export function getDashboard(days = 30): Promise<DashboardData> {
-  return adminFetch<DashboardData>(`/admin/dashboard?days=${days}`);
+/** Dashboard de Gestão CRIVO (Caderno Tela 01). `days` = período; filtros opcionais. */
+export function getDashboard(
+  days = 30,
+  filters: { origem?: string; groupId?: string; tenantId?: string } = {},
+): Promise<DashboardData> {
+  const q = new URLSearchParams({ days: String(days) });
+  if (filters.origem) q.set("origem", filters.origem);
+  if (filters.groupId) q.set("groupId", filters.groupId);
+  if (filters.tenantId) q.set("tenantId", filters.tenantId);
+  return adminFetch<DashboardData>(`/admin/dashboard?${q.toString()}`);
 }
 
 export function getAuditLog(): Promise<AuditEntry[]> {

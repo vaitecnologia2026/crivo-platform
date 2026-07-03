@@ -2,11 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DashboardData } from '@crivo/types';
 
+/** Filtros globais do dashboard (Caderno Tela 01 · [6]). Período sempre; os
+ *  demais são opcionais e compõem o recorte. `groupId`/`tenantId` recortam a
+ *  carteira (contratos/entregas/clientes); `origem` recorta o comercial. */
+export interface DashboardFilters {
+  origem?: string;
+  groupId?: string;
+  tenantId?: string;
+}
+
 /** Dashboard de Gestão CRIVO (Caderno Tela 01) — central operacional do Super
- *  Admin. Agrega dados REAIS via prisma.admin (control plane, BYPASSRLS), no
- *  mesmo padrão de GroupsService/BenchmarksService. Onde o schema não tem o
- *  dado (comissões, NPS, tempo de resposta…), NÃO inventa — devolve em
- *  `naoModelado`. Valores monetários em centavos. */
+ *  Admin. Agrega dados REAIS via prisma.admin (control plane, BYPASSRLS). Onde o
+ *  schema não tem o dado (comissões, NPS, tempo de resposta…), NÃO inventa —
+ *  devolve em `naoModelado`. Valores monetários em centavos. */
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
@@ -36,7 +44,7 @@ export class DashboardService {
     { key: 'perdido', label: 'Perdido', stages: ['PERDIDO'] },
   ];
 
-  async build(days: number): Promise<DashboardData> {
+  async build(days: number, filters: DashboardFilters = {}): Promise<DashboardData> {
     const now = Date.now();
     const since = new Date(now - days * 86_400_000);
     const prevSince = new Date(now - 2 * days * 86_400_000);
@@ -44,6 +52,30 @@ export class DashboardService {
     const in60 = new Date(now + 60 * 86_400_000);
     const in90 = new Date(now + 90 * 86_400_000);
     const nowDate = new Date(now);
+
+    // ── Recorte por grupo/empresa (afeta carteira: contratos, entregas, clientes) ──
+    // O tenantId do DATA PLANE é o organizationId (não o tenant.id).
+    let orgIds: string[] | null = null;
+    if (filters.tenantId) {
+      const t = await this.prisma.admin.tenant.findUnique({
+        where: { id: filters.tenantId },
+        select: { organizationId: true },
+      });
+      orgIds = t ? [t.organizationId] : [];
+    } else if (filters.groupId) {
+      const ts = await this.prisma.admin.tenant.findMany({
+        where: { groupId: filters.groupId },
+        select: { organizationId: true },
+      });
+      orgIds = ts.map((t) => t.organizationId);
+    }
+    const orgWhere = orgIds ? { tenantId: { in: orgIds } } : {};
+    const tenantWhere = filters.tenantId
+      ? { id: filters.tenantId }
+      : filters.groupId
+        ? { groupId: filters.groupId }
+        : {};
+    const originWhere = filters.origem ? { origin: filters.origem } : {};
 
     const [
       products,
@@ -63,10 +95,12 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
       this.prisma.admin.platformLead.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...originWhere },
         select: { stage: true, origin: true, convertedTenantId: true, productId: true },
       }),
-      this.prisma.admin.platformLead.count({ where: { createdAt: { gte: prevSince, lt: since } } }),
+      this.prisma.admin.platformLead.count({
+        where: { createdAt: { gte: prevSince, lt: since }, ...originWhere },
+      }),
       this.prisma.admin.contract.findMany({
         select: {
           productId: true,
@@ -78,24 +112,24 @@ export class DashboardService {
         },
       }),
       this.prisma.admin.tenant.findMany({ select: { organizationId: true, name: true } }),
-      this.prisma.admin.assessmentCycle.count({ where: { status: 'OPEN' } }),
-      this.prisma.admin.assessment.count(),
-      this.prisma.admin.actionPlan.count({ where: { validatedAt: null } }),
-      this.prisma.admin.actionItem.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.prisma.admin.evidence.count(),
+      this.prisma.admin.assessmentCycle.count({ where: { status: 'OPEN', ...orgWhere } }),
+      this.prisma.admin.assessment.count({ where: orgWhere }),
+      this.prisma.admin.actionPlan.count({ where: { validatedAt: null, ...orgWhere } }),
+      this.prisma.admin.actionItem.groupBy({ by: ['status'], where: orgWhere, _count: { _all: true } }),
+      this.prisma.admin.evidence.count({ where: orgWhere }),
       this.prisma.admin.mentoria.findMany({
-        where: { status: 'AGENDADA' },
+        where: { status: 'AGENDADA', ...orgWhere },
         select: { scheduledAt: true, tenantId: true },
       }),
-      this.prisma.admin.tenant.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.admin.tenant.count({ where: { status: 'SUSPENDED' } }),
-      this.prisma.admin.tenant.count({ where: { createdAt: { gte: since } } }),
+      this.prisma.admin.tenant.count({ where: { ...tenantWhere, status: 'ACTIVE' } }),
+      this.prisma.admin.tenant.count({ where: { ...tenantWhere, status: 'SUSPENDED' } }),
+      this.prisma.admin.tenant.count({ where: { ...tenantWhere, createdAt: { gte: since } } }),
     ]);
 
     const priceOf = new Map(products.map((p) => [p.id, p]));
     const nameOfOrg = new Map(tenants.map((t) => [t.organizationId, t.name]));
 
-    // ── Comercial ──
+    // ── Comercial (recortado por período + origem) ──
     const totalLeads = leadsPeriod.length;
     const fechadas = leadsPeriod.filter((l) => l.convertedTenantId).length;
     const propostas = leadsPeriod.filter((l) => l.stage === 'PROPOSTA').length;
@@ -124,8 +158,11 @@ export class DashboardService {
     }
     const ticketMedioCents = fechadas ? Math.round(faturamentoEstimadoCents / fechadas) : 0;
 
-    // ── Contratos ──
-    const ativos = contractsAll.filter((c) => c.status === 'ATIVO');
+    // ── Contratos (recortados por grupo/empresa) ──
+    const scopedContracts = orgIds
+      ? contractsAll.filter((c) => orgIds!.includes(c.organizationId))
+      : contractsAll;
+    const ativos = scopedContracts.filter((c) => c.status === 'ATIVO');
     let mrrCents = 0;
     const solMap = new Map<string, { count: number; receita: number }>();
     for (const c of ativos) {
@@ -149,12 +186,12 @@ export class DashboardService {
     ).length;
 
     const statusMap = new Map<string, number>();
-    for (const c of contractsAll) statusMap.set(c.status, (statusMap.get(c.status) ?? 0) + 1);
+    for (const c of scopedContracts) statusMap.set(c.status, (statusMap.get(c.status) ?? 0) + 1);
     const porStatus = [...statusMap.entries()].map(([status, count]) => ({ status, count }));
 
     const semResponsavel = ativos.filter((c) => !c.responsible || !c.responsible.trim());
 
-    // ── Entregas ──
+    // ── Entregas (recortadas por grupo/empresa via orgWhere) ──
     const acoesPendentes = acoesGrouped
       .filter((a) => a.status !== 'CONCLUIDA' && a.status !== 'REAVALIADA')
       .reduce((s, a) => s + a._count._all, 0);

@@ -150,7 +150,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
         </header>
 
         <section className="route is-active">
-          {section === "overview" && <OverviewSection />}
+          {section === "overview" && <OverviewSection onNavigate={(s) => setSection(s as Section)} />}
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
           {section === "cnae" && <CnaeSection />}
@@ -170,7 +170,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
 }
 
 
-function OverviewSection() {
+function OverviewSection({ onNavigate }: { onNavigate: (section: string) => void }) {
   return (
     <>
       <div className="route__head">
@@ -184,7 +184,7 @@ function OverviewSection() {
         <CnpjLookupCard />
       </div>
 
-      <DashboardSection />
+      <DashboardSection onNavigate={onNavigate} />
     </>
   );
 }
