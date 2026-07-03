@@ -28,7 +28,7 @@ export class IcdCyclesController {
 
   /** PARCIAL: ICD da empresa em tempo real (ciclo aberto). RH/CEO/ADMIN. */
   @Get('current')
-  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'JURIDICO', 'CONSULTOR')
   current(@CurrentUser() user: SessionUser) {
     return this.cycles.partialCompanyIcd(user.tenantId);
   }

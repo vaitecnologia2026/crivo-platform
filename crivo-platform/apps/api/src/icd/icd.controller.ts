@@ -49,7 +49,7 @@ export class IcdController {
 
   /** Dashboard executivo do ICD do tenant. */
   @Get('dashboard')
-  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'JURIDICO', 'CONSULTOR')
   dashboard(@CurrentUser() user: SessionUser) {
     return this.icd.dashboard(user.tenantId);
   }

@@ -374,12 +374,31 @@ export async function POST(req: Request) {
   if (!platformApi) {
     console.warn("[diagnostic-lead] PLATFORM_API_URL ausente — lead não registrado no CRM.");
   }
-  if (!emailed && !whatsapped) {
+
+  const delivered = emailed || whatsapped;
+  // `ok` = o lead foi RETIDO (persistido no CRM) OU entregue por algum canal.
+  const ok = platformOk || delivered;
+
+  if (!ok) {
+    // RESGATE: falha TOTAL — nenhum canal reteve o lead. Registra o contato para
+    // recuperação manual: um lead NUNCA pode sumir com mensagem de sucesso.
+    console.error(
+      "[diagnostic-lead][RESGATE] lead não retido em nenhum canal:",
+      JSON.stringify({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        company: data.company,
+        cnpj: data.cnpj,
+      }),
+    );
+  } else if (!delivered) {
     console.warn(
-      "[diagnostic-lead] Nenhum canal entregou ao lead (verifique SMTP_*/RESEND_API_KEY e VAI_API_* no ambiente).",
+      "[diagnostic-lead] lead salvo no CRM, mas nenhum canal (e-mail/WhatsApp) entregou ao lead.",
     );
   }
 
-  // Nunca trava o usuário: o pré-diagnóstico aparece na tela mesmo se um canal falhar.
-  return NextResponse.json({ ok: platformOk || emailed || whatsapped, emailed, whatsapped });
+  // Status HTTP reflete o resultado real (defesa extra); `delivered` distingue
+  // "retido no CRM" de "entregue ao lead" para a UI mostrar a mensagem certa.
+  return NextResponse.json({ ok, delivered, emailed, whatsapped }, { status: ok ? 200 : 502 });
 }

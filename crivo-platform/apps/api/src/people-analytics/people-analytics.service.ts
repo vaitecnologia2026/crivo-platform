@@ -61,6 +61,12 @@ export class PeopleAnalyticsService {
   }
 
   async analyze(tenantId: string, context: string | undefined, actor?: string) {
+    // Respeita o interruptor GLOBAL de IA (governança/custo): se a IA estiver
+    // desativada em Configurações de IA, não chama (nem cobra) a OpenAI.
+    const settings = await this.ai.get();
+    if (!settings.enabled) {
+      throw new BadRequestException('IA desativada nas Configurações de IA (Super Admin).');
+    }
     const key = await this.ai.getApiKey();
     if (!key) {
       throw new BadRequestException('IA não configurada. Defina a chave da OpenAI em Configurações de IA (Super Admin).');

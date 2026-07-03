@@ -79,7 +79,7 @@ export function DiagnosticoInicialQuiz() {
   const [locked, setLocked] = useState(false);
   const [result, setResult] = useState<RenderResult | null>(null);
   const [methodology, setMethodology] = useState<MethodologyConfig | null>(null);
-  const [sent, setSent] = useState<"idle" | "sending" | "ok" | "error">("idle");
+  const [sent, setSent] = useState<"idle" | "sending" | "ok" | "captured" | "error">("idle");
   // #3/2C — perguntas vêm do produto "Pré-Diagnóstico LP" (texto editável no super admin),
   // com fallback para as perguntas padrão. Só o TEXTO muda; ids/dimensões/score seguem fixos.
   const [questions, setQuestions] = useState<typeof PRE_DIAGNOSTIC_QUESTIONS>(PRE_DIAGNOSTIC_QUESTIONS);
@@ -187,7 +187,15 @@ export function DiagnosticoInicialQuiz() {
           answers: payloadAnswers,
         }),
       });
-      setSent(res.ok ? "ok" : "error");
+      // Decide o sucesso pelo CORPO (body.ok), não pelo status HTTP: o BFF pode
+      // responder 200 com { ok:false }. `delivered` distingue "retido no CRM"
+      // de "entregue ao lead" para escolher a mensagem certa.
+      const body = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        delivered?: boolean;
+      };
+      if (!res.ok || !body.ok) setSent("error");
+      else setSent(body.delivered ? "ok" : "captured");
     } catch {
       setSent("error");
     }
@@ -245,8 +253,10 @@ export function DiagnosticoInicialQuiz() {
               Seu diagnóstico foi enviado para seu WhatsApp ou e-mail.
             </>
           )}
+          {sent === "captured" &&
+            "Recebemos suas respostas — nossa equipe entrará em contato pelo seu e-mail ou WhatsApp."}
           {sent === "error" &&
-            "Recebemos suas respostas. Em instantes entraremos em contato pelo seu e-mail ou WhatsApp."}
+            "Não conseguimos concluir o envio agora. Tente de novo em instantes ou fale com a gente pelo botão abaixo."}
           {sent === "idle" && "Seu diagnóstico foi enviado para seu WhatsApp ou e-mail."}
         </div>
 

@@ -153,7 +153,8 @@ export class PocketService {
     userId: string,
     sessionId: string,
   ): Promise<PocketSessionData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    // 1) Conclui a sessão numa transação CURTA (sem I/O de rede).
+    await this.prisma.forTenant(tenantId, async (tx) => {
       const session = await tx.pocketSession.findUnique({ where: { id: sessionId } });
       if (!session) throw new NotFoundException('Sessão não encontrada.');
       if (session.leaderId !== userId) {
@@ -163,37 +164,44 @@ export class PocketService {
         where: { id: sessionId },
         data: { status: 'CONCLUIDA', completedAt: new Date() },
       });
+    });
 
-      // Tenta gerar a Mentoria IA (§10.2). Falha silenciosa para não bloquear o líder.
-      try {
-        await this.maybeGenerateAiSummary(tx, sessionId, tenantId);
-      } catch (e) {
-        this.log.warn(`Mentoria IA falhou na sessão ${sessionId}: ${e instanceof Error ? e.message : e}`);
-      }
+    // 2) Mentoria IA (§10.2) FORA da transação de conclusão: se a OpenAI demorar
+    //    (>5s = timeout de transação do Prisma) ou falhar, a conclusão já está
+    //    commitada e NÃO é revertida. Best-effort, não bloqueia o líder.
+    try {
+      await this.maybeGenerateAiSummary(sessionId, tenantId);
+    } catch (e) {
+      this.log.warn(`Mentoria IA falhou na sessão ${sessionId}: ${e instanceof Error ? e.message : e}`);
+    }
 
-      const full = await tx.pocketSession.findUnique({
+    // 3) Relê a sessão completa para retornar.
+    const full = await this.prisma.forTenant(tenantId, async (tx) =>
+      tx.pocketSession.findUnique({
         where: { id: sessionId },
         include: { reflections: true, aiSummary: true },
-      });
-      return toSessionData(full!);
-    });
+      }),
+    );
+    return toSessionData(full!);
   }
 
   /** Anexo Pocket §10.2 — Mentoria comportamental e metacognitiva.
    *  Gera síntese + recomendação + próximo passo a partir das reflexões.
    *  NÃO diagnostica, NÃO prescreve, NÃO substitui mentor humano. */
   private async maybeGenerateAiSummary(
-    tx: any,
     sessionId: string,
     tenantId: string,
   ): Promise<void> {
     const settings = await this.ai.get();
     if (!settings.enabled || !settings.hasKey) return; // IA off → encerra sem síntese
 
-    const session = await tx.pocketSession.findUnique({
-      where: { id: sessionId },
-      include: { reflections: true },
-    });
+    // Lê as reflexões numa transação CURTA (sem I/O de rede).
+    const session = await this.prisma.forTenant(tenantId, async (tx) =>
+      tx.pocketSession.findUnique({
+        where: { id: sessionId },
+        include: { reflections: true },
+      }),
+    );
     if (!session) return;
 
     // Sem reflexões substantivas → não gera (evita custo de IA com payload vazio).
@@ -240,11 +248,15 @@ export class PocketService {
         nextStep: asStr(parsed.nextStep),
         modelVersion: settings.model || 'gpt-4o-mini',
       };
-      await tx.pocketAiSummary.upsert({
-        where: { sessionId },
-        create: { tenantId, sessionId, ...fields },
-        update: fields,
-      });
+      // Grava a síntese numa transação CURTA (a chamada à OpenAI acima ocorreu
+      // FORA de qualquer transação, então nada segurou conexão do pool).
+      await this.prisma.forTenant(tenantId, async (tx) =>
+        tx.pocketAiSummary.upsert({
+          where: { sessionId },
+          create: { tenantId, sessionId, ...fields },
+          update: fields,
+        }),
+      );
     } catch (e) {
       this.log.warn(`Falha de IA para sessão ${sessionId}: ${e instanceof Error ? e.message : e}`);
     }

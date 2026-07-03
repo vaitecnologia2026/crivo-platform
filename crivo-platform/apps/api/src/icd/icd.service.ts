@@ -224,7 +224,8 @@ export class IcdService {
     tenantId: string,
     cycleId: string,
   ): Promise<{ sent: number; pending: number; provider: string; reason?: string }> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    // 1) Lê pendentes + templates numa transação CURTA (sem I/O de rede).
+    const prep = await this.prisma.forTenant(tenantId, async (tx) => {
       const cycle = await tx.assessmentCycle.findUnique({ where: { id: cycleId } });
       if (!cycle) throw new BadRequestException('Campanha não encontrada.');
       if (cycle.status === 'CLOSED') {
@@ -242,19 +243,6 @@ export class IcdService {
         select: { id: true, email: true, name: true },
       });
 
-      if (!mailConfigured()) {
-        await tx.assessmentCycle.update({
-          where: { id: cycleId },
-          data: { reminderSentAt: new Date() },
-        });
-        return {
-          sent: 0,
-          pending: pendentes.length,
-          provider: 'stub',
-          reason: 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.',
-        };
-      }
-
       // #60 — Corpo do lembrete vem do EditableText (fallback embutido).
       const bodyTemplate = await this.texts.render(
         'EMAIL_CAMPAIGN_REMINDER_BODY',
@@ -268,27 +256,44 @@ export class IcdService {
         'Lembrete: responda a campanha "{campaign_name}"',
       );
 
-      let sent = 0;
-      let provider = 'stub';
-      for (const u of pendentes) {
-        const subject = subjectTemplate.replaceAll('{campaign_name}', cycle.name);
-        const html = bodyTemplate
-          .replaceAll('{first_name}', u.name.split(' ')[0])
-          .replaceAll('{campaign_name}', cycle.name)
-          .replaceAll('{description}', cycle.description ?? 'Sua participação ajuda a empresa a entender o ambiente decisório.');
-        // Best-effort: falha individual não interrompe o lote.
-        const r = await sendMail({ to: u.email, subject, html });
-        if (r.ok) sent += 1;
-        provider = r.provider;
-      }
-
-      await tx.assessmentCycle.update({
-        where: { id: cycleId },
-        data: { reminderSentAt: new Date() },
-      });
-
-      return { sent, pending: pendentes.length, provider };
+      return { cycle, pendentes, bodyTemplate, subjectTemplate };
     });
+
+    const markSent = () =>
+      this.prisma.forTenant(tenantId, async (tx) =>
+        tx.assessmentCycle.update({ where: { id: cycleId }, data: { reminderSentAt: new Date() } }),
+      );
+
+    if (!mailConfigured()) {
+      await markSent();
+      return {
+        sent: 0,
+        pending: prep.pendentes.length,
+        provider: 'stub',
+        reason: 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.',
+      };
+    }
+
+    // 2) Envia os e-mails FORA de qualquer transação: I/O de rede lento (SMTP
+    //    8–15s por envio) não pode segurar conexão do pool nem estourar o
+    //    timeout de transação do Prisma (5s), que revertia o lote inteiro.
+    let sent = 0;
+    let provider = 'stub';
+    for (const u of prep.pendentes) {
+      const subject = prep.subjectTemplate.replaceAll('{campaign_name}', prep.cycle.name);
+      const html = prep.bodyTemplate
+        .replaceAll('{first_name}', u.name.split(' ')[0])
+        .replaceAll('{campaign_name}', prep.cycle.name)
+        .replaceAll('{description}', prep.cycle.description ?? 'Sua participação ajuda a empresa a entender o ambiente decisório.');
+      // Best-effort: falha individual não interrompe o lote.
+      const r = await sendMail({ to: u.email, subject, html });
+      if (r.ok) sent += 1;
+      provider = r.provider;
+    }
+
+    // 3) Marca reminderSentAt numa transação curta.
+    await markSent();
+    return { sent, pending: prep.pendentes.length, provider };
   }
 
   /** Info pública por slug — SEM auth. Não vaza score/respondentes individuais. */

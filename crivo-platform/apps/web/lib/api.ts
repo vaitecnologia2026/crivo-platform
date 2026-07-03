@@ -664,7 +664,26 @@ export function ensurePsychosocialLink(): Promise<{ slug: string }> {
   return apiFetch<{ slug: string }>('/psychosocial/link', { method: 'POST' });
 }
 
-// Endpoints PÚBLICOS (sem auth) — usados pela página anônima /q/[slug].
+// Endpoints PÚBLICOS (sem auth) — páginas anônimas /q/[slug] e /p/c/[slug].
+/** Info pública de uma campanha de diagnóstico (link/QR sem login). Portal §7. */
+export async function getPublicCampaign(slug: string): Promise<{
+  name: string;
+  description: string | null;
+  sector: string | null;
+  status: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  tenantName: string;
+}> {
+  const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Link inválido');
+  }
+  return res.json();
+}
 export async function getPublicPsychosocial(
   slug: string,
 ): Promise<{ tenantName: string; questions: PsychosocialQuestion[] }> {

@@ -142,7 +142,11 @@ export class IcdCyclesService {
         computedAt: new Date().toISOString(),
       };
 
-      return { cycle: toCycleData(cycle), leaders: leaderResults, company };
+      // §11 (Anexo ICD): a gestão NÃO recebe o ranking individual por líder.
+      // O líder vê o próprio ICD via /icd-cycles/current/me. `leaderResults`
+      // segue só como insumo do agregado da empresa (calculado acima).
+      void leaderResults;
+      return { cycle: toCycleData(cycle), leaders: [], company };
     });
   }
 
@@ -272,22 +276,13 @@ export class IcdCyclesService {
       const cycle = await tx.icdCycle.findUnique({ where: { id: cycleId } });
       if (!cycle) throw new NotFoundException('Ciclo não encontrado.');
 
-      const leaders = await tx.leaderQuarterlyIcd.findMany({ where: { cycleId } });
       const company = await tx.companyQuarterlyIcd.findUnique({ where: { cycleId } });
 
       return {
         cycle: toCycleData(cycle),
-        leaders: leaders.map((l: any) => ({
-          id: l.id,
-          cycleId: l.cycleId,
-          leaderId: l.leaderId,
-          score: l.score,
-          decisionCount: l.decisionCount,
-          totalWeight: l.totalWeight,
-          axesAverage: l.axesAverage as IcdAxesScores,
-          band: getIcdMaturityBand(l.score),
-          computedAt: l.computedAt.toISOString(),
-        })),
+        // §11 (Anexo ICD): não expõe ranking individual por líder à gestão.
+        // O líder acessa o próprio ICD via /icd-cycles/current/me.
+        leaders: [],
         company: company
           ? {
               id: company.id,
