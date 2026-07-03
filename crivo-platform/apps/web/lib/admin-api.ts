@@ -24,6 +24,7 @@ import type {
   ProvisionResult,
   TenantBrandingData,
   BusinessGroupSummary,
+  GroupOverview,
   TenantDomainData,
   TenantModuleSummary,
   TenantSummary,
@@ -177,6 +178,11 @@ export function setTenantGroup(tenantId: string, groupId: string | null): Promis
     method: "PATCH",
     body: JSON.stringify({ groupId }),
   });
+}
+
+/** F2 — visão consolidada do grupo (agregados por CNPJ; acesso auditado). */
+export function getGroupOverview(id: string): Promise<GroupOverview> {
+  return adminFetch<GroupOverview>(`/admin/groups/${id}/overview`);
 }
 
 // ── Módulos por empresa (F4) ──

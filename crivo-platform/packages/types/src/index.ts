@@ -322,6 +322,50 @@ export interface BusinessGroupSummary {
   tenants: { id: string; name: string; slug: string; status: TenantStatus }[];
 }
 
+/** F2 — linha por CNPJ na visão consolidada do grupo (só agregados; §11: nada individual). */
+export interface GroupOverviewTenantRow {
+  tenantId: string; // id do tenant (control plane)
+  name: string;
+  slug: string;
+  status: TenantStatus;
+  plan: Plan;
+  activeUsers: number;
+  assessments: number;
+  /** Último ICD oficial da empresa (CompanyQuarterlyIcd). null = sem ciclo fechado OU suprimido (§11). */
+  icdScore: number | null;
+  icdSuppressed: boolean;
+  actionsTotal: number;
+  /** Encerradas = CONCLUIDA + REAVALIADA. */
+  actionsDone: number;
+  evidences: number;
+  pocketDone: number;
+  pocketTotal: number;
+  campaignsOpen: number;
+  campaignsTotal: number;
+}
+
+/** F2 — visão consolidada do Grupo Empresarial (Super Admin). */
+export interface GroupOverview {
+  group: { id: string; name: string; createdAt: string };
+  tenants: GroupOverviewTenantRow[];
+  consolidated: {
+    tenants: number;
+    activeUsers: number;
+    assessments: number;
+    /** Média dos ICDs oficiais disponíveis (ignora suprimidos/sem ciclo). */
+    icdAverage: number | null;
+    /** Nº de CNPJs com ICD oficial disponível (base da média). */
+    icdCovered: number;
+    actionsTotal: number;
+    actionsDone: number;
+    evidences: number;
+    pocketDone: number;
+    pocketTotal: number;
+    campaignsOpen: number;
+    campaignsTotal: number;
+  };
+}
+
 export interface CreateTenantRequest {
   name: string;
   slug?: string; // derivado do nome quando ausente

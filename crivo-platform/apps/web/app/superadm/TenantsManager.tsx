@@ -13,6 +13,7 @@ import {
   type TenantSummary,
 } from "@crivo/types";
 import { createGroup, deleteGroup, listGroups, setTenantGroup } from "@/lib/admin-api";
+import { GroupOverviewModal } from "./GroupOverviewModal";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
 import { OnboardingModal } from "./OnboardingModal";
@@ -40,6 +41,7 @@ export function TenantsManager({
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [groups, setGroups] = useState<BusinessGroupSummary[] | null>(null);
+  const [overviewOf, setOverviewOf] = useState<BusinessGroupSummary | null>(null);
 
   // F1 · Grupos Empresariais (Caderno Tela 06): catálogo leve acima dos tenants.
   async function refreshGroups() {
@@ -190,7 +192,23 @@ export function TenantsManager({
                     title={g.tenants.map((t) => t.name).join(", ") || "Sem empresas vinculadas"}
                     style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                   >
-                    {g.name} · {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
+                    <button
+                      type="button"
+                      onClick={() => setOverviewOf(g)}
+                      title="Ver consolidado do grupo"
+                      style={{
+                        background: "none",
+                        border: 0,
+                        cursor: "pointer",
+                        color: "inherit",
+                        font: "inherit",
+                        padding: 0,
+                        textDecoration: "underline",
+                        textUnderlineOffset: 3,
+                      }}
+                    >
+                      {g.name} · {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => onDeleteGroup(g)}
@@ -357,6 +375,8 @@ export function TenantsManager({
           </div>
         )}
       </div>
+
+      {overviewOf && <GroupOverviewModal group={overviewOf} onClose={() => setOverviewOf(null)} />}
 
       {modulesOf && (
         <ModulesModal

@@ -32,6 +32,12 @@ export class GroupsController {
     return this.groups.list();
   }
 
+  /** F2 — Visão consolidada do grupo (agregados por CNPJ; acesso auditado). */
+  @Get(':id/overview')
+  overview(@CurrentAdmin() admin: PlatformAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.groups.overview(id, { id: admin.id, email: admin.email });
+  }
+
   /** Cria um grupo empresarial. */
   @Post()
   create(@CurrentAdmin() admin: PlatformAdmin, @Body() dto: UpsertGroupDto) {
