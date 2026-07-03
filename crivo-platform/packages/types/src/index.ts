@@ -947,9 +947,44 @@ export interface PlatformLeadSummary {
   notes: string | null;
   lostReason: string | null; // motivo de perda (só quando stage === 'PERDIDO')
   firstContactedAt: string | null; // ISO — 1º contato registrado (tempo de resposta)
+  interestProductId: string | null; // solução de interesse (pré-venda; ≠ produto de origem)
+  nextActionAt: string | null; // ISO — data da próxima ação (follow-up)
+  nextActionNote: string | null; // o que fazer na próxima ação (follow-up)
   convertedTenantId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Canais/origem do lead (Caderno Tela 02 [2]) — usados no CRM e no dashboard.
+ *  `origin` continua string livre no banco; estes são os valores canônicos do seletor. */
+export const PLATFORM_LEAD_ORIGINS = [
+  { value: 'ITZ', label: 'ITZ' },
+  { value: 'EVENTO', label: 'Evento' },
+  { value: 'LANDING_PAGE', label: 'Landing Page' },
+  { value: 'INDICACAO', label: 'Indicação' },
+  { value: 'PARCEIRO', label: 'Parceiro' },
+  { value: 'ANUNCIO', label: 'Anúncio' },
+  { value: 'OUTRO', label: 'Outro' },
+] as const;
+export type PlatformLeadOrigin = (typeof PLATFORM_LEAD_ORIGINS)[number]['value'];
+
+/** Rótulo amigável de uma origem — cobre os canônicos + os valores legados de intake. */
+export function platformLeadOriginLabel(origin: string | null | undefined): string {
+  if (!origin) return '(não informada)';
+  const canon = PLATFORM_LEAD_ORIGINS.find((o) => o.value === origin);
+  if (canon) return canon.label;
+  const legacy: Record<string, string> = {
+    'lp-diagnostico': 'Landing Page (Diagnóstico)',
+    lp: 'Landing Page',
+    'dashboard-cnpj': 'Consulta CNPJ',
+    qrcode: 'QR Code',
+    indicacao: 'Indicação',
+    anuncio: 'Anúncio',
+    parceiro: 'Parceiro',
+    evento: 'Evento',
+    itz: 'ITZ',
+  };
+  return legacy[origin] ?? origin;
 }
 
 /** Motivos de perda estruturados (Caderno) — usados no CRM e no dashboard. */

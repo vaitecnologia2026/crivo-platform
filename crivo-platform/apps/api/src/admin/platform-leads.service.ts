@@ -358,6 +358,53 @@ export class PlatformLeadsService {
     return this.toSummary(updated);
   }
 
+  /** Registra a origem/canal do lead (Tela 02 [2]) — string livre (canônica ou legada). */
+  async setOrigin(id: string, origin: string, actor: Actor): Promise<PlatformLeadSummary> {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const value = origin?.trim() || null;
+    const updated = await this.prisma.admin.platformLead.update({ where: { id }, data: { origin: value } });
+    await this.audit.record({ action: 'lead.origin', actor, target: id, meta: { origin: value } });
+    return this.toSummary(updated);
+  }
+
+  /** Registra a solução de interesse (Tela 02 [4]) — pré-venda; null limpa. */
+  async setInterest(id: string, interestProductId: string | null, actor: Actor): Promise<PlatformLeadSummary> {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const value = interestProductId?.trim() || null;
+    if (value) {
+      const p = await this.prisma.admin.product.findUnique({ where: { id: value }, select: { id: true } });
+      if (!p) throw new NotFoundException('Solução não encontrada');
+    }
+    const updated = await this.prisma.admin.platformLead.update({
+      where: { id },
+      data: { interestProductId: value },
+    });
+    await this.audit.record({ action: 'lead.interest', actor, target: id, meta: { interestProductId: value } });
+    return this.toSummary(updated);
+  }
+
+  /** Registra o follow-up / próxima ação (Tela 02 [5]) — data + nota; ambos limpáveis. */
+  async setNextAction(
+    id: string,
+    nextActionAt: string | null,
+    nextActionNote: string | null,
+    actor: Actor,
+  ): Promise<PlatformLeadSummary> {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const at = nextActionAt ? new Date(nextActionAt) : null;
+    if (at && Number.isNaN(at.getTime())) throw new BadRequestException('Data inválida');
+    const note = nextActionNote?.trim() || null;
+    const updated = await this.prisma.admin.platformLead.update({
+      where: { id },
+      data: { nextActionAt: at, nextActionNote: note },
+    });
+    await this.audit.record({ action: 'lead.next_action', actor, target: id });
+    return this.toSummary(updated);
+  }
+
   async setNotes(id: string, notes: string, actor: Actor): Promise<PlatformLeadSummary> {
     const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Lead não encontrado');
@@ -504,6 +551,9 @@ export class PlatformLeadsService {
     notes: string | null;
     lostReason: string | null;
     firstContactedAt: Date | null;
+    interestProductId: string | null;
+    nextActionAt: Date | null;
+    nextActionNote: string | null;
     convertedTenantId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -528,6 +578,9 @@ export class PlatformLeadsService {
       notes: l.notes,
       lostReason: l.lostReason,
       firstContactedAt: l.firstContactedAt?.toISOString() ?? null,
+      interestProductId: l.interestProductId,
+      nextActionAt: l.nextActionAt?.toISOString() ?? null,
+      nextActionNote: l.nextActionNote,
       convertedTenantId: l.convertedTenantId,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),

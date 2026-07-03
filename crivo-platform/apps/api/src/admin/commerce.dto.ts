@@ -2,11 +2,13 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -90,6 +92,27 @@ export class SetLeadStageDto {
 export class SetLeadNotesDto {
   @IsString() @MaxLength(4000)
   notes!: string;
+}
+
+export class SetLeadOriginDto {
+  // Origem/canal — canônica (ITZ, EVENTO…) ou legada; string livre.
+  @IsString() @MaxLength(60)
+  origin!: string;
+}
+
+export class SetLeadInterestDto {
+  // Solução de interesse — id de produto; null/omitido limpa.
+  @IsOptional() @IsUUID()
+  interestProductId?: string | null;
+}
+
+export class SetLeadNextActionDto {
+  // Follow-up — data (ISO) e/ou nota; ambos opcionais/limpáveis.
+  @IsOptional() @IsDateString()
+  nextActionAt?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(240)
+  nextActionNote?: string | null;
 }
 
 export class ConvertLeadDto {

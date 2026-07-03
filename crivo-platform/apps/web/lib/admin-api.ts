@@ -341,6 +341,34 @@ export function markFirstContact(id: string): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/first-contact`, { method: "PATCH" });
 }
 
+/** [2] Registra a origem/canal do lead. */
+export function setLeadOrigin(id: string, origin: string): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/origin`, {
+    method: "PATCH",
+    body: JSON.stringify({ origin }),
+  });
+}
+
+/** [4] Registra a solução de interesse (pré-venda) do lead. null limpa. */
+export function setLeadInterest(id: string, interestProductId: string | null): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/interest`, {
+    method: "PATCH",
+    body: JSON.stringify({ interestProductId }),
+  });
+}
+
+/** [5] Registra o follow-up / próxima ação do lead (data + nota). */
+export function setLeadNextAction(
+  id: string,
+  nextActionAt: string | null,
+  nextActionNote: string | null,
+): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/next-action`, {
+    method: "PATCH",
+    body: JSON.stringify({ nextActionAt, nextActionNote }),
+  });
+}
+
 export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/notes`, {
     method: "PATCH",

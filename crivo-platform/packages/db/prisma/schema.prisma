@@ -623,6 +623,9 @@ model PlatformLead {
   notes             String?
   lostReason        String? // motivo de perda estruturado (só quando stage=PERDIDO)
   firstContactedAt  DateTime? // 1º contato registrado — mede o tempo de resposta
+  interestProductId String?           @db.Uuid // solução de interesse (pré-venda; ≠ productId de origem)
+  nextActionAt      DateTime? // follow-up: data da próxima ação combinada
+  nextActionNote    String? // follow-up: o que fazer na próxima ação
   convertedTenantId String?           @db.Uuid // tenant criado na conversão (FASE 3)
 
   createdAt DateTime @default(now())

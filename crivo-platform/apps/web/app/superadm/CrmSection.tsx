@@ -1,15 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   PLATFORM_LEAD_LOST_REASONS,
+  PLATFORM_LEAD_ORIGINS,
   PLATFORM_LEAD_STAGE_LABEL,
+  platformLeadOriginLabel,
   type PlatformLeadStage,
   type PlatformLeadSummary,
   type ProductSummary,
   type ProvisionResult,
 } from "@crivo/types";
-import { convertLead, dedupLeads, listLeads, listProducts, markFirstContact, resetTestData, sendLeadAccess, setLeadStage } from "@/lib/admin-api";
+import {
+  convertLead,
+  dedupLeads,
+  listLeads,
+  listProducts,
+  markFirstContact,
+  resetTestData,
+  sendLeadAccess,
+  setLeadInterest,
+  setLeadNextAction,
+  setLeadNotes,
+  setLeadOrigin,
+  setLeadStage,
+} from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 import { LeadDataModal } from "./LeadDataModal";
 
@@ -50,6 +65,120 @@ function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
+const EDITOR_LABEL: CSSProperties = { fontSize: 10.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-sec)", marginTop: 6 };
+
+/** Bloco de edição comercial do lead (Tela 02): origem/canal, solução de interesse e
+ *  follow-up (próxima ação + observações). Origem e solução salvam na hora; o follow-up
+ *  (data+nota) e as observações salvam juntos no botão. */
+function LeadEditor({
+  lead,
+  products,
+  busy,
+  onOrigin,
+  onInterest,
+  onNextAction,
+  onNotes,
+}: {
+  lead: PlatformLeadSummary;
+  products: ProductSummary[];
+  busy: boolean;
+  onOrigin: (v: string) => void | Promise<void>;
+  onInterest: (v: string) => void | Promise<void>;
+  onNextAction: (at: string, note: string) => void | Promise<void>;
+  onNotes: (v: string) => void | Promise<void>;
+}) {
+  const [naAt, setNaAt] = useState(lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "");
+  const [naNote, setNaNote] = useState(lead.nextActionNote ?? "");
+  const [notes, setNotes] = useState(lead.notes ?? "");
+
+  const canonVals = PLATFORM_LEAD_ORIGINS.map((o) => o.value) as string[];
+  const naChanged = naAt !== (lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "") || naNote !== (lead.nextActionNote ?? "");
+  const notesChanged = notes !== (lead.notes ?? "");
+
+  async function saveText() {
+    if (naChanged) await onNextAction(naAt, naNote);
+    if (notesChanged) await onNotes(notes);
+  }
+
+  return (
+    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed var(--line)", display: "flex", flexDirection: "column", gap: 2 }}>
+      <span style={EDITOR_LABEL}>Origem / canal</span>
+      <select
+        className="kb-stage-select"
+        value={lead.origin ?? ""}
+        disabled={busy}
+        onChange={(e) => onOrigin(e.target.value)}
+        aria-label="Origem do lead"
+      >
+        <option value="">— selecione —</option>
+        {lead.origin && !canonVals.includes(lead.origin) && (
+          <option value={lead.origin}>{platformLeadOriginLabel(lead.origin)}</option>
+        )}
+        {PLATFORM_LEAD_ORIGINS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+
+      <span style={EDITOR_LABEL}>Solução de interesse</span>
+      <select
+        className="kb-stage-select"
+        value={lead.interestProductId ?? ""}
+        disabled={busy}
+        onChange={(e) => onInterest(e.target.value)}
+        aria-label="Solução de interesse"
+      >
+        <option value="">— nenhuma —</option>
+        {products.map((p) => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+      </select>
+
+      <span style={EDITOR_LABEL}>Follow-up — próxima ação</span>
+      <input
+        type="date"
+        className="kb-stage-select"
+        value={naAt}
+        disabled={busy}
+        onChange={(e) => setNaAt(e.target.value)}
+        aria-label="Data da próxima ação"
+      />
+      <input
+        type="text"
+        className="kb-stage-select"
+        value={naNote}
+        maxLength={240}
+        disabled={busy}
+        placeholder="O que fazer (ex.: enviar proposta)"
+        onChange={(e) => setNaNote(e.target.value)}
+        aria-label="Nota da próxima ação"
+      />
+
+      <span style={EDITOR_LABEL}>Observações</span>
+      <textarea
+        className="kb-stage-select"
+        value={notes}
+        rows={2}
+        maxLength={4000}
+        disabled={busy}
+        placeholder="Anotações internas do lead"
+        onChange={(e) => setNotes(e.target.value)}
+        aria-label="Observações"
+        style={{ resize: "vertical" }}
+      />
+
+      <button
+        type="button"
+        className="kb-convert"
+        disabled={busy || (!naChanged && !notesChanged)}
+        onClick={saveText}
+        style={{ marginTop: 8 }}
+      >
+        Salvar follow-up / observações
+      </button>
+    </div>
+  );
+}
+
 /** CRM do Super Admin — funil comercial da CRIVO (leads da LP + manuais). */
 export function CrmSection() {
   const [leads, setLeads] = useState<PlatformLeadSummary[] | null>(null);
@@ -58,6 +187,8 @@ export function CrmSection() {
   const [converting, setConverting] = useState<PlatformLeadSummary | null>(null);
   const [reportingLead, setReportingLead] = useState<PlatformLeadSummary | null>(null);
   const [dataLead, setDataLead] = useState<PlatformLeadSummary | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null); // card em edição comercial
+  const [products, setProducts] = useState<ProductSummary[]>([]); // catálogo p/ "solução de interesse"
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -114,6 +245,50 @@ export function CrmSection() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  // Catálogo de soluções (para "solução de interesse"). Só ativas, sem captura de lead.
+  useEffect(() => {
+    listProducts()
+      .then((ps) => setProducts(ps.filter((p) => p.status === "ACTIVE" && !p.isLeadCapture)))
+      .catch(() => setProducts([]));
+  }, []);
+
+  /** Aplica o retorno do backend ao lead na lista (mantém sincronizado). */
+  function applyUpdate(updated: PlatformLeadSummary) {
+    setLeads((prev) => prev?.map((l) => (l.id === updated.id ? updated : l)) ?? prev);
+  }
+
+  /** [2] Origem/canal. */
+  async function saveOrigin(id: string, origin: string) {
+    setBusyId(id);
+    try { applyUpdate(await setLeadOrigin(id, origin)); }
+    catch { try { setLeads(await listLeads()); } catch { /* mantém */ } }
+    finally { setBusyId(null); }
+  }
+
+  /** [4] Solução de interesse (id do produto; "" limpa). */
+  async function saveInterest(id: string, interestProductId: string) {
+    setBusyId(id);
+    try { applyUpdate(await setLeadInterest(id, interestProductId || null)); }
+    catch { try { setLeads(await listLeads()); } catch { /* mantém */ } }
+    finally { setBusyId(null); }
+  }
+
+  /** [5] Follow-up / próxima ação (data + nota juntas). */
+  async function saveNextAction(id: string, at: string, note: string) {
+    setBusyId(id);
+    try { applyUpdate(await setLeadNextAction(id, at || null, note.trim() || null)); }
+    catch { try { setLeads(await listLeads()); } catch { /* mantém */ } }
+    finally { setBusyId(null); }
+  }
+
+  /** Observações (endpoint já existia, sem UI no CRM até agora). */
+  async function saveNotes(id: string, notes: string) {
+    setBusyId(id);
+    try { applyUpdate(await setLeadNotes(id, notes)); }
+    catch { try { setLeads(await listLeads()); } catch { /* mantém */ } }
+    finally { setBusyId(null); }
   }
 
   const byStage = useMemo(() => {
@@ -256,6 +431,24 @@ export function CrmSection() {
                         )}
                         {l.phone && <span className="kb-wpp">{l.phone}</span>}
                       </div>
+                      {(l.origin || l.nextActionAt || l.interestProductId) && (
+                        <div className="kb-meta" style={{ marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {l.origin && <span title="Origem/canal">◦ {platformLeadOriginLabel(l.origin)}</span>}
+                          {l.interestProductId && (
+                            <span title="Solução de interesse">
+                              ◈ {products.find((p) => p.id === l.interestProductId)?.name ?? "Solução"}
+                            </span>
+                          )}
+                          {l.nextActionAt && (
+                            <span
+                              title={l.nextActionNote ?? "Próxima ação"}
+                              style={{ color: new Date(l.nextActionAt) < new Date(new Date().toDateString()) ? "#C0392B" : "#8A6D1F" }}
+                            >
+                              ▶ {new Date(l.nextActionAt).toLocaleDateString("pt-BR")}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <select
                         value={l.stage}
                         disabled={busyId === l.id || !!l.convertedTenantId}
@@ -335,6 +528,25 @@ export function CrmSection() {
                         >
                           ◈ Relatório CRIVO
                         </button>
+                      )}
+                      <button
+                        type="button"
+                        className="kb-report"
+                        onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
+                        title="Registrar origem, solução de interesse e follow-up"
+                      >
+                        {expandedId === l.id ? "▾ Fechar" : "✎ Registrar (origem · solução · follow-up)"}
+                      </button>
+                      {expandedId === l.id && (
+                        <LeadEditor
+                          lead={l}
+                          products={products}
+                          busy={busyId === l.id}
+                          onOrigin={(v) => saveOrigin(l.id, v)}
+                          onInterest={(v) => saveInterest(l.id, v)}
+                          onNextAction={(at, note) => saveNextAction(l.id, at, note)}
+                          onNotes={(v) => saveNotes(l.id, v)}
+                        />
                       )}
                     </article>
                   ))}

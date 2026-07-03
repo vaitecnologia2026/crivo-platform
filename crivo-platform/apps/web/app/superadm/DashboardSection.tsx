@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import {
   CONTRACT_STATUS_LABEL,
+  platformLeadOriginLabel,
   type BusinessGroupSummary,
   type ContractStatus,
   type DashboardData,
@@ -165,7 +166,7 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
           <select value={origem} onChange={(e) => setOrigem(e.target.value)} style={SELECT_STYLE} title="Origem do lead">
             <option value="">Origem: todas</option>
             {origemOpts.map((o) => (
-              <option key={o} value={o}>{o}</option>
+              <option key={o} value={o}>{platformLeadOriginLabel(o)}</option>
             ))}
           </select>
 
@@ -253,7 +254,7 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
             </div>
             <div className="card">
               <div className="card__head"><div><h3>Conversão por origem</h3><span className="card__sub">De onde vêm os leads</span></div></div>
-              <Bars items={d.comercial.porOrigem.map((o) => ({ label: o.origem, value: o.count }))} color="#14263C" />
+              <Bars items={d.comercial.porOrigem.map((o) => ({ label: platformLeadOriginLabel(o.origem), value: o.count }))} color="#14263C" />
             </div>
           </div>
 
