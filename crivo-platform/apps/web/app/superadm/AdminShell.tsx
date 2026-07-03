@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { PLAN_LABELS, type PlatformAdmin, type TenantStatus } from "@crivo/types";
-import {
-  getAuditLog,
-  getOverview,
-  type AdminOverview,
-  type AuditEntry,
-} from "@/lib/admin-api";
+import { type PlatformAdmin } from "@crivo/types";
+import { getAuditLog, type AuditEntry } from "@/lib/admin-api";
+import { DashboardSection } from "./DashboardSection";
 import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
@@ -154,7 +150,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
         </header>
 
         <section className="route is-active">
-          {section === "overview" && <OverviewSection onGoToEmpresas={() => setSection("empresas")} />}
+          {section === "overview" && <OverviewSection />}
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
           {section === "cnae" && <CnaeSection />}
@@ -173,118 +169,22 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
   );
 }
 
-const STATUS_LABEL: Record<TenantStatus, string> = {
-  ACTIVE: "Ativa",
-  SUSPENDED: "Bloqueada",
-  DELETED: "Excluída",
-};
 
-function OverviewSection({ onGoToEmpresas }: { onGoToEmpresas: () => void }) {
-  const [data, setData] = useState<AdminOverview | null>(null);
-  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const d = await getOverview();
-        if (alive) { setData(d); setStatus("ok"); }
-      } catch {
-        if (alive) setStatus("error");
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
+function OverviewSection() {
   return (
     <>
       <div className="route__head">
         <div>
           <h1 className="page-title">Dashboard de Gestão CRIVO</h1>
-          <p className="page-sub">Indicadores da plataforma CRIVO — todas as empresas-cliente.</p>
+          <p className="page-sub">Central operacional — comercial, contratos, entregas e pendências.</p>
         </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 18 }}>
         <CnpjLookupCard />
       </div>
 
-      {status === "loading" && <p className="dash-state">Carregando indicadores…</p>}
-      {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar os indicadores.</div>}
-
-      {status === "ok" && data && (
-        <>
-          <div className="kpi-grid">
-            <div className="kpi">
-              <span className="kpi__label">Empresas</span>
-              <strong className="kpi__value">{data.totalTenants}</strong>
-              <span className="kpi__delta">{data.byStatus.ACTIVE ?? 0} ativas</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Bloqueadas</span>
-              <strong className="kpi__value">{data.byStatus.SUSPENDED ?? 0}</strong>
-              <span className="kpi__delta">acesso suspenso</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Usuários ativos</span>
-              <strong className="kpi__value">{data.activeUsers}</strong>
-              <span className="kpi__delta">de {data.totalUsers} no total</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Leads no pipeline</span>
-              <strong className="kpi__value">{data.totalLeads}</strong>
-              <span className="kpi__delta">todas as empresas</span>
-            </div>
-          </div>
-
-          <div className="grid grid--2" style={{ marginTop: 20 }}>
-            <div className="card">
-              <div className="card__head">
-                <div>
-                  <h3>Empresas por plano</h3>
-                  <span className="card__sub">Distribuição da base de clientes</span>
-                </div>
-              </div>
-              <div className="dash-dist">
-                {Object.entries(data.byPlan).map(([plan, n]) => (
-                  <span key={plan} className="dash-dist__item">
-                    {PLAN_LABELS[plan as keyof typeof PLAN_LABELS] ?? plan}: <strong>{n}</strong>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card__head">
-                <div>
-                  <h3>Empresas recentes</h3>
-                  <span className="card__sub">Últimas provisionadas</span>
-                </div>
-                <button className="btn btn--outline-dark btn--sm" onClick={onGoToEmpresas}>
-                  Ver todas
-                </button>
-              </div>
-              <table className="data-table">
-                <thead>
-                  <tr><th>Empresa</th><th>Plano</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  {data.recentTenants.map((t) => (
-                    <tr key={t.id}>
-                      <td><strong>{t.name}</strong></td>
-                      <td>{PLAN_LABELS[t.plan]}</td>
-                      <td><span className="pattern-tag">{STATUS_LABEL[t.status]}</span></td>
-                    </tr>
-                  ))}
-                  {data.recentTenants.length === 0 && (
-                    <tr><td colSpan={3} style={{ textAlign: "center", padding: 24 }}>Nenhuma empresa ainda.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+      <DashboardSection />
     </>
   );
 }

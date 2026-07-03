@@ -331,6 +331,57 @@ export interface GroupAccessEntry {
   createdAt: string;
 }
 
+/** Dashboard de Gestão CRIVO (Super Admin · Caderno Tela 01) — central operacional.
+ *  Valores monetários em CENTAVOS. Métricas ainda não modeladas vêm em `naoModelado`. */
+export interface DashboardData {
+  periodDays: number;
+  comercial: {
+    leads: number;
+    leadsPrev: number; // período anterior (para o delta ↑↓)
+    propostas: number;
+    fechadas: number;
+    conversao: number; // 0-100
+    faturamentoEstimadoCents: number; // estimado via preço do produto vendido
+    ticketMedioCents: number;
+    funnel: { key: string; label: string; count: number }[];
+    porOrigem: { origem: string; count: number }[];
+    porSolucao: { produto: string; count: number; receitaMensalCents: number }[];
+  };
+  contratos: {
+    ativos: number;
+    mrrCents: number; // receita recorrente mensal (estimada, contratos ATIVO)
+    arrCents: number;
+    vencendo30: number;
+    vencendo60: number;
+    vencendo90: number;
+    comAdicionais: number;
+    porStatus: { status: string; count: number }[];
+  };
+  entregas: {
+    diagnosticosAndamento: number; // ciclos abertos
+    avaliacoes: number;
+    planosPendentes: number; // planos não validados (minuta)
+    acoesPendentes: number; // ações não concluídas
+    evidencias: number;
+    mentoriasAgendadas: number;
+    mentoriasAtrasadas: number;
+    clientesSemResponsavel: number;
+  };
+  executivo: {
+    clientesAtivos: number;
+    clientesBloqueados: number;
+    novosClientes: number; // no período
+  };
+  pendencias: {
+    empresa: string;
+    tipo: string;
+    prazo: string | null; // ISO
+    severidade: 'CRITICO' | 'ATENCAO' | 'OK';
+  }[];
+  /** Métricas do caderno ainda SEM suporte no schema (mostradas como "a modelar"). */
+  naoModelado: string[];
+}
+
 /** F2 — linha por CNPJ na visão consolidada do grupo (só agregados; §11: nada individual). */
 export interface GroupOverviewTenantRow {
   tenantId: string; // id do tenant (control plane)

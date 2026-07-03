@@ -24,6 +24,7 @@ import type {
   ProvisionResult,
   TenantBrandingData,
   BusinessGroupSummary,
+  DashboardData,
   GroupAccessEntry,
   GroupOverview,
   TenantDomainData,
@@ -300,6 +301,11 @@ export interface AuditEntry {
 
 export function getOverview(): Promise<AdminOverview> {
   return adminFetch<AdminOverview>("/admin/overview");
+}
+
+/** Dashboard de Gestão CRIVO (Caderno Tela 01). `days` = janela do período. */
+export function getDashboard(days = 30): Promise<DashboardData> {
+  return adminFetch<DashboardData>(`/admin/dashboard?days=${days}`);
 }
 
 export function getAuditLog(): Promise<AuditEntry[]> {
