@@ -115,6 +115,24 @@ export class SetLeadNextActionDto {
   nextActionNote?: string | null;
 }
 
+export class SetLeadCommercialDto {
+  // Responsável comercial (CRIVO) pelo lead.
+  @IsOptional() @IsString() @MaxLength(120)
+  commercialOwner?: string | null;
+
+  // Valor proposto em centavos.
+  @IsOptional() @IsInt() @Min(0) @Max(1_000_000_000)
+  proposedValueCents?: number | null;
+
+  // Quando a proposta foi enviada (ISO).
+  @IsOptional() @IsDateString()
+  proposalSentAt?: string | null;
+
+  // Adicionais/módulos potenciais (códigos do catálogo).
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) @MaxLength(40, { each: true })
+  potentialAddons?: string[];
+}
+
 export class ConvertLeadDto {
   @IsString()
   productId!: string;

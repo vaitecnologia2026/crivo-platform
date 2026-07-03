@@ -20,7 +20,6 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   private static readonly NAO_MODELADO = [
-    'Valor negociado por lead / proposta',
     'Meta de faturamento',
     'Comissões (pendentes/pagas)',
     'Cobranças e inadimplência',
@@ -104,6 +103,8 @@ export class DashboardService {
           lostReason: true,
           firstContactedAt: true,
           createdAt: true,
+          proposedValueCents: true,
+          proposalSentAt: true,
         },
       }),
       this.prisma.admin.platformLead.count({
@@ -194,6 +195,12 @@ export class DashboardService {
     const leadsSemPrimeiroContato = leadsPeriod.filter(
       (l) => !l.firstContactedAt && !l.convertedTenantId,
     ).length;
+
+    // Valor proposto em aberto (pipeline: não convertido, não perdido) + propostas enviadas.
+    const valorPropostoCents = leadsPeriod
+      .filter((l) => !l.convertedTenantId && l.stage !== 'PERDIDO')
+      .reduce((s, l) => s + (l.proposedValueCents ?? 0), 0);
+    const propostasEnviadas = leadsPeriod.filter((l) => l.proposalSentAt).length;
 
     // Clientes sem avanço: ativos (no recorte) sem nenhum diagnóstico iniciado.
     const assessedOrgs = new Set(assessmentOrgs.map((a) => a.tenantId));
@@ -289,6 +296,8 @@ export class DashboardService {
         motivosPerda,
         tempoRespostaMedioMin,
         leadsSemPrimeiroContato,
+        valorPropostoCents,
+        propostasEnviadas,
       },
       contratos: {
         ativos: ativos.length,

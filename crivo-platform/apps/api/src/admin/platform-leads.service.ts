@@ -335,9 +335,11 @@ export class PlatformLeadsService {
     if (!existing) throw new NotFoundException('Lead não encontrado');
     // O motivo de perda só faz sentido em PERDIDO; ao sair de PERDIDO, limpa.
     const lost = stage === 'PERDIDO' ? (lostReason?.trim() || null) : null;
+    // Carimba "proposta enviada" ao entrar em PROPOSTA (se ainda não houver).
+    const stampProposal = stage === 'PROPOSTA' && !existing.proposalSentAt;
     const updated = await this.prisma.admin.platformLead.update({
       where: { id },
-      data: { stage, lostReason: lost },
+      data: { stage, lostReason: lost, ...(stampProposal ? { proposalSentAt: new Date() } : {}) },
     });
     await this.audit.record({ action: 'lead.stage', actor, target: id, meta: { stage, lostReason: lost } });
     return this.toSummary(updated);
@@ -407,6 +409,49 @@ export class PlatformLeadsService {
     return this.toSummary(updated);
   }
 
+  /** Dados comerciais do lead (Tela 02 Incluir): responsável, valor proposto,
+   *  proposta enviada e adicionais potenciais. Campos omitidos não são alterados;
+   *  passar null limpa o campo. */
+  async setCommercial(
+    id: string,
+    input: {
+      commercialOwner?: string | null;
+      proposedValueCents?: number | null;
+      proposalSentAt?: string | null;
+      potentialAddons?: string[];
+    },
+    actor: Actor,
+  ): Promise<PlatformLeadSummary> {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+
+    const data: {
+      commercialOwner?: string | null;
+      proposedValueCents?: number | null;
+      proposalSentAt?: Date | null;
+      potentialAddons?: string[];
+    } = {};
+    if (input.commercialOwner !== undefined) data.commercialOwner = input.commercialOwner?.trim() || null;
+    if (input.proposedValueCents !== undefined) {
+      data.proposedValueCents = input.proposedValueCents == null ? null : Math.max(0, Math.round(input.proposedValueCents));
+    }
+    if (input.proposalSentAt !== undefined) {
+      if (input.proposalSentAt == null) data.proposalSentAt = null;
+      else {
+        const at = new Date(input.proposalSentAt);
+        if (Number.isNaN(at.getTime())) throw new BadRequestException('Data de proposta inválida');
+        data.proposalSentAt = at;
+      }
+    }
+    if (input.potentialAddons !== undefined) {
+      data.potentialAddons = input.potentialAddons.map((c) => c.trim()).filter(Boolean).slice(0, 50);
+    }
+
+    const updated = await this.prisma.admin.platformLead.update({ where: { id }, data });
+    await this.audit.record({ action: 'lead.commercial', actor, target: id });
+    return this.toSummary(updated);
+  }
+
   async setNotes(id: string, notes: string, actor: Actor): Promise<PlatformLeadSummary> {
     const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Lead não encontrado');
@@ -468,6 +513,8 @@ export class PlatformLeadsService {
           productId: product.id,
           status: 'RASCUNHO',
           model: 'PONTUAL',
+          // Adicionais negociados (pré-venda) entram como módulos opcionais do contrato.
+          optionalModules: Array.isArray(lead.potentialAddons) ? lead.potentialAddons : [],
           notes: `Rascunho gerado na conversão do lead "${lead.name}".`,
         },
         actor,
@@ -578,6 +625,10 @@ export class PlatformLeadsService {
     interestProductId: string | null;
     nextActionAt: Date | null;
     nextActionNote: string | null;
+    commercialOwner: string | null;
+    proposedValueCents: number | null;
+    proposalSentAt: Date | null;
+    potentialAddons: string[];
     convertedTenantId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -605,6 +656,10 @@ export class PlatformLeadsService {
       interestProductId: l.interestProductId,
       nextActionAt: l.nextActionAt?.toISOString() ?? null,
       nextActionNote: l.nextActionNote,
+      commercialOwner: l.commercialOwner,
+      proposedValueCents: l.proposedValueCents,
+      proposalSentAt: l.proposalSentAt?.toISOString() ?? null,
+      potentialAddons: l.potentialAddons ?? [],
       convertedTenantId: l.convertedTenantId,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),

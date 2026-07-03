@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
+  MODULES,
   PLATFORM_LEAD_LOST_REASONS,
   PLATFORM_LEAD_ORIGINS,
   PLATFORM_LEAD_STAGE_LABEL,
@@ -10,15 +11,18 @@ import {
   type PlatformLeadSummary,
   type ProductSummary,
   type ProvisionResult,
+  type TenantSummary,
 } from "@crivo/types";
 import {
   convertLead,
   dedupLeads,
   listLeads,
   listProducts,
+  listTenants,
   markFirstContact,
   resetTestData,
   sendLeadAccess,
+  setLeadCommercial,
   setLeadInterest,
   setLeadNextAction,
   setLeadNotes,
@@ -27,6 +31,10 @@ import {
 } from "@/lib/admin-api";
 import { PreliminaryReportModal } from "./PreliminaryReportModal";
 import { LeadDataModal } from "./LeadDataModal";
+import { ContractModal } from "./ContractModal";
+
+const brlCents = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 // Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
 // PERDIDO sai do board (continua no banco) — movido via o seletor do card.
@@ -78,6 +86,7 @@ function LeadEditor({
   onInterest,
   onNextAction,
   onNotes,
+  onCommercial,
 }: {
   lead: PlatformLeadSummary;
   products: ProductSummary[];
@@ -86,18 +95,49 @@ function LeadEditor({
   onInterest: (v: string) => void | Promise<void>;
   onNextAction: (at: string, note: string) => void | Promise<void>;
   onNotes: (v: string) => void | Promise<void>;
+  onCommercial: (input: {
+    commercialOwner?: string | null;
+    proposedValueCents?: number | null;
+    proposalSentAt?: string | null;
+    potentialAddons?: string[];
+  }) => void | Promise<void>;
 }) {
   const [naAt, setNaAt] = useState(lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "");
   const [naNote, setNaNote] = useState(lead.nextActionNote ?? "");
   const [notes, setNotes] = useState(lead.notes ?? "");
+  const [owner, setOwner] = useState(lead.commercialOwner ?? "");
+  const valorInicial = lead.proposedValueCents != null ? String(lead.proposedValueCents / 100) : "";
+  const [valor, setValor] = useState(valorInicial);
+  const [propAt, setPropAt] = useState(lead.proposalSentAt ? lead.proposalSentAt.slice(0, 10) : "");
+  const [addons, setAddons] = useState<string[]>(lead.potentialAddons ?? []);
 
   const canonVals = PLATFORM_LEAD_ORIGINS.map((o) => o.value) as string[];
   const naChanged = naAt !== (lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "") || naNote !== (lead.nextActionNote ?? "");
   const notesChanged = notes !== (lead.notes ?? "");
+  const addonsKey = (a: string[]) => [...a].sort().join(",");
+  const commercialChanged =
+    owner !== (lead.commercialOwner ?? "") ||
+    valor !== valorInicial ||
+    propAt !== (lead.proposalSentAt ? lead.proposalSentAt.slice(0, 10) : "") ||
+    addonsKey(addons) !== addonsKey(lead.potentialAddons ?? []);
+
+  function parseValorCents(v: string): number | null {
+    if (v.trim() === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.round(n * 100) : null;
+  }
 
   async function saveText() {
     if (naChanged) await onNextAction(naAt, naNote);
     if (notesChanged) await onNotes(notes);
+    if (commercialChanged) {
+      await onCommercial({
+        commercialOwner: owner,
+        proposedValueCents: parseValorCents(valor),
+        proposalSentAt: propAt || null,
+        potentialAddons: addons,
+      });
+    }
   }
 
   return (
@@ -132,6 +172,58 @@ function LeadEditor({
           <option key={p.id} value={p.id}>{p.name}</option>
         ))}
       </select>
+
+      <span style={EDITOR_LABEL}>Responsável comercial</span>
+      <input
+        type="text"
+        className="kb-stage-select"
+        value={owner}
+        maxLength={120}
+        disabled={busy}
+        placeholder="Quem cuida deste lead"
+        onChange={(e) => setOwner(e.target.value)}
+        aria-label="Responsável comercial"
+      />
+
+      <span style={EDITOR_LABEL}>Valor proposto (R$)</span>
+      <input
+        type="number"
+        min={0}
+        step="0.01"
+        className="kb-stage-select"
+        value={valor}
+        disabled={busy}
+        placeholder="0,00"
+        onChange={(e) => setValor(e.target.value)}
+        aria-label="Valor proposto em reais"
+      />
+
+      <span style={EDITOR_LABEL}>Proposta enviada em</span>
+      <input
+        type="date"
+        className="kb-stage-select"
+        value={propAt}
+        disabled={busy}
+        onChange={(e) => setPropAt(e.target.value)}
+        aria-label="Data de envio da proposta"
+      />
+
+      <span style={EDITOR_LABEL}>Adicionais potenciais</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", padding: "2px 0" }}>
+        {MODULES.map((m) => (
+          <label key={m.code} style={{ fontSize: 11, display: "flex", gap: 4, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={addons.includes(m.code)}
+              disabled={busy}
+              onChange={(e) =>
+                setAddons((prev) => (e.target.checked ? [...prev, m.code] : prev.filter((c) => c !== m.code)))
+              }
+            />
+            {m.name}
+          </label>
+        ))}
+      </div>
 
       <span style={EDITOR_LABEL}>Follow-up — próxima ação</span>
       <input
@@ -169,11 +261,11 @@ function LeadEditor({
       <button
         type="button"
         className="kb-convert"
-        disabled={busy || (!naChanged && !notesChanged)}
+        disabled={busy || (!naChanged && !notesChanged && !commercialChanged)}
         onClick={saveText}
         style={{ marginTop: 8 }}
       >
-        Salvar follow-up / observações
+        Salvar dados comerciais
       </button>
     </div>
   );
@@ -189,6 +281,8 @@ export function CrmSection() {
   const [dataLead, setDataLead] = useState<PlatformLeadSummary | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null); // card em edição comercial
   const [products, setProducts] = useState<ProductSummary[]>([]); // catálogo p/ "solução de interesse"
+  const [tenants, setTenants] = useState<TenantSummary[]>([]); // p/ abrir o contrato da empresa
+  const [contractTenant, setContractTenant] = useState<TenantSummary | null>(null);
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -252,7 +346,30 @@ export function CrmSection() {
     listProducts()
       .then((ps) => setProducts(ps.filter((p) => p.status === "ACTIVE" && !p.isLeadCapture)))
       .catch(() => setProducts([]));
+    // Empresas — para "link para contrato" (abre o contrato da empresa convertida).
+    listTenants().then(setTenants).catch(() => setTenants([]));
   }, []);
+
+  /** Abre o contrato da empresa criada na conversão (link para contrato). */
+  async function openContract(convertedTenantId: string) {
+    let t = tenants.find((x) => x.id === convertedTenantId);
+    if (!t) {
+      try {
+        const fresh = await listTenants();
+        setTenants(fresh);
+        t = fresh.find((x) => x.id === convertedTenantId);
+      } catch { /* ignora */ }
+    }
+    if (t) setContractTenant(t);
+  }
+
+  /** Dados comerciais (responsável, valor proposto, proposta enviada, adicionais). */
+  async function saveCommercial(id: string, input: Parameters<typeof setLeadCommercial>[1]) {
+    setBusyId(id);
+    try { applyUpdate(await setLeadCommercial(id, input)); }
+    catch { try { setLeads(await listLeads()); } catch { /* mantém */ } }
+    finally { setBusyId(null); }
+  }
 
   /** Aplica o retorno do backend ao lead na lista (mantém sincronizado). */
   function applyUpdate(updated: PlatformLeadSummary) {
@@ -431,7 +548,7 @@ export function CrmSection() {
                         )}
                         {l.phone && <span className="kb-wpp">{l.phone}</span>}
                       </div>
-                      {(l.origin || l.nextActionAt || l.interestProductId) && (
+                      {(l.origin || l.nextActionAt || l.interestProductId || l.proposedValueCents != null || l.commercialOwner) && (
                         <div className="kb-meta" style={{ marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {l.origin && <span title="Origem/canal">◦ {platformLeadOriginLabel(l.origin)}</span>}
                           {l.interestProductId && (
@@ -439,6 +556,10 @@ export function CrmSection() {
                               ◈ {products.find((p) => p.id === l.interestProductId)?.name ?? "Solução"}
                             </span>
                           )}
+                          {l.proposedValueCents != null && (
+                            <span title="Valor proposto" style={{ color: "#2E7D4F" }}>{brlCents(l.proposedValueCents)}</span>
+                          )}
+                          {l.commercialOwner && <span title="Responsável comercial">◭ {l.commercialOwner}</span>}
                           {l.nextActionAt && (
                             <span
                               title={l.nextActionNote ?? "Próxima ação"}
@@ -493,7 +614,17 @@ export function CrmSection() {
                         )
                       )}
                       {l.convertedTenantId ? (
-                        <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
+                        <>
+                          <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
+                          <button
+                            type="button"
+                            className="kb-report"
+                            onClick={() => openContract(l.convertedTenantId!)}
+                            title="Abrir o contrato da empresa (configurar/assinar)"
+                          >
+                            ▦ Contrato da empresa
+                          </button>
+                        </>
                       ) : l.stage === "ONBOARDING" ? (
                         <button type="button" className="kb-convert" onClick={() => setConverting(l)}>
                           Habilitar cliente (sistema) →
@@ -546,6 +677,7 @@ export function CrmSection() {
                           onInterest={(v) => saveInterest(l.id, v)}
                           onNextAction={(at, note) => saveNextAction(l.id, at, note)}
                           onNotes={(v) => saveNotes(l.id, v)}
+                          onCommercial={(input) => saveCommercial(l.id, input)}
                         />
                       )}
                     </article>
@@ -580,6 +712,8 @@ export function CrmSection() {
       )}
 
       {dataLead && <LeadDataModal lead={dataLead} onClose={() => setDataLead(null)} />}
+
+      {contractTenant && <ContractModal tenant={contractTenant} onClose={() => setContractTenant(null)} />}
     </>
   );
 }

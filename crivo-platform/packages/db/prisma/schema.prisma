@@ -626,6 +626,10 @@ model PlatformLead {
   interestProductId String?           @db.Uuid // solução de interesse (pré-venda; ≠ productId de origem)
   nextActionAt      DateTime? // follow-up: data da próxima ação combinada
   nextActionNote    String? // follow-up: o que fazer na próxima ação
+  commercialOwner   String? // responsável comercial (CRIVO) pelo lead
+  proposedValueCents Int? // valor proposto (centavos)
+  proposalSentAt    DateTime? // quando a proposta comercial foi enviada
+  potentialAddons   String[]          @default([]) // adicionais/módulos potenciais (pré-venda)
   convertedTenantId String?           @db.Uuid // tenant criado na conversão (FASE 3)
 
   createdAt DateTime @default(now())

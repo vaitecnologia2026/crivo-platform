@@ -215,6 +215,7 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.origin": "Origem do lead registrada",
   "lead.interest": "Solução de interesse registrada",
   "lead.next_action": "Follow-up do lead definido",
+  "lead.commercial": "Dados comerciais do lead atualizados",
   "lead.convert": "Lead convertido em cliente",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",

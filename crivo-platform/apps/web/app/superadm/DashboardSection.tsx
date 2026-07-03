@@ -245,6 +245,11 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
               <strong className="kpi__value" style={{ fontSize: 28 }}>{brl(d.comercial.faturamentoEstimadoCents)}</strong>
               <span className="kpi__delta">ticket médio {brl(d.comercial.ticketMedioCents)} · estimado</span>
             </div>
+            <div className="kpi">
+              <span className="kpi__label">Valor em pipeline</span>
+              <strong className="kpi__value" style={{ fontSize: 26 }}>{brl(d.comercial.valorPropostoCents)}</strong>
+              <span className="kpi__delta">{d.comercial.propostasEnviadas} proposta(s) enviada(s)</span>
+            </div>
           </div>
 
           <div className="grid grid--2" style={{ marginTop: 16 }}>

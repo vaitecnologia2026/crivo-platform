@@ -349,6 +349,8 @@ export interface DashboardData {
     motivosPerda: { motivo: string; count: number }[]; // leads PERDIDO por motivo
     tempoRespostaMedioMin: number | null; // lead → 1º contato (min); null = sem dado
     leadsSemPrimeiroContato: number; // leads do período ainda sem 1º contato
+    valorPropostoCents: number; // soma do valor proposto dos leads em aberto (pipeline)
+    propostasEnviadas: number; // leads com proposta enviada no período
   };
   contratos: {
     ativos: number;
@@ -950,6 +952,10 @@ export interface PlatformLeadSummary {
   interestProductId: string | null; // solução de interesse (pré-venda; ≠ produto de origem)
   nextActionAt: string | null; // ISO — data da próxima ação (follow-up)
   nextActionNote: string | null; // o que fazer na próxima ação (follow-up)
+  commercialOwner: string | null; // responsável comercial (CRIVO) pelo lead
+  proposedValueCents: number | null; // valor proposto (centavos)
+  proposalSentAt: string | null; // ISO — quando a proposta foi enviada
+  potentialAddons: string[]; // adicionais/módulos potenciais (pré-venda)
   convertedTenantId: string | null;
   createdAt: string;
   updatedAt: string;

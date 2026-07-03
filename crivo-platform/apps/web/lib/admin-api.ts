@@ -369,6 +369,22 @@ export function setLeadNextAction(
   });
 }
 
+/** Dados comerciais do lead: responsável, valor proposto, proposta enviada, adicionais. */
+export function setLeadCommercial(
+  id: string,
+  input: {
+    commercialOwner?: string | null;
+    proposedValueCents?: number | null;
+    proposalSentAt?: string | null;
+    potentialAddons?: string[];
+  },
+): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/commercial`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
 export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/notes`, {
     method: "PATCH",

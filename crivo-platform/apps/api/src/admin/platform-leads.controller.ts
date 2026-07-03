@@ -6,6 +6,7 @@ import { CurrentAdmin } from './platform-admin.decorator';
 import {
   ConvertLeadDto,
   CreateLeadFromCnpjDto,
+  SetLeadCommercialDto,
   SetLeadInterestDto,
   SetLeadNextActionDto,
   SetLeadNotesDto,
@@ -76,6 +77,16 @@ export class PlatformLeadsController {
       dto.nextActionNote ?? null,
       { id: admin.id, email: admin.email },
     );
+  }
+
+  /** Dados comerciais do lead: responsável, valor proposto, proposta enviada, adicionais. */
+  @Patch(':id/commercial')
+  setCommercial(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetLeadCommercialDto,
+  ) {
+    return this.leads.setCommercial(id, dto, { id: admin.id, email: admin.email });
   }
 
   @Patch(':id/notes')
