@@ -76,6 +76,16 @@ export const NAV: NavGroup[] = [
         perm: 'icd:view',
         breadcrumb: { path: 'Indicadores', current: 'Índice de Coerência (ICD)' },
       },
+      {
+        // F3 — Consolidado do Grupo Empresarial. O módulo virtual 'grupo' só é
+        // devolvido por /me/modules quando o usuário está autorizado (grupo
+        // consolidado + e-mail na lista de acesso), então o item só aparece p/ eles.
+        route: 'grupo',
+        label: 'Grupo Empresarial',
+        icon: '◧',
+        module: 'grupo',
+        breadcrumb: { path: 'Grupo', current: 'Consolidado do Grupo' },
+      },
     ],
   },
   {
@@ -218,7 +228,10 @@ export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] =
   (g) =>
     g.title === 'Configurações'
       ? []
-      : g.items.filter((i) => i.route).map((i) => ({ route: i.route!, label: i.label, group: g.title })),
+      : g.items
+          // 'grupo' (F3) é liberado por autorização de grupo, não pela checklist por usuário.
+          .filter((i) => i.route && i.route !== 'grupo')
+          .map((i) => ({ route: i.route!, label: i.label, group: g.title })),
 );
 
 /** Acesso por rota (módulo + permissão de ver) — alimenta o filtro da nav. */

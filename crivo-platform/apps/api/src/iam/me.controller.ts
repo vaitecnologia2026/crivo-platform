@@ -6,6 +6,7 @@ import { CurrentUser } from './current-user.decorator';
 import { ModuleService } from './module.service';
 import { PermissionService } from './permission.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { GroupsService } from '../admin/groups.service';
 import { UpdateBrandingDto, UpdateOrganizationDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
 import {
@@ -37,12 +38,17 @@ export class MeController {
     private readonly modules: ModuleService,
     private readonly permissions: PermissionService,
     private readonly prisma: PrismaService,
+    private readonly groups: GroupsService,
   ) {}
 
   /** Códigos dos módulos ativos da empresa do usuário (alimenta o menu). */
   @Get('modules')
   async myModules(@CurrentUser() user: SessionUser): Promise<string[]> {
-    return [...(await this.modules.enabledFor(user.tenantId))];
+    const codes = [...(await this.modules.enabledFor(user.tenantId))];
+    // F3: libera o item "Grupo Empresarial" no menu quando o usuário tem acesso
+    // ao consolidado do seu grupo (grupo consolidado + e-mail autorizado).
+    if (await this.groups.userHasGroupAccess(user)) codes.push('grupo');
+    return codes;
   }
 
   /** Permissões efetivas (modulo:acao) do usuário — filtra o menu.
@@ -57,6 +63,12 @@ export class MeController {
   @Get('role')
   myRole(@CurrentUser() user: SessionUser): { role: string; name: string } {
     return { role: user.role, name: user.name };
+  }
+
+  /** F3 — Consolidado do Grupo Empresarial do usuário (403 se não autorizado). */
+  @Get('group/overview')
+  myGroupOverview(@CurrentUser() user: SessionUser) {
+    return this.groups.portalOverviewForUser(user);
   }
 
   /** #8/#10 — Tipo de diagnóstico do produto contratado (Inicial/Essencial/

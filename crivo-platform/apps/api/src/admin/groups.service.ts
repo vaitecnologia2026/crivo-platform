@@ -1,12 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, type AuditActor } from './audit.service';
 import { toTenantSummary } from './tenant.mapper';
 import type {
   BusinessGroupSummary,
+  GroupAccessEntry,
   GroupOverview,
   GroupOverviewTenantRow,
   Plan,
+  SessionUser,
   TenantSummary,
   TenantStatus,
 } from '@crivo/types';
@@ -44,6 +51,7 @@ export class GroupsService {
       id: g.id,
       name: g.name,
       createdAt: g.createdAt.toISOString(),
+      consolidatedEnabled: g.consolidatedEnabled,
       tenants: byGroup.get(g.id) ?? [],
     }));
   }
@@ -54,7 +62,13 @@ export class GroupsService {
     if (trimmed.length < 2) throw new BadRequestException('Informe o nome do grupo.');
     const g = await this.prisma.admin.businessGroup.create({ data: { name: trimmed } });
     await this.audit.record({ action: 'group.create', actor, target: g.id, meta: { name: trimmed } });
-    return { id: g.id, name: g.name, createdAt: g.createdAt.toISOString(), tenants: [] };
+    return {
+      id: g.id,
+      name: g.name,
+      createdAt: g.createdAt.toISOString(),
+      consolidatedEnabled: g.consolidatedEnabled,
+      tenants: [],
+    };
   }
 
   /** Renomeia um grupo. */
@@ -78,6 +92,8 @@ export class GroupsService {
         `Este grupo tem ${linked} empresa(s) vinculada(s). Desvincule antes de excluir.`,
       );
     }
+    // Cascade em código (padrão desacoplado, sem FK): remove as autorizações do portal.
+    await this.prisma.admin.businessGroupAccess.deleteMany({ where: { groupId: id } });
     await this.prisma.admin.businessGroup.delete({ where: { id } });
     await this.audit.record({ action: 'group.delete', actor, target: id, meta: { name: g.name } });
     return { ok: true };
@@ -90,9 +106,26 @@ export class GroupsService {
   async overview(groupId: string, actor: AuditActor): Promise<GroupOverview> {
     const group = await this.prisma.admin.businessGroup.findUnique({ where: { id: groupId } });
     if (!group) throw new NotFoundException('Grupo não encontrado.');
+    const result = await this.aggregateGroup(group);
+    await this.audit.record({
+      action: 'group.overview',
+      actor,
+      target: groupId,
+      meta: { name: group.name, tenants: result.tenants.length },
+    });
+    return result;
+  }
 
+  /** Agrega os dados dos CNPJs do grupo. Reusado pelo Super Admin (overview) e
+   *  pelo portal do cliente (portalOverviewForUser). §11: só agregados por
+   *  empresa; respeita CompanyQuarterlyIcd.suppressed (não recomputa por líder). */
+  private async aggregateGroup(group: {
+    id: string;
+    name: string;
+    createdAt: Date;
+  }): Promise<GroupOverview> {
     const tenants = await this.prisma.admin.tenant.findMany({
-      where: { groupId },
+      where: { groupId: group.id },
       orderBy: { name: 'asc' },
     });
 
@@ -203,14 +236,6 @@ export class GroupsService {
         ? Math.round(icdScores.reduce((a, b) => a + b, 0) / icdScores.length)
         : null;
 
-    // Acesso ao consolidado é sensível → sempre auditado (padrão Base CRIVO).
-    await this.audit.record({
-      action: 'group.overview',
-      actor,
-      target: groupId,
-      meta: { name: group.name, tenants: tenants.length },
-    });
-
     return {
       group: { id: group.id, name: group.name, createdAt: group.createdAt.toISOString() },
       tenants: rows,
@@ -229,6 +254,98 @@ export class GroupsService {
         campaignsTotal: sum((r) => r.campaignsTotal),
       },
     };
+  }
+
+  // ── F3: consolidado no PORTAL do cliente (Admin de Grupo) ──────────────
+
+  /** Liga/desliga a visão consolidada do grupo no portal do cliente. */
+  async setConsolidated(id: string, enabled: boolean, actor: AuditActor): Promise<{ ok: true }> {
+    const g = await this.prisma.admin.businessGroup.findUnique({ where: { id } });
+    if (!g) throw new NotFoundException('Grupo não encontrado.');
+    await this.prisma.admin.businessGroup.update({
+      where: { id },
+      data: { consolidatedEnabled: enabled },
+    });
+    await this.audit.record({ action: 'group.consolidated.set', actor, target: id, meta: { enabled } });
+    return { ok: true };
+  }
+
+  /** E-mails autorizados a ver o consolidado do grupo no portal. */
+  async listAccess(groupId: string): Promise<GroupAccessEntry[]> {
+    const rows = await this.prisma.admin.businessGroupAccess.findMany({
+      where: { groupId },
+      orderBy: { email: 'asc' },
+    });
+    return rows.map((r) => ({ id: r.id, email: r.email, createdAt: r.createdAt.toISOString() }));
+  }
+
+  /** Autoriza um e-mail a ver o consolidado do grupo (idempotente). */
+  async addAccess(groupId: string, email: string, actor: AuditActor): Promise<GroupAccessEntry> {
+    const g = await this.prisma.admin.businessGroup.findUnique({ where: { id: groupId } });
+    if (!g) throw new NotFoundException('Grupo não encontrado.');
+    const norm = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(norm)) throw new BadRequestException('E-mail inválido.');
+    const row = await this.prisma.admin.businessGroupAccess.upsert({
+      where: { groupId_email: { groupId, email: norm } },
+      create: { groupId, email: norm },
+      update: {},
+    });
+    await this.audit.record({ action: 'group.access.add', actor, target: groupId, meta: { email: norm } });
+    return { id: row.id, email: row.email, createdAt: row.createdAt.toISOString() };
+  }
+
+  /** Revoga um e-mail autorizado. */
+  async removeAccess(accessId: string, actor: AuditActor): Promise<{ ok: true }> {
+    const row = await this.prisma.admin.businessGroupAccess.findUnique({ where: { id: accessId } });
+    if (!row) throw new NotFoundException('Autorização não encontrada.');
+    await this.prisma.admin.businessGroupAccess.delete({ where: { id: accessId } });
+    await this.audit.record({
+      action: 'group.access.remove',
+      actor,
+      target: row.groupId,
+      meta: { email: row.email },
+    });
+    return { ok: true };
+  }
+
+  /** O usuário do tenant tem acesso ao consolidado do seu grupo? (gate do menu). */
+  async userHasGroupAccess(user: SessionUser): Promise<boolean> {
+    return (await this.groupForUser(user)) != null;
+  }
+
+  /** Consolidado do grupo para o usuário do PORTAL — 403 se não autorizado. */
+  async portalOverviewForUser(user: SessionUser): Promise<GroupOverview> {
+    const group = await this.groupForUser(user);
+    if (!group) throw new ForbiddenException('Você não tem acesso ao consolidado do grupo.');
+    const result = await this.aggregateGroup(group);
+    await this.audit.record({
+      action: 'group.portal.view',
+      actor: { id: user.id, email: user.email },
+      target: group.id,
+      tenantId: user.tenantId,
+      meta: { name: group.name },
+    });
+    return result;
+  }
+
+  /** Resolve o grupo consolidado a que o usuário tem acesso, ou null. Regras:
+   *  o tenant do usuário pertence a um grupo + grupo.consolidatedEnabled + e-mail
+   *  do usuário na lista de acesso. (SessionUser.tenantId = organizationId.) */
+  private async groupForUser(
+    user: SessionUser,
+  ): Promise<{ id: string; name: string; createdAt: Date } | null> {
+    const tenant = await this.prisma.admin.tenant.findUnique({
+      where: { organizationId: user.tenantId },
+      select: { groupId: true },
+    });
+    if (!tenant?.groupId) return null;
+    const group = await this.prisma.admin.businessGroup.findUnique({ where: { id: tenant.groupId } });
+    if (!group || !group.consolidatedEnabled) return null;
+    const access = await this.prisma.admin.businessGroupAccess.findUnique({
+      where: { groupId_email: { groupId: group.id, email: user.email.toLowerCase() } },
+    });
+    if (!access) return null;
+    return { id: group.id, name: group.name, createdAt: group.createdAt };
   }
 
   /** Vincula (ou desvincula, com groupId=null) uma empresa a um grupo. */

@@ -94,6 +94,6 @@ import { GroupsService } from './groups.service';
     BenchmarksService,
     GroupsService,
   ],
-  exports: [AiSettingsService, EditableTextsService, AuditService],
+  exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService],
 })
 export class AdminModule {}

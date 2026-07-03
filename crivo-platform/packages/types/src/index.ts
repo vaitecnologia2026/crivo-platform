@@ -319,7 +319,16 @@ export interface BusinessGroupSummary {
   id: string;
   name: string;
   createdAt: string;
+  /** F3 — visão consolidada liberada no portal do cliente. */
+  consolidatedEnabled: boolean;
   tenants: { id: string; name: string; slug: string; status: TenantStatus }[];
+}
+
+/** F3 — e-mail autorizado a ver o consolidado do grupo no portal do cliente. */
+export interface GroupAccessEntry {
+  id: string;
+  email: string;
+  createdAt: string;
 }
 
 /** F2 — linha por CNPJ na visão consolidada do grupo (só agregados; §11: nada individual). */

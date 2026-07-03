@@ -124,6 +124,11 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="icd-root"></div>
       </section>
 
+      <!-- ============ GRUPO EMPRESARIAL (F3) ============ -->
+      <section class="route" data-route="grupo">
+        <div id="grupo-root"></div>
+      </section>
+
       <!-- ============ QUESTIONÁRIO ============ -->
       <section class="route" data-route="questionario">
         <div id="quiz-root"></div>

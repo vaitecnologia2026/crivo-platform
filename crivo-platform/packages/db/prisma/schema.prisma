@@ -373,12 +373,28 @@ model Tenant {
 // para gestão e, nas fases seguintes, visão consolidada autorizada (F2/F3).
 // Sem relation Prisma (padrão desacoplado do control plane, como productId).
 model BusinessGroup {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(uuid()) @db.Uuid
+  name                String
+  // F3: "consolidado contratado/autorizado" (Caderno Tela 06) — só com true o
+  // portal do cliente libera a visão consolidada do grupo.
+  consolidatedEnabled Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("business_groups")
+}
+
+// F3: e-mails autorizados a ver o consolidado do grupo no PORTAL do cliente
+// (Admin de Grupo). Sem relation Prisma (padrão desacoplado); cascade no código.
+model BusinessGroupAccess {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @db.Uuid // → business_groups.id
+  email     String // e-mail do usuário do tenant (normalizado minúsculo)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, email])
+  @@index([email])
+  @@map("business_group_access")
 }
 
 // Relatório Preliminar CRIVO (Briefing §5, Portal §7).

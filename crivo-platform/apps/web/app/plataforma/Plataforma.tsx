@@ -38,6 +38,7 @@ import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { DecisaoScreen } from "./DecisaoScreen";
 import { IcdScreen } from "./IcdScreen";
+import { GrupoScreen } from "./GrupoScreen";
 import { CampanhasScreen } from "./CampanhasScreen";
 import { LiderScreen } from "./LiderScreen";
 import { BibliotecaScreen } from "./BibliotecaScreen";
@@ -127,7 +128,13 @@ export function Plataforma() {
       if (access.perm && permissions && !permissions.has(access.perm)) return false; // papel/RBAC
       // Acesso por tela por usuário: se houver restrição, só libera rotas na lista.
       // 'usuarios'/'papeis' (gestão) seguem gateadas só por permissão, não pela lista.
-      if (allowedScreens && route !== "usuarios" && route !== "papeis" && !allowedScreens.has(route))
+      if (
+        allowedScreens &&
+        route !== "usuarios" &&
+        route !== "papeis" &&
+        route !== "grupo" && // F3: gateado por autorização de grupo, não pela checklist
+        !allowedScreens.has(route)
+      )
         return false;
       return true;
     };
@@ -168,6 +175,7 @@ export function Plataforma() {
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
+      if (name === "grupo") mountIsland("grupo-root", <GrupoScreen />); // F3 — consolidado do grupo
       // §16: CRM é interno da CRIVO (Super Admin), fora do portal do cliente.
       if (name === "campanhas") mountIsland("campanhas-root", <CampanhasScreen />);
       if (name === "lider") mountIsland("lider-root", <LiderScreen />);

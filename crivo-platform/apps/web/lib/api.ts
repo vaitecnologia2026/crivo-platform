@@ -50,6 +50,7 @@ import type {
   InvisibleCostScenarios,
   PeoplePeriod,
   OperationalAlertsResult,
+  GroupOverview,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -287,6 +288,11 @@ export interface MentoriaTenantEntry {
 }
 export function getMyMentorias(): Promise<MentoriaTenantEntry[]> {
   return apiFetch<MentoriaTenantEntry[]>('/me/mentorias');
+}
+
+/** F3 — Consolidado do Grupo Empresarial do usuário logado (403 se sem acesso). */
+export function getMyGroupOverview(): Promise<GroupOverview> {
+  return apiFetch<GroupOverview>('/me/group/overview');
 }
 
 /** #56 — Audit log do tenant (últimos 100 eventos). Filtra por tenantId no backend. */

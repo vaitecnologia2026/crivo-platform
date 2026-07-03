@@ -24,6 +24,7 @@ import type {
   ProvisionResult,
   TenantBrandingData,
   BusinessGroupSummary,
+  GroupAccessEntry,
   GroupOverview,
   TenantDomainData,
   TenantModuleSummary,
@@ -183,6 +184,30 @@ export function setTenantGroup(tenantId: string, groupId: string | null): Promis
 /** F2 — visão consolidada do grupo (agregados por CNPJ; acesso auditado). */
 export function getGroupOverview(id: string): Promise<GroupOverview> {
   return adminFetch<GroupOverview>(`/admin/groups/${id}/overview`);
+}
+
+// ── F3 — consolidado do grupo no portal do cliente (gestão) ──
+
+export function setGroupConsolidated(id: string, enabled: boolean): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/groups/${id}/consolidated`, {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export function listGroupAccess(id: string): Promise<GroupAccessEntry[]> {
+  return adminFetch<GroupAccessEntry[]>(`/admin/groups/${id}/access`);
+}
+
+export function addGroupAccess(id: string, email: string): Promise<GroupAccessEntry> {
+  return adminFetch<GroupAccessEntry>(`/admin/groups/${id}/access`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function removeGroupAccess(accessId: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/groups/access/${accessId}`, { method: "DELETE" });
 }
 
 // ── Módulos por empresa (F4) ──

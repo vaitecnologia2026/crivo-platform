@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BusinessGroupSummary, GroupOverview } from "@crivo/types";
+import type { BusinessGroupSummary, GroupAccessEntry, GroupOverview } from "@crivo/types";
 import { PLAN_LABELS } from "@crivo/types";
-import { getGroupOverview } from "@/lib/admin-api";
+import {
+  addGroupAccess,
+  getGroupOverview,
+  listGroupAccess,
+  removeGroupAccess,
+  setGroupConsolidated,
+} from "@/lib/admin-api";
 
 type Load = "loading" | "error" | "ok";
 
@@ -29,14 +35,20 @@ export function GroupOverviewModal({
 }) {
   const [load, setLoad] = useState<Load>("loading");
   const [data, setData] = useState<GroupOverview | null>(null);
+  // F3 — acesso do cliente ao consolidado no portal.
+  const [enabled, setEnabled] = useState(group.consolidatedEnabled);
+  const [access, setAccess] = useState<GroupAccessEntry[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [savingAccess, setSavingAccess] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setLoad("loading");
-    getGroupOverview(group.id)
-      .then((d) => {
+    Promise.all([getGroupOverview(group.id), listGroupAccess(group.id)])
+      .then(([d, a]) => {
         if (!alive) return;
         setData(d);
+        setAccess(a);
         setLoad("ok");
       })
       .catch(() => {
@@ -46,6 +58,46 @@ export function GroupOverviewModal({
       alive = false;
     };
   }, [group.id]);
+
+  async function toggleEnabled() {
+    const next = !enabled;
+    setEnabled(next);
+    try {
+      await setGroupConsolidated(group.id, next);
+    } catch (e) {
+      setEnabled(!next);
+      alert(e instanceof Error ? e.message : "Falha ao alterar o acesso.");
+    }
+  }
+
+  async function onAddEmail(e: React.FormEvent) {
+    e.preventDefault();
+    const email = newEmail.trim();
+    if (!email) return;
+    setSavingAccess(true);
+    try {
+      const row = await addGroupAccess(group.id, email);
+      setAccess((prev) =>
+        [...prev.filter((r) => r.email !== row.email), row].sort((a, b) =>
+          a.email.localeCompare(b.email),
+        ),
+      );
+      setNewEmail("");
+    } catch (e2) {
+      alert(e2 instanceof Error ? e2.message : "Falha ao autorizar o e-mail.");
+    } finally {
+      setSavingAccess(false);
+    }
+  }
+
+  async function onRemoveEmail(id: string) {
+    try {
+      await removeGroupAccess(id);
+      setAccess((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao remover.");
+    }
+  }
 
   const c = data?.consolidated;
 
@@ -167,6 +219,75 @@ export function GroupOverviewModal({
                 </tbody>
               </table>
             </>
+          )}
+
+          {load === "ok" && (
+            <div className="card" style={{ marginTop: 20 }}>
+              <div className="card__head">
+                <div>
+                  <h3>Acesso do cliente ao consolidado (portal)</h3>
+                  <span className="card__sub">
+                    Libere a visão do grupo no portal do cliente e autorize quem pode vê-la
+                    (Admin de Grupo). Sem autorização, ninguém do cliente vê o consolidado.
+                  </span>
+                </div>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+                <input type="checkbox" checked={enabled} onChange={toggleEnabled} />
+                Consolidado liberado no portal do cliente
+              </label>
+              {enabled && (
+                <>
+                  <form
+                    onSubmit={onAddEmail}
+                    style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}
+                  >
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="email@empresa.com"
+                      style={{
+                        font: "inherit",
+                        fontSize: 13,
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: "1px solid var(--line, #E3DDD3)",
+                        minWidth: 240,
+                      }}
+                    />
+                    <button className="btn btn--terra btn--sm" disabled={savingAccess}>
+                      {savingAccess ? "Autorizando…" : "Autorizar"}
+                    </button>
+                  </form>
+                  {access.length === 0 ? (
+                    <p className="cell-mute" style={{ fontSize: 12.5 }}>
+                      Nenhum e-mail autorizado ainda.
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {access.map((a) => (
+                        <span
+                          key={a.id}
+                          className="pattern-tag"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                        >
+                          {a.email}
+                          <button
+                            type="button"
+                            onClick={() => onRemoveEmail(a.id)}
+                            title="Revogar acesso"
+                            style={{ background: "none", border: 0, cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
