@@ -714,6 +714,7 @@ export interface CnaeDecisionResult {
   nextSteps: string[];
   criteriaConsidered: string[];
   isPreliminary: true;
+  historyId?: string | null;
 }
 
 export interface CnaeEvaluationInputPayload {

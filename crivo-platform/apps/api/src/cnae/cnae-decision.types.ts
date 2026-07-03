@@ -71,6 +71,7 @@ export interface CnaeDecisionResult {
   nextSteps: string[];
   criteriaConsidered: string[]; // fatores usados — alimenta "Base Técnica da Recomendação"
   isPreliminary: true;
+  historyId?: string | null; // id do registro de histórico (para validação/exceção humana)
 }
 
 export const RISK_LABEL: Record<CnaeRiskLevel, string> = {

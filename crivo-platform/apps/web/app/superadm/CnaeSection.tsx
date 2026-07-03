@@ -6,6 +6,7 @@ import {
   evaluateFromCnpj,
   listCnaeDivisions,
   listCnaeHistory,
+  reviewCnaeDecision,
   updateCnaeDivision,
   type CnaeDecisionHistoryItem,
   type CnaeDecisionResult,
@@ -43,7 +44,7 @@ const TRIGGERS: { key: keyof CnaeEvaluationInputPayload; label: string }[] = [
 export function CnaeSection() {
   const [tab, setTab] = useState<"avaliar" | "regras" | "historico">("avaliar");
   return (
-    <div className="route">
+    <div className="route is-active">
       <div className="route__head">
         <div>
           <h2>Motor de Enquadramento CRIVO</h2>
@@ -251,6 +252,33 @@ function EmptyCard() {
 function RecommendationCard({ d }: { d: CnaeDecisionResult }) {
   const [status, setStatus] = useState<"pendente" | "aceita" | "revisao">("pendente");
   const [note, setNote] = useState<string | null>(null);
+  const [reviewNote, setReviewNote] = useState(""); // observação/exceção do especialista
+  const [saving, setSaving] = useState(false);
+
+  // [5] Registra a validação/exceção humana no histórico (persiste de verdade).
+  async function register(decision: "aceita" | "revisao") {
+    const prefix = decision === "aceita" ? "VALIDADA" : "REVISÃO SOLICITADA";
+    const notes = reviewNote.trim() ? `${prefix} · ${reviewNote.trim()}` : prefix;
+    if (!d.historyId) {
+      setStatus(decision);
+      setNote("Recomendação sem histórico para registrar (avaliação não persistida).");
+      return;
+    }
+    setSaving(true);
+    try {
+      await reviewCnaeDecision(d.historyId, notes);
+      setStatus(decision);
+      setNote(
+        decision === "aceita"
+          ? "Validação registrada no histórico (com exceção, se informada)."
+          : "Enviada para revisão técnica — registrada no histórico.",
+      );
+    } catch {
+      setNote("Falha ao registrar no histórico. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const methodLabel =
     d.recommendedMethod === "ORGANIZACIONAL"
@@ -347,13 +375,36 @@ function RecommendationCard({ d }: { d: CnaeDecisionResult }) {
         </div>
       )}
 
+      <div className="cnae-block">
+        <h4>Validação do especialista</h4>
+        <textarea
+          value={reviewNote}
+          rows={2}
+          maxLength={2000}
+          disabled={saving || status !== "pendente"}
+          placeholder="Observação ou exceção (ex.: atividade real difere do CNAE; ajustar método)…"
+          onChange={(e) => setReviewNote(e.target.value)}
+          aria-label="Observação ou exceção do especialista"
+          style={{
+            width: "100%",
+            resize: "vertical",
+            font: "inherit",
+            fontSize: 13,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid var(--line, #E3DDD3)",
+            background: "var(--surface, #fff)",
+          }}
+        />
+      </div>
+
       {note && <p className="cnae-note">{note}</p>}
 
       <div className="cnae-card__actions">
-        <button className="btn btn--primary" onClick={() => { setStatus("aceita"); setNote("Recomendação aceita — o histórico registrou a decisão."); }}>
-          Aceitar recomendação
+        <button className="btn btn--primary" disabled={saving || status !== "pendente"} onClick={() => register("aceita")}>
+          {saving ? "Registrando…" : "Validar recomendação"}
         </button>
-        <button className="btn" onClick={() => { setStatus("revisao"); setNote("Enviada para revisão técnica do especialista."); }}>
+        <button className="btn" disabled={saving || status !== "pendente"} onClick={() => register("revisao")}>
           Enviar para revisão técnica
         </button>
         <button className="btn" onClick={copy}>Copiar recomendação</button>

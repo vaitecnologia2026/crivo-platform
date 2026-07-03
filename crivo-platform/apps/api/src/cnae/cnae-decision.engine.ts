@@ -358,19 +358,20 @@ export class CnaeDecisionEngine {
       rule: rule as DivisionRuleLike | null,
       secondaryDivisions,
     });
-    await this.saveDecisionHistory(input, rule, result, actor);
-    return result;
+    const historyId = await this.saveDecisionHistory(input, rule, result, actor);
+    return { ...result, historyId };
   }
 
-  /** Salva uma cópia imutável da decisão (auditoria). Best-effort: nunca trava. */
+  /** Salva uma cópia imutável da decisão (auditoria). Best-effort: nunca trava.
+   *  Devolve o id do registro (para a validação/exceção humana) ou null. */
   async saveDecisionHistory(
     input: CnaeEvaluationInput,
     rule: unknown,
     result: CnaeDecisionResult,
     actor?: { id?: string; email?: string },
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
-      await this.prisma.admin.cnaeDecisionHistory.create({
+      const created = await this.prisma.admin.cnaeDecisionHistory.create({
         data: {
           companyId: input.companyId ?? null,
           cnpj: result.cnpj,
@@ -384,9 +385,12 @@ export class CnaeDecisionEngine {
           manualReviewRequired: result.manualReviewRequired,
           reviewedBy: actor?.email ?? null,
         },
+        select: { id: true },
       });
+      return created.id;
     } catch (e) {
       this.log.warn(`Falha ao salvar histórico CNAE: ${e instanceof Error ? e.message : e}`);
+      return null;
     }
   }
 }
