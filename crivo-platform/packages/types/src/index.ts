@@ -1093,6 +1093,7 @@ export interface ContractData {
   id: string;
   organizationId: string;
   productId: string | null;
+  solutionIds: string[]; // soluções contratadas (Tela 05: várias por contrato)
   model: ContractModel;
   status: ContractStatus;
   method: DiagnosticMethod | null;
@@ -1112,6 +1113,7 @@ export interface ContractData {
 
 export interface UpsertContractRequest {
   productId?: string | null;
+  solutionIds?: string[];
   model?: ContractModel;
   status?: ContractStatus;
   method?: DiagnosticMethod | null;

@@ -662,7 +662,8 @@ model PlatformLead {
 model Contract {
   id             String         @id @default(uuid()) @db.Uuid
   organizationId String         @db.Uuid // → organizations.id (empresa-cliente)
-  productId      String?        @db.Uuid // → products.id (produto contratado)
+  productId      String?        @db.Uuid // → products.id (solução principal; = solutionIds[0])
+  solutionIds    String[]       @default([]) // soluções contratadas (Tela 05: várias por contrato)
   model          ContractModel  @default(PONTUAL)
   status         ContractStatus @default(RASCUNHO)
 

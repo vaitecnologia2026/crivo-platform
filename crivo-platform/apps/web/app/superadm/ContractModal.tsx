@@ -46,6 +46,7 @@ export function ContractModal({
           c
             ? {
                 productId: c.productId,
+                solutionIds: c.solutionIds,
                 model: c.model,
                 status: c.status,
                 method: c.method,
@@ -76,6 +77,11 @@ export function ContractModal({
   function toggleModule(code: string) {
     const cur = form.optionalModules ?? [];
     set("optionalModules", cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]);
+  }
+
+  function toggleSolution(id: string) {
+    const cur = form.solutionIds ?? [];
+    set("solutionIds", cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id]);
   }
 
   async function save(e: React.FormEvent) {
@@ -111,11 +117,23 @@ export function ContractModal({
               <legend>Solução e modelo</legend>
               <div className="prod-form__grid">
                 <label className="prod-field prod-field--full">
-                  <span>Solução contratada</span>
-                  <select value={form.productId ?? ""} onChange={(e) => set("productId", e.target.value || null)}>
-                    <option value="">— selecione —</option>
-                    {products.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-                  </select>
+                  <span>Soluções contratadas (uma ou várias)</span>
+                  <div className="prod-modules">
+                    {products.map((p) => (
+                      <label key={p.id} className="prod-check">
+                        <input
+                          type="checkbox"
+                          checked={(form.solutionIds ?? []).includes(p.id)}
+                          onChange={() => toggleSolution(p.id)}
+                        />
+                        {p.name}
+                      </label>
+                    ))}
+                  </div>
+                  <span className="prod-note" style={{ marginTop: 4 }}>
+                    O contrato compõe o que o cliente comprou — não cria produto novo. Ao salvar como
+                    <strong> Ativo</strong>, os módulos das soluções + adicionais são liberados na empresa.
+                  </span>
                 </label>
                 <label className="prod-field">
                   <span>Modelo de contratação</span>

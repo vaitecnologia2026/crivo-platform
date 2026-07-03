@@ -196,6 +196,9 @@ export class UpsertContractDto {
   @IsOptional() @IsString()
   productId?: string | null;
 
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
+  solutionIds?: string[];
+
   @IsOptional() @IsEnum(ContractModel)
   model?: ContractModel;
 
