@@ -54,19 +54,27 @@ export function useTenants() {
     return result;
   }, []);
 
+  // Preserva groupName quando a resposta pontual não o resolve (F1 · Grupos):
+  // endpoints de mutação retornam o tenant sem o nome do grupo (só a listagem resolve).
+  const mergeTenant = (prevRow: TenantSummary, updated: TenantSummary): TenantSummary => ({
+    ...prevRow,
+    ...updated,
+    groupName: updated.groupName === undefined ? prevRow.groupName : updated.groupName,
+  });
+
   const setStatusOf = useCallback(
     async (id: string, action: "suspend" | "activate" | "delete") => {
       const fn =
         action === "suspend" ? suspendTenant : action === "activate" ? activateTenant : deleteTenant;
       const updated = await fn(id);
-      setTenants((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      setTenants((prev) => prev.map((t) => (t.id === id ? mergeTenant(t, updated) : t)));
     },
     [],
   );
 
   /** Reflete na lista uma empresa atualizada por fora (ex.: troca de plano). */
   const applyTenant = useCallback((updated: TenantSummary) => {
-    setTenants((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    setTenants((prev) => prev.map((t) => (t.id === updated.id ? mergeTenant(t, updated) : t)));
   }, []);
 
   return { tenants, status, refresh, provision, setStatusOf, applyTenant };

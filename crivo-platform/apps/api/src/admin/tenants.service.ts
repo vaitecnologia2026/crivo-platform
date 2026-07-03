@@ -24,10 +24,14 @@ export class TenantsService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Lista todas as empresas-cliente (mais recentes primeiro). */
+  /** Lista todas as empresas-cliente (mais recentes primeiro), com o nome do grupo (F1). */
   async list(): Promise<TenantSummary[]> {
-    const rows = await this.prisma.admin.tenant.findMany({ orderBy: { createdAt: 'desc' } });
-    return rows.map(toTenantSummary);
+    const [rows, groups] = await Promise.all([
+      this.prisma.admin.tenant.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.admin.businessGroup.findMany({ select: { id: true, name: true } }),
+    ]);
+    const groupNames = new Map(groups.map((g) => [g.id, g.name]));
+    return rows.map((t) => toTenantSummary(t, t.groupId ? (groupNames.get(t.groupId) ?? null) : null));
   }
 
   /** Visão geral da plataforma (KPIs do control plane). */
@@ -51,7 +55,7 @@ export class TenantsService {
       totalUsers,
       activeUsers,
       totalLeads,
-      recentTenants: tenants.slice(0, 5).map(toTenantSummary),
+      recentTenants: tenants.slice(0, 5).map((t) => toTenantSummary(t)),
     };
   }
 

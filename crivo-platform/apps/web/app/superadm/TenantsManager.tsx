@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@crivo/ui";
 import {
   PLANS,
   PLAN_LABELS,
+  type BusinessGroupSummary,
   type Plan,
   type PlatformAdmin,
   type ProvisionResult,
   type TenantStatus,
   type TenantSummary,
 } from "@crivo/types";
+import { createGroup, deleteGroup, listGroups, setTenantGroup } from "@/lib/admin-api";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
 import { OnboardingModal } from "./OnboardingModal";
@@ -37,6 +39,57 @@ export function TenantsManager({
   const [showForm, setShowForm] = useState(false);
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [groups, setGroups] = useState<BusinessGroupSummary[] | null>(null);
+
+  // F1 · Grupos Empresariais (Caderno Tela 06): catálogo leve acima dos tenants.
+  async function refreshGroups() {
+    try {
+      setGroups(await listGroups());
+    } catch {
+      setGroups([]);
+    }
+  }
+  useEffect(() => {
+    void refreshGroups();
+  }, []);
+
+  async function onCreateGroup() {
+    const name = window.prompt("Nome do grupo empresarial (ex.: Grupo ABC):")?.trim();
+    if (!name) return;
+    try {
+      await createGroup(name);
+      await refreshGroups();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao criar o grupo");
+    }
+  }
+
+  async function onDeleteGroup(g: BusinessGroupSummary) {
+    if (g.tenants.length > 0) {
+      alert(`"${g.name}" tem ${g.tenants.length} empresa(s) vinculada(s). Desvincule antes de excluir.`);
+      return;
+    }
+    if (!confirm(`Excluir o grupo "${g.name}"?`)) return;
+    try {
+      await deleteGroup(g.id);
+      await refreshGroups();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao excluir o grupo");
+    }
+  }
+
+  async function onSetGroup(t: TenantSummary, groupId: string | null) {
+    setBusyId(t.id);
+    try {
+      const updated = await setTenantGroup(t.id, groupId);
+      applyTenant(updated);
+      await refreshGroups();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao vincular o grupo");
+    } finally {
+      setBusyId(null);
+    }
+  }
   const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
   const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
   const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
@@ -120,6 +173,42 @@ export function TenantsManager({
           </div>
         )}
 
+        {groups !== null && (
+          <div className="card" style={{ marginBottom: 20, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <strong style={{ fontSize: 13, letterSpacing: ".04em" }}>Grupos empresariais</strong>
+                {groups.length === 0 && (
+                  <span className="cell-mute" style={{ fontSize: 12.5 }}>
+                    Nenhum grupo ainda — crie um para agrupar CNPJs do mesmo cliente.
+                  </span>
+                )}
+                {groups.map((g) => (
+                  <span
+                    key={g.id}
+                    className="pattern-tag"
+                    title={g.tenants.map((t) => t.name).join(", ") || "Sem empresas vinculadas"}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    {g.name} · {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
+                    <button
+                      type="button"
+                      onClick={() => onDeleteGroup(g)}
+                      title="Excluir grupo (apenas vazio)"
+                      style={{ background: "none", border: 0, cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" onClick={onCreateGroup}>
+                + Novo grupo
+              </Button>
+            </div>
+          </div>
+        )}
+
         {showForm && (
           <NewTenantForm
             onCreated={(r) => {
@@ -153,6 +242,7 @@ export function TenantsManager({
                 <tr>
                   <th>Empresa</th>
                   <th>Slug</th>
+                  <th>Grupo</th>
                   <th>Plano</th>
                   <th>Status</th>
                   <th>Criada</th>
@@ -183,6 +273,35 @@ export function TenantsManager({
                       </button>
                     </td>
                     <td className="cell-mute">{t.slug}</td>
+                    <td>
+                      {t.status === "DELETED" || !groups ? (
+                        <span className="cell-mute">{t.groupName ?? "—"}</span>
+                      ) : (
+                        <select
+                          value={t.groupId ?? ""}
+                          disabled={busyId === t.id}
+                          onChange={(e) => onSetGroup(t, e.target.value || null)}
+                          title="Grupo empresarial da empresa"
+                          style={{
+                            font: "inherit",
+                            fontSize: 12.5,
+                            padding: "3px 6px",
+                            borderRadius: 8,
+                            border: "1px solid var(--line, #E3DDD3)",
+                            background: "transparent",
+                            color: t.groupId ? "inherit" : "var(--text-sec)",
+                            maxWidth: 160,
+                          }}
+                        >
+                          <option value="">— sem grupo</option>
+                          {groups.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                     <td className="cell-mute">{PLAN_LABELS[t.plan]}</td>
                     <td>
                       <span
@@ -228,7 +347,7 @@ export function TenantsManager({
                 ))}
                 {tenants.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: 40, color: "var(--text-sec)" }}>
+                    <td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-sec)" }}>
                       Nenhuma empresa ainda. Crie a primeira em “Nova empresa”.
                     </td>
                   </tr>

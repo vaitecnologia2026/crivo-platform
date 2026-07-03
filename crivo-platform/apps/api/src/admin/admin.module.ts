@@ -40,6 +40,8 @@ import { MethodologyController } from './methodology.controller';
 import { MethodologyService } from './methodology.service';
 import { BenchmarksController } from './benchmarks.controller';
 import { BenchmarksService } from './benchmarks.service';
+import { GroupsController } from './groups.controller';
+import { GroupsService } from './groups.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -66,6 +68,7 @@ import { BenchmarksService } from './benchmarks.service';
     IntegrationsController,
     MethodologyController,
     BenchmarksController,
+    GroupsController,
   ],
   providers: [
     AdminAuthService,
@@ -89,6 +92,7 @@ import { BenchmarksService } from './benchmarks.service';
     IntegrationsService,
     MethodologyService,
     BenchmarksService,
+    GroupsService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService],
 })

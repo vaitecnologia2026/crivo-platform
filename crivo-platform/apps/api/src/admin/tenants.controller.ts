@@ -10,7 +10,9 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { IsOptional, IsUUID } from 'class-validator';
 import { TenantsService } from './tenants.service';
+import { GroupsService } from './groups.service';
 import { ProvisioningService } from './provisioning.service';
 import { TenantModulesService } from './tenant-modules.service';
 import { TenantBrandingService } from './tenant-branding.service';
@@ -22,18 +24,35 @@ import { AddDomainDto, CreateTenantDto, SetModuleDto, SetPlanDto, UpdateBranding
 import { UpsertContractDto } from './commerce.dto';
 import type { PlatformAdmin } from '@crivo/types';
 
+class SetTenantGroupDto {
+  /** null/ausente = desvincular do grupo. */
+  @IsOptional() @IsUUID()
+  groupId?: string | null;
+}
+
 /** Control plane — gestão de empresas-cliente. Exclusivo de super admins. */
 @Controller('admin/tenants')
 @UseGuards(SuperAdminGuard)
 export class TenantsController {
   constructor(
     private readonly tenants: TenantsService,
+    private readonly groups: GroupsService,
     private readonly provisioning: ProvisioningService,
     private readonly modules: TenantModulesService,
     private readonly branding: TenantBrandingService,
     private readonly domains: DomainsService,
     private readonly contracts: ContractsService,
   ) {}
+
+  /** Vincula/desvincula a empresa a um Grupo Empresarial (F1 · Tela 06). */
+  @Patch(':id/group')
+  setGroup(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetTenantGroupDto,
+  ) {
+    return this.groups.assignTenant(id, dto.groupId ?? null, { id: admin.id, email: admin.email });
+  }
 
   // ── Contrato (Briefing §11) ──
 

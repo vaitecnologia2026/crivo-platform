@@ -359,10 +359,26 @@ model Tenant {
   plan           Plan         @default(BASE)
   status         TenantStatus @default(ACTIVE)
   productId      String?      @db.Uuid // → products.id: produto que originou a empresa (FASE 3)
+  groupId        String?      @db.Uuid // → business_groups.id: Grupo Empresarial (Caderno Tela 06; F1)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  @@index([groupId])
   @@map("tenants")
+}
+
+// Grupo Empresarial (Caderno Tela 06 — Grupo → CNPJ → Unidade). Control plane:
+// camada leve ACIMA do tenant. Cada CNPJ é um tenant próprio (o isolamento RLS
+// existente garante dados separados por CNPJ); o grupo apenas agrupa tenants
+// para gestão e, nas fases seguintes, visão consolidada autorizada (F2/F3).
+// Sem relation Prisma (padrão desacoplado do control plane, como productId).
+model BusinessGroup {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("business_groups")
 }
 
 // Relatório Preliminar CRIVO (Briefing §5, Portal §7).

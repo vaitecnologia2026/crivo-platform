@@ -307,7 +307,19 @@ export interface TenantSummary {
   name: string;
   plan: Plan;
   status: TenantStatus;
+  /** Grupo Empresarial (F1 · Caderno Tela 06). null = sem grupo. */
+  groupId: string | null;
+  /** Nome do grupo — presente quando a listagem o resolve; ausente em respostas pontuais. */
+  groupName?: string | null;
   createdAt: string;
+}
+
+/** Grupo Empresarial (F1): agrupa empresas-cliente (CNPJs) no control plane. */
+export interface BusinessGroupSummary {
+  id: string;
+  name: string;
+  createdAt: string;
+  tenants: { id: string; name: string; slug: string; status: TenantStatus }[];
 }
 
 export interface CreateTenantRequest {

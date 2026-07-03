@@ -23,6 +23,7 @@ import type {
   ProductSummary,
   ProvisionResult,
   TenantBrandingData,
+  BusinessGroupSummary,
   TenantDomainData,
   TenantModuleSummary,
   TenantSummary,
@@ -144,6 +145,38 @@ export function activateTenant(id: string): Promise<TenantSummary> {
 
 export function deleteTenant(id: string): Promise<TenantSummary> {
   return adminFetch<TenantSummary>(`/admin/tenants/${id}`, { method: "DELETE" });
+}
+
+// ── Grupos Empresariais (F1 · Caderno Tela 06) ──
+
+export function listGroups(): Promise<BusinessGroupSummary[]> {
+  return adminFetch<BusinessGroupSummary[]>("/admin/groups");
+}
+
+export function createGroup(name: string): Promise<BusinessGroupSummary> {
+  return adminFetch<BusinessGroupSummary>("/admin/groups", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function renameGroup(id: string, name: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/groups/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteGroup(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/groups/${id}`, { method: "DELETE" });
+}
+
+/** Vincula (groupId) ou desvincula (null) a empresa de um grupo. */
+export function setTenantGroup(tenantId: string, groupId: string | null): Promise<TenantSummary> {
+  return adminFetch<TenantSummary>(`/admin/tenants/${tenantId}/group`, {
+    method: "PATCH",
+    body: JSON.stringify({ groupId }),
+  });
 }
 
 // ── Módulos por empresa (F4) ──
