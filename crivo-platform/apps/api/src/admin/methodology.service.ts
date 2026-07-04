@@ -14,20 +14,14 @@ const CONTENT_INCLUDE = {
   bands: { orderBy: { order: 'asc' as const } },
 };
 
-/**
- * Carrega a metodologia ATIVA de um instrumento no formato `MethodologyConfig`
- * (consumido por `scoreWithMethodology`). Standalone para o motor (intake/LP/
- * psicossocial) usar sem injetar o service. Retorna null se não houver ativa.
- */
-export async function loadActiveMethodologyConfig(
-  prisma: PrismaService,
-  instrument: Instrument,
-): Promise<MethodologyConfig | null> {
-  const v = await prisma.admin.methodologyVersion.findFirst({
-    where: { instrument, status: 'ACTIVE' },
-    include: CONTENT_INCLUDE,
-  });
-  if (!v) return null;
+type VersionWithContent = {
+  dimensions: { slug: string; label: string; weight: number }[];
+  questions: { dimensionSlug: string; text: string; weight: number; inverse: boolean }[];
+  bands: { code: string; label: string; min: number; max: number }[];
+};
+
+/** Mapeia uma versão (com conteúdo incluído) para o formato do motor de score. */
+function toConfig(v: VersionWithContent): MethodologyConfig {
   return {
     dimensions: v.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight })),
     questions: v.questions.map((q) => ({
@@ -38,6 +32,52 @@ export async function loadActiveMethodologyConfig(
     })),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
   };
+}
+
+/**
+ * Resolve a metodologia ATIVA de um instrumento, retornando o `versionId` junto
+ * com a config — para que o consumidor PIN E a versão que efetivamente pontuou
+ * (rastreabilidade / comparabilidade, MET1). Retorna null se não houver ativa.
+ */
+export async function resolveActiveMethodology(
+  prisma: PrismaService,
+  instrument: Instrument,
+): Promise<{ versionId: string; config: MethodologyConfig } | null> {
+  const v = await prisma.admin.methodologyVersion.findFirst({
+    where: { instrument, status: 'ACTIVE' },
+    include: CONTENT_INCLUDE,
+  });
+  if (!v) return null;
+  return { versionId: v.id, config: toConfig(v) };
+}
+
+/**
+ * Carrega a config de uma versão ESPECÍFICA (qualquer status), pelo id pinado.
+ * Usado para re-pontuar/auditar contra a metodologia que de fato foi aplicada,
+ * mesmo que a versão já tenha sido arquivada por uma republicação. Null se sumiu.
+ */
+export async function loadMethodologyConfigByVersion(
+  prisma: PrismaService,
+  versionId: string,
+): Promise<MethodologyConfig | null> {
+  const v = await prisma.admin.methodologyVersion.findUnique({
+    where: { id: versionId },
+    include: CONTENT_INCLUDE,
+  });
+  return v ? toConfig(v) : null;
+}
+
+/**
+ * Carrega a metodologia ATIVA de um instrumento no formato `MethodologyConfig`
+ * (consumido por `scoreWithMethodology`). Standalone para o motor (intake/LP/
+ * psicossocial) usar sem injetar o service. Retorna null se não houver ativa.
+ */
+export async function loadActiveMethodologyConfig(
+  prisma: PrismaService,
+  instrument: Instrument,
+): Promise<MethodologyConfig | null> {
+  const r = await resolveActiveMethodology(prisma, instrument);
+  return r?.config ?? null;
 }
 
 /**

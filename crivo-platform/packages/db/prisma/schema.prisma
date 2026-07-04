@@ -1138,10 +1138,16 @@ model PsychosocialResponse {
   score       Int // 0–100 (proteção geral; maior = menor risco)
   level       String // BAIXO | MODERADO | ALTO | CRITICO
   byDimension Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
+  // MET1 — versão de metodologia PSYCHOSOCIAL que EFETIVAMENTE pontuou esta
+  // resposta (pin no momento do score). Trilha de rastreabilidade: republicar a
+  // metodologia não altera respostas já pontuadas. null = pontuada pelo padrão
+  // embutido (sem metodologia ativa) ou resposta anterior a esta trava.
+  methodologyVersionId String? @db.Uuid
   submittedAt DateTime     @default(now())
 
   @@index([tenantId])
   @@index([sector])
+  @@index([methodologyVersionId])
   @@map("psychosocial_responses")
 }
 

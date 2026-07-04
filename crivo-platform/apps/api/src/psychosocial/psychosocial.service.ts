@@ -10,7 +10,7 @@ import {
   PSYCHOSOCIAL_QUESTIONS,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { loadActiveMethodologyConfig } from '../admin/methodology.service';
+import { loadActiveMethodologyConfig, resolveActiveMethodology } from '../admin/methodology.service';
 import { SubmitPsychosocialDto } from './dto';
 
 // Resultado psicossocial em formato "superset" — compatível com o storage/telas
@@ -54,11 +54,15 @@ export class PsychosocialService {
   /** Submete uma resposta anônima. Retorna o resultado individual ao respondente. */
   async submit(tenantId: string, dto: SubmitPsychosocialDto) {
     // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
-    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    // MET1: capturamos o versionId da metodologia que pontuou, para pinar a trilha
+    // na resposta — republicar depois não re-pontua o que já foi respondido.
+    const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
     let result: PsyResult;
+    let methodologyVersionId: string | null = null;
     try {
-      if (cfg) {
-        const s = scoreWithMethodology(dto.answers ?? [], cfg);
+      if (active) {
+        methodologyVersionId = active.versionId;
+        const s = scoreWithMethodology(dto.answers ?? [], active.config);
         const byDimension: Record<string, number> = {};
         const dimensionLabels: Record<string, string> = {};
         for (const d of s.byDimension) {
@@ -83,6 +87,7 @@ export class PsychosocialService {
           score: result.score,
           level: result.level,
           byDimension: result.byDimension as unknown as object,
+          methodologyVersionId,
         },
       });
       // Devolve só o resultado próprio (anônimo) — nenhum identificador é guardado.
@@ -174,8 +179,14 @@ export class PsychosocialService {
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
-        select: { sector: true, score: true, byDimension: true },
+        select: { sector: true, score: true, byDimension: true, methodologyVersionId: true },
       });
+
+      // MET1 — trilha: quantas versões de metodologia pontuaram este conjunto.
+      // >1 sinaliza que o recorte mistura metodologias (comparabilidade limitada).
+      const methodologyVersionIds = Array.from(
+        new Set(rows.map((r) => r.methodologyVersionId).filter((v): v is string => !!v)),
+      );
 
       const overall = aggregate(rows, dims, bands);
       const overallSuppressed = rows.length < minRespondents;
@@ -203,6 +214,10 @@ export class PsychosocialService {
       return {
         minRespondents,
         totalRespondents: rows.length,
+        // Trilha MET1: versões de metodologia presentes no recorte. `mixed`=true
+        // avisa que as respostas foram pontuadas por metodologias diferentes.
+        methodologyVersionIds,
+        methodologyMixed: methodologyVersionIds.length > 1,
         overall: overallSuppressed
           ? { suppressed: true as const }
           : { suppressed: false as const, ...overall },
