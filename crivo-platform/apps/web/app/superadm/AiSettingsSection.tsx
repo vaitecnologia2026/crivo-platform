@@ -88,9 +88,17 @@ export function AiSettingsSection() {
         <div>
           <h1 className="page-title">Configurações de IA</h1>
           <p className="page-sub">
-            Token OpenAI/ChatGPT criptografado, modelo, e em quais módulos a IA pode atuar. Os prompts são por produto (em Produtos).
+            Governança central da IA: token OpenAI/ChatGPT criptografado, modelo e em quais módulos a IA pode atuar.
+            A solução (Produtos) indica se <em>permite</em> IA; o contrato libera. Prompts e diretrizes de resposta
+            são fixos por módulo/metodologia (não ficam mais no cadastro de solução).
           </p>
         </div>
+      </div>
+
+      <div className="cnae-note cnae-block--warn" style={{ marginBottom: 14 }}>
+        <strong>Governança (§11).</strong> A IA <strong>apoia — não decide</strong>: gera rascunhos e sinaliza, mas
+        <strong> não valida a entrega final sensível</strong> (parecer, laudo, diagnóstico). A palavra final é sempre
+        do especialista humano.
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando…</p>}

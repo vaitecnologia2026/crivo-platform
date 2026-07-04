@@ -166,7 +166,16 @@ export function upsertAddon(moduleCode: string, input: AddonUpsertRequest): Prom
 /** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */
 export function setTenantProfile(
   id: string,
-  input: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null },
+  input: {
+    cnpj?: string | null;
+    headquarterType?: string | null;
+    internalResponsible?: string | null;
+    consentAnonymized?: boolean;
+    consentBenchmark?: boolean;
+    consentCase?: boolean;
+    consentLogo?: boolean;
+    consentTestimonial?: boolean;
+  },
 ): Promise<TenantSummary> {
   return adminFetch<TenantSummary>(`/admin/tenants/${id}/profile`, {
     method: "PATCH",

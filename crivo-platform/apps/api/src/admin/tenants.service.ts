@@ -140,15 +140,24 @@ export class TenantsService {
     return toTenantSummary(updated);
   }
 
-  /** Cadastro do CNPJ (Caderno Tela 06 · Incluir): CNPJ, matriz/filial, responsável interno. */
+  /** Cadastro do CNPJ (Tela 06) + autorizações de uso na Base CRIVO (Tela 09). */
   async setProfile(
     id: string,
-    input: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null },
+    input: {
+      cnpj?: string | null;
+      headquarterType?: string | null;
+      internalResponsible?: string | null;
+      consentAnonymized?: boolean;
+      consentBenchmark?: boolean;
+      consentCase?: boolean;
+      consentLogo?: boolean;
+      consentTestimonial?: boolean;
+    },
     actor?: AuditActor,
   ): Promise<TenantSummary> {
     const existing = await this.prisma.admin.tenant.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Empresa não encontrada');
-    const data: { cnpj?: string | null; headquarterType?: string | null; internalResponsible?: string | null } = {};
+    const data: Record<string, unknown> = {};
     if (input.cnpj !== undefined) data.cnpj = input.cnpj?.replace(/\D/g, '') || null;
     if (input.headquarterType !== undefined) {
       const v = input.headquarterType?.toUpperCase() || null;
@@ -156,6 +165,9 @@ export class TenantsService {
     }
     if (input.internalResponsible !== undefined) {
       data.internalResponsible = input.internalResponsible?.trim() || null;
+    }
+    for (const k of ['consentAnonymized', 'consentBenchmark', 'consentCase', 'consentLogo', 'consentTestimonial'] as const) {
+      if (input[k] !== undefined) data[k] = input[k];
     }
     const updated = await this.prisma.admin.tenant.update({ where: { id }, data });
     await this.audit.record({

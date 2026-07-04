@@ -364,6 +364,12 @@ model Tenant {
   cnpj                String? // CNPJ da empresa (só dígitos)
   headquarterType     String? // MATRIZ | FILIAL
   internalResponsible String? // responsável interno pela conta
+  // Autorizações de uso na Base CRIVO / prova social (Tela 09 · opt-in por empresa).
+  consentAnonymized  Boolean @default(false) // uso de dados anonimizados
+  consentBenchmark   Boolean @default(false) // participar do benchmark agregado
+  consentCase        Boolean @default(false) // virar case (autorizado)
+  consentLogo        Boolean @default(false) // uso do logo em vitrine
+  consentTestimonial Boolean @default(false) // depoimento público
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

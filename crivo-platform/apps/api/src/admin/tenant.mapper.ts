@@ -16,6 +16,11 @@ export function toTenantSummary(t: Tenant, groupName?: string | null): TenantSum
     cnpj: t.cnpj ?? null,
     headquarterType: t.headquarterType ?? null,
     internalResponsible: t.internalResponsible ?? null,
+    consentAnonymized: t.consentAnonymized ?? false,
+    consentBenchmark: t.consentBenchmark ?? false,
+    consentCase: t.consentCase ?? false,
+    consentLogo: t.consentLogo ?? false,
+    consentTestimonial: t.consentTestimonial ?? false,
     createdAt: t.createdAt.toISOString(),
   };
   if (groupName !== undefined) summary.groupName = groupName;

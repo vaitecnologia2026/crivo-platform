@@ -26,10 +26,19 @@ export class BenchmarksService {
   ) {}
 
   async compute(actor: Actor) {
-    const leads = await this.prisma.admin.platformLead.findMany({
+    // Tela 09: só entram na base as empresas que AUTORIZARAM o uso no benchmark
+    // (opt-in). Sem autorização registrada, o dado da empresa não é agregado.
+    const consented = await this.prisma.admin.tenant.findMany({
+      where: { consentBenchmark: true },
+      select: { id: true },
+    });
+    const okIds = new Set(consented.map((t) => t.id));
+
+    const allConverted = await this.prisma.admin.platformLead.findMany({
       where: { convertedTenantId: { not: null } },
       select: { convertedTenantId: true, employeesCount: true, diagnosticScore: true },
     });
+    const leads = allConverted.filter((l) => okIds.has(l.convertedTenantId as string));
 
     const records: BenchmarkRecord[] = [];
     for (const l of leads) {
@@ -55,7 +64,13 @@ export class BenchmarksService {
     }
 
     const result = aggregateBenchmarks(records, 3);
-    await this.audit.record({ action: 'benchmarks.view', actor, target: 'base-crivo', meta: { companies: records.length } });
-    return { ...result, totalCompanies: leads.length };
+    await this.audit.record({
+      action: 'benchmarks.view',
+      actor,
+      target: 'base-crivo',
+      meta: { companies: records.length, consented: okIds.size, converted: allConverted.length },
+    });
+    // totalCompanies = empresas que autorizaram (entram na base); consented = idem.
+    return { ...result, totalCompanies: leads.length, consentedCompanies: okIds.size, convertedCompanies: allConverted.length };
   }
 }

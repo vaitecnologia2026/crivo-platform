@@ -94,6 +94,13 @@ export class SetTenantProfileDto {
 
   @IsOptional() @IsString() @MaxLength(160)
   internalResponsible?: string | null;
+
+  // Autorizações de uso na Base CRIVO / prova social (Tela 09 · opt-in).
+  @IsOptional() @IsBoolean() consentAnonymized?: boolean;
+  @IsOptional() @IsBoolean() consentBenchmark?: boolean;
+  @IsOptional() @IsBoolean() consentCase?: boolean;
+  @IsOptional() @IsBoolean() consentLogo?: boolean;
+  @IsOptional() @IsBoolean() consentTestimonial?: boolean;
 }
 
 export class AddDomainDto {

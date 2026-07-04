@@ -334,6 +334,12 @@ export interface TenantSummary {
   cnpj: string | null;
   headquarterType: string | null; // MATRIZ | FILIAL
   internalResponsible: string | null;
+  /** Autorizações de uso na Base CRIVO / prova social (Tela 09 · opt-in). */
+  consentAnonymized: boolean;
+  consentBenchmark: boolean;
+  consentCase: boolean;
+  consentLogo: boolean;
+  consentTestimonial: boolean;
   createdAt: string;
 }
 

@@ -35,9 +35,9 @@ export function BaseCrivoSection() {
       </p>
 
       <div className="cnae-note cnae-block--warn" style={{ marginBottom: 14 }}>
-        <strong>Privacidade &amp; finalidade.</strong> Anonimização + volume mínimo ({data?.minCount ?? 3} empresas por
-        recorte) + LGPD + controle de finalidade + <strong>log de acesso</strong>. Nenhuma empresa é identificável;
-        recortes pequenos são suprimidos.
+        <strong>Privacidade &amp; finalidade.</strong> <strong>Opt-in por empresa</strong> (só entra quem autorizou o uso
+        no benchmark, em <em>Empresas → Dados</em>) + anonimização + volume mínimo ({data?.minCount ?? 3} empresas por
+        recorte) + LGPD + <strong>log de acesso</strong>. Nenhuma empresa é identificável; recortes pequenos são suprimidos.
       </div>
 
       {status === "loading" && <p className="cnae-muted">Carregando base agregada…</p>}
@@ -46,7 +46,7 @@ export function BaseCrivoSection() {
       {status === "ok" && data && (
         <>
           <div className="cnae-card__hero" style={{ marginBottom: 12 }}>
-            <span className="cnae-badge cnae-badge--baixo">{data.totalCompanies} empresas-cliente</span>
+            <span className="cnae-badge cnae-badge--baixo">{data.totalCompanies} empresa(s) autorizada(s)</span>
             <span className="cnae-muted">
               {data.groups.length} recorte(s) · {data.suppressedGroups} suprimido(s) por volume
             </span>
@@ -54,8 +54,8 @@ export function BaseCrivoSection() {
 
           {data.groups.length === 0 ? (
             <p className="cnae-muted">
-              Ainda sem empresas com dados suficientes. À medida que os clientes preenchem People Analytics e o
-              diagnóstico, os benchmarks por porte aparecem aqui.
+              Ainda sem recortes. A base agrega só empresas que <strong>autorizaram</strong> o uso no benchmark
+              (marque em <em>Empresas → Dados</em>) e que tenham dados de People Analytics/diagnóstico suficientes.
             </p>
           ) : (
             <div style={{ overflowX: "auto" }}>

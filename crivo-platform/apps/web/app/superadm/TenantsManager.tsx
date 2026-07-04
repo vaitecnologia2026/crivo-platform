@@ -618,6 +618,13 @@ function TenantProfileModal({
   const [cnpj, setCnpj] = useState(tenant.cnpj ?? "");
   const [hq, setHq] = useState(tenant.headquarterType ?? "");
   const [resp, setResp] = useState(tenant.internalResponsible ?? "");
+  const [consent, setConsent] = useState({
+    consentAnonymized: tenant.consentAnonymized,
+    consentBenchmark: tenant.consentBenchmark,
+    consentCase: tenant.consentCase,
+    consentLogo: tenant.consentLogo,
+    consentTestimonial: tenant.consentTestimonial,
+  });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -629,6 +636,7 @@ function TenantProfileModal({
         cnpj: cnpj.trim() || null,
         headquarterType: hq || null,
         internalResponsible: resp.trim() || null,
+        ...consent,
       });
       onSaved(updated);
     } catch (e) {
@@ -660,6 +668,32 @@ function TenantProfileModal({
             </select>
           </label>
           <Input label="Responsável interno" value={resp} onChange={setResp} placeholder="Quem responde pela conta" />
+
+          <div style={{ borderTop: "1px dashed var(--line, #E3DDD3)", paddingTop: 12 }}>
+            <span className="mb-1.5 block text-[11px] uppercase tracking-[0.1em] text-text-sec">
+              Autorizações de uso (Base CRIVO / prova social · §11)
+            </span>
+            <p className="dash-state" style={{ margin: "0 0 8px", fontSize: 12 }}>
+              Opt-in por empresa. Sem autorização, os dados <strong>não</strong> entram no benchmark nem em cases/vitrine.
+            </p>
+            {([
+              ["consentBenchmark", "Participar do benchmark agregado (anônimo)"],
+              ["consentAnonymized", "Uso de dados anonimizados em estudos"],
+              ["consentCase", "Virar case (autorizado)"],
+              ["consentLogo", "Uso do logo em vitrine"],
+              ["consentTestimonial", "Depoimento público"],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="prod-check" style={{ display: "flex", gap: 8, marginBottom: 4, fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={consent[key]}
+                  onChange={(e) => setConsent((c) => ({ ...c, [key]: e.target.checked }))}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
           {err && <p className="dash-state dash-state--error" style={{ margin: 0 }}>{err}</p>}
         </div>
         <div className="modal__foot">
