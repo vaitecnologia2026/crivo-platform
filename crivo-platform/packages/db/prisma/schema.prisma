@@ -1073,6 +1073,10 @@ model AssessmentCycle {
   reminderSentAt DateTime? // idempotência: marca quando enviou
   status         CycleStatus  @default(OPEN)
   closedAt       DateTime?
+  // Tela 08 [3]: versão de metodologia PSYCHOSOCIAL aplicada quando o ciclo foi
+  // aberto — garante rastreabilidade/comparabilidade do score mesmo se a
+  // metodologia for republicada depois.
+  methodologyVersionId String? @db.Uuid
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

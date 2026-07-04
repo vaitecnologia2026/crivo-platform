@@ -142,6 +142,12 @@ export class IcdService {
     if (dto.startsAt && dto.endsAt && new Date(dto.endsAt) <= new Date(dto.startsAt)) {
       throw new BadRequestException('endsAt deve ser maior que startsAt.');
     }
+    // Tela 08 [3]: pina a versão de metodologia PSYCHOSOCIAL ativa na abertura do
+    // ciclo (rastreabilidade/comparabilidade do score). Leitura owner (global).
+    const activeMethodology = await this.prisma.admin.methodologyVersion.findFirst({
+      where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
+      select: { id: true },
+    });
     return this.prisma.forTenant(tenantId, async (tx) => {
       const publicSlug = dto.generatePublicLink ? makeSlug() : null;
       const cycle = await tx.assessmentCycle.create({
@@ -155,6 +161,7 @@ export class IcdService {
           reminderAt: dto.reminderAt ? new Date(dto.reminderAt) : null,
           publicSlug,
           status: 'OPEN',
+          methodologyVersionId: activeMethodology?.id ?? null,
         },
       });
       return { id: cycle.id };

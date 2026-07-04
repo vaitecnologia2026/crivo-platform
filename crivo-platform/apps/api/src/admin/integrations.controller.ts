@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import type { PlatformAdmin } from '@crivo/types';
 import { SuperAdminGuard } from './guards/super-admin.guard';
+import { CurrentAdmin } from './platform-admin.decorator';
 import { IntegrationsService, type IntegrationProvider } from './integrations.service';
 import { ChargeDto, SaveIntegrationDto, SignContractDto, UploadTemplateDto } from './integrations.dto';
 
@@ -15,8 +17,18 @@ export class IntegrationsController {
   }
 
   @Put('integrations/:provider')
-  save(@Param('provider') provider: string, @Body() dto: SaveIntegrationDto) {
-    return this.svc.saveConfig(provider as IntegrationProvider, dto);
+  save(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('provider') provider: string,
+    @Body() dto: SaveIntegrationDto,
+  ) {
+    return this.svc.saveConfig(provider as IntegrationProvider, dto, { id: admin.id, email: admin.email });
+  }
+
+  /** Tela 07 [4] — testa a conexão da integração contra o provedor. */
+  @Post('integrations/:provider/test')
+  test(@CurrentAdmin() admin: PlatformAdmin, @Param('provider') provider: string) {
+    return this.svc.testConnection(provider as IntegrationProvider, { id: admin.id, email: admin.email });
   }
 
   @Get('contract-templates')

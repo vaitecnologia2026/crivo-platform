@@ -1,9 +1,11 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from './audit.service';
 import { decryptSecret, encryptSecret, hintOf } from './secret-crypto';
 
 export type IntegrationProvider = 'clicksign' | 'asaas' | 'mercadopago';
 const PROVIDERS: IntegrationProvider[] = ['clicksign', 'asaas', 'mercadopago'];
+type Actor = { id: string; email: string };
 
 /**
  * Integrações externas (Clicksign = assinatura, Asaas/Mercado Pago = cobrança) +
@@ -14,7 +16,10 @@ const PROVIDERS: IntegrationProvider[] = ['clicksign', 'asaas', 'mercadopago'];
 export class IntegrationsService {
   private readonly log = new Logger('Integrations');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   // ── Configuração ───────────────────────────────────────────────────────────
   async status() {
@@ -33,14 +38,25 @@ export class IntegrationsService {
 
   async saveConfig(
     provider: IntegrationProvider,
-    dto: { credential?: string; enabled?: boolean; sandbox?: boolean },
+    dto: { credential?: string; enabled?: boolean; sandbox?: boolean; purpose?: string; confirmProduction?: boolean },
+    actor: Actor,
   ) {
     if (!PROVIDERS.includes(provider)) throw new BadRequestException('Provedor inválido.');
-    const data: Record<string, unknown> = {
-      provider,
-      enabled: dto.enabled ?? false,
-      sandbox: dto.sandbox ?? false,
-    };
+    const enabled = dto.enabled ?? false;
+    const sandbox = dto.sandbox ?? false;
+    const isProdActivation = enabled && !sandbox;
+
+    // Tela 07 · critério de aceite: ativar em PRODUÇÃO exige confirmação + finalidade.
+    if (isProdActivation) {
+      if (!dto.confirmProduction) {
+        throw new BadRequestException('Ativar em produção exige confirmação explícita.');
+      }
+      if (!dto.purpose?.trim()) {
+        throw new BadRequestException('Informe a finalidade da ativação em produção.');
+      }
+    }
+
+    const data: Record<string, unknown> = { provider, enabled, sandbox };
     if (dto.credential !== undefined) {
       if (dto.credential.trim() === '') {
         Object.assign(data, { credentialEnc: null, credentialIv: null, credentialTag: null, credentialHint: null });
@@ -59,12 +75,74 @@ export class IntegrationsService {
       create: data as never,
       update: data as never,
     });
+
+    // Tela 07 · "não permitir integração sem log": registra usuário/data/finalidade/status.
+    const action = isProdActivation
+      ? 'integration.enable.production'
+      : enabled
+        ? 'integration.enable'
+        : 'integration.save';
+    await this.audit.record({
+      action,
+      actor,
+      target: provider,
+      meta: {
+        enabled,
+        environment: sandbox ? 'sandbox' : 'producao',
+        purpose: dto.purpose?.trim() || null,
+        credentialChanged: dto.credential !== undefined,
+      },
+    });
     return this.status();
   }
 
+  /** Tela 07 [4] · testa a credencial contra o provedor (GET leve autenticado). */
+  async testConnection(provider: IntegrationProvider, actor: Actor): Promise<{ ok: boolean; message: string }> {
+    if (!PROVIDERS.includes(provider)) throw new BadRequestException('Provedor inválido.');
+    const { key, sandbox } = await this.rawCredential(provider);
+    let url: string;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (provider === 'clicksign') {
+      url = `https://app.clicksign.com/api/v1/account?access_token=${encodeURIComponent(key)}`;
+    } else if (provider === 'asaas') {
+      const base = sandbox ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/v3';
+      url = `${base}/myAccount`;
+      headers.access_token = key;
+    } else {
+      url = 'https://api.mercadopago.com/users/me';
+      headers.Authorization = `Bearer ${key}`;
+    }
+    let ok = false;
+    let message = '';
+    try {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+      ok = res.ok;
+      message = res.ok ? 'Conexão OK.' : `Falha ${res.status}: ${(await res.text().catch(() => ''))?.slice(0, 160)}`;
+    } catch (e) {
+      message = e instanceof Error ? e.message : 'Erro de conexão.';
+    }
+    await this.audit.record({ action: 'integration.test', actor, target: provider, meta: { ok, environment: sandbox ? 'sandbox' : 'producao' } });
+    return { ok, message };
+  }
+
+  /** Credencial em claro para USO interno (com o flag enabled). */
   private async credential(provider: IntegrationProvider): Promise<{ key: string; sandbox: boolean }> {
     const r = await this.prisma.admin.platformIntegration.findUnique({ where: { provider } });
     if (!r?.enabled) throw new BadRequestException(`Integração ${provider} desativada.`);
+    return this.decode(r, provider);
+  }
+
+  /** Credencial em claro SEM exigir enabled (para o teste de conexão pré-ativação). */
+  private async rawCredential(provider: IntegrationProvider): Promise<{ key: string; sandbox: boolean }> {
+    const r = await this.prisma.admin.platformIntegration.findUnique({ where: { provider } });
+    if (!r) throw new BadRequestException(`Integração ${provider} sem credencial.`);
+    return this.decode(r, provider);
+  }
+
+  private decode(
+    r: { credentialEnc: string | null; credentialIv: string | null; credentialTag: string | null; sandbox: boolean },
+    provider: IntegrationProvider,
+  ): { key: string; sandbox: boolean } {
     if (!r.credentialEnc || !r.credentialIv || !r.credentialTag)
       throw new BadRequestException(`Integração ${provider} sem credencial.`);
     return {

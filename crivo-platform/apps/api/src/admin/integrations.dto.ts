@@ -9,6 +9,14 @@ export class SaveIntegrationDto {
 
   @IsOptional() @IsBoolean()
   sandbox?: boolean;
+
+  // Finalidade da alteração (Tela 07 · obrigatória ao ativar em produção).
+  @IsOptional() @IsString() @MaxLength(240)
+  purpose?: string;
+
+  // Confirmação explícita de ativação em produção (Tela 07 · critério de aceite).
+  @IsOptional() @IsBoolean()
+  confirmProduction?: boolean;
 }
 
 export class UploadTemplateDto {

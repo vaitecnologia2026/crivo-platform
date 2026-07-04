@@ -223,6 +223,10 @@ const ACTION_LABEL: Record<string, string> = {
   "addon.upsert": "Preço de adicional definido",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",
+  "integration.save": "Integração salva",
+  "integration.enable": "Integração ativada (sandbox)",
+  "integration.enable.production": "Integração ativada em PRODUÇÃO",
+  "integration.test": "Conexão da integração testada",
 };
 
 function AuditSection() {

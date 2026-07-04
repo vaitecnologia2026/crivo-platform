@@ -851,11 +851,18 @@ export function listIntegrations() {
 
 export function saveIntegration(
   provider: IntegrationProvider,
-  body: { credential?: string; enabled?: boolean; sandbox?: boolean },
+  body: { credential?: string; enabled?: boolean; sandbox?: boolean; purpose?: string; confirmProduction?: boolean },
 ) {
   return adminFetch<IntegrationStatus[]>(`/admin/integrations/${provider}`, {
     method: "PUT",
     body: JSON.stringify(body),
+  });
+}
+
+/** Tela 07 [4] — testa a conexão da integração contra o provedor. */
+export function testIntegration(provider: IntegrationProvider) {
+  return adminFetch<{ ok: boolean; message: string }>(`/admin/integrations/${provider}/test`, {
+    method: "POST",
   });
 }
 
