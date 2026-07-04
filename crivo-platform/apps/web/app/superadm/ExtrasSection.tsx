@@ -43,9 +43,19 @@ export function ExtrasSection() {
         <div>
           <h1 className="page-title">Recursos da Entrega</h1>
           <p className="page-sub">
-            Mentorias, biblioteca de ações modelo, textos editáveis e Academia CRIVO global.
+            Sustentação da entrega vendida ao cliente — mentorias/encontros, biblioteca de ações
+            modelo, textos editáveis e Academia CRIVO. Não é ferramenta interna: é o que o cliente
+            recebe conforme o contrato (Gestão da Rotina, Liderança).
           </p>
         </div>
+      </div>
+
+      <div className="adm-callout">
+        <strong>Catálogo global × liberação por cliente.</strong> O que se cadastra aqui é o
+        <em> acervo global</em> (encontros modelo, ações, conteúdos da Academia). A liberação
+        por <strong>contrato, solução, módulo, ciclo e público</strong> — com frequência, objetivo,
+        registro/evidência, indicador e status por trilha — é aplicada na conta de cada cliente e
+        entra como próxima fatia (hoje nada é liberado sem módulo habilitado).
       </div>
 
       <div className="adm-tabs">

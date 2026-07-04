@@ -98,7 +98,14 @@ export function AiSettingsSection() {
       <div className="cnae-note cnae-block--warn" style={{ marginBottom: 14 }}>
         <strong>Governança (§11).</strong> A IA <strong>apoia — não decide</strong>: gera rascunhos e sinaliza, mas
         <strong> não valida a entrega final sensível</strong> (parecer, laudo, diagnóstico). A palavra final é sempre
-        do especialista humano.
+        do especialista humano. Ela também <strong>não valida plano, evidência, dossiê ou economia automaticamente</strong>.
+      </div>
+
+      <div className="adm-callout">
+        <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. A camada de
+        <strong> Políticas e Diretrizes do Cliente</strong> — valores, regras e diretrizes aprovadas usadas pelo
+        Mentor/App, vinculadas a empresa, contrato, módulo e versão, com status de revisão e logs — entra como
+        próxima fatia. Nenhuma política interna é usada sem aprovação.
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando…</p>}

@@ -28,8 +28,8 @@ export function RbacSection() {
         <div>
           <h1 className="page-title">Papéis & Permissões</h1>
           <p className="page-sub">
-            Catálogo RBAC do sistema. Estes papéis vêm do enum global; papéis customizados por
-            empresa serão adicionados na próxima fatia (TenantRole).
+            Catálogo RBAC do sistema, separado por módulo. Cada papel abaixo tem um conjunto
+            de permissões — o acesso nunca é irrestrito por padrão.
           </p>
         </div>
         <span className="adm-readonly" title="Catálogo de referência — sem edição nesta tela">
@@ -39,6 +39,16 @@ export function RbacSection() {
           </svg>
           Somente leitura
         </span>
+      </div>
+
+      <div className="adm-callout">
+        <strong>Papel × escopo.</strong> Este catálogo define <em>o que</em> cada papel pode fazer.
+        O <em>onde</em> — escopo por <strong>grupo, CNPJ, contrato, módulo e ciclo</strong> — é
+        aplicado no backend por empresa (isolamento multi-tenant RLS: um RH do CNPJ 01 não enxerga
+        dados do CNPJ 02, salvo permissão de grupo autorizada) e a edição visual desses recortes,
+        papéis customizados (Admin Empresa/Grupo, RH Grupo/CNPJ, Mentor/Facilitador) e o log de
+        alteração de permissões entram na próxima fatia (TenantRole). Dados individuais de
+        colaboradores, Pocket e ICD nunca são expostos como ranking.
       </div>
 
       <div className="adm-chips">

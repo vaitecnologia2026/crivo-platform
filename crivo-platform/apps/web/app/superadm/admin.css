@@ -164,6 +164,20 @@
   font-size: 13px;
 }
 
+/* ── Nota informativa (contexto de governança / próxima fatia) ─────────── */
+.adm .adm-callout {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--azul-cobalto);
+  border-radius: var(--r-sm);
+  background: var(--line-soft);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-sec);
+}
+.adm .adm-callout strong { color: var(--text); }
+
 /* Switch (toggle) dentro do modal de módulos — usa o slate de sucesso da
    paleta CRIVO (azul), nunca o verde de bem-estar. */
 .adm .sw {
