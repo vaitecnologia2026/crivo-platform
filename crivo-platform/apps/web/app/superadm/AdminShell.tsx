@@ -220,6 +220,7 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.convert": "Lead convertido em cliente",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",
+  "addon.upsert": "Preço de adicional definido",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",
 };

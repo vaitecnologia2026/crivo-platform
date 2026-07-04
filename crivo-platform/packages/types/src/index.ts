@@ -210,6 +210,25 @@ export const MODULES = [
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];
 
+/** Adicional precificado (Tela 05 · modelo Adicional c/ preço+recorrência). */
+export interface AddonSummary {
+  moduleCode: string;
+  label: string;
+  category: string; // do catálogo MODULES
+  monthlyPriceCents: number;
+  setupPriceCents: number;
+  recurring: boolean;
+  active: boolean;
+  configured: boolean; // já tem preço/registro salvo
+}
+export interface AddonUpsertRequest {
+  label?: string;
+  monthlyPriceCents?: number;
+  setupPriceCents?: number;
+  recurring?: boolean;
+  active?: boolean;
+}
+
 /** Códigos dos módulos liberados por um plano (minPlan ≤ plano). */
 export function modulesForPlan(plan: Plan): ModuleCode[] {
   const rank = PLAN_RANK[plan];

@@ -91,6 +91,7 @@ export class DashboardService {
       novosClientes,
       activeTenantOrgs,
       assessmentOrgs,
+      addonRows,
     ] = await Promise.all([
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
       this.prisma.admin.platformLead.findMany({
@@ -138,7 +139,12 @@ export class DashboardService {
         select: { organizationId: true },
       }),
       this.prisma.admin.assessment.groupBy({ by: ['tenantId'], where: orgWhere, _count: { _all: true } }),
+      this.prisma.admin.addon.findMany({
+        where: { active: true, recurring: true },
+        select: { moduleCode: true, monthlyPriceCents: true },
+      }),
     ]);
+    const addonPrice = new Map(addonRows.map((a) => [a.moduleCode, a.monthlyPriceCents]));
 
     const priceOf = new Map(products.map((p) => [p.id, p]));
     const nameOfOrg = new Map(tenants.map((t) => [t.organizationId, t.name]));
@@ -216,6 +222,10 @@ export class DashboardService {
     for (const c of ativos) {
       const p = c.productId ? priceOf.get(c.productId) : null;
       mrrCents += p?.monthlyPriceCents ?? 0;
+      // Receita recorrente dos adicionais contratados (Tela 05 · modelo Adicional).
+      for (const code of Array.isArray(c.optionalModules) ? (c.optionalModules as string[]) : []) {
+        mrrCents += addonPrice.get(code) ?? 0;
+      }
       const name = p?.name ?? '(sem solução)';
       const s = solMap.get(name) ?? { count: 0, receita: 0 };
       s.count += 1;

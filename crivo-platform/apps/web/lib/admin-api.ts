@@ -41,6 +41,8 @@ import type {
   UpsertGlobalAcademyContentRequest,
   UpsertProductRequest,
   UsageSummary,
+  AddonSummary,
+  AddonUpsertRequest,
 } from "@crivo/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -148,6 +150,17 @@ export function activateTenant(id: string): Promise<TenantSummary> {
 
 export function deleteTenant(id: string): Promise<TenantSummary> {
   return adminFetch<TenantSummary>(`/admin/tenants/${id}`, { method: "DELETE" });
+}
+
+/** Adicionais precificados (Tela 05 · modelo Adicional). */
+export function listAddons(): Promise<AddonSummary[]> {
+  return adminFetch<AddonSummary[]>("/admin/addons");
+}
+export function upsertAddon(moduleCode: string, input: AddonUpsertRequest): Promise<AddonSummary> {
+  return adminFetch<AddonSummary>(`/admin/addons/${moduleCode}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 /** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */

@@ -692,6 +692,24 @@ model Contract {
   @@map("contracts")
 }
 
+/// Adicional precificado (Caderno Tela 05 · modelo Adicional c/ preço+recorrência).
+/// Um adicional é um módulo do catálogo com preço; entra no contrato via
+/// Contract.optionalModules e no faturamento/MRR quando recurring=true.
+model Addon {
+  id                String  @id @default(uuid()) @db.Uuid
+  moduleCode        String  @unique // código do ModuleCatalog (pocket, icd, mentorias…)
+  label             String // nome comercial do adicional
+  monthlyPriceCents Int     @default(0) // preço mensal (centavos) — conta no MRR se recurring
+  setupPriceCents   Int     @default(0) // preço de implantação/único (centavos)
+  recurring         Boolean @default(true) // true = recorrente (MRR); false = pontual
+  active            Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("addons")
+}
+
 // =====================================================================
 // CONFIGURAÇÃO DE IA (Super Admin · auditoria 2.3.1) — token OpenAI/ChatGPT
 // configurável SEM código, CRIPTOGRAFADO em repouso (AES-256-GCM com chave
