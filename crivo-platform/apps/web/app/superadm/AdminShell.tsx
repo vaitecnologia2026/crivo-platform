@@ -191,6 +191,9 @@ function OverviewSection({ onNavigate }: { onNavigate: (section: string) => void
 
 const ACTION_LABEL: Record<string, string> = {
   "admin.login": "Login do super admin",
+  "admin.logout": "Logout do super admin",
+  "admin.user.create": "Usuário admin criado",
+  "admin.user.update": "Usuário admin atualizado",
   "tenant.provision": "Empresa provisionada",
   "tenant.suspend": "Empresa bloqueada",
   "tenant.activate": "Empresa reativada",
@@ -218,6 +221,8 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.next_action": "Follow-up do lead definido",
   "lead.commercial": "Dados comerciais do lead atualizados",
   "lead.convert": "Lead convertido em cliente",
+  "lead.dedup": "Lead deduplicado",
+  "lead.send-access": "Acesso enviado ao lead",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",
   "addon.upsert": "Preço de adicional definido",
@@ -227,6 +232,30 @@ const ACTION_LABEL: Record<string, string> = {
   "integration.enable": "Integração ativada (sandbox)",
   "integration.enable.production": "Integração ativada em PRODUÇÃO",
   "integration.test": "Conexão da integração testada",
+  // Metodologia (versionamento)
+  "methodology.draft": "Metodologia — rascunho criado",
+  "methodology.update": "Metodologia — rascunho editado",
+  "methodology.publish": "Metodologia publicada (versão ativa)",
+  "methodology.delete-draft": "Metodologia — rascunho descartado",
+  // Grupo empresarial / CNPJ
+  "group.create": "Grupo empresarial criado",
+  "group.update": "Grupo empresarial atualizado",
+  "group.delete": "Grupo empresarial excluído",
+  "group.access.add": "Acesso a grupo concedido",
+  "group.access.remove": "Acesso a grupo removido",
+  "group.consolidated.set": "Consolidação de grupo definida",
+  "group.overview": "Visão consolidada do grupo",
+  "group.portal.view": "Portal do grupo acessado",
+  "tenant.group.set": "Empresa vinculada a grupo",
+  // Papéis & permissões (RBAC por empresa)
+  "tenant.role.create": "Papel customizado criado",
+  "tenant.role.update": "Papel customizado atualizado",
+  "tenant.role.delete": "Papel customizado excluído",
+  "tenant.role.assign": "Papel atribuído a usuário",
+  "tenant.role.unassign": "Papel removido de usuário",
+  // Base CRIVO / operação sensível
+  "benchmarks.view": "Base CRIVO consultada",
+  "system.reset-test-data": "Base de teste zerada",
 };
 
 function AuditSection() {
@@ -251,7 +280,12 @@ function AuditSection() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Auditoria</h1>
-          <p className="page-sub">Trilha das ações de plataforma (control plane).</p>
+          <p className="page-sub">
+            Trilha das ações de plataforma com nome legível, ator, alvo e data/hora. Cobre hoje o
+            control plane: contratos, módulos, IA, metodologia, grupos/CNPJ, papéis &amp; permissões,
+            integrações e Base CRIVO. Ações de negócio do tenant (submissão de ICD, registro de
+            decisões/evidências, exportações e uso de IA por chamada) entram como próxima fatia.
+          </p>
         </div>
       </div>
 

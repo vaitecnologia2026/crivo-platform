@@ -214,6 +214,11 @@ export function ContractModal({
                   <input type="number" min={0} value={form.maxLeaders ?? 0} onChange={(e) => set("maxLeaders", Number(e.target.value))} />
                 </label>
               </div>
+              <p className="prod-note" style={{ marginTop: 8 }}>
+                Prazo (fim/dias) e limites (respondentes/líderes) são registrados no contrato e usados
+                para alertas. O <strong>bloqueio automático</strong> de acesso ao expirar o prazo ou ao
+                atingir o limite entra na próxima fatia — hoje não trava sozinho.
+              </p>
             </fieldset>
 
             <fieldset className="prod-fs">
