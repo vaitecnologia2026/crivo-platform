@@ -7,10 +7,13 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { IsBoolean, IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 import { GroupsService } from './groups.service';
+import { ContractsService } from './contracts.service';
+import { UpsertContractDto } from './commerce.dto';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
 import type { PlatformAdmin } from '@crivo/types';
@@ -34,12 +37,30 @@ class AddAccessDto {
 @Controller('admin/groups')
 @UseGuards(SuperAdminGuard)
 export class GroupsController {
-  constructor(private readonly groups: GroupsService) {}
+  constructor(
+    private readonly groups: GroupsService,
+    private readonly contracts: ContractsService,
+  ) {}
 
   /** Lista os grupos com os CNPJs vinculados. */
   @Get()
   list() {
     return this.groups.list();
+  }
+
+  /** Contrato do GRUPO (Tela 05 [5]) — aplica-se a todos os CNPJs do grupo. */
+  @Get(':id/contract')
+  getContract(@Param('id', ParseUUIDPipe) id: string) {
+    return this.contracts.getByGroup(id);
+  }
+
+  @Put(':id/contract')
+  upsertContract(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpsertContractDto,
+  ) {
+    return this.contracts.upsertByGroup(id, dto, { id: admin.id, email: admin.email });
   }
 
   /** F2 — Visão consolidada do grupo (agregados por CNPJ; acesso auditado). */

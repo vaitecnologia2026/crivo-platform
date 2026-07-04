@@ -119,6 +119,7 @@ export class DashboardService {
           optionalModules: true,
           responsible: true,
           organizationId: true,
+          groupId: true,
         },
       }),
       this.prisma.admin.tenant.findMany({ select: { organizationId: true, name: true } }),
@@ -213,8 +214,13 @@ export class DashboardService {
     const clientesSemAvanco = activeTenantOrgs.filter((t) => !assessedOrgs.has(t.organizationId)).length;
 
     // ── Contratos (recortados por grupo/empresa) ──
+    // No recorte por grupo, inclui também o contrato do PRÓPRIO grupo (Tela 05 [5]).
     const scopedContracts = orgIds
-      ? contractsAll.filter((c) => orgIds!.includes(c.organizationId))
+      ? contractsAll.filter(
+          (c) =>
+            (c.organizationId && orgIds!.includes(c.organizationId)) ||
+            (!!filters.groupId && c.groupId === filters.groupId),
+        )
       : contractsAll;
     const ativos = scopedContracts.filter((c) => c.status === 'ATIVO');
     let mrrCents = 0;
@@ -262,7 +268,7 @@ export class DashboardService {
       if (c.endDate && c.endDate >= nowDate && c.endDate <= in30) {
         const dias = Math.round((c.endDate.getTime() - now) / 86_400_000);
         pendencias.push({
-          empresa: nameOfOrg.get(c.organizationId) ?? '—',
+          empresa: (c.organizationId ? nameOfOrg.get(c.organizationId) : "Grupo") ?? "—",
           tipo: 'Contrato vencendo',
           prazo: c.endDate.toISOString(),
           severidade: dias <= 7 ? 'CRITICO' : 'ATENCAO',
@@ -281,7 +287,7 @@ export class DashboardService {
     }
     for (const c of semResponsavel) {
       pendencias.push({
-        empresa: nameOfOrg.get(c.organizationId) ?? '—',
+        empresa: (c.organizationId ? nameOfOrg.get(c.organizationId) : "Grupo") ?? "—",
         tipo: 'Contrato sem responsável',
         prazo: null,
         severidade: 'ATENCAO',

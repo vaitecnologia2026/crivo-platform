@@ -521,6 +521,20 @@ export function upsertContract(
   });
 }
 
+/** Contrato do GRUPO (Tela 05 [5]) — aplica-se a todos os CNPJs do grupo. */
+export function getGroupContract(groupId: string): Promise<ContractData | null> {
+  return adminFetch<ContractData | null>(`/admin/groups/${groupId}/contract`);
+}
+export function upsertGroupContract(
+  groupId: string,
+  dto: UpsertContractRequest,
+): Promise<ContractData> {
+  return adminFetch<ContractData>(`/admin/groups/${groupId}/contract`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}
+
 // ── White-label: branding + domínios (F5) ──
 
 export function getTenantBranding(id: string): Promise<TenantBrandingData> {

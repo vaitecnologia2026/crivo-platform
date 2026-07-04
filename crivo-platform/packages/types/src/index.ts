@@ -1110,7 +1110,8 @@ export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
 
 export interface ContractData {
   id: string;
-  organizationId: string;
+  organizationId: string | null; // null = contrato de grupo
+  groupId: string | null; // preenchido em contrato de grupo (Tela 05 [5])
   productId: string | null;
   solutionIds: string[]; // soluções contratadas (Tela 05: várias por contrato)
   model: ContractModel;

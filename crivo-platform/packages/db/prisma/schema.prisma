@@ -661,7 +661,8 @@ model PlatformLead {
 // =====================================================================
 model Contract {
   id             String         @id @default(uuid()) @db.Uuid
-  organizationId String         @db.Uuid // → organizations.id (empresa-cliente)
+  organizationId String?        @db.Uuid // → organizations.id (empresa-cliente) — null se contrato de GRUPO
+  groupId        String?        @db.Uuid // → business_groups.id — contrato de GRUPO (Tela 05 [5]); exclusivo com organizationId
   productId      String?        @db.Uuid // → products.id (solução principal; = solutionIds[0])
   solutionIds    String[]       @default([]) // soluções contratadas (Tela 05: várias por contrato)
   model          ContractModel  @default(PONTUAL)
@@ -688,6 +689,7 @@ model Contract {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([groupId])
   @@index([status])
   @@map("contracts")
 }

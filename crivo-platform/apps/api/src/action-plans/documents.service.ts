@@ -80,10 +80,23 @@ export class DocumentsService {
 
   private async context(tenantId: string) {
     // rls-allow: contract é control-plane (owner-only); self-scoped por organizationId = tenantId.
-    const contract = await this.prisma.admin.contract.findFirst({
+    let contract = await this.prisma.admin.contract.findFirst({
       where: { organizationId: tenantId },
       orderBy: { createdAt: 'desc' },
     });
+    // Fallback (Tela 05 [5]): sem contrato próprio, a empresa herda o contrato do GRUPO.
+    if (!contract) {
+      const t = await this.prisma.admin.tenant.findFirst({
+        where: { organizationId: tenantId },
+        select: { groupId: true },
+      });
+      if (t?.groupId) {
+        contract = await this.prisma.admin.contract.findFirst({
+          where: { groupId: t.groupId },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+    }
     // rls-allow: organization é raiz do tenant (control-plane); leitura self-scoped por id=tenantId.
     const org = await this.prisma.admin.organization.findUnique({ where: { id: tenantId } });
     const plans = await this.prisma.forTenant(tenantId, (tx) =>

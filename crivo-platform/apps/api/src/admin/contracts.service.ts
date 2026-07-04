@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Contract } from '@crivo/db';
 import type {
   ContractData,
   ContractModel,
@@ -48,35 +49,10 @@ export class ContractsService {
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
     });
-
-    // Tela 05: o contrato compõe VÁRIAS soluções. productId = solução principal
-    // (1ª) por compatibilidade (dashboard/faturamento).
-    const solutionIds = dto.solutionIds ?? (existing?.solutionIds ?? []);
-    const primaryProductId = solutionIds[0] ?? dto.productId ?? existing?.productId ?? null;
-
-    const data = {
-      productId: primaryProductId,
-      solutionIds,
-      model: (dto.model ?? existing?.model ?? 'PONTUAL') as ContractModel,
-      status: (dto.status ?? existing?.status ?? 'RASCUNHO') as ContractStatus,
-      method: (dto.method === undefined ? existing?.method : dto.method) as DiagnosticMethod | null,
-      technicalOutput: (dto.technicalOutput ??
-        existing?.technicalOutput ??
-        'SEM_INTEGRACAO') as TechnicalOutput,
-      startDate: dto.startDate === undefined ? existing?.startDate : parseDate(dto.startDate),
-      endDate: dto.endDate === undefined ? existing?.endDate : parseDate(dto.endDate),
-      accessDays: dto.accessDays === undefined ? existing?.accessDays ?? null : dto.accessDays,
-      rounds: dto.rounds ?? existing?.rounds ?? 1,
-      maxRespondents: dto.maxRespondents ?? existing?.maxRespondents ?? 0,
-      maxLeaders: dto.maxLeaders ?? existing?.maxLeaders ?? 0,
-      optionalModules: (dto.optionalModules ?? (existing?.optionalModules as string[]) ?? []) as object,
-      responsible: dto.responsible === undefined ? existing?.responsible ?? null : dto.responsible,
-      notes: dto.notes === undefined ? existing?.notes ?? null : dto.notes,
-    };
-
+    const data = this.mergeContractData(dto, existing);
     const saved = existing
       ? await this.prisma.admin.contract.update({ where: { id: existing.id }, data })
-      : await this.prisma.admin.contract.create({ data: { organizationId, ...data } });
+      : await this.prisma.admin.contract.create({ data: { organizationId, groupId: null, ...data } });
 
     await this.audit.record({
       action: existing ? 'contract.update' : 'contract.create',
@@ -96,6 +72,76 @@ export class ContractsService {
     }
 
     return this.toData(saved);
+  }
+
+  /** Contrato vigente do GRUPO, ou null (Tela 05 [5]). */
+  async getByGroup(groupId: string): Promise<ContractData | null> {
+    const c = await this.prisma.admin.contract.findFirst({
+      where: { groupId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return c ? this.toData(c) : null;
+  }
+
+  /** Cria/atualiza o contrato do GRUPO. Ao ATIVO, liga os módulos em TODOS os CNPJs. */
+  async upsertByGroup(groupId: string, dto: UpsertContractRequest, actor: Actor): Promise<ContractData> {
+    const group = await this.prisma.admin.businessGroup.findUnique({ where: { id: groupId } });
+    if (!group) throw new NotFoundException('Grupo não encontrado');
+    const existing = await this.prisma.admin.contract.findFirst({
+      where: { groupId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const data = this.mergeContractData(dto, existing);
+    const saved = existing
+      ? await this.prisma.admin.contract.update({ where: { id: existing.id }, data })
+      : await this.prisma.admin.contract.create({ data: { groupId, organizationId: null, ...data } });
+
+    await this.audit.record({
+      action: existing ? 'contract.update' : 'contract.create',
+      actor,
+      target: groupId,
+      meta: { scope: 'group', model: saved.model, status: saved.status },
+    });
+
+    // Contrato de grupo vinculante: ao ATIVO, liga os módulos em CADA CNPJ do grupo.
+    if (saved.status === 'ATIVO') {
+      const tenants = await this.prisma.admin.tenant.findMany({
+        where: { groupId },
+        select: { organizationId: true },
+      });
+      const opt = Array.isArray(saved.optionalModules) ? (saved.optionalModules as string[]) : [];
+      for (const t of tenants) {
+        await this.activateContractModules(t.organizationId, saved.solutionIds, opt);
+      }
+    }
+
+    return this.toData(saved);
+  }
+
+  /** Monta o objeto de dados do contrato (compartilhado por upsert de empresa e de grupo).
+   *  Tela 05: compõe VÁRIAS soluções; productId = solução principal (1ª) p/ compat. */
+  private mergeContractData(dto: UpsertContractRequest, existing: Contract | null) {
+    const solutionIds = dto.solutionIds ?? (existing?.solutionIds ?? []);
+    const primaryProductId = solutionIds[0] ?? dto.productId ?? existing?.productId ?? null;
+    return {
+      productId: primaryProductId,
+      solutionIds,
+      model: (dto.model ?? existing?.model ?? 'PONTUAL') as ContractModel,
+      status: (dto.status ?? existing?.status ?? 'RASCUNHO') as ContractStatus,
+      method: (dto.method === undefined ? existing?.method : dto.method) as DiagnosticMethod | null,
+      technicalOutput: (dto.technicalOutput ??
+        existing?.technicalOutput ??
+        'SEM_INTEGRACAO') as TechnicalOutput,
+      startDate: dto.startDate === undefined ? existing?.startDate : parseDate(dto.startDate),
+      endDate: dto.endDate === undefined ? existing?.endDate : parseDate(dto.endDate),
+      accessDays: dto.accessDays === undefined ? existing?.accessDays ?? null : dto.accessDays,
+      rounds: dto.rounds ?? existing?.rounds ?? 1,
+      maxRespondents: dto.maxRespondents ?? existing?.maxRespondents ?? 0,
+      maxLeaders: dto.maxLeaders ?? existing?.maxLeaders ?? 0,
+      optionalModules: (dto.optionalModules ?? (existing?.optionalModules as string[]) ?? []) as object,
+      responsible: dto.responsible === undefined ? existing?.responsible ?? null : dto.responsible,
+      notes: dto.notes === undefined ? existing?.notes ?? null : dto.notes,
+    };
   }
 
   /** Habilita na empresa os módulos das soluções contratadas + CORE + adicionais. */
@@ -127,7 +173,8 @@ export class ContractsService {
 
   private toData(c: {
     id: string;
-    organizationId: string;
+    organizationId: string | null;
+    groupId: string | null;
     productId: string | null;
     solutionIds: string[];
     model: string;
@@ -149,6 +196,7 @@ export class ContractsService {
     return {
       id: c.id,
       organizationId: c.organizationId,
+      groupId: c.groupId ?? null,
       productId: c.productId,
       solutionIds: Array.isArray(c.solutionIds) ? c.solutionIds : [],
       model: c.model as ContractModel,

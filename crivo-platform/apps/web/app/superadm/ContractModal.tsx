@@ -19,16 +19,29 @@ import {
   type TenantSummary,
   type UpsertContractRequest,
 } from "@crivo/types";
-import { getContract, listProducts, upsertContract } from "@/lib/admin-api";
+import {
+  getContract,
+  getGroupContract,
+  listProducts,
+  upsertContract,
+  upsertGroupContract,
+} from "@/lib/admin-api";
 
-/** Configura o contrato de uma empresa (Briefing §11) — sem programação. */
+/** Configura o contrato de uma empresa OU de um grupo (Tela 05) — sem programação.
+ *  Passe `tenant` para contrato por CNPJ, ou `group` para contrato do grupo. */
 export function ContractModal({
   tenant,
+  group,
   onClose,
 }: {
-  tenant: TenantSummary;
+  tenant?: TenantSummary;
+  group?: { id: string; name: string };
   onClose: () => void;
 }) {
+  const isGroup = !!group;
+  const targetId = group?.id ?? tenant!.id;
+  const targetName = group?.name ?? tenant!.name;
+
   const [form, setForm] = useState<UpsertContractRequest>({});
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
@@ -39,7 +52,10 @@ export function ContractModal({
     let alive = true;
     (async () => {
       try {
-        const [c, prods] = await Promise.all([getContract(tenant.id), listProducts()]);
+        const [c, prods] = await Promise.all([
+          isGroup ? getGroupContract(targetId) : getContract(targetId),
+          listProducts(),
+        ]);
         if (!alive) return;
         setProducts(prods.filter((p) => !p.isLeadCapture));
         setForm(
@@ -69,7 +85,7 @@ export function ContractModal({
       }
     })();
     return () => { alive = false; };
-  }, [tenant.id]);
+  }, [targetId, isGroup]);
 
   const set = <K extends keyof UpsertContractRequest>(k: K, v: UpsertContractRequest[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -88,7 +104,7 @@ export function ContractModal({
     e.preventDefault();
     setSaving(true);
     try {
-      await upsertContract(tenant.id, form);
+      await (isGroup ? upsertGroupContract(targetId, form) : upsertContract(targetId, form));
       setSaved(true);
       setTimeout(onClose, 900);
     } catch (err) {
@@ -102,7 +118,7 @@ export function ContractModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
-          <h2>Contrato — {tenant.name}</h2>
+          <h2>Contrato {isGroup ? "do grupo" : "—"} {targetName}</h2>
           <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
         </header>
 

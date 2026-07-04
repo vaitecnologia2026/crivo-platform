@@ -105,6 +105,7 @@ export function TenantsManager({
   const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
   const [onboardingOf, setOnboardingOf] = useState<TenantSummary | null>(null);
   const [profileOf, setProfileOf] = useState<TenantSummary | null>(null);
+  const [groupContractOf, setGroupContractOf] = useState<{ id: string; name: string } | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -216,6 +217,14 @@ export function TenantsManager({
                       }}
                     >
                       {g.name} · {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGroupContractOf({ id: g.id, name: g.name })}
+                      title="Contrato do grupo (aplica-se a todos os CNPJs)"
+                      style={{ background: "none", border: 0, cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
+                    >
+                      ▦
                     </button>
                     <button
                       type="button"
@@ -410,6 +419,10 @@ export function TenantsManager({
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
 
       {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
+
+      {groupContractOf && (
+        <ContractModal group={groupContractOf} onClose={() => setGroupContractOf(null)} />
+      )}
 
       {profileOf && (
         <TenantProfileModal
