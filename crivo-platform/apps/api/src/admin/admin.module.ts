@@ -46,6 +46,8 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { AddonsController } from './addons.controller';
 import { AddonsService } from './addons.service';
+import { IntelligenceController } from './intelligence.controller';
+import { IntelligenceService } from './intelligence.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -75,6 +77,7 @@ import { AddonsService } from './addons.service';
     GroupsController,
     DashboardController,
     AddonsController,
+    IntelligenceController,
   ],
   providers: [
     AdminAuthService,
@@ -101,6 +104,7 @@ import { AddonsService } from './addons.service';
     GroupsService,
     DashboardService,
     AddonsService,
+    IntelligenceService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService],
 })

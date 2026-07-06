@@ -1019,3 +1019,72 @@ export interface BenchmarksData {
 export function getBenchmarks(): Promise<BenchmarksData> {
   return adminFetch<BenchmarksData>("/admin/benchmarks");
 }
+
+// ── Inteligência CRIVO (Caderno §10) — camada analítica por cliente/CNPJ ──
+
+export interface IntelligenceCompany {
+  tenantId: string;
+  organizationId: string;
+  name: string;
+  cnpj: string | null;
+  status: string;
+  headquarterType: string | null;
+  groupId: string | null;
+  groupName: string | null;
+}
+
+export interface IntelligenceOverview {
+  company: {
+    tenantId: string; organizationId: string; name: string; cnpj: string | null;
+    status: string; headquarterType: string | null; internalResponsible: string | null;
+    groupId: string | null; groupName: string | null;
+  };
+  contract:
+    | { hasContract: true; status: string; byGroup: boolean; solutionIds: string[]; optionalModules: string[]; endDate: string | null }
+    | { hasContract: false };
+  modules: string[];
+  period: { from: string | null; to: string | null } | null;
+  cards: {
+    protecao: { score: number | null; suppressed: boolean; respondents: number } | null;
+    icd: { score: number | null; suppressed: boolean; eligibleLeaders: number; cyclesClosed: number } | null;
+    plano: { total: number; concluidas: number; emAndamento: number; pct: number };
+    nivelEvidencia: { totalAcoes: number; acoesComEvidencia: number; pct: number; evidenciasRegistradas: number; planosValidados: number };
+    custos: { moderado: number | null; confidence: string | null } | null;
+    pendencias: { acoesAtrasadas: number; acoesSemEvidencia: number; planosNaoValidados: number };
+  };
+  diagnostico: {
+    psychosocial:
+      | { respondents: number; suppressed: boolean; score: number | null; byDimension: Record<string, number>; methodologyVersionIds: string[]; methodologyMixed: boolean }
+      | null;
+  };
+  planoEvidencias: {
+    items: { point: string; action: string; status: string; responsible: string | null; dueDate: string | null; riskLevel: string | null; evidenceCount: number }[];
+    evidenciasRegistradas: number;
+  };
+  lideranca: {
+    icdCycles: { cycleName: string; score: number | null; suppressed: boolean; eligibleLeaders: number; distribution: unknown; computedAt: string }[];
+    pocket: { total: number; completed: number };
+  };
+  custos: { scenarios: Record<string, number>; confidence: string; updatedAt: string } | null;
+  peopleAnalytics: { period: string; values: Record<string, number | null>; alerts: number; analysisAt: string | null } | null;
+  parecer: { title: string; publishedAt: string | null } | null;
+  evolucao: { icd: { cycleName: string; score: number | null; computedAt: string }[] };
+  baseCrivoBoundary: {
+    consentBenchmark: boolean; consentCase: boolean; consentLogo: boolean; consentTestimonial: boolean; consentAnonymized: boolean;
+  };
+}
+
+export function getIntelligenceCompanies(): Promise<IntelligenceCompany[]> {
+  return adminFetch<IntelligenceCompany[]>("/admin/intelligence/companies");
+}
+
+export function getIntelligenceOverview(
+  tenantId: string,
+  params: { from?: string; to?: string } = {},
+): Promise<IntelligenceOverview> {
+  const q = new URLSearchParams();
+  if (params.from) q.set("from", params.from);
+  if (params.to) q.set("to", params.to);
+  const qs = q.toString();
+  return adminFetch<IntelligenceOverview>(`/admin/intelligence/${tenantId}/overview${qs ? `?${qs}` : ""}`);
+}

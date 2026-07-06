@@ -16,6 +16,7 @@ import { ContractsSection } from "./ContractsSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { MethodologySection } from "./MethodologySection";
 import { BaseCrivoSection } from "./BaseCrivoSection";
+import { IntelligenceSection } from "./IntelligenceSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -32,7 +33,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -45,6 +46,7 @@ const NAV: { key: Section; label: string; icon: string; current: string; group: 
   { key: "empresas", label: "Grupos e Empresas-cliente", icon: "◧", current: "Grupos e Empresas-cliente", group: "Plataforma" },
   { key: "integracoes", label: "Integrações", icon: "◬", current: "Integrações", group: "Plataforma" },
   { key: "metodologia", label: "Metodologia", icon: "❖", current: "Metodologia configurável", group: "Plataforma" },
+  { key: "inteligencia", label: "Inteligência CRIVO", icon: "◆", current: "Inteligência CRIVO", group: "Plataforma" },
   { key: "basecrivo", label: "Base CRIVO", icon: "◍", current: "Base CRIVO · Benchmarks", group: "Plataforma" },
   { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
   { key: "extras", label: "Recursos da Entrega", icon: "◑", current: "Recursos da Entrega", group: "Plataforma" },
@@ -158,6 +160,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "integracoes" && <IntegrationsSection />}
           {section === "metodologia" && <MethodologySection />}
+          {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}
           {section === "extras" && <ExtrasSection />}
@@ -182,6 +185,16 @@ function OverviewSection({ onNavigate }: { onNavigate: (section: string) => void
 
       <div style={{ marginBottom: 18 }}>
         <CnpjLookupCard />
+      </div>
+
+      <div className="adm-callout" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span>
+          Este é o painel <strong>operacional</strong> (situação e pendências). Para <strong>análise profunda</strong>
+          por cliente/CNPJ — cruzando diagnóstico, plano, evidências, ICD, custos e evolução — abra a Inteligência CRIVO.
+        </span>
+        <button className="btn btn--outline-dark btn--sm" onClick={() => onNavigate("inteligencia")}>
+          Abrir Inteligência CRIVO →
+        </button>
       </div>
 
       <DashboardSection onNavigate={onNavigate} />
