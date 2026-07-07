@@ -215,9 +215,9 @@ export function ContractModal({
                 </label>
               </div>
               <p className="prod-note" style={{ marginTop: 8 }}>
-                Prazo (fim/dias) e limites (respondentes/líderes) são registrados no contrato e usados
-                para alertas. O <strong>bloqueio automático</strong> de acesso ao expirar o prazo ou ao
-                atingir o limite entra na próxima fatia — hoje não trava sozinho.
+                O <strong>prazo</strong> (fim/dias) de um contrato <strong>ATIVO</strong> já vale no acesso:
+                expirado, o login da empresa é bloqueado. Os <strong>limites</strong> (respondentes/líderes)
+                seguem informativos — o bloqueio por teto entra na próxima fatia.
               </p>
             </fieldset>
 

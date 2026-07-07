@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import type { LoginResponse, SessionUser } from '@crivo/types';
+import { contractAccessState } from '../admin/contract-access';
 
 @Injectable()
 export class AuthService {
@@ -66,6 +67,24 @@ export class AuthService {
     });
     if (tenant && tenant.status !== 'ACTIVE') {
       throw new UnauthorizedException('Empresa indisponível. Contate o suporte.');
+    }
+
+    // CT1 (§7): o prazo do contrato ATIVO vale no acesso. Conservador — só um
+    // contrato ATIVO com prazo EXPLÍCITO e VENCIDO barra; qualquer falha/ausência
+    // libera (não trava login por erro de leitura). O gate por status do tenant
+    // acima continua sendo o principal.
+    try {
+      const contract = await this.prisma.admin.contract.findFirst({
+        where: { organizationId: user.tenantId, status: 'ATIVO' },
+        orderBy: { updatedAt: 'desc' },
+        select: { status: true, startDate: true, endDate: true, accessDays: true },
+      });
+      if (contract && !contractAccessState(contract, new Date()).allowed) {
+        throw new UnauthorizedException('Contrato expirado. Contate o suporte para renovar o acesso.');
+      }
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw e;
+      // erro de leitura do contrato não deve derrubar o login — segue permissivo.
     }
 
     const session: SessionUser = {
