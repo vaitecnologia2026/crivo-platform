@@ -241,6 +241,8 @@ const ACTION_LABEL: Record<string, string> = {
   "addon.upsert": "Preço de adicional definido",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",
+  "ai.prompt.update": "Prompt de IA editado",
+  "ai.prompt.reset": "Prompt de IA restaurado ao padrão",
   "integration.save": "Integração salva",
   "integration.enable": "Integração ativada (sandbox)",
   "integration.enable.production": "Integração ativada em PRODUÇÃO",
