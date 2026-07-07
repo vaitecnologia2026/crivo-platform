@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { computePeopleTrends, type PeoplePeriod } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
+import { AiPromptsService } from '../admin/ai-prompts.service';
 import { SavePeopleAnalyticsDto } from './dto';
 
 type PeopleAnalysis = {
@@ -21,6 +22,7 @@ export class PeopleAnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiSettingsService,
+    private readonly prompts: AiPromptsService,
   ) {}
 
   async get(tenantId: string) {
@@ -102,10 +104,7 @@ export class PeopleAnalyticsService {
       })
       .join('\n');
 
-    const system =
-      'Você é analista de People Analytics da CRIVO. Interprete os indicadores de RH e o contexto da empresa, gerando ALERTAS objetivos, HIPÓTESES (possíveis causas a investigar) e RECOMENDAÇÕES práticas, além de um RESUMO executivo curto (2-4 frases). ' +
-      'Regras: NUNCA afirme causalidade automática nem economia garantida; trate tudo como apoio à decisão; seja objetivo, em português do Brasil. ' +
-      'Responda APENAS em JSON válido: {"summary": string, "alerts": string[], "hypotheses": string[], "recommendations": string[]}.';
+    const system = await this.prompts.resolve('people_analytics');
     const user =
       `Indicadores de RH (último período: ${trends.latestPeriod ?? '—'}, ${trends.periodsCount} período(s)):\n${indicatorsTxt}\n\n` +
       `Contexto CRIVO da empresa (diagnóstico/risco psicossocial/custos/plano):\n${context?.trim() || '(não informado)'}\n\nGere a análise.`;

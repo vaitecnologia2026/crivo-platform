@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { sendMail } from '../common/mailer';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from './ai-settings.service';
+import { AiPromptsService } from './ai-prompts.service';
 import { EditableTextsService } from './editable-texts.service';
 import {
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
@@ -31,6 +32,7 @@ export class PreliminaryReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiSettingsService,
+    private readonly prompts: AiPromptsService,
     private readonly texts: EditableTextsService,
   ) {}
 
@@ -194,7 +196,7 @@ export class PreliminaryReportsService {
     const key = await this.ai.getApiKey();
     if (!key) throw new Error('Token de IA indisponível.');
 
-    const system = buildSystemPrompt();
+    const system = await this.prompts.resolve('preliminary_report');
     const user = buildUserMessage(lead, diagnostic);
 
     let res: Response;
@@ -302,10 +304,13 @@ function toData(row: any): PreliminaryReportData {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// PROMPT — Briefing §5/§7. ~150 linhas com regras claras de tom, estrutura
-// e disclaimers. Não inventa números; baseia-se exclusivamente nos dados.
+// PROMPT — Briefing §5/§7. ⚠️ SUPERSEDIDO: o prompt em produção agora vem da
+// Central de Prompts (Configurações de IA → useCase 'preliminary_report',
+// padrão em ai-prompt-defaults.ts). Esta função NÃO é mais chamada — mantida
+// só como referência histórica; NÃO edite aqui.
 // ─────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildSystemPrompt(): string {
   return `
 Você é o "Relator Preliminar CRIVO", responsável por produzir um relatório

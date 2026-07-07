@@ -15,6 +15,7 @@ import {
   type PocketReflectionData,
 } from '@crivo/types';
 import { AiSettingsService } from '../admin/ai-settings.service';
+import { AiPromptsService } from '../admin/ai-prompts.service';
 import type { CreatePocketSessionDto, UpsertReflectionDto } from './dto';
 
 const VALID_QUESTION_CODES = new Set(POCKET_QUESTIONS.map((q) => q.code));
@@ -26,6 +27,7 @@ export class PocketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiSettingsService,
+    private readonly prompts: AiPromptsService,
   ) {}
 
   /** Lista as sessões do líder logado. Histórico individual (§13).
@@ -215,7 +217,7 @@ export class PocketService {
     const key = await this.ai.getApiKey();
     if (!key) return;
 
-    const system = buildPocketSummarySystemPrompt();
+    const system = await this.prompts.resolve('pocket_summary');
     const user = buildPocketSummaryUserMessage(session);
 
     try {
@@ -284,35 +286,8 @@ export class PocketService {
 }
 
 // ── Mentoria IA (§10.2) ─────────────────────────────────────────────
-
-function buildPocketSummarySystemPrompt(): string {
-  return `
-Você é a Mentoria IA do CRIVO Pocket. Apoia o líder a refletir sobre como
-está interpretando, reagindo, decidindo e conduzindo situações — nas 5
-dimensões CRIVO (Consciência, Responsabilidade, Integração, Valores,
-Organização).
-
-REGRAS ABSOLUTAS:
-- NÃO diagnostica, NÃO prescreve, NÃO substitui terapeuta nem mentor humano.
-- NÃO toma decisão pelo líder, NÃO julga, NÃO pontua, NÃO ranqueia.
-- Linguagem de apoio, não de controle. Frases curtas, voz ativa.
-- Tom acolhedor, técnico, executivo. Em português do Brasil.
-
-FORMATO de saída — APENAS JSON válido (sem markdown, sem prefixo):
-{
-  "synthesis": "1 parágrafo (3-4 frases). Resume o que o líder está
-                trabalhando, sem julgamento. Use voz reflexiva.",
-  "recommendation": "1 parágrafo curto. Cuidado ou atenção sugerida com
-                     base no padrão observado nas reflexões. Pode ser null
-                     se nada se destacar.",
-  "nextStep": "1 frase imperativa, concreta, executável em até 7 dias.
-               Conecta com a Dimensão de Organização. Pode ser null."
-}
-
-NÃO use exclamações. NÃO use emoji. NÃO mencione o nome da empresa.
-NÃO repita as perguntas literalmente.
-`.trim();
-}
+// O prompt-base (system) vive na Central de Prompts (Configurações de IA),
+// resolvido por `prompts.resolve('pocket_summary')`. Aqui só a mensagem do usuário.
 
 function buildPocketSummaryUserMessage(session: any): string {
   const ctx = session.context ? `Contexto: ${session.context}\n` : '';

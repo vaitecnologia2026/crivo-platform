@@ -514,6 +514,34 @@ export function testAiConnection(apiKey?: string): Promise<AiTestResult> {
   });
 }
 
+// ── Central de Prompts da IA (Caderno §10 · P0-c) ──
+
+export interface AiPromptItem {
+  useCase: string;
+  label: string;
+  description: string;
+  content: string;
+  isDefault: boolean;
+  version: number;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+export function getAiPrompts(): Promise<AiPromptItem[]> {
+  return adminFetch<AiPromptItem[]>("/admin/ai/prompts");
+}
+
+export function updateAiPrompt(useCase: string, content: string): Promise<AiPromptItem> {
+  return adminFetch<AiPromptItem>(`/admin/ai/prompts/${useCase}`, {
+    method: "PUT",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function resetAiPrompt(useCase: string): Promise<AiPromptItem> {
+  return adminFetch<AiPromptItem>(`/admin/ai/prompts/${useCase}`, { method: "DELETE" });
+}
+
 // ── Contrato por empresa (Briefing §11) ──
 
 export function getContract(tenantId: string): Promise<ContractData | null> {

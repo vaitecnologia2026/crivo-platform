@@ -5,6 +5,7 @@ import {
   type CopilotoAskResponse,
 } from '@crivo/types';
 import { AiSettingsService } from '../admin/ai-settings.service';
+import { AiPromptsService } from '../admin/ai-prompts.service';
 
 const COPILOTO_MODULE_KEYS = ['copiloto', 'lider'];
 
@@ -16,7 +17,10 @@ const COPILOTO_MODULE_KEYS = ['copiloto', 'lider'];
  */
 @Injectable()
 export class CopilotoService {
-  constructor(private readonly ai: AiSettingsService) {}
+  constructor(
+    private readonly ai: AiSettingsService,
+    private readonly prompts: AiPromptsService,
+  ) {}
 
   async ask(dto: CopilotoAskRequest, tenantId?: string): Promise<CopilotoAskResponse> {
     const question = dto.question?.trim();
@@ -41,10 +45,11 @@ export class CopilotoService {
     const key = await this.ai.getApiKey();
     if (!key) return { ok: false, reason: 'Token de IA indisponível.' };
 
-    // IA2: prompt técnico FIXO + diretrizes aprovadas do cliente (se o produto
-    // contratado permitir IA personalizada). O cliente nunca edita o prompt técnico.
+    // Prompt-base vem da Central de Prompts (Configurações de IA); IA2: + diretrizes
+    // aprovadas do cliente (se o produto contratado permitir IA personalizada).
+    const base = await this.prompts.resolve('copiloto');
     const directives = await this.ai.buildTenantDirectives(tenantId);
-    const system = this.systemPrompt(dto.context) + directives;
+    const system = this.systemPrompt(base, dto.context) + directives;
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -83,14 +88,10 @@ export class CopilotoService {
     }
   }
 
-  private systemPrompt(context: CopilotoAskRequest['context']): string {
-    const lines = [
-      'Você é o Copiloto CRIVO, um apoio reflexivo para líderes baseado no método CRIVO de Coerência Decisória.',
-      'O CRIVO lê a coerência das decisões sob pressão em 4 dimensões (os 4 Rs): Reatividade, Rigidez, Repercussão e Risco.',
-      'IMPORTANTE: você NÃO faz diagnóstico clínico nem avalia personalidade ou saúde mental. Trabalha com sinais, hipóteses, prioridades e práticas de desenvolvimento.',
-      'Responda em português do Brasil, de forma breve, prática e acolhedora. Faça no máximo uma pergunta de retorno quando ajudar a reflexão.',
-      'Não prometa conformidade legal automática (NR-1/PGR/AEP) — isso depende do responsável técnico da empresa.',
-    ];
+  private systemPrompt(base: string, context: CopilotoAskRequest['context']): string {
+    // `base` = prompt técnico configurável (Central de Prompts). As linhas abaixo
+    // são o CONTEXTO dinâmico do líder, anexadas ao prompt.
+    const lines = [base];
     if (context?.dominantPattern && DOMINANT_PATTERNS.includes(context.dominantPattern)) {
       lines.push(`Tensão dominante atual do líder: ${context.dominantPattern}.`);
     }

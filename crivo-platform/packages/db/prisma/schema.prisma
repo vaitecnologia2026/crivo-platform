@@ -748,6 +748,21 @@ model AiSettings {
   @@map("ai_settings")
 }
 
+// IA — CENTRAL DE PROMPTS (Caderno §10 · P0-c). Prompt técnico por caso de uso,
+// editável e versionado em "Configurações de IA". Sem linha = usa o PADRÃO em
+// código (ai-prompt-defaults.ts). Control plane (super admin / owner-only).
+model AiPrompt {
+  id        String   @id @default(uuid()) @db.Uuid
+  useCase   String   @unique // copiloto | preliminary_report | pocket_summary | people_analytics
+  content   String   @db.Text
+  version   Int      @default(1)
+  updatedBy String? // e-mail do super admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_prompts")
+}
+
 // =====================================================================
 // RBAC DINÂMICO (F3) — catálogo GLOBAL de permissões (módulo:ação) e papéis
 // de sistema. Sem RLS por tenant (catálogo compartilhado entre todas as

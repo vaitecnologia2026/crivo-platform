@@ -7,7 +7,15 @@ import {
   MODULES,
   type AiSettingsData,
 } from "@crivo/types";
-import { getAiSettings, testAiConnection, updateAiSettings } from "@/lib/admin-api";
+import {
+  getAiSettings,
+  testAiConnection,
+  updateAiSettings,
+  getAiPrompts,
+  updateAiPrompt,
+  resetAiPrompt,
+  type AiPromptItem,
+} from "@/lib/admin-api";
 
 /** Configurações de IA (auditoria 2.3.1) — token OpenAI, modelo, módulos. */
 export function AiSettingsSection() {
@@ -89,8 +97,8 @@ export function AiSettingsSection() {
           <h1 className="page-title">Configurações de IA</h1>
           <p className="page-sub">
             Governança central da IA: token OpenAI/ChatGPT criptografado, modelo e em quais módulos a IA pode atuar.
-            A solução (Produtos) indica se <em>permite</em> IA; o contrato libera. Prompts e diretrizes de resposta
-            são fixos por módulo/metodologia (não ficam mais no cadastro de solução).
+            A solução (Produtos) indica se <em>permite</em> IA; o contrato libera. Os <strong>prompts técnicos</strong> ficam
+            centralizados aqui (editáveis e versionados, por caso de uso) — não no cadastro de solução.
           </p>
         </div>
       </div>
@@ -104,9 +112,9 @@ export function AiSettingsSection() {
       <div className="adm-callout">
         <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. As
         <strong> diretrizes aprovadas do cliente</strong> (objetivo, regras, base de conhecimento e limitações
-        em <em>Soluções → aiConfig</em>) já são <strong>injetadas como contexto</strong> no prompt do Mentor/App
-        (Copiloto) quando o produto contratado permite IA personalizada — sem sobrescrever o método. Versionamento
-        de prompt, log por chamada e extensão aos demais módulos de IA seguem como próxima fatia.
+        em <em>Soluções → aiConfig</em>) são <strong>injetadas como contexto</strong> no prompt do Mentor/App
+        (Copiloto) quando o produto contratado permite IA personalizada — sem sobrescrever o prompt técnico, que
+        fica na <strong>Central de Prompts</strong> abaixo (versionado). Log por chamada segue como próxima fatia.
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando…</p>}
@@ -180,6 +188,113 @@ export function AiSettingsSection() {
           </div>
         </div>
       )}
+
+      <AiPromptsManager />
     </>
+  );
+}
+
+/** Central de Prompts (Caderno §10 · P0-c) — todos os prompts técnicos da IA, editáveis e versionados. */
+function AiPromptsManager() {
+  const [items, setItems] = useState<AiPromptItem[] | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const d = await getAiPrompts();
+      setItems(d);
+      setDrafts(Object.fromEntries(d.map((i) => [i.useCase, i.content])));
+      setStatus("ok");
+    } catch {
+      setStatus("error");
+    }
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function save(useCase: string) {
+    setBusyKey(useCase);
+    try {
+      await updateAiPrompt(useCase, drafts[useCase] ?? "");
+      await load();
+      setSavedKey(useCase);
+      setTimeout(() => setSavedKey(null), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao salvar o prompt");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function reset(useCase: string) {
+    if (!confirm("Restaurar o prompt padrão? A customização será removida.")) return;
+    setBusyKey(useCase);
+    try {
+      const it = await resetAiPrompt(useCase);
+      setDrafts((d) => ({ ...d, [useCase]: it.content }));
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao restaurar");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  return (
+    <div className="card" style={{ maxWidth: 720, marginTop: 18 }}>
+      <fieldset className="prod-fs">
+        <legend>Central de Prompts</legend>
+        <p className="prod-note" style={{ marginTop: 0 }}>
+          Todos os prompts técnicos da IA ficam aqui — um por caso de uso, editável e versionado.
+          O conteúdo dinâmico (dados do líder, do lead, indicadores) é anexado automaticamente pelo
+          sistema. As <strong>diretrizes do cliente</strong> (produto) entram como camada à parte.
+        </p>
+
+        {status === "loading" && <p className="dash-state">Carregando prompts…</p>}
+        {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar os prompts.</div>}
+
+        {status === "ok" && items && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {items.map((it) => (
+              <div key={it.useCase} style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: 14 }}>{it.label}</strong>
+                  <span className="prod-note" style={{ margin: 0, fontSize: 11 }}>
+                    <code style={{ fontSize: 10.5 }}>{it.useCase}</code>
+                    {" · "}
+                    {it.isDefault ? "padrão do sistema" : `v${it.version}${it.updatedBy ? ` · ${it.updatedBy}` : ""}`}
+                  </span>
+                </div>
+                <p className="prod-note" style={{ margin: "4px 0 6px" }}>{it.description}</p>
+                <textarea
+                  rows={9}
+                  className="prod-field"
+                  style={{ width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: 12, lineHeight: 1.5, resize: "vertical" }}
+                  value={drafts[it.useCase] ?? ""}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [it.useCase]: e.target.value }))}
+                />
+                <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "center" }}>
+                  <button
+                    className="btn btn--terra btn--sm"
+                    disabled={busyKey === it.useCase || (drafts[it.useCase] ?? "") === it.content}
+                    onClick={() => save(it.useCase)}
+                  >
+                    {busyKey === it.useCase ? "Salvando…" : "Salvar prompt"}
+                  </button>
+                  {!it.isDefault && (
+                    <button className="btn btn--ghost btn--sm" disabled={busyKey === it.useCase} onClick={() => reset(it.useCase)}>
+                      Restaurar padrão
+                    </button>
+                  )}
+                  {savedKey === it.useCase && <span className="kb-converted">✓ Salvo</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </fieldset>
+    </div>
   );
 }
