@@ -7,6 +7,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { decryptSecret, encryptSecret, hintOf } from './secret-crypto';
+import { formatAiDirectives } from './ai-directives';
 
 type Actor = { id: string; email: string };
 
@@ -40,6 +41,36 @@ export class AiSettingsService {
       lastStatus: r?.lastStatus ?? null,
       lastTestedAt: r?.lastTestedAt?.toISOString() ?? null,
     };
+  }
+
+  /**
+   * IA2 (Caderno §10) — diretrizes APROVADAS do cliente para a IA personalizada.
+   * Resolve o produto contratado pela empresa (organizationId = tenant do data
+   * plane) → `Product.aiConfig` → bloco de contexto para anexar ao prompt técnico
+   * fixo. Aditivo e permissivo: retorna '' se não houver contrato/produto/config
+   * ou em qualquer falha (nunca quebra a IA; nunca deixa o cliente editar o prompt
+   * técnico — só objetivo/regras/base/limitações aprovadas).
+   */
+  async buildTenantDirectives(organizationId?: string | null): Promise<string> {
+    if (!organizationId) return '';
+    try {
+      const contract = await this.prisma.admin.contract.findFirst({
+        where: { organizationId, status: { in: ['ATIVO', 'RASCUNHO'] } },
+        orderBy: { updatedAt: 'desc' },
+        select: { productId: true },
+      });
+      if (!contract?.productId) return '';
+      const product = await this.prisma.admin.product.findUnique({
+        where: { id: contract.productId },
+        select: { aiConfig: true, allowsCustomAi: true },
+      });
+      // IA personalizada só quando o produto permite (allowsCustomAi) — senão o
+      // aiConfig fica ignorado (a IA padrão do CRIVO segue funcionando normal).
+      if (!product?.allowsCustomAi) return '';
+      return formatAiDirectives(product.aiConfig);
+    } catch {
+      return '';
+    }
   }
 
   /** Token decifrado — uso interno (test + futuros módulos de IA). */

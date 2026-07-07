@@ -102,10 +102,11 @@ export function AiSettingsSection() {
       </div>
 
       <div className="adm-callout">
-        <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. A camada de
-        <strong> Políticas e Diretrizes do Cliente</strong> — valores, regras e diretrizes aprovadas usadas pelo
-        Mentor/App, vinculadas a empresa, contrato, módulo e versão, com status de revisão e logs — entra como
-        próxima fatia. Nenhuma política interna é usada sem aprovação.
+        <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. As
+        <strong> diretrizes aprovadas do cliente</strong> (objetivo, regras, base de conhecimento e limitações
+        em <em>Soluções → aiConfig</em>) já são <strong>injetadas como contexto</strong> no prompt do Mentor/App
+        (Copiloto) quando o produto contratado permite IA personalizada — sem sobrescrever o método. Versionamento
+        de prompt, log por chamada e extensão aos demais módulos de IA seguem como próxima fatia.
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando…</p>}

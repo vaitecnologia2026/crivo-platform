@@ -18,7 +18,7 @@ const COPILOTO_MODULE_KEYS = ['copiloto', 'lider'];
 export class CopilotoService {
   constructor(private readonly ai: AiSettingsService) {}
 
-  async ask(dto: CopilotoAskRequest): Promise<CopilotoAskResponse> {
+  async ask(dto: CopilotoAskRequest, tenantId?: string): Promise<CopilotoAskResponse> {
     const question = dto.question?.trim();
     if (!question) return { ok: false, reason: 'Faça uma pergunta ao copiloto.' };
 
@@ -41,7 +41,10 @@ export class CopilotoService {
     const key = await this.ai.getApiKey();
     if (!key) return { ok: false, reason: 'Token de IA indisponível.' };
 
-    const system = this.systemPrompt(dto.context);
+    // IA2: prompt técnico FIXO + diretrizes aprovadas do cliente (se o produto
+    // contratado permitir IA personalizada). O cliente nunca edita o prompt técnico.
+    const directives = await this.ai.buildTenantDirectives(tenantId);
+    const system = this.systemPrompt(dto.context) + directives;
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
