@@ -68,4 +68,20 @@ export class PushTokensService {
     if (tokens.length === 0) return;
     await this.prisma.admin.pushToken.deleteMany({ where: { token: { in: tokens } } });
   }
+
+  /** Diagnóstico: total de tokens registrados e a contagem por plataforma. */
+  async stats(): Promise<{ total: number; byPlatform: Record<string, number> }> {
+    const grouped = await this.prisma.admin.pushToken.groupBy({
+      by: ['platform'],
+      _count: { _all: true },
+    });
+    const byPlatform: Record<string, number> = {};
+    let total = 0;
+    for (const g of grouped) {
+      const n = g._count._all;
+      byPlatform[g.platform] = n;
+      total += n;
+    }
+    return { total, byPlatform };
+  }
 }

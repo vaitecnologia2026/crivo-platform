@@ -7,6 +7,7 @@ import { PushTokensService } from './push-tokens.service';
 import { NotificationSettingsService } from './notification-settings.service';
 import { PushTokensController } from './push-tokens.controller';
 import { AdminNotificationsController } from './admin-notifications.controller';
+import { AdminTestNotificationsController } from './admin-test-notifications.controller';
 import { SiteNotificationsController } from './site-notifications.controller';
 
 /**
@@ -25,6 +26,7 @@ import { SiteNotificationsController } from './site-notifications.controller';
   controllers: [
     PushTokensController,
     AdminNotificationsController,
+    AdminTestNotificationsController,
     SiteNotificationsController,
   ],
   providers: [FcmService, PushTokensService, NotificationSettingsService, SuperAdminGuard],

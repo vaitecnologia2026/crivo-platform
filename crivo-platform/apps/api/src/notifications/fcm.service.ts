@@ -15,6 +15,7 @@ export class FcmService {
   private readonly log = new Logger('Fcm');
   private app: admin.app.App | null = null;
   private initialized = false;
+  private projectId: string | null = null;
 
   private ensure(): admin.app.App | null {
     if (this.initialized) return this.app;
@@ -41,6 +42,13 @@ export class FcmService {
       return null;
     }
 
+    // project_id (JSON de service account) OU projectId (tipo admin) — só um NOME,
+    // não é segredo; usado apenas no diagnóstico.
+    this.projectId =
+      (credentialJson as { project_id?: string }).project_id ??
+      (credentialJson as admin.ServiceAccount).projectId ??
+      null;
+
     this.app =
       admin.apps.find((a) => a?.name === 'crivo') ??
       admin.initializeApp({ credential: admin.credential.cert(credentialJson) }, 'crivo');
@@ -50,6 +58,24 @@ export class FcmService {
 
   get enabled(): boolean {
     return this.ensure() !== null;
+  }
+
+  /**
+   * Diagnóstico da configuração FCM/Firebase Admin — SEM vazar segredos. Retorna
+   * apenas se está habilitado, de qual fonte veio a credencial e o projectId
+   * (que é um nome público, não segredo). Não dispara nada.
+   */
+  diagnostics(): {
+    enabled: boolean;
+    credentialSource: 'json-env' | 'file-path' | 'none';
+    projectId: string | null;
+  } {
+    const raw = process.env.FCM_SERVICE_ACCOUNT;
+    const path = process.env.FCM_SERVICE_ACCOUNT_PATH;
+    const enabled = this.enabled; // dispara ensure() (idempotente)
+    const credentialSource: 'json-env' | 'file-path' | 'none' =
+      raw && raw.trim().startsWith('{') ? 'json-env' : path ? 'file-path' : 'none';
+    return { enabled, credentialSource, projectId: this.projectId };
   }
 
   /**
