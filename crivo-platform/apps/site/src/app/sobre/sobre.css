@@ -1,0 +1,145 @@
+/* =========================================================
+   /sobre — CSS específico da página (telas 19 · 20)
+   Co-localizado, importado DEPOIS de ../lp/lp.css. Reutiliza
+   tokens/variáveis de lp.css; não duplica classes já existentes
+   (qs-split, qs-photo, strip, chips, eyebrow, h2, lede, rule-terra…).
+   ========================================================= */
+
+/* ----- Quem Somos (tela 19) — card Missão · Visão · Valores ----- */
+.sobre-mvv {
+  margin-top: 64px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-1);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  overflow: hidden;
+}
+.sobre-mvv__col {
+  padding: 40px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-left: 1px solid var(--line);
+}
+.sobre-mvv__col:first-child { border-left: none; }
+.sobre-mvv__ic {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--azul-profundo);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--terra-claro);
+  margin-bottom: 18px; flex-shrink: 0;
+}
+.sobre-mvv__ic svg { width: 22px; height: 22px; }
+.sobre-mvv__title {
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--terra-dourado);
+  margin-bottom: 10px;
+}
+.sobre-mvv__rule { width: 32px; height: 2px; border-radius: 2px; background: var(--terra); margin-bottom: 16px; }
+.sobre-mvv__col p { font-size: 14px; line-height: 1.65; color: var(--text-dark-sec); font-weight: 300; }
+.sobre-mvv__values {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px;
+  margin-top: 16px; width: 100%; list-style: none; padding: 0;
+}
+.sobre-mvv__values li {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; color: var(--text-dark); font-weight: 400;
+}
+.sobre-mvv__values li::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--terra); flex-shrink: 0;
+}
+@media (max-width: 860px) {
+  .sobre-mvv { grid-template-columns: 1fr; }
+  .sobre-mvv__col { border-left: none; border-top: 1px solid var(--line); }
+  .sobre-mvv__col:first-child { border-top: none; }
+}
+
+/* ----- Como Nasceu / Fundadores (tela 20) ----- */
+.sobre-final-line {
+  color: var(--terra-dourado);
+  font-weight: 600;
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+.sobre-founders-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+  margin: 28px 0 56px;
+}
+@media (max-width: 860px) { .sobre-founders-grid { grid-template-columns: 1fr; } }
+
+.sobre-founder-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  padding: 36px 34px;
+  box-shadow: var(--shadow-1);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.sobre-founder-card__name {
+  font-family: var(--font-serif); font-size: 23px; font-weight: 600;
+  color: var(--azul-profundo);
+}
+.sobre-founder-card__role {
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em;
+  color: var(--terra-dourado); margin-top: -10px;
+}
+.sobre-founder-card p { font-size: 14px; line-height: 1.65; color: var(--text-dark-sec); font-weight: 300; }
+.sobre-founder-card .chips { margin-top: 6px; }
+
+.chip--active {
+  background: #fff;
+  border-color: var(--terra);
+  box-shadow: 0 8px 20px rgba(196, 103, 29, 0.18);
+  color: var(--azul-profundo);
+  font-weight: 700;
+}
+.chip--active svg { color: var(--terra-claro); }
+
+.sobre-founders-band {
+  background: linear-gradient(120deg, #10233E 0%, var(--azul-noite) 100%);
+  border-radius: 18px;
+  padding: 36px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px; flex-wrap: wrap;
+  color: var(--off-white);
+}
+.sobre-founders-band__text {
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 500; line-height: 1.32;
+  max-width: 320px;
+}
+.sobre-founders-band__text .terra-text { color: var(--terra-claro); }
+.sobre-founders-band__pillars {
+  display: flex; gap: 0; flex: 1; min-width: 280px;
+  justify-content: flex-end; flex-wrap: wrap;
+}
+.sobre-founders-pillar {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 0 26px; border-left: 1px solid rgba(184, 196, 208, 0.22);
+  text-align: center; min-width: 108px;
+}
+.sobre-founders-pillar:first-child { border-left: none; }
+.sobre-founders-pillar__ic {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1.6px solid var(--terra); color: var(--terra-claro);
+  display: flex; align-items: center; justify-content: center;
+}
+.sobre-founders-pillar__ic svg { width: 20px; height: 20px; }
+.sobre-founders-pillar span { font-size: 12.5px; font-weight: 500; color: var(--off-white); }
+@media (max-width: 760px) {
+  .sobre-founders-band { flex-direction: column; align-items: flex-start; }
+  .sobre-founders-band__pillars { justify-content: flex-start; }
+}
+
+.sobre-founders-tagline {
+  text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 28px;
+  font-size: 14px; color: var(--text-dark-sec); font-weight: 400; letter-spacing: 0.02em;
+}
+.sobre-founders-tagline .rule { width: 36px; height: 1px; background: var(--terra); opacity: 0.5; }

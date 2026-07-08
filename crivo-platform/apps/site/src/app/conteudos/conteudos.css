@@ -1,0 +1,117 @@
+/* =========================================================
+   CRIVO™ — Conteúdos · Centro de Inteligência CRIVO™ (tela 18)
+   Extras co-localizados. Importado DEPOIS de ../lp/lp.css.
+   Reaproveita tokens/classes de lp.css (.strip, .cta-band, .brand,
+   .laptop) — só adiciona o que é específico desta página.
+   ========================================================= */
+
+/* ----- Hero: notebook navy com marca CRIVO™ (mockup, sem foto real) ----- */
+.cc-laptop { max-width: 440px; margin: 0 auto; }
+.cc-laptop__screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; min-height: 260px; text-align: center; padding: 22px 24px;
+}
+.cc-laptop__screen .brand { flex-direction: column; gap: 10px; }
+.cc-laptop__screen .brand__name { font-size: 30px; }
+.cc-laptop__screen .brand__sub { margin-top: 4px; }
+.cc-laptop__quote {
+  font-size: 13px; font-weight: 300; color: var(--azul-gelo); line-height: 1.65; margin: 0;
+  max-width: 260px;
+}
+
+/* ----- Faixa de 4 cards (Mapa Executivo / Newsletter / Redes / Academy) ----- */
+.cc-cards.strip { grid-template-columns: repeat(4, 1fr); align-items: stretch; }
+.cc-cards .strip-card {
+  padding: 28px 22px 26px;
+  min-height: 300px;
+  position: relative;
+  overflow: visible;
+}
+/* Estes cards têm CTA/rodapé próprio — a régua terra padrão do .strip fica no meio do
+   card quando há botão; desligada aqui em favor do próprio ritmo do card. */
+.cc-cards .strip-card::after { content: none; }
+
+.cc-card__cta { margin-top: auto; white-space: normal; text-align: center; line-height: 1.3; }
+
+.cc-badge {
+  position: absolute; top: 16px; right: 16px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--terra-dourado);
+  background: rgba(196, 137, 74, 0.14);
+  border: 1px solid rgba(196, 137, 74, 0.35);
+  padding: 5px 10px; border-radius: 999px;
+}
+
+/* ----- Card 1 — mockup 3D do livro "vazando" para fora do card ----- */
+.cc-card--book { padding-left: 100px; }
+.cc-book {
+  position: absolute; left: -22px; top: -26px; width: 104px; z-index: 2;
+  filter: drop-shadow(0 16px 26px rgba(6, 12, 24, 0.4));
+}
+.cc-book__cover {
+  background: linear-gradient(155deg, #0d1f3c 0%, #16335f 100%);
+  border-radius: 4px 8px 8px 4px;
+  padding: 14px 11px 12px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
+  transform: rotate(-3deg);
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.07), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.cc-book__mark { width: 15px; height: auto; color: var(--terra-claro); }
+.cc-book__cover strong {
+  font-family: var(--font-serif); font-size: 10.5px; line-height: 1.22; font-weight: 700;
+  color: var(--terra-claro);
+}
+.cc-book__cover span { font-size: 6.4px; letter-spacing: 0.03em; line-height: 1.35; color: rgba(242, 240, 236, 0.7); }
+@media (max-width: 900px) {
+  .cc-cards.strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .cc-cards.strip { grid-template-columns: 1fr; }
+  .cc-card--book { padding-left: 22px; padding-top: 116px; }
+  .cc-book { left: 50%; top: 14px; transform: translateX(-50%); }
+  .cc-book__cover { transform: rotate(0deg); }
+}
+
+/* ----- Redes sociais (card "Siga a CRIVO nas redes") ----- */
+.cc-social { display: flex; gap: 18px; margin-top: auto; }
+.cc-social a { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.cc-social__ic {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1.6px solid var(--terra); color: var(--terra);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.cc-social__ic svg { width: 18px; height: 18px; }
+.cc-social a:hover .cc-social__ic { background: var(--terra); color: #fff; }
+.cc-social span { font-size: 11px; font-weight: 500; color: var(--azul-profundo); }
+
+/* ----- "EM DESENVOLVIMENTO" — cabeçalho + 4 mini-cards ----- */
+.cc-dev-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.cc-dev-head__tag {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--terra-dourado); white-space: nowrap;
+}
+.cc-dev-head__rule { width: 1px; height: 16px; background: var(--line); flex-shrink: 0; }
+.cc-dev-head p { font-size: 14px; font-weight: 300; color: var(--text-dark-sec); margin: 0; }
+
+.cc-mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 26px; }
+@media (max-width: 900px) { .cc-mini-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .cc-mini-grid { grid-template-columns: 1fr; } }
+.cc-mini-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 20px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 6px 18px rgba(13, 27, 46, 0.05);
+}
+.cc-mini-card__ic {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(196, 137, 74, 0.10); color: var(--terra);
+  display: flex; align-items: center; justify-content: center;
+}
+.cc-mini-card__ic svg { width: 20px; height: 20px; }
+.cc-mini-card strong { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--azul-profundo); }
+.cc-mini-card p { font-size: 12.5px; font-weight: 300; line-height: 1.5; color: #4A5568; margin: 0; flex: 1; }
+.cc-mini-badge {
+  align-self: flex-start; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--terra-dourado); background: rgba(196, 137, 74, 0.12);
+  border: 1px solid rgba(196, 137, 74, 0.3); padding: 4px 10px; border-radius: 999px;
+}

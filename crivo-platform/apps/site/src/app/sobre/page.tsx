@@ -1,178 +1,262 @@
 import type { Metadata } from "next";
+import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
-import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
-import { LpEffects } from "../lp/LpEffects";
+import { IC } from "../_site/icons";
 import "../lp/lp.css";
+import "./sobre.css";
 
 export const metadata: Metadata = {
-  title: "Sobre a CRIVO™ — quem somos, como nascemos e fundadores",
+  title: "Sobre a CRIVO™ — quem somos e os fundadores",
   description:
-    "A CRIVO™ é uma consultoria estratégica de transformação organizacional com tecnologia aplicada — método, leitura organizacional, desenvolvimento da liderança e evidências.",
+    "A CRIVO™ é uma consultoria estratégica de inteligência aplicada à gestão. Conheça nossa missão, visão, valores e a trajetória de Rodrigo Oliveira e Viviani Ostan, fundadores da CRIVO™.",
 };
 
+// /sobre — 2 seções das telas finais aprovadas: 19 Quem Somos · 20 Como
+// Nasceu / Fundadores. Copy fiel às telas, estrutura fiel ao padrão de
+// ../lp/page.tsx (mesma "mão").
 export default function SobrePage() {
   return (
     <>
       <LpEffects />
       <SiteNav />
 
-      {/* ===================== PAGE HERO ===================== */}
-      <section className="section section--dark page-hero">
+      {/* ============ 19 · QUEM SOMOS ============ */}
+      <section id="quem-somos" className="section section--light">
         <div className="container">
-          <span className="eyebrow eyebrow--terra">Sobre a CRIVO™</span>
-          <h1 className="display h2--light">
-            Inteligência organizacional e desenvolvimento da <span className="terra-text">liderança</span>.
-          </h1>
-          <p className="lede lede--light" style={{ maxWidth: 760 }}>
-            Uma consultoria estratégica de transformação organizacional com tecnologia aplicada. Revelamos sinais
-            invisíveis, priorizamos ações, desenvolvemos lideranças e sustentamos a evolução com método, dados, plano de
-            ação e evidências.
-          </p>
+          <div className="qs-split">
+            <div>
+              <span className="eyebrow eyebrow--terra">Quem Somos</span>
+              <h1 className="h2">
+                Inteligência organizacional.
+                <br />
+                Decisão com critério.
+                <br />
+                <span className="terra-text">Evolução com evidência.</span>
+              </h1>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                A CRIVO™ é uma consultoria estratégica de <strong>inteligência aplicada à gestão</strong>, criada
+                para transformar liderança, cultura e governança em maturidade organizacional, execução consistente
+                e resultados mensuráveis.
+              </p>
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                Integramos método proprietário, desenvolvimento humano, dados e tecnologia para conectar{" "}
+                <strong>diagnóstico, plano de ação, evidências e sustentação da liderança</strong> em uma jornada
+                estruturada.
+              </p>
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                Nossa abordagem nasce da convergência entre experiência executiva, ciência do comportamento e visão
+                organizacional. Essa base se traduz em um sistema aplicado para fortalecer decisões, cultura,
+                responsabilidades e execução.
+              </p>
+              <p className="lede" style={{ marginBottom: 0, fontSize: 16 }}>
+                Em um novo ciclo marcado por inteligência artificial, novas gerações, fatores psicossociais e maior
+                complexidade empresarial, organizamos a inteligência necessária para transformar{" "}
+                <strong>intenção em rotina, decisão em ação e evolução</strong> em <strong>legado de gestão</strong>.
+              </p>
+            </div>
+            <div>
+              <div
+                className="qs-photo"
+                style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }}
+                role="img"
+                aria-label="Liderança em ambiente corporativo"
+              />
+              <div className="strip strip--2col">
+                <div className="strip-card">
+                  <span className="strip-card__ic">{IC.pessoas}</span>
+                  <strong>PESSOAS</strong>
+                  <p>Comportamento, cultura e liderança</p>
+                </div>
+                <div className="strip-card">
+                  <span className="strip-card__ic">{IC.chip}</span>
+                  <strong>INTELIGÊNCIA ARTIFICIAL</strong>
+                  <p>Tecnologia como amplificadora de inteligência</p>
+                </div>
+                <div className="strip-card">
+                  <span className="strip-card__ic">{IC.grafico}</span>
+                  <strong>DADOS</strong>
+                  <p>Informações estruturadas para decisões</p>
+                </div>
+                <div className="strip-card">
+                  <span className="strip-card__ic">{IC.alvo}</span>
+                  <strong>RESULTADOS</strong>
+                  <p>Execução, impacto e evolução sustentável</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Missão · Visão · Valores */}
+          <div className="sobre-mvv">
+            <div className="sobre-mvv__col">
+              <span className="sobre-mvv__ic">{IC.bussola}</span>
+              <span className="sobre-mvv__title">Missão</span>
+              <span className="sobre-mvv__rule" aria-hidden="true" />
+              <p>Elevar o padrão das decisões que moldam o futuro das organizações.</p>
+            </div>
+            <div className="sobre-mvv__col">
+              <span className="sobre-mvv__ic">{IC.telescopio}</span>
+              <span className="sobre-mvv__title">Visão</span>
+              <span className="sobre-mvv__rule" aria-hidden="true" />
+              <p>
+                Transformar Decision Intelligence em referência nacional de liderança e gestão, impulsionando
+                organizações mais conscientes, ágeis e sustentáveis.
+              </p>
+            </div>
+            <div className="sobre-mvv__col">
+              <span className="sobre-mvv__ic">{IC.escudo}</span>
+              <span className="sobre-mvv__title">Valores</span>
+              <span className="sobre-mvv__rule" aria-hidden="true" />
+              <p>
+                Os valores da CRIVO™ orientam a forma como pensamos, decidimos e construímos organizações mais
+                maduras, consistentes e preparadas para o futuro.
+              </p>
+              <ul className="sobre-mvv__values">
+                <li>Clareza</li>
+                <li>Governança</li>
+                <li>Critério</li>
+                <li>Integridade</li>
+                <li>Coragem</li>
+                <li>Responsabilidade</li>
+                <li>Coerência</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ===================== SOBRE (print Pág. 03): Quem Somos · Como Nasceu · Fundadores ===================== */}
-      <section className="section section--light" id="quem-somos">
+      {/* ============ 20 · COMO NASCEU / FUNDADORES ============ */}
+      <section id="como-nasceu" className="section section--light">
         <div className="container">
-          {/* pílulas de navegação (abas do print) */}
-          <div className="sobre-tabs">
-            <a href="#quem-somos" className="sobre-tab is-active">Quem Somos</a>
-            <a href="#como-nasceu" className="sobre-tab">Como Nasceu</a>
-            <a href="#fundadores" className="sobre-tab">Fundadores</a>
+          <div className="qs-split">
+            <div>
+              <span className="eyebrow eyebrow--terra">Como Nasceu a CRIVO™</span>
+              <h2 className="h2">
+                Duas trajetórias.
+                <br />
+                Um mesmo <span className="terra-text">propósito.</span>
+              </h2>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                A CRIVO™ nasceu da convergência entre experiência executiva real e uma inquietação comum:
+                organizações perdem clareza, coerência e capacidade de execução quando decisões críticas se afastam
+                do contexto, das pessoas e da estratégia.
+              </p>
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                Transformamos essa vivência em uma atuação aplicada, unindo visão de negócio, estratégia, liderança,
+                governança e inteligência organizacional para apoiar empresas que precisam decidir melhor e evoluir
+                com consistência.
+              </p>
+              <p className="lede" style={{ marginBottom: 16, fontSize: 16 }}>
+                No último ano, aprofundamos essa base com estudo e formação contínua em desenvolvimento humano,
+                neurociência aplicada, inteligência artificial, conselho consultivo, universidade de negócios,
+                mentoria e tomada de decisão.
+              </p>
+              <p className="sobre-final-line">Experiência executiva. Critério para decidir. Método para evoluir.</p>
+            </div>
+            <div>
+              <div
+                className="qs-photo"
+                style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }}
+                role="img"
+                aria-label="Fundadores da CRIVO™ em ambiente corporativo"
+              />
+            </div>
           </div>
 
-          <div className="sobre-grid">
-            {/* COLUNA PRINCIPAL — Quem Somos */}
-            <div className="sobre-main">
-              <span className="eyebrow">Quem somos</span>
-              <h2 className="h2">Somos uma consultoria estratégica de transformação organizacional.</h2>
-              <p className="lede">
-                A CRIVO integra o desenvolvimento da liderança, inteligência organizacional, governança e tecnologia
-                para transformar sinais invisíveis em clareza, ação e evolução sustentável.
-              </p>
+          {/* Os Fundadores */}
+          <span className="eyebrow eyebrow--terra" style={{ marginTop: 56 }}>
+            Os Fundadores
+          </span>
 
-              <div className="sobre-cards">
-                <article className="sobre-card">
-                  <span className="sobre-card__ic" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.6" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M16 5.4a3 3 0 0 1 0 5.6M17 14c2.1.4 3.7 2.3 3.7 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                  </span>
-                  <strong>Desenvolvimento da liderança</strong>
-                  <p>Fortalecemos lideranças para decidir com critério em contextos de pressão e complexidade.</p>
-                </article>
-                <article className="sobre-card">
-                  <span className="sobre-card__ic" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 7h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                  <strong>Inteligência organizacional</strong>
-                  <p>Transformamos padrões invisíveis em leitura executiva, indicadores e planos de ação.</p>
-                </article>
-                <article className="sobre-card">
-                  <span className="sobre-card__ic" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V6l7-3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </span>
-                  <strong>Governança e cultura</strong>
-                  <p>Criamos estruturas e rituais que sustentam decisões, ética e responsabilidade.</p>
-                </article>
-                <article className="sobre-card">
-                  <span className="sobre-card__ic" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.6" /><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                  </span>
-                  <strong>Tecnologia com propósito</strong>
-                  <p>Aplicamos IA e tecnologia de forma ética para ampliar clareza, eficiência e impacto.</p>
-                </article>
+          <div className="sobre-founders-grid">
+            <div className="sobre-founder-card">
+              <strong className="sobre-founder-card__name">Rodrigo Oliveira</strong>
+              <span className="sobre-founder-card__role">
+                Fundador • Estratégia, Pessoas, Governança e Transformação
+              </span>
+              <p>
+                Executivo com mais de 25 anos de trajetória em ambientes de alta exigência, liderando agendas de
+                pessoas, cultura, estratégia, governança e transformação organizacional em grandes empresas no
+                Brasil e na América Latina.
+              </p>
+              <p>
+                Une visão de negócio à execução, com experiência em liderança, relações trabalhistas, sucessão,
+                integração pós-aquisição e mudanças organizacionais com impacto real.
+              </p>
+              <p>
+                Sua base também se fortalece por estudos e formação em desenvolvimento humano, neurociência
+                aplicada, inteligência artificial, mentoria, conselho consultivo, universidade de negócios e tomada
+                de decisão.
+              </p>
+              <div className="chips">
+                <span className="chip">{IC.grafico} Visão de negócio</span>
+                <span className="chip">{IC.bussola} Estratégia</span>
+                <span className="chip">{IC.pessoas} Liderança</span>
+                <span className="chip">{IC.escudo} Governança</span>
+                <span className="chip">{IC.engrenagem} Transformação organizacional</span>
               </div>
             </div>
 
-            {/* COLUNA LATERAL — Como Nasceu + Fundadores */}
-            <aside className="sobre-side">
-              <div className="sobre-block" id="como-nasceu">
-                <span className="sobre-side__h">Como Nasceu</span>
-                <p>
-                  A CRIVO nasceu da prática executiva e da percepção de que a qualidade das decisões sob pressão molda
-                  cultura, performance e resultados.
-                </p>
-                <p>
-                  Transformamos padrões invisíveis de decisão em inteligência aplicável para lideranças que
-                  precisam decidir melhor em contextos reais.
-                </p>
+            <div className="sobre-founder-card">
+              <strong className="sobre-founder-card__name">Viviani Ostan</strong>
+              <span className="sobre-founder-card__role">Fundadora • Negócios, Liderança e Performance</span>
+              <p>
+                Executiva do mercado financeiro, e estratégia de negócios e liderança, com 19 anos de experiência em
+                grandes instituições, liderando operações, crescimento, relacionamento estratégico e ambientes de
+                alta performance.
+              </p>
+              <p>
+                Conecta vivência executiva, inteligência emocional e desenvolvimento humano para fortalecer
+                lideranças com mais clareza, confiança e equilíbrio, com atenção especial à formação de mulheres em
+                posições de influência.
+              </p>
+              <p>
+                Sua trajetória também incorpora mentoria, desenvolvimento humano e comportamento, reforçando a base
+                humana e estratégica que sustenta a atuação da CRIVO™.
+              </p>
+              <div className="chips">
+                <span className="chip">{IC.grafico} Mercado financeiro</span>
+                <span className="chip chip--active">{IC.alvo} Negócios</span>
+                <span className="chip">{IC.pessoas} Liderança</span>
+                <span className="chip">{IC.escudo} Alta performance</span>
+                <span className="chip">{IC.cerebro} Desenvolvimento humano</span>
               </div>
-
-              <div className="sobre-block" id="fundadores">
-                <span className="sobre-side__h">Fundadores</span>
-                <article className="founder-card">
-                  <span className="founder-card__avatar" aria-hidden="true">RO</span>
-                  <div className="founder-card__body">
-                    <strong>
-                      Rodrigo Oliveira <em>Cofundador</em>
-                    </strong>
-                    <p>
-                      Especialista em liderança, cultura e decisão sob pressão. Atuou em transformações complexas em
-                      organizações de grande porte, com foco em resultados sustentáveis, execução e pessoas.
-                    </p>
-                  </div>
-                </article>
-                <article className="founder-card">
-                  <span className="founder-card__avatar" aria-hidden="true">VO</span>
-                  <div className="founder-card__body">
-                    <strong>
-                      Viviani Ostan <em>Cofundadora</em>
-                    </strong>
-                    <p>
-                      Executiva com sólida trajetória em liderança e desenvolvimento de negócios. Atua no
-                      fortalecimento de equipes, performance e relações de confiança em ambientes de alta exigência.
-                    </p>
-                  </div>
-                </article>
-              </div>
-            </aside>
+            </div>
           </div>
 
-          {/* Missão · Visão · Valores (institucional, mantido) */}
-          <div className="mvv" id="mvv">
-            <article className="mvv-card">
-              <span className="mvv-card__tag">Missão</span>
-              <p>
-                Transformar riscos invisíveis em consciência, ação e evolução organizacional — desenvolvendo lideranças
-                capazes de sustentar cultura, decisões, governança e resultados.
-              </p>
-            </article>
-            <article className="mvv-card">
-              <span className="mvv-card__tag">Visão</span>
-              <p>
-                Ser referência em inteligência organizacional e desenvolvimento da liderança para empresas que integram
-                pessoas, cultura, tecnologia, decisão e performance de forma sustentável.
-              </p>
-            </article>
-            <article className="mvv-card">
-              <span className="mvv-card__tag">Valores</span>
-              <p>
-                Critério acima de pressão. Evidência acima de opinião. Governança, confidencialidade e responsabilidade
-                — com o desenvolvimento humano como base de todo resultado sustentável.
-              </p>
-            </article>
+          {/* Banda final navy: Da experiência executiva à inteligência aplicada */}
+          <div className="sobre-founders-band">
+            <div className="sobre-founders-band__text">
+              Da experiência executiva <span className="terra-text">à inteligência aplicada.</span>
+            </div>
+            <div className="sobre-founders-band__pillars">
+              <div className="sobre-founders-pillar">
+                <span className="sobre-founders-pillar__ic">{IC.grafico}</span>
+                <span>Visão de negócio</span>
+              </div>
+              <div className="sobre-founders-pillar">
+                <span className="sobre-founders-pillar__ic">{IC.bussola}</span>
+                <span>Estratégia</span>
+              </div>
+              <div className="sobre-founders-pillar">
+                <span className="sobre-founders-pillar__ic">{IC.pessoas}</span>
+                <span>Liderança</span>
+              </div>
+              <div className="sobre-founders-pillar">
+                <span className="sobre-founders-pillar__ic">{IC.escudo}</span>
+                <span>Governança</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* ===================== CTA CONTEXTUAL ===================== */}
-      <section className="section section--accent">
-        <div className="container" style={{ textAlign: "center" }}>
-          <span className="eyebrow eyebrow--terra" style={{ justifyContent: "center" }}>
-            Próximo passo
-          </span>
-          <h2 className="h2 h2--light h2--center">Vamos conversar sobre a sua organização?</h2>
-          <p className="lede lede--light" style={{ margin: "0 auto 28px", textAlign: "center" }}>
-            Comece por uma leitura preliminar gratuita — confidencial e com resposta de um especialista em até 24h úteis.
+          <p className="sobre-founders-tagline">
+            <span className="rule" aria-hidden="true" />
+            Clareza para decidir. Estrutura para agir. Evidência para evoluir.
+            <span className="rule" aria-hidden="true" />
           </p>
-          <div className="hero__ctas" style={{ justifyContent: "center" }}>
-            <a href="/lp#diagnostico" className="btn btn--terra">
-              Fazer Diagnóstico Inicial
-            </a>
-            <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost">
-              Falar com Especialista
-            </a>
-          </div>
         </div>
       </section>
 

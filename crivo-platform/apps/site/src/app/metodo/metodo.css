@@ -1,0 +1,175 @@
+/* =========================================================
+   CRIVO™ — Página /metodo (telas 04 · Método CRIVO™ / 05 · ICD™)
+   CSS específico desta rota. Importado DEPOIS de ../lp/lp.css —
+   reaproveita tokens/classes de lp.css, só complementa o que
+   não existe lá (título de seção centralizado, banda com divisórias
+   internas, diagrama radial do ICD).
+   ========================================================= */
+
+/* — Título de seção centralizado (serifado + traço laranja ao centro) — */
+.mv-title-wrap { text-align: center; margin: 8px 0 40px; }
+.mv-title {
+  display: inline-block;
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.8vw, 19px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--azul-profundo);
+}
+.mv-title-wrap .rule-terra { margin: 12px auto 0; }
+
+/* — Faixa branca única dividida por linhas verticais finas
+   (5 movimentos do Método / 4 eixos do ICD) — */
+.mv-band {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(13, 27, 46, 0.06);
+  display: grid;
+  overflow: hidden;
+}
+.mv-band--5 { grid-template-columns: repeat(5, 1fr); }
+.mv-band--4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1024px) { .mv-band--5 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1024px) { .mv-band--4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .mv-band--5, .mv-band--4 { grid-template-columns: 1fr; } }
+
+.mv-col {
+  padding: 30px 22px;
+  border-left: 1px solid var(--line);
+}
+.mv-col:first-child { border-left: none; }
+@media (max-width: 1024px) {
+  .mv-col:nth-child(2n+1) { border-left: none; }
+  .mv-col { border-top: 1px solid var(--line); }
+  .mv-col:nth-child(-n+2) { border-top: none; }
+}
+@media (max-width: 560px) {
+  .mv-col { border-left: none !important; border-top: 1px solid var(--line); }
+  .mv-col:first-child { border-top: none; }
+}
+
+.mv-col__ic {
+  width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+  background: var(--creme-card);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--azul-profundo);
+}
+.mv-col__ic svg { width: 24px; height: 24px; }
+.mv-col__ic--terra { background: #fff; border: 1.6px solid var(--terra); color: var(--terra); }
+
+.mv-col__head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.mv-col__num {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 22px; font-weight: 700; color: var(--terra); line-height: 1;
+}
+.mv-col__title {
+  font-family: var(--font-serif);
+  font-size: 17px; font-weight: 600; color: var(--azul-profundo); line-height: 1.25;
+}
+.mv-col__title-only { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--azul-profundo); }
+.mv-col p { font-size: 13.5px; color: #4A5568; line-height: 1.55; }
+
+/* — Faixa "O MÉTODO AJUDA A EMPRESA A:" / "O ICD™ APOIA LÍDERES A:" — */
+.mv-aid {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(13, 27, 46, 0.06);
+  display: grid;
+  grid-template-columns: 1.15fr repeat(5, 1fr);
+  margin-top: 18px;
+  overflow: hidden;
+}
+@media (max-width: 1100px) { .mv-aid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .mv-aid { grid-template-columns: 1fr; } }
+
+.mv-aid__label {
+  padding: 28px 24px;
+  display: flex; flex-direction: column; justify-content: center;
+  border-right: 1px solid var(--line);
+}
+@media (max-width: 1100px) { .mv-aid__label { border-right: none; border-bottom: 1px solid var(--line); grid-column: 1 / -1; } }
+.mv-aid__label strong {
+  font-family: var(--font-serif); font-size: 16px; font-weight: 600;
+  color: var(--azul-profundo); letter-spacing: 0.02em; line-height: 1.3;
+}
+.mv-aid__label .rule-terra { margin: 12px 0 0; }
+
+.mv-aid__item {
+  padding: 24px 20px;
+  display: flex; align-items: flex-start; gap: 12px;
+  border-left: 1px solid var(--line);
+}
+.mv-aid__item:first-of-type { border-left: none; }
+@media (max-width: 1100px) { .mv-aid__item { border-left: none; border-top: 1px solid var(--line); } }
+@media (max-width: 560px) { .mv-aid__item { border-top: 1px solid var(--line) !important; } }
+.mv-aid__item-ic { color: var(--terra); flex-shrink: 0; margin-top: 2px; }
+.mv-aid__item-ic svg { width: 20px; height: 20px; }
+.mv-aid__item p { font-size: 13px; color: #3C4657; line-height: 1.5; }
+
+/* — Hero do ICD (3 colunas: texto · diagrama · citação) — */
+.icd-hero__inner { grid-template-columns: 1fr 1.05fr 0.62fr; align-items: center; gap: 36px; }
+@media (max-width: 1080px) { .icd-hero__inner { grid-template-columns: 1fr; } }
+
+.icd-quote {
+  font-family: var(--font-serif);
+  font-size: clamp(19px, 2vw, 24px);
+  font-weight: 500;
+  color: var(--azul-profundo);
+  line-height: 1.4;
+  border-left: 2px solid var(--terra);
+  padding-left: 20px;
+}
+
+/* — Diagrama radial ICD™ (hub + 4 nós) — */
+.icd-diagram { position: relative; width: min(400px, 100%); aspect-ratio: 1 / 1; margin: 0 auto; }
+.icd-diagram__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.icd-diagram__lines line { stroke: var(--line); stroke-width: 0.6; }
+.icd-diagram__ring { fill: none; stroke: rgba(196, 137, 74, 0.32); stroke-width: 0.5; stroke-dasharray: 1.4 2.6; }
+.icd-diagram__dot { fill: var(--terra); }
+
+.icd-diagram__hub {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 34%; aspect-ratio: 1 / 1; border-radius: 999px; z-index: 2;
+  background: radial-gradient(circle at 50% 32%, #16335f 0%, var(--azul-profundo) 100%);
+  box-shadow: 0 16px 38px rgba(13, 31, 60, 0.32);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 6px;
+}
+.icd-diagram__hub strong {
+  font-family: var(--font-serif); font-weight: 600;
+  font-size: clamp(10.5px, 1.7vw, 13px); letter-spacing: 0.05em;
+  text-transform: uppercase; color: #fff; line-height: 1.3;
+}
+.icd-diagram__hub .rule-terra { width: 22px; height: 2px; margin: 7px 0 0; }
+
+.icd-diagram__node {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  width: 92px; z-index: 2;
+}
+.icd-diagram__node--t { top: 9%; left: 50%; }
+.icd-diagram__node--r { top: 50%; left: 89%; }
+.icd-diagram__node--b { top: 91%; left: 50%; }
+.icd-diagram__node--l { top: 50%; left: 11%; }
+.icd-diagram__node-ic {
+  width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
+  background: #fff; border: 1px solid var(--line);
+  box-shadow: 0 8px 22px rgba(13, 27, 46, 0.1);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--azul-profundo);
+}
+.icd-diagram__node-ic svg { width: 21px; height: 21px; }
+.icd-diagram__node b {
+  font-family: var(--font-body); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--azul-profundo);
+}
+@media (max-width: 480px) {
+  .icd-diagram__node { width: 74px; }
+  .icd-diagram__node-ic { width: 40px; height: 40px; }
+  .icd-diagram__node-ic svg { width: 17px; height: 17px; }
+  .icd-diagram__node b { font-size: 9px; }
+}

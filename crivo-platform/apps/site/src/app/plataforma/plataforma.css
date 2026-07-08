@@ -1,0 +1,194 @@
+/* =========================================================
+   CRIVO™ — Plataforma (Portal Executivo · Área do Líder)
+   Extras co-localizados desta rota — NÃO editar lp.css.
+   Reaproveita tokens/classes de lp.css (--terra, .hero, .chips,
+   .cta-band, .phone, .laptop…) e completa apenas o que falta:
+   mockup navy simples do laptop, sidebar, grid do app e timeline.
+   ========================================================= */
+
+/* ----- Laptop · conteúdo navy simples (Portal Executivo) ----- */
+.pf-laptop-body {
+  display: flex;
+  gap: 20px;
+  background: var(--azul-profundo);
+  border-radius: 8px;
+  padding: 20px;
+  color: var(--off-white);
+}
+.pf-sidebar {
+  flex: 0 0 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 16px;
+  border-right: 1px solid rgba(139, 175, 212, 0.16);
+}
+.pf-sidebar__brand {
+  font-family: var(--font-word);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: var(--off-white);
+  margin-bottom: 14px;
+}
+.pf-sidebar span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-light-sec);
+  padding: 7px 9px;
+  border-radius: 6px;
+}
+.pf-sidebar span.is-active {
+  color: var(--terra-dourado);
+  background: rgba(196, 137, 74, 0.14);
+  font-weight: 600;
+}
+.pf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.pf-main__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.pf-main__title { font-family: var(--font-serif); font-size: 16px; font-weight: 500; color: var(--off-white); }
+.pf-selects { display: flex; gap: 8px; flex-wrap: wrap; }
+.pf-select {
+  font-size: 10.5px; color: var(--text-light-sec);
+  border: 1px solid rgba(139, 175, 212, 0.24); border-radius: 999px;
+  padding: 5px 12px;
+}
+.pf-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 620px) { .pf-kpis { grid-template-columns: 1fr 1fr; } }
+.pf-kpi {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 175, 212, 0.16);
+  border-radius: 10px; padding: 12px 13px;
+}
+.pf-kpi__label { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-light-sec); }
+.pf-kpi__num { display: block; font-family: var(--font-serif); font-size: 24px; font-weight: 600; color: var(--off-white); line-height: 1.15; margin-top: 5px; }
+.pf-kpi__sub { display: block; font-size: 10.5px; color: var(--text-light-sec); margin-top: 3px; }
+.pf-charts { display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; }
+@media (max-width: 620px) { .pf-charts { grid-template-columns: 1fr; } }
+.pf-chart {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 175, 212, 0.16);
+  border-radius: 10px; padding: 13px 14px;
+}
+.pf-chart__label { display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-light-sec); margin-bottom: 10px; }
+.pf-bars { display: flex; flex-direction: column; gap: 8px; }
+.pf-bars li { display: grid; grid-template-columns: 66px 1fr; align-items: center; gap: 8px; font-size: 10px; color: var(--text-light-sec); }
+.pf-bars i { display: block; height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--azul-cobalto), var(--azul-claro)); }
+.pf-legend { display: flex; flex-direction: column; gap: 7px; }
+.pf-legend li { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: var(--text-light-sec); }
+.pf-legend i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.pf-legend i.a { background: var(--terra); }
+.pf-legend i.b { background: var(--azul-cobalto); }
+.pf-legend i.c { background: var(--azul-claro); }
+.pf-legend i.d { background: rgba(255, 255, 255, 0.28); }
+.pf-evidence {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 175, 212, 0.16);
+  border-radius: 10px; padding: 13px 16px;
+}
+.pf-evidence__num { font-family: var(--font-serif); font-size: 24px; font-weight: 600; color: var(--off-white); }
+.pf-evidence__sub { font-size: 11px; color: var(--text-light-sec); margin-left: 8px; }
+.pf-evidence a { font-size: 11.5px; font-weight: 600; color: var(--terra-claro); }
+
+/* ----- Faixa de ícones (features) com divisores verticais ----- */
+.pf-feat-row {
+  display: flex; flex-wrap: wrap;
+  margin-top: 44px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.pf-feat {
+  flex: 1 1 160px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 28px 16px;
+  border-right: 1px solid var(--line);
+}
+.pf-feat:last-child { border-right: none; }
+.pf-feat__ic { display: inline-flex; color: var(--terra); }
+.pf-feat__ic svg { width: 26px; height: 26px; }
+.pf-feat strong { font-family: var(--font-serif); font-size: 14px; font-weight: 500; color: var(--azul-profundo); line-height: 1.3; }
+
+/* ----- Faixas brancas arredondadas (Tudo em um único ambiente / CRIVO Plus™) ----- */
+.pf-strip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 22px;
+  background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  padding: 26px 30px; margin-top: 20px;
+  box-shadow: var(--shadow-1);
+}
+.pf-strip__label { flex: 0 0 auto; min-width: 200px; font-family: var(--font-serif); font-size: 17px; font-weight: 500; color: var(--azul-profundo); line-height: 1.3; }
+.pf-strip__label small { display: block; font-family: var(--font-body); font-size: 12.5px; font-weight: 300; color: var(--text-dark-sec); margin-top: 6px; }
+.pf-strip .chips { flex: 1; }
+
+/* ----- Área do Líder — grid de 3 colunas (copy · phone · timeline) ----- */
+.pf-leader { display: grid; grid-template-columns: 1fr 0.82fr 1fr; gap: 40px; align-items: start; }
+@media (max-width: 980px) { .pf-leader { grid-template-columns: 1fr; } }
+
+.pf-mini-row {
+  display: flex; flex-wrap: wrap;
+  margin: 28px 0 30px;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.pf-mini {
+  flex: 1 1 120px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  text-align: center; padding: 20px 10px;
+  border-right: 1px solid var(--line);
+}
+.pf-mini:last-child { border-right: none; }
+.pf-mini__ic { display: inline-flex; color: var(--terra); }
+.pf-mini__ic svg { width: 22px; height: 22px; }
+.pf-mini span { font-size: 12px; font-weight: 500; color: var(--azul-profundo); line-height: 1.3; }
+
+/* Phone bar customizado (sino + saudação) */
+.pf-phone-bell { position: relative; display: inline-flex; color: var(--azul-claro); }
+.pf-phone-bell svg { width: 15px; height: 15px; }
+.pf-phone-bell i { position: absolute; top: -1px; right: -1px; width: 6px; height: 6px; border-radius: 999px; background: var(--terra-dourado); }
+
+/* Grid 2×3 de atalhos dentro do phone */
+.pf-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.pf-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 175, 212, 0.16);
+  border-radius: 10px; padding: 9px 4px; text-align: center;
+}
+.pf-tile svg { width: 16px; height: 16px; color: var(--terra-claro); }
+.pf-tile span { font-size: 8px; line-height: 1.2; color: var(--off-white); }
+
+/* Visão rápida — anel + barras */
+.pf-quick { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(139, 175, 212, 0.16); border-radius: 12px; padding: 12px; }
+.pf-quick__bars { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pf-quick__bars li { display: grid; grid-template-columns: 50px 1fr; align-items: center; gap: 6px; font-size: 8px; color: var(--text-light-sec); }
+.pf-quick__bars i { display: block; height: 4px; border-radius: 999px; background: var(--terra-dourado); }
+
+/* Tab bar inferior (5 ícones) */
+.pf-tabbar { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 8px; border-top: 1px solid rgba(139, 175, 212, 0.16); }
+.pf-tabbar span { display: inline-flex; color: var(--text-light-sec); }
+.pf-tabbar span svg { width: 15px; height: 15px; }
+.pf-tabbar .is-active { color: var(--terra-dourado); }
+.pf-tabbar .is-add { width: 28px; height: 28px; border-radius: 999px; background: var(--terra-dourado); display: inline-flex; align-items: center; justify-content: center; color: #1a1205; }
+.pf-tabbar .is-add svg { width: 14px; height: 14px; color: #1a1205; }
+
+/* Timeline vertical (6 passos) */
+.pf-timeline { position: relative; display: flex; flex-direction: column; gap: 24px; padding-left: 46px; margin-top: 4px; }
+.pf-timeline::before {
+  content: ""; position: absolute; left: 17px; top: 6px; bottom: 6px; width: 0;
+  border-left: 2px dashed rgba(196, 137, 74, 0.4);
+}
+.pf-timeline__item { position: relative; }
+.pf-timeline__ic {
+  position: absolute; left: -46px; top: -2px;
+  width: 36px; height: 36px; border-radius: 999px;
+  background: var(--azul-profundo); border: 1px solid rgba(196, 137, 74, 0.4);
+  color: var(--terra-claro); display: flex; align-items: center; justify-content: center;
+}
+.pf-timeline__ic svg { width: 17px; height: 17px; }
+.pf-timeline__item strong { display: block; font-family: var(--font-serif); font-size: 15px; font-weight: 500; color: var(--azul-profundo); margin-bottom: 4px; }
+.pf-timeline__item span { font-size: 13px; font-weight: 300; color: var(--text-dark-sec); line-height: 1.5; }
+
+/* Frase-lema final, ladeada por dois traços laranja */
+.pf-motto {
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+  margin-top: 30px; text-align: center;
+  font-family: var(--font-serif); font-size: 15px; font-weight: 500; color: var(--azul-profundo);
+}
+.pf-motto .rule-terra { margin: 0; flex-shrink: 0; }
+@media (max-width: 620px) { .pf-motto { flex-direction: column; gap: 10px; } }

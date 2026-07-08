@@ -43,20 +43,22 @@ const SEGMENTS = [
   "Construção / Engenharia", "Logística e transporte", "Educação",
   "Serviços", "Setor público", "Outro",
 ];
+// Temas da tela 17 (CRIVO_TELAS_FINAIS · formulário Gerar MAPA) — texto exato.
 const CHALLENGES = [
-  "Crescimento sem organização da rotina",
-  "Sobrecarga, urgências e excesso de demandas",
-  "Dificuldade para delegar e acompanhar responsabilidades",
-  "Falta de clareza de prioridades",
-  "Comunicação falha ou ruídos entre pessoas/áreas",
-  "Conflitos, clima pesado ou baixa colaboração",
-  "Turnover, faltas ou afastamentos",
-  "Liderança despreparada para conversas difíceis",
-  "Falta de plano de ação, registros ou evidências",
-  "Adequação à NR-1 e fatores psicossociais",
-  "Baixa produtividade, retrabalho ou perda de eficiência",
-  "Preparação da empresa para uso de IA",
-  "Outro",
+  "Crescimento com rotina",
+  "Sobrecarga e excesso de urgências",
+  "Delegação e responsabilidades",
+  "Priorização e foco",
+  "Comunicação entre áreas",
+  "Colaboração e conflitos",
+  "Turnover e afastamentos",
+  "Conversas difíceis",
+  "Plano de ação, prazos e evidências",
+  "Acompanhamento e execução",
+  "NR-1 e fatores psicossociais",
+  "Retrabalho e produtividade",
+  "Preparação para IA",
+  "Outro desafio relevante",
 ];
 const MAX_CHALLENGES = 3;
 
@@ -299,11 +301,11 @@ export function DiagnosticoInicialQuiz() {
   if (step === "orientacao") {
     return (
       <div className="diag-quiz diag-orient">
-        <span className="eyebrow eyebrow--terra">Diagnóstico Inicial · grátis</span>
+        <span className="eyebrow eyebrow--terra">MAPA Executivo CRIVO™ · Leitura inicial sem custo</span>
         <h3 className="diag-orient__title">Vamos começar.</h3>
         <p className="diag-orient__intro">
-          Você vai responder agora, de forma muito prática, <strong>10 perguntas</strong> que vão gerar o seu primeiro
-          diagnóstico.
+          Você vai responder agora, de forma muito prática, <strong>10 perguntas</strong> que vão gerar o seu MAPA
+          Executivo.
         </p>
         <div className="diag-rules">
           <span className="diag-rules__h">Como responder</span>
@@ -377,11 +379,15 @@ export function DiagnosticoInicialQuiz() {
   return (
     <form className="diag-quiz diag-form" onSubmit={startOrientacao}>
       <div className="diag-quiz__head">
-        <span className="eyebrow eyebrow--terra">Diagnóstico Inicial · grátis</span>
+        <span className="eyebrow eyebrow--terra">MAPA Executivo CRIVO™ · Leitura inicial sem custo</span>
       </div>
+      <h3 className="diag-form__title">
+        Uma leitura executiva para <span className="terra-text">decisões mais claras</span> e liderança com impacto.
+      </h3>
       <p className="diag-form__lead">
-        Preencha os dados abaixo para iniciar uma leitura preliminar sobre liderança, cultura, rotina,
-        fatores psicossociais e governança. Ao final, você receberá uma devolutiva inicial por e-mail ou WhatsApp.
+        Preencha os dados da empresa e, na próxima etapa, responda ao MAPA Executivo CRIVO™. Ao final, você
+        receberá uma leitura preliminar sobre liderança, cultura, rotina, fatores psicossociais, governança e
+        preparação para IA, por e-mail ou WhatsApp.
       </p>
 
       <div className="diag-ebook-note">
@@ -390,8 +396,9 @@ export function DiagnosticoInicialQuiz() {
           <strong>CRIVO™</strong>
         </span>
         <span className="diag-ebook-note__txt">
-          Ao concluir, você recebe o <strong>Relatório Preliminar CRIVO™</strong> + o <strong>e-book complementar</strong>{" "}
-          sobre decisão, liderança e fatores psicossociais.
+          <strong>Relatório Preliminar + E-book CRIVO™</strong> — ao concluir o MAPA, você recebe uma leitura
+          inicial da maturidade da empresa e um e-book complementar sobre decisão, liderança, cultura, rotina,
+          fatores psicossociais e evidências.
         </span>
       </div>
 
@@ -443,8 +450,8 @@ export function DiagnosticoInicialQuiz() {
 
       <div className="diag-challenges">
         <span className="diag-challenges__label">
-          Quais são os principais desafios da empresa atualmente?
-          <em> · até {MAX_CHALLENGES}</em>
+          Quais temas pedem mais atenção na empresa atualmente?
+          <em> · até {MAX_CHALLENGES} opções</em>
         </span>
         <div className="diag-challenges__grid">
           {CHALLENGES.map((c) => {
@@ -464,7 +471,7 @@ export function DiagnosticoInicialQuiz() {
             );
           })}
         </div>
-        {contact.challenges.includes("Outro") && (
+        {contact.challenges.some((c) => c.startsWith("Outro")) && (
           <input
             className="diag-challenges__other"
             placeholder="Descreva brevemente"
@@ -476,8 +483,15 @@ export function DiagnosticoInicialQuiz() {
       </div>
 
       <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
-        Avançar →
+        Gerar MAPA Executivo →
       </button>
+      <p className="diag-form__privacy">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="m9 11.5 2.2 2.2L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Seus dados estão seguros. Utilizamos suas informações apenas para fins de diagnóstico e devolutiva.
+      </p>
     </form>
   );
 }

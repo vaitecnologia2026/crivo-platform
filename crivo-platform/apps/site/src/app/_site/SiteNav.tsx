@@ -14,22 +14,47 @@ import { LpFloaters } from "../lp/LpFloaters";
 type NavItem = { label: string; href: string };
 type NavTop = { label: string; href: string; items?: NavItem[] };
 
-// Arquitetura aprovada (print Pág. 01): Home única com seções sequenciais e menu
-// por âncoras. "Sobre" concentra o institucional (submenu). As páginas dedicadas
-// (/metodo /plataforma /solucoes /sobre) seguem existindo como aprofundamento.
+// Menu final aprovado (CRIVO_TELAS_FINAIS · README_DESENVOLVEDOR):
+// Início | Soluções | Método CRIVO™ | Plataforma | Conteúdos | Sobre
+// Botões fixos: Gerar MAPA | Acessar Portal. SEM "Contato" no menu principal.
 const NAV: NavTop[] = [
-  { label: "Início", href: "/lp#hero" },
-  { label: "Soluções", href: "/lp#solucoes" },
-  { label: "Método CRIVO", href: "/lp#metodo" },
-  { label: "Plataforma", href: "/lp#portal" },
-  { label: "Conteúdos", href: "/lp#conteudos" },
+  { label: "Início", href: "/lp" },
+  {
+    label: "Soluções",
+    href: "/solucoes",
+    items: [
+      { label: "Mapa Executivo", href: "/solucoes#mapa-executivo" },
+      { label: "Diagnóstico", href: "/solucoes#diagnostico-sol" },
+      { label: "Gestão da Rotina", href: "/solucoes#gestao-da-rotina" },
+      { label: "Liderança", href: "/solucoes#lideranca" },
+      { label: "Evolução", href: "/solucoes#evolucao" },
+      { label: "Enterprise", href: "/solucoes#enterprise" },
+      { label: "Advisory", href: "/solucoes#advisory" },
+    ],
+  },
+  {
+    label: "Método CRIVO™",
+    href: "/metodo",
+    items: [
+      { label: "Método", href: "/metodo#metodo" },
+      { label: "ICD™ — Coerência Decisória", href: "/metodo#icd" },
+    ],
+  },
+  {
+    label: "Plataforma",
+    href: "/plataforma",
+    items: [
+      { label: "Portal Executivo", href: "/plataforma#portal" },
+      { label: "Área do Líder", href: "/plataforma#area-do-lider" },
+    ],
+  },
+  { label: "Conteúdos", href: "/conteudos" },
   {
     label: "Sobre",
-    href: "/lp#quem-somos",
+    href: "/sobre",
     items: [
-      { label: "Quem Somos", href: "/lp#quem-somos" },
-      { label: "Como Nasceu", href: "/lp#como-nasceu" },
-      { label: "Ecossistema CRIVO", href: "/lp#ecossistema" },
+      { label: "Quem Somos", href: "/sobre#quem-somos" },
+      { label: "Como Nasceu a CRIVO™", href: "/sobre#como-nasceu" },
     ],
   },
 ];
@@ -98,9 +123,13 @@ export function SiteNav() {
 
         <div className="nav__actions">
           <Link href="/lp#diagnostico" className="btn btn--terra btn--sm">
-            Fazer Diagnóstico Inicial
+            Gerar MAPA
           </Link>
           <a href={PLATAFORMA_URL} className="btn btn--ghost btn--sm">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 13, height: 13, marginRight: 6, verticalAlign: "-2px", display: "inline" }}>
+              <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
             Acessar Portal
           </a>
           <label htmlFor="navToggle" className="nav__burger" aria-label="Abrir menu" title="Menu">
