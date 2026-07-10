@@ -533,15 +533,27 @@ export function CrmSection() {
                     <em>{items.length}{totalValue > 0 ? ` · ${brlCents(totalValue)}` : ""}</em>
                   </div>
                   <p className="kb-col__help">{m.help}</p>
-                  {items.map((l) => (
+                  {/* Etapas FINAS sempre visíveis como subgrupos (feedback do cliente:
+                      "sumiu as etapas" / "Avançar não muda nada") — o card muda de
+                      subgrupo ao avançar, e etapas vazias ficam esmaecidas. */}
+                  {m.stages.map((s) => {
+                    const stageItems = byStage.get(s) ?? [];
+                    return (
+                      <div className="kb-substage" key={s}>
+                        <div
+                          className={`kb-substage__head${stageItems.length === 0 ? " is-empty" : ""}`}
+                          title={STAGE_HELP[s] ?? ""}
+                        >
+                          <i aria-hidden="true" />
+                          <span>{PLATFORM_LEAD_STAGE_LABEL[s]}</span>
+                          <em>{stageItems.length}</em>
+                        </div>
+                        {stageItems.map((l) => (
                     <article
                       key={l.id}
                       className={`kb-card${l.stage === "FECHADO" ? " kb-card--won" : l.diagnosticScore != null ? " kb-card--hot" : ""}`}
                       style={{ opacity: busyId === l.id ? 0.5 : 1 }}
                     >
-                      <span className="kb-stagepill" title={STAGE_HELP[l.stage] ?? "Etapa do funil"}>
-                        {PLATFORM_LEAD_STAGE_LABEL[l.stage]}
-                      </span>
                       <strong>{l.company || l.name}</strong>
                       <span className="kb-meta">
                         {l.company ? `${l.name} · ` : ""}
@@ -695,8 +707,10 @@ export function CrmSection() {
                         />
                       )}
                     </article>
-                  ))}
-                  {items.length === 0 && <p className="kb-empty">—</p>}
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

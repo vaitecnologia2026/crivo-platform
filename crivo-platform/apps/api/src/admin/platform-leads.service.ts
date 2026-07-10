@@ -769,7 +769,10 @@ export class PlatformLeadsService {
         d.preliminaryReports = (await tx.preliminaryReport.deleteMany()).count;
         d.platformLeads = (await tx.platformLead.deleteMany()).count;
         d.contracts = (await tx.contract.deleteMany()).count;
-        d.aiSettings = (await tx.aiSettings.deleteMany()).count;
+        // ai_settings NÃO é dado de teste: é CONFIGURAÇÃO da plataforma (chave
+        // OpenAI/modelo/módulos). Apagar aqui derrubava a geração de relatório
+        // toda vez que o cliente zerava a base (a chave sumia). Preservada —
+        // como integrações, modelos de contrato e prompts de IA.
         d.tenantModules = (await tx.tenantModule.deleteMany()).count;
         d.tenantBrandings = (await tx.tenantBranding.deleteMany()).count;
         d.tenantDomains = (await tx.tenantDomain.deleteMany()).count;
