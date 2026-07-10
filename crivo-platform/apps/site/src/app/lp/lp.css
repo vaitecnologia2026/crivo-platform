@@ -2966,10 +2966,17 @@ button:focus-visible,
 .qs-p { font-size: 15px; line-height: 1.65; color: var(--text-dark-sec); margin-bottom: 16px; max-width: 580px; }
 .qs-p strong { color: var(--azul-profundo); font-weight: 600; }
 .qs-callouts {
-  display: flex; flex-direction: column; justify-content: center; gap: 30px;
-  width: 250px; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 22px;
+  width: 260px; flex-shrink: 0;
 }
-.qs-callout { display: flex; gap: 12px; align-items: flex-start; }
+.qs-callout {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(247, 244, 239, 0.9);
+  border-radius: 14px;
+  padding: 10px 14px 10px 10px;
+  box-shadow: 0 8px 22px rgba(13, 27, 46, 0.14);
+  backdrop-filter: blur(2px);
+}
 .qs-callout__ic {
   width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
   background: #fff; border: 1.6px solid var(--terra); color: var(--terra);
