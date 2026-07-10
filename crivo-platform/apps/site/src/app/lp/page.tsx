@@ -150,8 +150,9 @@ export default function LandingPage() {
             <div>
               <span className="eyebrow eyebrow--terra">Arquitetura CRIVO™</span>
               <h2 className="h2">
-                Estrutura que transforma <span className="terra-text">inteligência</span> em{" "}
-                <span className="terra-text">resultado</span>.
+                Estrutura que transforma
+                <br />
+                <span className="terra-text">inteligência</span> em <span className="terra-text">resultado</span>.
               </h2>
               <span className="rule-terra" aria-hidden="true" />
               <p className="lede">
