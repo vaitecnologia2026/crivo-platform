@@ -197,19 +197,21 @@ img, svg { display: block; max-width: 100%; }
 /* ===================== BUTTONS ===================== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 15px 30px;
+  padding: 14px 28px;
   border-radius: var(--r);
   font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  /* Telas finais do cliente: botões em caixa normal ("Gerar MAPA Executivo CRIVO™"),
+     nunca CAIXA ALTA. */
+  text-transform: none;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.25s ease;
   white-space: nowrap;
 }
-.btn--sm { padding: 11px 20px; font-size: 11px; }
+.btn--sm { padding: 10px 20px; font-size: 13px; }
 .btn--block { width: 100%; }
 
 .btn--terra {
@@ -2833,4 +2835,36 @@ button:focus-visible,
   .nr1-hero { grid-template-columns: 1fr; gap: 28px; }
   .nr1-photo { min-height: 0; padding: 220px 16px 16px; }
   .nr1-photo .nr1-dark { position: static; transform: none; max-width: none; }
+}
+
+/* — Tela 01 · fidelidade 1:1: foto SANGRADA na borda direita (sem card),
+   título em 3 linhas, eyebrow sem traço, selos sem ícone — */
+.hero--1 .hero__inner { grid-template-columns: 1fr; }
+.hero--1 .hero__copy { max-width: 620px; }
+.hero--1 .display { font-size: clamp(32px, 3.9vw, 54px); line-height: 1.14; }
+.hero--1 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+.hero--1 .eyebrow::before { display: none; }
+.hero--1 .seals svg { display: none; }
+.hero__bleed {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 47%;
+  background-size: cover;
+  background-position: center;
+}
+.hero__bleed::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--azul-profundo) 0%, rgba(13, 27, 46, 0) 24%);
+}
+@media (max-width: 900px) {
+  .hero__bleed {
+    position: relative;
+    width: auto;
+    height: 300px;
+    order: 2;
+    margin-top: 8px;
+  }
+  .hero--1 > .container:last-of-type { order: 3; }
 }

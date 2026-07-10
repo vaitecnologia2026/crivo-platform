@@ -24,6 +24,12 @@ export default function LandingPage() {
 
       {/* ============ 01 · HERO PRINCIPAL (tela 01) ============ */}
       <section id="hero" className="hero hero--1 section--dark">
+        <div
+          className="hero__bleed"
+          style={{ backgroundImage: "url('/imagens/hero-noturno.jpg')" }}
+          role="img"
+          aria-label="Executivos observando o skyline da cidade ao anoitecer"
+        />
         <div className="container hero__inner">
           <div className="hero__copy">
             <span className="eyebrow eyebrow--terra">Transformação Organizacional · Liderança · Governança</span>
@@ -46,16 +52,6 @@ export default function LandingPage() {
               </a>
             </div>
             <Seals dark items={["Sem custo", "Confidencial", "Leitura executiva inicial"]} />
-          </div>
-          <div className="hero__visual">
-            <figure className="hero-card">
-              <div
-                className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/hero-noturno.jpg')" }}
-                role="img"
-                aria-label="Executivos observando o skyline da cidade ao anoitecer"
-              />
-            </figure>
           </div>
         </div>
 
