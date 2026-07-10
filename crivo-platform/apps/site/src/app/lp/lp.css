@@ -3024,3 +3024,30 @@ button:focus-visible,
   .mvv { grid-template-columns: 1fr; gap: 28px; }
   .mvv__col + .mvv__col { border-left: 0; border-top: 1px solid var(--line); padding-top: 24px; }
 }
+
+/* — Tela 17 · formulário Gerar MAPA em 2 colunas dentro do modal — */
+.diag-modal__card:has(.diag-2col) { max-width: 1100px; }
+.diag-2col { display: grid; grid-template-columns: 0.9fr 1.15fr; gap: 44px; align-items: start; }
+.diag-skyline { width: 100%; margin-top: 26px; mix-blend-mode: multiply; opacity: 0.9; }
+.diag-dados-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; }
+.diag-dados-head > svg { width: 32px; height: 32px; color: var(--terra); flex-shrink: 0; }
+.diag-dados-head strong {
+  display: block;
+  font-family: var(--font-serif); font-size: 18px; font-weight: 600;
+  color: var(--azul-profundo);
+}
+.diag-dados-head span { font-size: 12.5px; color: var(--text-dark-sec); line-height: 1.5; }
+.diag-2col .diag-form__grid { grid-template-columns: repeat(6, 1fr); }
+.diag-2col .diag-field--full { grid-column: span 6; }
+.diag-2col .diag-field--third { grid-column: span 2; }
+.diag-2col .diag-field--half { grid-column: span 3; }
+.diag-chip { display: inline-flex; align-items: center; gap: 7px; }
+.diag-chip svg { width: 14px; height: 14px; color: var(--terra); flex-shrink: 0; }
+@media (max-width: 940px) {
+  .diag-2col { grid-template-columns: 1fr; gap: 26px; }
+  .diag-skyline { display: none; }
+  .diag-2col .diag-field--third { grid-column: span 3; }
+  .diag-2col .diag-field--half { grid-column: span 3; }
+  .diag-2col .diag-field--full,
+  .diag-2col .diag-field--third:nth-of-type(2) { grid-column: span 6; }
+}

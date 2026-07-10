@@ -62,6 +62,53 @@ const CHALLENGES = [
 ];
 const MAX_CHALLENGES = 3;
 
+// Tela 17: cada tema tem um pequeno ícone de traço (nunca emoji).
+const CH_STROKE = { stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+const CHALLENGE_ICONS: Record<string, React.ReactNode> = {
+  "Crescimento com rotina": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19V9M9 19V4M14 19v-7M19 19v-4M3 21h18" {...CH_STROKE} /></svg>
+  ),
+  "Sobrecarga e excesso de urgências": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="13" r="7" {...CH_STROKE} /><path d="M12 10v3l2 2M9 3h6M19 6l1.5-1.5" {...CH_STROKE} /></svg>
+  ),
+  "Delegação e responsabilidades": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="6" r="2.4" {...CH_STROKE} /><circle cx="5.5" cy="17" r="2.4" {...CH_STROKE} /><circle cx="18.5" cy="17" r="2.4" {...CH_STROKE} /><path d="M12 8.5v3m0 0-4.5 3.2M12 11.5l4.5 3.2" {...CH_STROKE} /></svg>
+  ),
+  "Priorização e foco": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" {...CH_STROKE} /><circle cx="12" cy="12" r="4" {...CH_STROKE} /><circle cx="12" cy="12" r="1" fill="currentColor" /></svg>
+  ),
+  "Comunicação entre áreas": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" {...CH_STROKE} /></svg>
+  ),
+  "Colaboração e conflitos": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="8" cy="9" r="2.6" {...CH_STROKE} /><circle cx="16" cy="9" r="2.6" {...CH_STROKE} /><path d="M3.5 19c.6-2.8 2.4-4.3 4.5-4.3S11.9 16.2 12.5 19M11.5 19c.6-2.8 2.4-4.3 4.5-4.3s3.9 1.5 4.5 4.3" {...CH_STROKE} /></svg>
+  ),
+  "Turnover e afastamentos": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10" cy="8" r="3" {...CH_STROKE} /><path d="M4 20c.8-3.4 3.1-5.2 6-5.2 1 0 2 .2 2.8.7M16 15l4 4m0-4-4 4" {...CH_STROKE} /></svg>
+  ),
+  "Conversas difíceis": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" {...CH_STROKE} /><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
+  ),
+  "Plano de ação, prazos e evidências": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2" {...CH_STROKE} /><path d="M9 9h6M9 13h6M9 17h3" {...CH_STROKE} /></svg>
+  ),
+  "Acompanhamento e execução": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2" {...CH_STROKE} /><path d="m8.5 11.5 2.2 2.2 4.8-4.9M12 18v3" {...CH_STROKE} /></svg>
+  ),
+  "NR-1 e fatores psicossociais": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" {...CH_STROKE} /><path d="m9 11.5 2.2 2.2L15.5 9.5" {...CH_STROKE} /></svg>
+  ),
+  "Retrabalho e produtividade": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="3" {...CH_STROKE} /><path d="M19 12a7 7 0 0 0-.5-2.6l1.7-1.3-2-3.4-2 .8A7 7 0 0 0 14 4.3L13.7 2h-3.4L10 4.3a7 7 0 0 0-2.2 1.2l-2-.8-2 3.4 1.7 1.3A7 7 0 0 0 5 12c0 .9.2 1.8.5 2.6l-1.7 1.3 2 3.4 2-.8c.7.5 1.4.9 2.2 1.2l.3 2.3h3.4l.3-2.3a7 7 0 0 0 2.2-1.2l2 .8 2-3.4-1.7-1.3c.3-.8.5-1.7.5-2.6z" {...CH_STROKE} /></svg>
+  ),
+  "Preparação para IA": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="7" width="12" height="11" rx="2.5" {...CH_STROKE} /><path d="M12 4v3M9.5 12h.01M14.5 12h.01M9 15.2c.9.7 2 1 3 1s2.1-.3 3-1" {...CH_STROKE} /><path d="M3.5 12v3M20.5 12v3" {...CH_STROKE} /></svg>
+  ),
+  "Outro desafio relevante": (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" /></svg>
+  ),
+};
+
 // Resultado normalizado para render (vem da metodologia ATIVA ou do fallback padrão).
 type RenderResult = {
   score: number;
@@ -375,123 +422,142 @@ export function DiagnosticoInicialQuiz() {
     );
   }
 
-  // ── FORMULÁRIO (dados) ──
+  // ── FORMULÁRIO (dados) — tela 17: 2 colunas (narrativa+livro | dados) ──
   return (
-    <form className="diag-quiz diag-form" onSubmit={startOrientacao}>
-      <div className="diag-quiz__head">
-        <span className="eyebrow eyebrow--terra">MAPA Executivo CRIVO™ · Leitura inicial sem custo</span>
-      </div>
-      <h3 className="diag-form__title">
-        Uma leitura executiva para <span className="terra-text">decisões mais claras</span> e liderança com impacto.
-      </h3>
-      <p className="diag-form__lead">
-        Preencha os dados da empresa e, na próxima etapa, responda ao MAPA Executivo CRIVO™. Ao final, você
-        receberá uma leitura preliminar sobre liderança, cultura, rotina, fatores psicossociais, governança e
-        preparação para IA, por e-mail ou WhatsApp.
-      </p>
-
-      <div className="diag-ebook-note">
-        <span className="diag-ebook-note__cover" aria-hidden="true">
-          <span className="diag-ebook-note__kicker">E-book</span>
-          <strong>CRIVO™</strong>
-        </span>
-        <span className="diag-ebook-note__txt">
-          <strong>Relatório Preliminar + E-book CRIVO™</strong> — ao concluir o MAPA, você recebe uma leitura
-          inicial da maturidade da empresa e um e-book complementar sobre decisão, liderança, cultura, rotina,
-          fatores psicossociais e evidências.
-        </span>
-      </div>
-
-      <div className="diag-form__grid">
-        <label className="diag-field diag-field--full">
-          <span>Nome*</span>
-          <input value={contact.name} onChange={(e) => set("name")(e.target.value)} required />
-        </label>
-        <label className="diag-field">
-          <span>Cargo / Função*</span>
-          <input value={contact.role} onChange={(e) => set("role")(e.target.value)} required />
-        </label>
-        <label className="diag-field">
-          <span>Empresa*</span>
-          <input value={contact.company} onChange={(e) => set("company")(e.target.value)} required />
-        </label>
-        <label className="diag-field">
-          <span>CNPJ</span>
-          <input
-            value={contact.cnpj}
-            onChange={(e) => set("cnpj")(e.target.value)}
-            inputMode="numeric"
-            placeholder="00.000.000/0000-00"
-          />
-        </label>
-        <label className="diag-field">
-          <span>Telefone / WhatsApp*</span>
-          <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" required />
-        </label>
-        <label className="diag-field">
-          <span>E-mail*</span>
-          <input type="email" value={contact.email} onChange={(e) => set("email")(e.target.value)} required />
-        </label>
-        <label className="diag-field">
-          <span>Funcionários*</span>
-          <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)} required>
-            <option value="">Selecione…</option>
-            {EMPLOYEE_RANGES.map((r) => (<option key={r} value={r}>{r}</option>))}
-          </select>
-        </label>
-        <label className="diag-field diag-field--full">
-          <span>Segmento*</span>
-          <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)} required>
-            <option value="">Selecione…</option>
-            {SEGMENTS.map((s) => (<option key={s} value={s}>{s}</option>))}
-          </select>
-        </label>
-      </div>
-
-      <div className="diag-challenges">
-        <span className="diag-challenges__label">
-          Quais temas pedem mais atenção na empresa atualmente?
-          <em> · até {MAX_CHALLENGES} opções</em>
-        </span>
-        <div className="diag-challenges__grid">
-          {CHALLENGES.map((c) => {
-            const on = contact.challenges.includes(c);
-            const full = !on && contact.challenges.length >= MAX_CHALLENGES;
-            return (
-              <button
-                key={c}
-                type="button"
-                className={`diag-chip${on ? " is-on" : ""}`}
-                aria-pressed={on}
-                disabled={full}
-                onClick={() => toggleChallenge(c)}
-              >
-                {c}
-              </button>
-            );
-          })}
+    <form className="diag-quiz diag-form diag-2col" onSubmit={startOrientacao}>
+      <div className="diag-2col__left">
+        <div className="diag-quiz__head">
+          <span className="eyebrow eyebrow--terra">MAPA Executivo CRIVO™ · Leitura inicial sem custo</span>
         </div>
-        {contact.challenges.some((c) => c.startsWith("Outro")) && (
-          <input
-            className="diag-challenges__other"
-            placeholder="Descreva brevemente"
-            maxLength={160}
-            value={contact.challengeOther}
-            onChange={(e) => set("challengeOther")(e.target.value)}
-          />
-        )}
+        <h3 className="diag-form__title">
+          Uma leitura executiva para <span className="terra-text">decisões mais claras</span> e liderança com
+          impacto.
+        </h3>
+        <p className="diag-form__lead">
+          Preencha os dados da empresa e, na próxima etapa, responda ao MAPA Executivo CRIVO™. Ao final, você
+          receberá uma leitura preliminar sobre liderança, cultura, rotina, fatores psicossociais, governança e
+          preparação para IA, por e-mail ou WhatsApp.
+        </p>
+
+        <div className="diag-ebook-note">
+          <span className="diag-ebook-note__cover" aria-hidden="true">
+            <span className="diag-ebook-note__kicker">E-book</span>
+            <strong>CRIVO™</strong>
+          </span>
+          <span className="diag-ebook-note__txt">
+            <strong>Relatório Preliminar + E-book CRIVO™</strong> — ao concluir o MAPA, você recebe uma leitura
+            inicial da maturidade da empresa e um e-book complementar sobre decisão, liderança, cultura, rotina,
+            fatores psicossociais e evidências.
+          </span>
+        </div>
+
+        <img className="diag-skyline" src="/imagens/mapa-skyline.jpg" alt="" aria-hidden="true" loading="lazy" />
       </div>
 
-      <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
-        Gerar MAPA Executivo →
-      </button>
-      <p className="diag-form__privacy">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-          <path d="m9 11.5 2.2 2.2L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Seus dados estão seguros. Utilizamos suas informações apenas para fins de diagnóstico e devolutiva.
-      </p>
+      <div className="diag-2col__right">
+        <div className="diag-dados-head">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M9 4.5V3h6v1.5M9 10h6M9 14h6M9 18h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <div>
+            <strong>Dados da empresa</strong>
+            <span>Essas informações serão utilizadas para geração do relatório preliminar e devolutiva.</span>
+          </div>
+        </div>
+
+        <div className="diag-form__grid">
+          <label className="diag-field diag-field--full">
+            <span>Nome*</span>
+            <input value={contact.name} onChange={(e) => set("name")(e.target.value)} required />
+          </label>
+          <label className="diag-field diag-field--third">
+            <span>Cargo / Função*</span>
+            <input value={contact.role} onChange={(e) => set("role")(e.target.value)} required />
+          </label>
+          <label className="diag-field diag-field--third">
+            <span>Empresa*</span>
+            <input value={contact.company} onChange={(e) => set("company")(e.target.value)} required />
+          </label>
+          <label className="diag-field diag-field--third">
+            <span>CNPJ</span>
+            <input
+              value={contact.cnpj}
+              onChange={(e) => set("cnpj")(e.target.value)}
+              inputMode="numeric"
+              placeholder="00.000.000/0000-00"
+            />
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>Telefone / WhatsApp*</span>
+            <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" required />
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>E-mail*</span>
+            <input type="email" value={contact.email} onChange={(e) => set("email")(e.target.value)} required />
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>Funcionários*</span>
+            <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)} required>
+              <option value="">Selecione…</option>
+              {EMPLOYEE_RANGES.map((r) => (<option key={r} value={r}>{r}</option>))}
+            </select>
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>Segmento*</span>
+            <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)} required>
+              <option value="">Selecione o segmento</option>
+              {SEGMENTS.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
+          </label>
+        </div>
+
+        <div className="diag-challenges">
+          <span className="diag-challenges__label">
+            Quais temas pedem mais atenção na empresa atualmente?
+            <em> · até {MAX_CHALLENGES} opções</em>
+          </span>
+          <div className="diag-challenges__grid">
+            {CHALLENGES.map((c) => {
+              const on = contact.challenges.includes(c);
+              const full = !on && contact.challenges.length >= MAX_CHALLENGES;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  className={`diag-chip${on ? " is-on" : ""}`}
+                  aria-pressed={on}
+                  disabled={full}
+                  onClick={() => toggleChallenge(c)}
+                >
+                  {CHALLENGE_ICONS[c]}
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+          {contact.challenges.some((c) => c.startsWith("Outro")) && (
+            <input
+              className="diag-challenges__other"
+              placeholder="Descreva brevemente"
+              maxLength={160}
+              value={contact.challengeOther}
+              onChange={(e) => set("challengeOther")(e.target.value)}
+            />
+          )}
+        </div>
+
+        <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
+          Gerar MAPA Executivo →
+        </button>
+        <p className="diag-form__privacy">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="m9 11.5 2.2 2.2L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Seus dados estão seguros. Utilizamos suas informações apenas para fins de diagnóstico e devolutiva.
+        </p>
+      </div>
     </form>
   );
 }
