@@ -2942,3 +2942,74 @@ button:focus-visible,
 /* — Tela 16 · NR-1: eyebrow sem traço + ícones próprios no card escuro — */
 #nr1 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #nr1 .eyebrow::before { display: none; }
+
+/* — Tela 19 · Quem Somos: arte sangrada à direita com callouts sobrepostos,
+   4 parágrafos e faixa Missão/Visão/Valores na base — */
+#quem-somos .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#quem-somos .eyebrow::before { display: none; }
+.qs-hero { position: relative; padding: 76px 0 60px; overflow: hidden; }
+.qs-hero__bleed {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 52%;
+  background-size: cover; background-position: center;
+}
+.qs-hero__bleed::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--bg-light) 0%, rgba(247, 244, 239, 0) 20%);
+}
+.qs-hero__inner { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 32px; }
+.qs-hero__copy { max-width: 600px; }
+.qs-hero__copy .h2 { margin-bottom: 22px; }
+.qs-p { font-size: 15px; line-height: 1.65; color: var(--text-dark-sec); margin-bottom: 16px; max-width: 580px; }
+.qs-p strong { color: var(--azul-profundo); font-weight: 600; }
+.qs-callouts {
+  display: flex; flex-direction: column; justify-content: center; gap: 30px;
+  width: 250px; flex-shrink: 0;
+}
+.qs-callout { display: flex; gap: 12px; align-items: flex-start; }
+.qs-callout__ic {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #fff; border: 1.6px solid var(--terra); color: var(--terra);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(13, 27, 46, 0.15);
+}
+.qs-callout__ic svg { width: 22px; height: 22px; }
+.qs-callout strong {
+  display: block; font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--azul-profundo);
+}
+.qs-callout p { font-size: 12px; line-height: 1.5; color: var(--text-dark-sec); margin-top: 3px; max-width: 175px; }
+.mvv {
+  background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: 0 14px 34px rgba(13, 27, 46, 0.08);
+  display: grid; grid-template-columns: 1fr 1.15fr 1.35fr;
+  padding: 38px 16px;
+}
+.mvv__col { padding: 0 28px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.mvv__col + .mvv__col { border-left: 1px solid var(--line); }
+.mvv__ic {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--azul-profundo); color: var(--terra-claro);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+}
+.mvv__ic svg { width: 26px; height: 26px; }
+.mvv__title {
+  font-size: 15px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--terra-escura);
+}
+.mvv__rule { width: 30px; height: 2px; border-radius: 2px; background: var(--terra); margin: 8px 0 12px; }
+.mvv__col p { font-size: 13.5px; line-height: 1.6; color: var(--text-dark-sec); max-width: 360px; }
+.mvv__values { display: flex; gap: 44px; margin-top: 12px; text-align: left; }
+.mvv__values ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.mvv__values li { font-size: 13.5px; color: var(--azul-profundo); display: flex; align-items: center; gap: 9px; }
+.mvv__values li::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--terra); flex-shrink: 0;
+}
+@media (max-width: 960px) {
+  .qs-hero { padding-top: 0; }
+  .qs-hero__bleed { position: relative; width: auto; height: 300px; margin-bottom: 28px; }
+  .qs-hero__inner { flex-direction: column; }
+  .qs-callouts { width: auto; flex-direction: row; flex-wrap: wrap; gap: 18px; }
+  .mvv { grid-template-columns: 1fr; gap: 28px; }
+  .mvv__col + .mvv__col { border-left: 0; border-top: 1px solid var(--line); padding-top: 24px; }
+}

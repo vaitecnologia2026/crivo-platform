@@ -426,11 +426,18 @@ export default function LandingPage() {
       </section>
 
       {/* ============ 19 · QUEM SOMOS (tela 19) ============ */}
-      <section id="quem-somos" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
-          <div className="qs-split">
-            <div>
+      <section id="quem-somos" className="section section--light qs-sec" style={{ paddingTop: 0, paddingBottom: 56 }}>
+        <div className="qs-hero">
+          <div
+            className="qs-hero__bleed"
+            style={{ backgroundImage: "url('/imagens/quem-somos-ia.jpg')" }}
+            role="img"
+            aria-label="Arte digital de perfil humano formado por redes de dados"
+          />
+          <div className="container qs-hero__inner">
+            <div className="qs-hero__copy">
               <span className="eyebrow eyebrow--terra">Quem Somos</span>
+              <span className="rule-terra" aria-hidden="true" style={{ margin: "10px 0 18px" }} />
               <h2 className="h2">
                 Inteligência organizacional.
                 <br />
@@ -438,49 +445,111 @@ export default function LandingPage() {
                 <br />
                 <span className="terra-text">Evolução com evidência.</span>
               </h2>
-              <span className="rule-terra" aria-hidden="true" />
-              <p className="lede" style={{ marginBottom: 16 }}>
+              <p className="qs-p">
                 A CRIVO™ é uma consultoria estratégica de <strong>inteligência aplicada à gestão</strong>, criada
                 para transformar liderança, cultura e governança em maturidade organizacional, execução consistente
                 e resultados mensuráveis.
               </p>
-              <p className="lede" style={{ marginBottom: 26, fontSize: 16 }}>
+              <p className="qs-p">
                 Integramos método proprietário, desenvolvimento humano, dados e tecnologia para conectar{" "}
                 <strong>diagnóstico, plano de ação, evidências e sustentação da liderança</strong> em uma jornada
                 estruturada.
               </p>
-              <Link href="/sobre" className="btn btn--terra">
+              <p className="qs-p">
+                Nossa abordagem nasce da convergência entre experiência executiva, ciência do comportamento e visão
+                organizacional. Essa base se traduz em um sistema aplicado para fortalecer{" "}
+                <strong>decisões, cultura, responsabilidades e execução</strong>.
+              </p>
+              <p className="qs-p">
+                Em um novo ciclo marcado por inteligência artificial, novas gerações, fatores psicossociais e maior
+                complexidade empresarial, organizamos a inteligência necessária para transformar{" "}
+                <strong>intenção em rotina, decisão em ação e evolução</strong> em <strong>legado de gestão</strong>.
+              </p>
+              <Link href="/sobre" className="btn btn--terra" style={{ marginTop: 10 }}>
                 Conheça nossa história →
               </Link>
             </div>
-            <div>
-              <div
-                className="qs-photo"
-                style={{ backgroundImage: "url('/imagens/quem-somos-ia.jpg')" }}
-                role="img"
-                aria-label="Arte digital de perfil humano formado por redes de dados"
-              />
-              <div className="strip strip--2col">
-                <div className="strip-card">
-                  <span className="strip-card__ic">{IC.pessoas}</span>
+            <aside className="qs-callouts">
+              <div className="qs-callout">
+                <span className="qs-callout__ic">{IC.pessoas}</span>
+                <div>
                   <strong>Pessoas</strong>
                   <p>Comportamento, cultura e liderança</p>
                 </div>
-                <div className="strip-card">
-                  <span className="strip-card__ic">{IC.chip}</span>
+              </div>
+              <div className="qs-callout">
+                <span className="qs-callout__ic">{IC.chip}</span>
+                <div>
                   <strong>Inteligência Artificial</strong>
                   <p>Tecnologia como amplificadora de inteligência</p>
                 </div>
-                <div className="strip-card">
-                  <span className="strip-card__ic">{IC.grafico}</span>
+              </div>
+              <div className="qs-callout">
+                <span className="qs-callout__ic">{IC.grafico}</span>
+                <div>
                   <strong>Dados</strong>
                   <p>Informações estruturadas para decisões</p>
                 </div>
-                <div className="strip-card">
-                  <span className="strip-card__ic">{IC.alvo}</span>
+              </div>
+              <div className="qs-callout">
+                <span className="qs-callout__ic">{IC.alvo}</span>
+                <div>
                   <strong>Resultados</strong>
                   <p>Execução, impacto e evolução sustentável</p>
                 </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        {/* Faixa Missão · Visão · Valores (base da tela 19) */}
+        <div className="container">
+          <div className="mvv">
+            <div className="mvv__col">
+              <span className="mvv__ic">{IC.bussola}</span>
+              <strong className="mvv__title">Missão</strong>
+              <span className="mvv__rule" aria-hidden="true" />
+              <p>Elevar o padrão das decisões que moldam o futuro das organizações.</p>
+            </div>
+            <div className="mvv__col">
+              <span className="mvv__ic">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="m4 13 12.5-8.5 3 4.5L7 17.5zM7 17.5 5.5 21M9.8 15.6 11 20M16.5 4.5l3 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="5" cy="13.6" r="1.8" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              </span>
+              <strong className="mvv__title">Visão</strong>
+              <span className="mvv__rule" aria-hidden="true" />
+              <p>
+                Transformar Decision Intelligence em referência nacional de liderança e gestão, impulsionando
+                organizações mais conscientes, ágeis e sustentáveis.
+              </p>
+            </div>
+            <div className="mvv__col mvv__col--valores">
+              <span className="mvv__ic">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M7 4h10l4 5.5L12 20 3 9.5 7 4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                  <path d="M3 9.5h18M9.5 4 12 20 14.5 4M7 4l2.5 5.5M17 4l-2.5 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <strong className="mvv__title">Valores</strong>
+              <span className="mvv__rule" aria-hidden="true" />
+              <p>
+                Os valores da CRIVO™ orientam a forma como pensamos, decidimos e construímos organizações mais
+                maduras, consistentes e preparadas para o futuro.
+              </p>
+              <div className="mvv__values">
+                <ul>
+                  <li>Clareza</li>
+                  <li>Critério</li>
+                  <li>Coragem</li>
+                  <li>Coerência</li>
+                </ul>
+                <ul>
+                  <li>Governança</li>
+                  <li>Integridade</li>
+                  <li>Responsabilidade</li>
+                </ul>
               </div>
             </div>
           </div>
