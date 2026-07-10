@@ -338,6 +338,10 @@ model SuperAdmin {
   email        String   @unique
   name         String
   passwordHash String
+  // Função organizacional do usuário CRIVO (Comercial/Financeiro/Operações…).
+  // HOJE é rótulo: todos têm acesso de administrador do painel; permissões
+  // diferenciadas por função entram em fase posterior.
+  role         String?
   active       Boolean  @default(true)
   tokenVersion Int      @default(0) // revogação de sessão: incrementar invalida os JWTs do admin
   totpSecret   String? // segredo TOTP (definido no setup; pode existir "pendente")

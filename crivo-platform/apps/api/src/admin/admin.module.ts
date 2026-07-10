@@ -50,6 +50,9 @@ import { IntelligenceController } from './intelligence.controller';
 import { IntelligenceService } from './intelligence.service';
 import { AiPromptsController } from './ai-prompts.controller';
 import { AiPromptsService } from './ai-prompts.service';
+import { ContractsController } from './contracts.controller';
+import { PlatformUsersController } from './platform-users.controller';
+import { PlatformUsersService } from './platform-users.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -81,6 +84,8 @@ import { AiPromptsService } from './ai-prompts.service';
     AddonsController,
     IntelligenceController,
     AiPromptsController,
+    ContractsController,
+    PlatformUsersController,
   ],
   providers: [
     AdminAuthService,
@@ -109,6 +114,7 @@ import { AiPromptsService } from './ai-prompts.service';
     AddonsService,
     IntelligenceService,
     AiPromptsService,
+    PlatformUsersService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })

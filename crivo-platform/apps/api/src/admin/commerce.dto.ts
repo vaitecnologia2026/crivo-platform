@@ -147,7 +147,7 @@ export class SetLeadCommercialDto {
 }
 
 export class ConvertLeadDto {
-  @IsString()
+  @IsUUID()
   productId!: string;
 }
 
@@ -165,7 +165,7 @@ export class CreateLeadFromCnpjDto {
   @IsOptional() @IsString() @MaxLength(200)
   email?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional() @IsUUID()
   productId?: string;
 }
 

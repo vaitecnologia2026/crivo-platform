@@ -1,16 +1,186 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { type AddonSummary } from "@crivo/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CONTRACT_STATUS_LABEL, type AddonSummary, type ContractStatus, type TenantSummary } from "@crivo/types";
 import {
   deleteContractTemplate,
   listAddons,
+  listAllContracts,
   listContractTemplates,
+  listTenants,
   upsertAddon,
   uploadContractTemplate,
+  type ContractListItem,
   type ContractTemplateSummary,
 } from "../../lib/admin-api";
+import { ContractModal } from "./ContractModal";
 import "./cnae.css";
+
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+const STATUS_PILL: Record<string, string> = {
+  RASCUNHO: "ct-pill ct-pill--rascunho",
+  ATIVO: "ct-pill ct-pill--ativo",
+  SUSPENSO: "ct-pill ct-pill--suspenso",
+  ENCERRADO: "ct-pill ct-pill--encerrado",
+};
+
+/** Tabela central de contratos — modelo aprovado ("Contratos e Liberações"). */
+function ContractsTable() {
+  const [rows, setRows] = useState<ContractListItem[] | null>(null);
+  const [tenants, setTenants] = useState<TenantSummary[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<string>("");
+  const [onlyAddons, setOnlyAddons] = useState(false);
+  const [open, setOpen] = useState<{ tenant?: TenantSummary; group?: { id: string; name: string } } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  async function refresh() {
+    try {
+      setRows(await listAllContracts());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao carregar contratos.");
+    }
+  }
+  useEffect(() => {
+    void refresh();
+    listTenants().then(setTenants).catch(() => undefined);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    const term = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (status && r.status !== status) return false;
+      if (onlyAddons && r.addonsCount === 0) return false;
+      if (term && !r.clientName.toLowerCase().includes(term) && !r.shortId.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [rows, q, status, onlyAddons]);
+
+  const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—");
+
+  function openContract(r: ContractListItem) {
+    if (r.byGroup && r.groupId) {
+      setOpen({ group: { id: r.groupId, name: r.clientName } });
+    } else if (r.tenantId) {
+      const t = tenants.find((x) => x.id === r.tenantId);
+      // ContractModal só lê id/name do tenant — o cast mínimo é seguro.
+      setOpen({ tenant: t ?? ({ id: r.tenantId, name: r.clientName } as TenantSummary) });
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div className="route__head">
+        <div>
+          <h1 className="page-title">Contratos e Liberações</h1>
+          <p className="page-sub">
+            Fonte de verdade das liberações do cliente. Soluções, módulos, adicionais, limites, IA, recursos e
+            permissões são administrados aqui.
+          </p>
+        </div>
+        <button className="btn btn--sm" onClick={() => setPickerOpen(true)}>Novo contrato</button>
+      </div>
+
+      <div className="ct-filters">
+        <input
+          className="ct-search"
+          placeholder="Buscar cliente ou ID"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">Todos os status</option>
+          {Object.entries(CONTRACT_STATUS_LABEL).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={`ct-chip${onlyAddons ? " is-on" : ""}`}
+          aria-pressed={onlyAddons}
+          onClick={() => setOnlyAddons((v) => !v)}
+        >
+          Com adicionais
+        </button>
+      </div>
+
+      {error && <div className="dash-state dash-state--error">{error}</div>}
+      {rows === null && !error && <p className="dash-state">Carregando contratos…</p>}
+
+      {rows !== null && (
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+          <table className="data-table" style={{ margin: 0 }}>
+            <thead>
+              <tr>
+                <th>Contrato</th><th>Cliente</th><th>Vigência</th><th>Responsável</th>
+                <th>MRR</th><th>Adicionais</th><th>Ciclos</th><th>Status</th><th>Abrir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td><code className="cell-code">{r.shortId}</code></td>
+                  <td>
+                    <strong>{r.clientName}</strong>
+                    {r.byGroup && <span className="cell-mute"> · grupo</span>}
+                  </td>
+                  <td>{r.startDate || r.endDate ? `${fmt(r.startDate)} → ${fmt(r.endDate)}` : "—"}</td>
+                  <td>{r.responsible ?? "—"}</td>
+                  <td>{r.mrrCents > 0 ? brl(r.mrrCents) : "—"}</td>
+                  <td>{r.addonsCount}</td>
+                  <td>{r.rounds || "—"}</td>
+                  <td><span className={STATUS_PILL[r.status] ?? "ct-pill"}>{CONTRACT_STATUS_LABEL[r.status as ContractStatus] ?? r.status}</span></td>
+                  <td>
+                    <button className="btn btn--ghost btn--sm" onClick={() => openContract(r)}>Ver →</button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: 24 }} className="cell-mute">Nenhum contrato encontrado.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {pickerOpen && (
+        <div className="modal-backdrop" onClick={() => setPickerOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal__head"><h2>Novo contrato</h2></div>
+            <div className="modal__body">
+              <p className="cnae-muted" style={{ marginTop: 0 }}>Escolha a empresa — o contrato é criado/editado na ficha dela.</p>
+              <select
+                style={{ width: "100%" }}
+                defaultValue=""
+                onChange={(e) => {
+                  const t = tenants.find((x) => x.id === e.target.value);
+                  if (t) { setPickerOpen(false); setOpen({ tenant: t }); }
+                }}
+              >
+                <option value="" disabled>Selecione a empresa…</option>
+                {tenants.filter((t) => t.status !== "DELETED").map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {open && (
+        <ContractModal
+          tenant={open.tenant}
+          group={open.group}
+          onClose={() => { setOpen(null); void refresh(); }}
+        />
+      )}
+    </div>
+  );
+}
 
 /** Painel de preços dos adicionais (Tela 05 · modelo Adicional c/ preço+recorrência). */
 function AddonPricesPanel() {
@@ -160,6 +330,8 @@ export function ContractsSection() {
 
   return (
     <div>
+      <ContractsTable />
+
       <AddonPricesPanel />
 
       <h3 style={{ margin: "0 0 6px" }}>Modelo de contrato</h3>

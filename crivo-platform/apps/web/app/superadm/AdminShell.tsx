@@ -258,6 +258,8 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.send-access": "Acesso enviado ao lead",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",
+  "platform.user.create": "Usuário CRIVO criado",
+  "platform.user.update": "Usuário CRIVO atualizado",
   "addon.upsert": "Preço de adicional definido",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",

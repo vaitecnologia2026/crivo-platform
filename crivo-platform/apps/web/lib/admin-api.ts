@@ -544,6 +544,55 @@ export function resetAiPrompt(useCase: string): Promise<AiPromptItem> {
 
 // ── Contrato por empresa (Briefing §11) ──
 
+/** Linha da tabela central "Contratos e Liberações" (modelo aprovado). */
+export interface ContractListItem {
+  id: string;
+  shortId: string;
+  clientName: string;
+  byGroup: boolean;
+  tenantId: string | null;
+  groupId: string | null;
+  productName: string | null;
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  responsible: string | null;
+  rounds: number;
+  addonsCount: number;
+  mrrCents: number;
+  updatedAt: string;
+}
+
+export function listAllContracts(): Promise<ContractListItem[]> {
+  return adminFetch<ContractListItem[]>("/admin/contracts");
+}
+
+// ── Usuários CRIVO do painel (função organizacional) ──
+
+export interface PlatformUserData {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export function listPlatformUsers(): Promise<PlatformUserData[]> {
+  return adminFetch<PlatformUserData[]>("/admin/platform-users");
+}
+
+export function createPlatformUser(input: { name: string; email: string; role?: string }): Promise<{ user: PlatformUserData; tempPassword: string }> {
+  return adminFetch("/admin/platform-users", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updatePlatformUser(
+  id: string,
+  input: { role?: string | null; active?: boolean; resetPassword?: boolean },
+): Promise<{ user: PlatformUserData; tempPassword?: string }> {
+  return adminFetch(`/admin/platform-users/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
 export function getContract(tenantId: string): Promise<ContractData | null> {
   return adminFetch<ContractData | null>(`/admin/tenants/${tenantId}/contract`);
 }

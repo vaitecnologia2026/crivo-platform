@@ -144,6 +144,7 @@ export class IcdService {
     }
     // Tela 08 [3]: pina a versão de metodologia PSYCHOSOCIAL ativa na abertura do
     // ciclo (rastreabilidade/comparabilidade do score). Leitura owner (global).
+    // rls-allow: methodologyVersion é config global (control-plane); a escrita do ciclo é forTenant().
     const activeMethodology = await this.prisma.admin.methodologyVersion.findFirst({
       where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
       select: { id: true },

@@ -86,11 +86,13 @@ export class DocumentsService {
     });
     // Fallback (Tela 05 [5]): sem contrato próprio, a empresa herda o contrato do GRUPO.
     if (!contract) {
+      // rls-allow: tenant é control-plane; self-scoped por organizationId = tenantId.
       const t = await this.prisma.admin.tenant.findFirst({
         where: { organizationId: tenantId },
         select: { groupId: true },
       });
       if (t?.groupId) {
+        // rls-allow: contract é control-plane (owner-only); herança do contrato do GRUPO via groupId.
         contract = await this.prisma.admin.contract.findFirst({
           where: { groupId: t.groupId },
           orderBy: { createdAt: 'desc' },

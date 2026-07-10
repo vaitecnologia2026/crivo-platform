@@ -32,6 +32,53 @@ export class ContractsService {
     return tenant.organizationId;
   }
 
+  /**
+   * Lista TODOS os contratos com dados do cliente (tela "Contratos e Liberações",
+   * modelo aprovado): cliente, vigência, responsável, MRR (solução principal +
+   * adicionais recorrentes), nº de adicionais, ciclos e status.
+   */
+  async listAll() {
+    const [contracts, tenants, groups, products, addons] = await Promise.all([
+      this.prisma.admin.contract.findMany({ orderBy: { updatedAt: 'desc' } }),
+      this.prisma.admin.tenant.findMany({ select: { id: true, organizationId: true, name: true } }),
+      this.prisma.admin.businessGroup.findMany({ select: { id: true, name: true } }),
+      this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
+      this.prisma.admin.addon.findMany({ select: { moduleCode: true, monthlyPriceCents: true, recurring: true } }),
+    ]);
+    const tenantByOrg = new Map(tenants.map((t) => [t.organizationId, t]));
+    const groupById = new Map(groups.map((g) => [g.id, g]));
+    const productById = new Map(products.map((p) => [p.id, p]));
+    const addonByCode = new Map(addons.map((a) => [a.moduleCode, a]));
+
+    return contracts.map((c) => {
+      const tenant = c.organizationId ? tenantByOrg.get(c.organizationId) : undefined;
+      const group = c.groupId ? groupById.get(c.groupId) : undefined;
+      const product = c.productId ? productById.get(c.productId) : undefined;
+      const optional = (c.optionalModules as string[] | null) ?? [];
+      const addonsMrr = optional.reduce((sum, code) => {
+        const a = addonByCode.get(code);
+        return sum + (a && a.recurring ? a.monthlyPriceCents : 0);
+      }, 0);
+      return {
+        id: c.id,
+        shortId: `ctr-${c.id.slice(0, 6)}`,
+        clientName: group?.name ?? tenant?.name ?? '—',
+        byGroup: !!c.groupId,
+        tenantId: tenant?.id ?? null, // Tenant.id (control plane) p/ abrir o modal
+        groupId: c.groupId ?? null,
+        productName: product?.name ?? null,
+        status: c.status,
+        startDate: c.startDate?.toISOString() ?? null,
+        endDate: c.endDate?.toISOString() ?? null,
+        responsible: c.responsible ?? null,
+        rounds: c.rounds,
+        addonsCount: optional.length,
+        mrrCents: (product?.monthlyPriceCents ?? 0) + addonsMrr,
+        updatedAt: c.updatedAt.toISOString(),
+      };
+    });
+  }
+
   /** Contrato vigente (mais recente) da empresa, ou null. */
   async get(tenantId: string): Promise<ContractData | null> {
     const organizationId = await this.orgIdFromTenant(tenantId);
