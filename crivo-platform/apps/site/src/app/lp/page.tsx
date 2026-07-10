@@ -196,10 +196,12 @@ export default function LandingPage() {
           </div>
 
           <div className="cta-band">
-            <span className="cta-band__ic">{IC.bussola}</span>
+            <span className="cta-band__ic">{IC.escudo}</span>
             <div className="cta-band__text">
               <div className="t">
-                Da leitura executiva <span className="terra-text">ao resultado sustentado.</span>
+                Da leitura executiva
+                <br />
+                ao <span className="terra-text">resultado</span> sustentado.
               </div>
             </div>
             <div className="cta-band__actions">
