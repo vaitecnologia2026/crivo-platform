@@ -37,21 +37,41 @@ type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contr
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
-const NAV: { key: Section; label: string; icon: string; current: string; group: string }[] = [
-  { key: "overview", label: "Dashboard de Gestão", icon: "▣", current: "Dashboard de Gestão CRIVO", group: "Geral" },
-  { key: "crm", label: "CRM — Funil", icon: "◔", current: "CRM — Funil", group: "Comercial" },
-  { key: "produtos", label: "Soluções CRIVO", icon: "◈", current: "Soluções CRIVO", group: "Comercial" },
-  { key: "cnae", label: "Motor de Enquadramento", icon: "◎", current: "Motor de Enquadramento CRIVO", group: "Comercial" },
-  { key: "contratos", label: "Contratos", icon: "▦", current: "Contratos", group: "Comercial" },
-  { key: "empresas", label: "Grupos e Empresas-cliente", icon: "◧", current: "Grupos e Empresas-cliente", group: "Plataforma" },
-  { key: "integracoes", label: "Integrações", icon: "◬", current: "Integrações", group: "Plataforma" },
-  { key: "metodologia", label: "Metodologia", icon: "❖", current: "Metodologia configurável", group: "Plataforma" },
-  { key: "inteligencia", label: "Inteligência CRIVO", icon: "◆", current: "Inteligência CRIVO", group: "Plataforma" },
-  { key: "basecrivo", label: "Base CRIVO", icon: "◍", current: "Base CRIVO · Benchmarks", group: "Plataforma" },
-  { key: "ia", label: "Configurações de IA", icon: "✦", current: "Configurações de IA", group: "Plataforma" },
-  { key: "extras", label: "Recursos da Entrega", icon: "◑", current: "Recursos da Entrega", group: "Plataforma" },
-  { key: "rbac", label: "Papéis & Permissões", icon: "▥", current: "Papéis & Permissões", group: "Plataforma" },
-  { key: "auditoria", label: "Auditoria", icon: "▤", current: "Auditoria", group: "Plataforma" },
+/* Ícones de traço da sidebar (redesign aprovado — substituem os glifos de texto). */
+const NI = {
+  dashboard: <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7"/></svg>,
+  funil: <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>,
+  empresas: <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V6l6-3v17M10 20h10V9l-6-2" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M7 8v.01M7 11v.01M7 14v.01M15 12v.01M15 15v.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  contratos: <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 3v4h4M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  solucoes: <svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 12v9M12 12 4 7.5M12 12l8-4.5" stroke="currentColor" strokeWidth="1.5"/></svg>,
+  enquadramento: <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7"/><path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  diagnosticos: <svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.7"/><path d="m15.5 15.5 5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M8 12.5v-2M10.5 12.5V9M13 12.5v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  entrega: <svg viewBox="0 0 24 24" fill="none"><path d="M12 6c-1.8-1.3-4-1.9-6.5-1.9v13.4c2.5 0 4.7.6 6.5 1.9 1.8-1.3 4-1.9 6.5-1.9V4.1C16 4.1 13.8 4.7 12 6z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 6v13.4" stroke="currentColor" strokeWidth="1.5"/></svg>,
+  inteligencia: <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9M9.5 19V5M15 19v-8M20 19v-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  base: <svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="6" rx="7" ry="2.8" stroke="currentColor" strokeWidth="1.7"/><path d="M5 6v12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8" stroke="currentColor" strokeWidth="1.7"/></svg>,
+  ia: <svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  integracoes: <svg viewBox="0 0 24 24" fill="none"><path d="M9 7H6a3 3 0 0 0 0 6h3M15 7h3a3 3 0 0 1 0 6h-3M8.5 10h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M12 16v4m-3-2h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  rbac: <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8.5" r="3" stroke="currentColor" strokeWidth="1.7"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M16.5 9.5 18 11l3-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  auditoria: <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9.5 12h5M12 9.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+};
+
+// Agrupamento do redesign aprovado (mockup Lovable): 5 grupos. Sem seções novas —
+// só reorganiza/renomeia as EXISTENTES (recursos novos ficam p/ fases posteriores).
+const NAV: { key: Section; label: string; icon: React.ReactNode; current: string; group: string }[] = [
+  { key: "overview", label: "Dashboard de Gestão", icon: NI.dashboard, current: "Dashboard de Gestão CRIVO", group: "Operação" },
+  { key: "crm", label: "CRM — Funil", icon: NI.funil, current: "CRM — Funil", group: "Operação" },
+  { key: "empresas", label: "Grupos e Empresas-cliente", icon: NI.empresas, current: "Grupos e Empresas-cliente", group: "Operação" },
+  { key: "contratos", label: "Contratos e Liberações", icon: NI.contratos, current: "Contratos e Liberações", group: "Operação" },
+  { key: "produtos", label: "Soluções CRIVO", icon: NI.solucoes, current: "Soluções CRIVO", group: "Catálogo Comercial" },
+  { key: "cnae", label: "Motor de Enquadramento", icon: NI.enquadramento, current: "Motor de Enquadramento CRIVO", group: "Motores e Entrega" },
+  { key: "metodologia", label: "Motor de Diagnósticos", icon: NI.diagnosticos, current: "Motor de Diagnósticos · Metodologia", group: "Motores e Entrega" },
+  { key: "extras", label: "Recursos da Entrega", icon: NI.entrega, current: "Recursos da Entrega", group: "Motores e Entrega" },
+  { key: "inteligencia", label: "Inteligência CRIVO", icon: NI.inteligencia, current: "Inteligência CRIVO", group: "Inteligência" },
+  { key: "basecrivo", label: "Base CRIVO", icon: NI.base, current: "Base CRIVO · Benchmarks", group: "Inteligência" },
+  { key: "ia", label: "Configurações de IA", icon: NI.ia, current: "Configurações de IA", group: "Governança" },
+  { key: "integracoes", label: "Integrações", icon: NI.integracoes, current: "Integrações", group: "Governança" },
+  { key: "rbac", label: "Papéis e Permissões", icon: NI.rbac, current: "Papéis & Permissões", group: "Governança" },
+  { key: "auditoria", label: "Auditoria", icon: NI.auditoria, current: "Auditoria", group: "Governança" },
 ];
 
 // Reset para usar a classe .nav-item (estilizada para <a>) em <button>.

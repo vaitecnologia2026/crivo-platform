@@ -12,39 +12,46 @@
   --azul-claro: #8BAFD4;
   --azul-gelo: #C8D9ED;
 
-  /* Terra — acento, ação, o ponto do vértice (mapeado sobre os tokens gold) */
-  --gold: #A8693D;        /* terra principal */
-  --gold-deep: #7B4F2E;   /* terra escura */
-  --gold-soft: #C4894A;   /* terra dourado */
-  --gold-glow: rgba(168, 105, 61, 0.32);
+  /* Redesign aprovado (mockup Lovable 07/2026): laranja queimado — o MESMO
+     acento da LP nova (coerência de marca) — sobre creme quente, sidebar navy
+     e âmbar no item ativo. Números/títulos serifados via --font-serif (Lora). */
+  --gold: #C4671D;        /* laranja queimado — acento/ação */
+  --gold-deep: #A0521A;
+  --gold-soft: #D07E3A;
+  --gold-glow: rgba(196, 103, 29, 0.32);
+  --amber: #C99245;       /* âmbar — item ativo da sidebar (mockup) */
+  --amber-soft: rgba(201, 146, 69, 0.16);
 
-  /* App neutral — off-white e neutros sofisticados */
-  --bg: #F7F4EF;          /* off-white — match Lovable rev2 */
-  --bg-elev: #FBFAF8;
-  --bg-sidebar: #0D1F3C;
-  --bg-topbar: #FBFAF8;
-  --line: #DCD7CE;
-  --line-soft: #E9E6DF;
+  /* App neutral — creme quente do mockup */
+  --bg: #F6F2EA;
+  --bg-elev: #FCFAF6;
+  --bg-sidebar: #202A3F;  /* navy da sidebar (mockup) */
+  --bg-topbar: #FCFAF6;
+  --line: #DFDACF;
+  --line-soft: #EAE6DC;
   --text: #0D1F3C;
   --text-sec: #5C6470;
   --text-mute: #97A0AE;
 
-  /* Semantic — monocromático azul/terra (sem verde/amarelo de bem-estar) */
+  /* Semantic — monocromático azul/laranja (sem verde/amarelo de bem-estar) */
   --success: #2E4D7A;     /* positivo → azul slate */
   --success-soft: rgba(46, 77, 122, 0.10);
-  --warn: #C4894A;        /* atenção → terra dourado */
-  --warn-soft: rgba(196, 137, 74, 0.12);
-  --danger: #A8693D;      /* crítico → terra */
-  --danger-soft: rgba(168, 105, 61, 0.10);
+  --warn: #D07E3A;        /* atenção → laranja médio */
+  --warn-soft: rgba(208, 126, 58, 0.12);
+  --danger: #B3541E;      /* crítico → laranja profundo */
+  --danger-soft: rgba(179, 84, 30, 0.10);
+
+  /* Tipografia de destaque — serifada (títulos + números grandes, mockup) */
+  --font-serif: var(--font-lora), "Lora", Georgia, serif;
 
   /* Layout */
   --sidebar-w: 264px;
   --topbar-h: 72px;
 
-  /* Radius — geometria pura, registro sóbrio */
-  --r-sm: 4px;
-  --r-md: 6px;
-  --r-lg: 10px;
+  /* Radius — mockup usa 8px/12px */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
 
   /* Shadows */
   --shadow-1: var(--crivo-shadow-1, 0 2px 16px rgba(13, 31, 60, 0.05));
@@ -489,8 +496,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: #fff;
 }
 .nav-item.is-active {
-  background: linear-gradient(90deg, rgba(168,105,61,0.18), rgba(168,105,61,0.02));
-  color: var(--gold);
+  /* Item ativo âmbar sobre navy (mockup) — fundo suave + texto âmbar claro */
+  background: var(--amber-soft);
+  color: #E2AB60;
   position: relative;
 }
 .nav-item.is-active::before {
@@ -498,17 +506,23 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   position: absolute;
   left: -12px; top: 6px; bottom: 6px;
   width: 3px;
-  background: var(--gold);
+  background: var(--amber);
   border-radius: 0 4px 4px 0;
 }
 .nav-item--muted { opacity: 0.5; }
 .ni__ic {
   font-size: 16px;
   width: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  color: var(--gold);
-  opacity: 0.8;
+  color: var(--amber);
+  opacity: 0.85;
+  flex-shrink: 0;
 }
+.ni__ic svg { width: 17px; height: 17px; }
+.nav-item.is-active .ni__ic { opacity: 1; }
 .nav-item:not(.is-active) .ni__ic { opacity: 0.4; }
 
 .sidebar__footer {
@@ -681,10 +695,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   flex-wrap: wrap;
 }
 .page-title {
-  font-family: var(--font-display);
-  font-size: 32px;
+  font-family: var(--font-serif); /* título de página serifado (mockup) */
+  font-size: 34px;
   font-weight: 500;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--text);
   margin-bottom: 6px;
 }
@@ -777,28 +791,31 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .kpi {
   background: #fff;
   border: 1px solid var(--line);
+  border-top: 3px solid var(--gold); /* assinatura do mockup */
   border-radius: var(--r-md);
-  padding: 24px;
+  padding: 22px 24px;
   box-shadow: var(--shadow-1);
   transition: transform 0.2s ease;
 }
 .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
 .kpi__label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--text-sec);
   margin-bottom: 12px;
   text-transform: uppercase;
 }
 .kpi__value {
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--font-serif); /* números serifados (mockup) */
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--text);
   line-height: 1;
+  font-variant-numeric: lining-nums;
   display: block;
 }
 .kpi__value small {
@@ -860,6 +877,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 20px;
+}
+/* Títulos de card serifados (mockup) */
+.card__head h3, .card > h3, .card > h4 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 .card__sub {
   font-size: 13px;
