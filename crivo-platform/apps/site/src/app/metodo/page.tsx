@@ -246,39 +246,23 @@ export default function MetodoPage() {
 
           <div className="mv-band mv-band--4">
             <div className="mv-col">
-              <span className="mv-col__ic mv-col__ic--terra" style={{ marginBottom: 14 }}>
-                {IC.lupa}
-              </span>
-              <div className="mv-col__title-only" style={{ marginBottom: 8 }}>
-                Clareza
-              </div>
+              <span className="mv-col__ic mv-col__ic--terra">{IC.lupa}</span>
+              <div className="mv-col__title-only">Clareza</div>
               <p>Ler fatos, contexto e informações relevantes antes de decidir.</p>
             </div>
             <div className="mv-col">
-              <span className="mv-col__ic mv-col__ic--terra" style={{ marginBottom: 14 }}>
-                {IC_BALANCA}
-              </span>
-              <div className="mv-col__title-only" style={{ marginBottom: 8 }}>
-                Critério
-              </div>
+              <span className="mv-col__ic mv-col__ic--terra">{IC_BALANCA}</span>
+              <div className="mv-col__title-only">Critério</div>
               <p>Analisar o que importa com discernimento, consistência e responsabilidade.</p>
             </div>
             <div className="mv-col">
-              <span className="mv-col__ic mv-col__ic--terra" style={{ marginBottom: 14 }}>
-                {IC.pessoas}
-              </span>
-              <div className="mv-col__title-only" style={{ marginBottom: 8 }}>
-                Alinhamento
-              </div>
+              <span className="mv-col__ic mv-col__ic--terra">{IC.pessoas}</span>
+              <div className="mv-col__title-only">Alinhamento</div>
               <p>Considerar impactos em pessoas, áreas, cultura e prioridades.</p>
             </div>
             <div className="mv-col">
-              <span className="mv-col__ic mv-col__ic--terra" style={{ marginBottom: 14 }}>
-                {IC.escudo}
-              </span>
-              <div className="mv-col__title-only" style={{ marginBottom: 8 }}>
-                Sustentação
-              </div>
+              <span className="mv-col__ic mv-col__ic--terra">{IC.escudo}</span>
+              <div className="mv-col__title-only">Sustentação</div>
               <p>Apoiar decisões executáveis, coerentes e sustentáveis no tempo.</p>
             </div>
           </div>
@@ -315,7 +299,8 @@ export default function MetodoPage() {
           </div>
 
           <div className="cta-band">
-            <span className="cta-band__ic">{IC.alvo}</span>
+            <span className="cta-band__bar" aria-hidden="true" />
+            <span className="cta-band__big-ic" aria-hidden="true">{IC.alvo}</span>
             <div className="cta-band__text">
               <div className="t">
                 Clareza para <span className="terra-text">decidir.</span>

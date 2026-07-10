@@ -196,3 +196,19 @@
   .mt-wrap { padding-top: 110px; }
   .mt-wrap .hero__bleed { position: relative; width: auto; height: 280px; margin-top: 24px; }
 }
+
+/* — Tela 05 · ICD: eyebrow sem traço, ícones do diagrama em laranja,
+   eixos com ícone à esquerda do título/descrição — */
+#icd .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#icd .eyebrow::before { display: none; }
+.icd-diagram__node-ic { color: var(--terra); }
+.mv-band--4 .mv-col {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  row-gap: 4px;
+  align-items: center;
+}
+.mv-band--4 .mv-col__ic { grid-row: 1 / span 2; }
+.mv-band--4 .mv-col__title-only { grid-column: 2; align-self: end; }
+.mv-band--4 .mv-col p { grid-column: 2; align-self: start; }
