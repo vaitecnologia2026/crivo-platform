@@ -2910,3 +2910,31 @@ button:focus-visible,
 /* — Tela 03 · Arquitetura: eyebrow sem traço — */
 #arquitetura .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #arquitetura .eyebrow::before { display: none; }
+
+/* — Tela 08 · Soluções: fidelidade 1:1 — cards centralizados com ícone grande,
+   card 1 destacado com borda terra, banda com barra vertical laranja e a linha
+   "CRIVO Plus™" centralizada FORA da banda, entre dois traços — */
+#solucoes .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#solucoes .eyebrow::before { display: none; }
+.journey-card { align-items: center; text-align: center; }
+.journey-card__ic { margin: 10px 0 10px; }
+.journey-card__ic svg { width: 46px; height: 46px; }
+.journey-card--hl { border: 1.5px solid var(--terra); }
+.cta-band__bar {
+  width: 3px;
+  align-self: stretch;
+  background: var(--terra);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.plus-line {
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  margin-top: 30px;
+  font-size: 14px; color: var(--text-dark-sec); text-align: center;
+}
+.plus-line strong { color: var(--azul-profundo); font-weight: 600; }
+.plus-line__rule {
+  width: 44px; height: 2px; border-radius: 2px;
+  background: var(--terra);
+  flex-shrink: 0;
+}

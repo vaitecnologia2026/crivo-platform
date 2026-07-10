@@ -242,7 +242,7 @@ export default function LandingPage() {
           </div>
 
           <div className="journey" style={{ marginTop: 0 }}>
-            <div className="journey-card">
+            <div className="journey-card journey-card--hl">
               <span className="journey-card__num">1</span>
               <span className="journey-card__ic">{IC.alvo}</span>
               <strong>Mapa Executivo</strong>
@@ -277,12 +277,13 @@ export default function LandingPage() {
           </div>
 
           <div className="cta-band">
-            <span className="cta-band__ic">{IC.grafico}</span>
+            <span className="cta-band__bar" aria-hidden="true" />
             <div className="cta-band__text">
               <div className="t">
-                Do primeiro mapa à <span className="terra-text">evolução sustentada.</span>
+                Do primeiro mapa à
+                <br />
+                <span className="terra-text">evolução sustentada.</span>
               </div>
-              <div className="s">CRIVO Plus™: projetos especiais em IA, cultura, dados, sucessão e transformação.</div>
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
@@ -293,6 +294,14 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
+
+          <p className="plus-line">
+            <span className="plus-line__rule" aria-hidden="true" />
+            <span>
+              <strong>CRIVO Plus™:</strong> projetos especiais em IA, cultura, dados, sucessão e transformação.
+            </span>
+            <span className="plus-line__rule" aria-hidden="true" />
+          </p>
         </div>
       </section>
 
