@@ -181,8 +181,8 @@
 .mt-wrap { position: relative; padding: 140px 0 70px; margin-bottom: 34px; }
 .mt-wrap .hero__bleed { width: 47%; }
 #metodo .hero__inner { grid-template-columns: 1fr; }
-#metodo .hero__copy { max-width: 640px; }
-#metodo .display { font-size: clamp(30px, 3.6vw, 50px); line-height: 1.16; }
+#metodo .hero__copy { max-width: 680px; }
+#metodo .display { font-size: clamp(27px, 3vw, 42px); line-height: 1.2; }
 #metodo .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #metodo .eyebrow::before { display: none; }
 
