@@ -59,9 +59,9 @@ export default function SobrePage() {
             <div>
               <div
                 className="qs-photo"
-                style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/quem-somos-ia.jpg')" }}
                 role="img"
-                aria-label="Liderança em ambiente corporativo"
+                aria-label="Arte digital de perfil humano formado por redes de dados"
               />
               <div className="strip strip--2col">
                 <div className="strip-card">
@@ -159,9 +159,9 @@ export default function SobrePage() {
             <div>
               <div
                 className="qs-photo"
-                style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/fundadores.jpg')" }}
                 role="img"
-                aria-label="Fundadores da CRIVO™ em ambiente corporativo"
+                aria-label="Os fundadores da CRIVO™ no escritório, com a marca ao fundo"
               />
             </div>
           </div>

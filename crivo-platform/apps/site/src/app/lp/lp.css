@@ -2794,3 +2794,43 @@ button:focus-visible,
   font-size: 12px; color: var(--text-dark-sec); margin-top: 14px;
 }
 .diag-form__privacy svg { width: 15px; height: 15px; color: var(--text-dark-sec); flex-shrink: 0; }
+
+/* — Fotos das telas finais do cliente (images_Crivo_nova, 10/07) — */
+
+/* Tela 03 · Arquitetura: split texto + foto da reunião com dashboard. */
+.arch-hero { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 48px; align-items: center; margin-bottom: 44px; }
+.arch-photo {
+  min-height: 340px; border-radius: 18px;
+  background-size: cover; background-position: center;
+  box-shadow: 0 16px 36px rgba(13, 27, 46, 0.18);
+}
+@media (max-width: 900px) {
+  .arch-hero { grid-template-columns: 1fr; gap: 28px; }
+  .arch-photo { min-height: 240px; }
+}
+
+/* Tela 08 · Soluções: arte de horizonte (traço terracota) à direita do título. */
+.sol-head { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; margin-bottom: 44px; }
+.sol-art { width: 100%; max-width: 520px; justify-self: end; mix-blend-mode: multiply; }
+@media (max-width: 900px) {
+  .sol-head { grid-template-columns: 1fr; }
+  .sol-art { display: none; }
+}
+
+/* Tela 16 · NR-1: foto do executivo com o card escuro sobreposto à direita. */
+.nr1-hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 48px; align-items: center; margin-bottom: 36px; }
+.nr1-photo {
+  position: relative;
+  min-height: 470px; border-radius: 18px;
+  background-size: cover; background-position: center top;
+  box-shadow: 0 16px 36px rgba(13, 27, 46, 0.18);
+}
+.nr1-photo .nr1-dark {
+  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  max-width: 330px;
+}
+@media (max-width: 900px) {
+  .nr1-hero { grid-template-columns: 1fr; gap: 28px; }
+  .nr1-photo { min-height: 0; padding: 220px 16px 16px; }
+  .nr1-photo .nr1-dark { position: static; transform: none; max-width: none; }
+}

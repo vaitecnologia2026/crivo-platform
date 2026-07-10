@@ -60,25 +60,12 @@ export default function ConteudosPage() {
             <Seals dark items={["Confidencial", "Atualizado continuamente", "Conteúdo de alto valor"]} />
           </div>
           <div className="hero__visual">
-            <div className="laptop cc-laptop">
-              <div className="laptop__screen cc-laptop__screen">
-                <div className="brand">
-                  <VerticeMark className="vertice" />
-                  <div className="brand__text">
-                    <span className="brand__name">
-                      CRIVO<sup>™</sup>
-                    </span>
-                    <span className="brand__sub">Decision Intelligence</span>
-                  </div>
-                </div>
-                <p className="cc-laptop__quote">
-                  Clareza para decidir. Estrutura para agir.
-                  <br />
-                  Evidência para evoluir.
-                </p>
-              </div>
-              <div className="laptop__base" aria-hidden="true" />
-            </div>
+            <div
+              className="cc-photo"
+              style={{ backgroundImage: "url('/imagens/conteudos-laptop.jpg')" }}
+              role="img"
+              aria-label="Laptop com a marca CRIVO sobre mesa de trabalho em madeira"
+            />
           </div>
         </div>
 

@@ -51,9 +51,9 @@ export default function LandingPage() {
             <figure className="hero-card">
               <div
                 className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/hero-executivos.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/hero-noturno.jpg')" }}
                 role="img"
-                aria-label="Executivos observando o skyline da cidade"
+                aria-label="Executivos observando o skyline da cidade ao anoitecer"
               />
             </figure>
           </div>
@@ -116,9 +116,9 @@ export default function LandingPage() {
             <figure className="hero-card">
               <div
                 className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/icd-deliberacao.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/ia-boardroom.jpg')" }}
                 role="img"
-                aria-label="Executivos em sala de reunião"
+                aria-label="Executivos reunidos em boardroom noturno com a marca CRIVO"
               />
             </figure>
           </div>
@@ -154,16 +154,26 @@ export default function LandingPage() {
       {/* ============ 03 · ARQUITETURA CRIVO™ (tela 03) ============ */}
       <section id="arquitetura" className="section section--light">
         <div className="container">
-          <span className="eyebrow eyebrow--terra">Arquitetura CRIVO™</span>
-          <h2 className="h2">
-            Estrutura que transforma <span className="terra-text">inteligência</span> em{" "}
-            <span className="terra-text">resultado</span>.
-          </h2>
-          <span className="rule-terra" aria-hidden="true" />
-          <p className="lede">
-            A CRIVO™ combina método proprietário, inteligência decisória, gestão executiva e desenvolvimento da
-            liderança em uma jornada integrada e mensurável.
-          </p>
+          <div className="arch-hero">
+            <div>
+              <span className="eyebrow eyebrow--terra">Arquitetura CRIVO™</span>
+              <h2 className="h2">
+                Estrutura que transforma <span className="terra-text">inteligência</span> em{" "}
+                <span className="terra-text">resultado</span>.
+              </h2>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede">
+                A CRIVO™ combina método proprietário, inteligência decisória, gestão executiva e desenvolvimento da
+                liderança em uma jornada integrada e mensurável.
+              </p>
+            </div>
+            <div
+              className="arch-photo"
+              style={{ backgroundImage: "url('/imagens/arquitetura-reuniao.jpg')" }}
+              role="img"
+              aria-label="Executivos analisando o dashboard CRIVO em sala de reunião"
+            />
+          </div>
 
           <div className="arch">
             <div className="arch-card">
@@ -215,15 +225,26 @@ export default function LandingPage() {
       {/* ============ 08 · SOLUÇÕES CRIVO™ (tela 08) ============ */}
       <section id="solucoes" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <span className="eyebrow eyebrow--terra">Soluções CRIVO™</span>
-          <h2 className="h2">
-            Uma jornada para transformar <span className="terra-text">decisão</span> em{" "}
-            <span className="terra-text">resultado</span>.
-          </h2>
-          <span className="rule-terra" aria-hidden="true" />
-          <p className="lede" style={{ marginBottom: 44 }}>
-            A CRIVO orienta o próximo passo da empresa com leitura executiva, método, tecnologia e evidências.
-          </p>
+          <div className="sol-head">
+            <div>
+              <span className="eyebrow eyebrow--terra">Soluções CRIVO™</span>
+              <h2 className="h2">
+                Uma jornada para transformar <span className="terra-text">decisão</span> em{" "}
+                <span className="terra-text">resultado</span>.
+              </h2>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede" style={{ marginBottom: 0 }}>
+                A CRIVO orienta o próximo passo da empresa com leitura executiva, método, tecnologia e evidências.
+              </p>
+            </div>
+            <img
+              className="sol-art"
+              src="/imagens/solucoes-horizonte.jpg"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+            />
+          </div>
 
           <div className="journey" style={{ marginTop: 0 }}>
             <div className="journey-card">
@@ -283,21 +304,43 @@ export default function LandingPage() {
       {/* ============ 16 · NR-1 / FATORES PSICOSSOCIAIS (tela 16) ============ */}
       <section id="nr1" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <span className="eyebrow eyebrow--terra">NR-1 · Fatores Psicossociais</span>
-          <h2 className="h2">
-            A NR-1 tornou visível um problema que já impactava <span className="terra-text">cultura</span>,{" "}
-            <span className="terra-text">liderança</span> e <span className="terra-text">resultado</span>.
-          </h2>
-          <span className="rule-terra" aria-hidden="true" />
-          <p className="lede" style={{ marginBottom: 8 }}>
-            A conformidade é apenas o ponto de partida. O desafio real está em entender como pressão, rotina,
-            comunicação, liderança e decisões afetam a saúde das pessoas, a consistência da gestão e os resultados
-            da organização.
-          </p>
-          <p className="hl-line">
-            {IC.escudo}
-            A norma gera urgência. A gestão sustenta a resposta.
-          </p>
+          <div className="nr1-hero">
+            <div>
+              <span className="eyebrow eyebrow--terra">NR-1 · Fatores Psicossociais</span>
+              <h2 className="h2">
+                A NR-1 tornou visível um problema que já impactava <span className="terra-text">cultura</span>,{" "}
+                <span className="terra-text">liderança</span> e <span className="terra-text">resultado</span>.
+              </h2>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede" style={{ marginBottom: 8 }}>
+                A conformidade é apenas o ponto de partida. O desafio real está em entender como pressão, rotina,
+                comunicação, liderança e decisões afetam a saúde das pessoas, a consistência da gestão e os
+                resultados da organização.
+              </p>
+              <p className="hl-line">
+                {IC.escudo}
+                A norma gera urgência. A gestão sustenta a resposta.
+              </p>
+            </div>
+            <div
+              className="nr1-photo"
+              style={{ backgroundImage: "url('/imagens/nr1-executivo.jpg')" }}
+              role="img"
+              aria-label="Executivo de braços cruzados observando a cidade pela janela do escritório"
+            >
+              <div className="nr1-dark">
+                <strong>Fatores psicossociais não tratados geram impactos reais e custos invisíveis.</strong>
+                <span className="rule-terra" aria-hidden="true" />
+                <ul>
+                  <li>{IC.check} Desempenho em queda</li>
+                  <li>{IC.check} Clima organizacional frágil</li>
+                  <li>{IC.check} Afastamentos e rotatividade</li>
+                  <li>{IC.check} Riscos legais e reputacionais</li>
+                  <li>{IC.check} Decisões sem informação</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
           <div className="nr1-grid">
             <div className="nr1-card">
@@ -326,18 +369,6 @@ export default function LandingPage() {
                 <li>{IC.check} Evidências e acompanhamento</li>
               </ul>
             </div>
-          </div>
-
-          <div className="nr1-dark" style={{ maxWidth: 480, marginTop: 20 }}>
-            <strong>Fatores psicossociais não tratados geram impactos reais e custos invisíveis.</strong>
-            <span className="rule-terra" aria-hidden="true" />
-            <ul>
-              <li>{IC.check} Desempenho em queda</li>
-              <li>{IC.check} Clima organizacional frágil</li>
-              <li>{IC.check} Afastamentos e rotatividade</li>
-              <li>{IC.check} Riscos legais e reputacionais</li>
-              <li>{IC.check} Decisões sem informação</li>
-            </ul>
           </div>
 
           <div className="cta-band">
@@ -388,9 +419,9 @@ export default function LandingPage() {
             <div>
               <div
                 className="qs-photo"
-                style={{ backgroundImage: "url('/imagens/quem-somos-lideranca.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/quem-somos-ia.jpg')" }}
                 role="img"
-                aria-label="Liderança em ambiente corporativo"
+                aria-label="Arte digital de perfil humano formado por redes de dados"
               />
               <div className="strip strip--2col">
                 <div className="strip-card">

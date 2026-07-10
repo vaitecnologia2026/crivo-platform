@@ -59,9 +59,9 @@ export default function MetodoPage() {
             <figure className="hero-card">
               <div
                 className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/hero-executivos.jpg')" }}
+                style={{ backgroundImage: "url('/imagens/metodo-executivos.jpg')" }}
                 role="img"
-                aria-label="Executivos observando o skyline da cidade"
+                aria-label="Executiva com tablet e executivo diante do skyline da cidade"
               />
             </figure>
           </div>
