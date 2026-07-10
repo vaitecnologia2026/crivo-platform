@@ -2954,7 +2954,11 @@ button:focus-visible,
 }
 .qs-hero__bleed::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, var(--bg-light) 0%, rgba(247, 244, 239, 0) 20%);
+  background:
+    /* fade claro à direita (mockup: callouts assentam sobre área lavada da arte) */
+    linear-gradient(90deg, rgba(247, 244, 239, 0) 52%, rgba(247, 244, 239, 0.88) 84%, var(--bg-light) 100%),
+    /* fusão com o fundo claro à esquerda */
+    linear-gradient(90deg, var(--bg-light) 0%, rgba(247, 244, 239, 0) 20%);
 }
 .qs-hero__inner { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 32px; }
 .qs-hero__copy { max-width: 600px; }
