@@ -62,6 +62,7 @@ export default function PlataformaPage() {
         <div className="container hero__inner">
           <div className="hero__copy">
             <span className="eyebrow eyebrow--terra">Portal Executivo CRIVO™</span>
+            <span className="pf-eyebrow-rule" aria-hidden="true" />
             <h1 className="display">
               A visão executiva da<br />
               organização para transformar<br />
@@ -73,14 +74,6 @@ export default function PlataformaPage() {
               Informação estratégica para decisões mais rápidas, prioridades claras, plano de ação acompanhado e
               resultados sustentáveis.
             </p>
-            <div className="hero__ctas">
-              <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA →
-              </a>
-              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                Agendar conversa estratégica →
-              </a>
-            </div>
           </div>
 
           <div className="hero__visual">
@@ -193,11 +186,19 @@ export default function PlataformaPage() {
           {/* Tudo em um único ambiente */}
           <div className="pf-strip">
             <div className="pf-strip__label">Tudo em um único ambiente</div>
-            <div className="chips">
-              <span className="chip">{IC.check}Indicadores estratégicos</span>
-              <span className="chip">{IC.check}Visão executiva em tempo real</span>
-              <span className="chip">{IC.check}Prioridades claras</span>
-              <span className="chip">{IC.check}Decisões com base em evidências</span>
+            <div className="pf-strip__items">
+              <span className="pf-strip__item">
+                <i className="pf-strip__ic">{IC.check}</i>Indicadores estratégicos
+              </span>
+              <span className="pf-strip__item">
+                <i className="pf-strip__ic">{IC.check}</i>Visão executiva em tempo real
+              </span>
+              <span className="pf-strip__item">
+                <i className="pf-strip__ic">{IC.check}</i>Prioridades claras
+              </span>
+              <span className="pf-strip__item">
+                <i className="pf-strip__ic">{IC.check}</i>Decisões com base em evidências
+              </span>
             </div>
           </div>
 
@@ -207,17 +208,18 @@ export default function PlataformaPage() {
               CRIVO Plus™
               <small>Inteligência ampliada para decisões que geram impacto.</small>
             </div>
-            <div className="chips">
-              <span className="chip">{IC.pessoas}People Analytics</span>
-              <span className="chip">{IC.chip}Governança de IA</span>
-              <span className="chip">{IC.grafico}Custos Invisíveis</span>
-              <span className="chip">{IC.prancheta}Workforce Planning</span>
-              <span className="chip">{IC.escudo}Transformação Cultural</span>
+            <div className="pf-strip__items">
+              <span className="pf-strip__item">{IC.pessoas}People Analytics</span>
+              <span className="pf-strip__item">{IC.chip}Governança de IA</span>
+              <span className="pf-strip__item">{IC.grafico}Custos Invisíveis</span>
+              <span className="pf-strip__item">{IC.prancheta}Workforce Planning</span>
+              <span className="pf-strip__item">{IC.escudo}Transformação Cultural</span>
             </div>
           </div>
 
           <div className="cta-band">
-            <span className="cta-band__ic">{IC.alvo}</span>
+            <span className="cta-band__bar" aria-hidden="true" />
+            <span className="cta-band__big-ic" aria-hidden="true">{IC.alvo}</span>
             <div className="cta-band__text">
               <div className="t">
                 Da leitura executiva ao <span className="terra-text">resultado</span> sustentado.
@@ -242,6 +244,7 @@ export default function PlataformaPage() {
             {/* Coluna esquerda: copy */}
             <div className="hero__copy" style={{ maxWidth: "none" }}>
               <span className="eyebrow eyebrow--terra">Área do Líder</span>
+              <span className="pf-eyebrow-rule" aria-hidden="true" />
               <h2 className="display">
                 A prática da<br />
                 <span className="terra-text" style={{ fontStyle: "italic" }}>liderança</span><br />
@@ -373,7 +376,7 @@ export default function PlataformaPage() {
           </div>
 
           <div className="cta-band" style={{ marginTop: 48 }}>
-            <span className="cta-band__ic">{IC.alvo}</span>
+            <span className="cta-band__big-ic" aria-hidden="true">{IC.alvo}</span>
             <div className="cta-band__text">
               <div className="t">
                 Da decisão individual à <span className="terra-text">liderança</span> sustentada.

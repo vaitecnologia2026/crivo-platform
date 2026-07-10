@@ -192,3 +192,38 @@
 }
 .pf-motto .rule-terra { margin: 0; flex-shrink: 0; }
 @media (max-width: 620px) { .pf-motto { flex-direction: column; gap: 10px; } }
+
+/* — Telas 06/07 · fidelidade 1:1: eyebrow sem traço com régua embaixo,
+   features com ícone circulado ao lado do rótulo, strips com itens divididos
+   por linhas (sem pills), bandas com alvo grande — */
+#portal .eyebrow, #area-do-lider .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#portal .eyebrow::before, #area-do-lider .eyebrow::before { display: none; }
+.pf-eyebrow-rule {
+  display: block; width: 40px; height: 2px; border-radius: 2px;
+  background: var(--terra); margin: 10px 0 18px;
+}
+.pf-feat { flex-direction: row; text-align: left; gap: 14px; justify-content: center; align-items: center; }
+.pf-feat__ic {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 1.6px solid var(--terra);
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pf-strip__items { display: flex; flex: 1; flex-wrap: wrap; }
+.pf-strip__item {
+  flex: 1 1 170px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 18px;
+  border-left: 1px solid var(--line);
+  font-size: 13px; font-weight: 500; color: var(--azul-profundo); line-height: 1.35;
+}
+.pf-strip__item:first-child { border-left: none; }
+.pf-strip__item > svg { width: 20px; height: 20px; color: var(--azul-profundo); flex-shrink: 0; }
+.pf-strip__ic {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid var(--terra); color: var(--terra);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pf-strip__ic svg { width: 15px; height: 15px; }
+.cta-band__big-ic { color: var(--terra); flex-shrink: 0; display: flex; }
+.cta-band__big-ic svg { width: 54px; height: 54px; }
+@media (max-width: 760px) { .pf-strip__item { border-left: none; padding: 6px 0; } }
