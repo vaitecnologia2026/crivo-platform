@@ -53,6 +53,16 @@ function nextStage(stage: PlatformLeadStage): PlatformLeadStage | null {
 // Estágios legados que aparecem dentro de "Oportunidade" no board.
 const FOLD_INTO_OPORTUNIDADE: PlatformLeadStage[] = ["PRE_DIAGNOSTICO", "REUNIAO"];
 
+// Board em 4 MACRO-colunas (redesign aprovado pelo Elison, 09/07): as 11 etapas
+// finas continuam existindo (pill no card + "Avançar" continua fino) — só a
+// APRESENTAÇÃO agrupa, para caber na tela sem scroll horizontal.
+const MACROS: { key: string; label: string; help: string; stages: PlatformLeadStage[] }[] = [
+  { key: "comercial", label: "Comercial", help: "Da captação à proposta — qualificar e avançar.", stages: ["NOVO", "OPORTUNIDADE", "PROPOSTA"] },
+  { key: "fechamento", label: "Fechamento", help: "Negócio ganho — formalizar contrato e habilitar.", stages: ["FECHADO", "CONTRATO"] },
+  { key: "entrega", label: "Entrega", help: "Cliente novo — do onboarding à primeira entrega.", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA"] },
+  { key: "carteira", label: "Carteira", help: "Sustentação, renovação e expansão (upsell).", stages: ["SUSTENTACAO", "RENOVACAO", "UPSELL"] },
+];
+
 // Legenda curta de cada passo do funil — ajuda o operador a entender o que cada
 // coluna significa e quando mover o lead para a próxima.
 const STAGE_HELP: Partial<Record<PlatformLeadStage, string>> = {
@@ -512,22 +522,26 @@ export function CrmSection() {
             </div>
           </div>
 
-          <div className="kanban">
-            {BOARD.map((stage) => {
-              const items = byStage.get(stage) ?? [];
+          <div className="kanban kanban--macro">
+            {MACROS.map((m) => {
+              const items = m.stages.flatMap((s) => byStage.get(s) ?? []);
+              const totalValue = items.reduce((sum, l) => sum + (l.proposedValueCents ?? 0), 0);
               return (
-                <div className="kb-col" key={stage}>
+                <div className="kb-col kb-col--macro" key={m.key}>
                   <div className="kb-col__head">
-                    {PLATFORM_LEAD_STAGE_LABEL[stage]}
-                    <em>{items.length}</em>
+                    {m.label}
+                    <em>{items.length}{totalValue > 0 ? ` · ${brlCents(totalValue)}` : ""}</em>
                   </div>
-                  {STAGE_HELP[stage] && <p className="kb-col__help">{STAGE_HELP[stage]}</p>}
+                  <p className="kb-col__help">{m.help}</p>
                   {items.map((l) => (
                     <article
                       key={l.id}
-                      className={`kb-card${stage === "FECHADO" ? " kb-card--won" : l.diagnosticScore != null ? " kb-card--hot" : ""}`}
+                      className={`kb-card${l.stage === "FECHADO" ? " kb-card--won" : l.diagnosticScore != null ? " kb-card--hot" : ""}`}
                       style={{ opacity: busyId === l.id ? 0.5 : 1 }}
                     >
+                      <span className="kb-stagepill" title={STAGE_HELP[l.stage] ?? "Etapa do funil"}>
+                        {PLATFORM_LEAD_STAGE_LABEL[l.stage]}
+                      </span>
                       <strong>{l.company || l.name}</strong>
                       <span className="kb-meta">
                         {l.company ? `${l.name} · ` : ""}
