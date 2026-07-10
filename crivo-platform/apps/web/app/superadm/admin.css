@@ -271,6 +271,76 @@
 .adm .ct-pill--suspenso { background: var(--danger-soft); color: var(--danger); }
 .adm .ct-pill--encerrado { background: rgba(92, 100, 112, 0.12); color: var(--text-mute); }
 
+/* — Grupos empresariais (Grupos e Empresas-cliente) — cards no lugar da faixa
+   de chips improvisada ("funcional, mas feio" — feedback do cliente 10/07). */
+.adm .gp-empty {
+  margin: 4px 0 2px;
+  font-size: 12.5px;
+  color: var(--text-sec);
+}
+.adm .gp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.adm .gp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px 14px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--line-soft);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.adm .gp-card:hover { border-color: var(--gold-soft, #e8d3b5); background: #fff; }
+.adm .gp-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.adm .gp-card__name {
+  font-size: 13.5px;
+  color: var(--ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm .gp-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--warn-soft);
+  color: var(--gold-deep);
+  white-space: nowrap;
+}
+.adm .gp-card__tenants {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sec);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 36px;
+}
+.adm .gp-card__actions {
+  display: flex;
+  gap: 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.adm .gp-card__actions .row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 /* — Usuários CRIVO (Papéis & Permissões) — */
 .adm .pu-temp {
   background: var(--warn-soft); border: 1px solid rgba(196, 103, 29, 0.3);

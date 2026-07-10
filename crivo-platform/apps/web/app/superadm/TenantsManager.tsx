@@ -185,62 +185,74 @@ export function TenantsManager({
         )}
 
         {groups !== null && (
-          <div className="card" style={{ marginBottom: 20, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <strong style={{ fontSize: 13, letterSpacing: ".04em" }}>Grupos empresariais</strong>
-                {groups.length === 0 && (
-                  <span className="cell-mute" style={{ fontSize: 12.5 }}>
-                    Nenhum grupo ainda — crie um para agrupar CNPJs do mesmo cliente.
-                  </span>
-                )}
-                {groups.map((g) => (
-                  <span
-                    key={g.id}
-                    className="pattern-tag"
-                    title={g.tenants.map((t) => t.name).join(", ") || "Sem empresas vinculadas"}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOverviewOf(g)}
-                      title="Ver consolidado do grupo"
-                      style={{
-                        background: "none",
-                        border: 0,
-                        cursor: "pointer",
-                        color: "inherit",
-                        font: "inherit",
-                        padding: 0,
-                        textDecoration: "underline",
-                        textUnderlineOffset: 3,
-                      }}
-                    >
-                      {g.name} · {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGroupContractOf({ id: g.id, name: g.name })}
-                      title="Contrato do grupo (aplica-se a todos os CNPJs)"
-                      style={{ background: "none", border: 0, cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
-                    >
-                      ▦
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteGroup(g)}
-                      title="Excluir grupo (apenas vazio)"
-                      style={{ background: "none", border: 0, cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div className="card__head">
+              <div>
+                <h3>Grupos empresariais</h3>
+                <span className="card__sub">
+                  Agrupe CNPJs do mesmo cliente para contrato de grupo e visão consolidada.
+                </span>
               </div>
               <Button variant="ghost" size="sm" onClick={onCreateGroup}>
-                + Novo grupo
+                Novo grupo
               </Button>
             </div>
+            {groups.length === 0 ? (
+              <p className="gp-empty">Nenhum grupo ainda — crie um para agrupar CNPJs do mesmo cliente.</p>
+            ) : (
+              <div className="gp-grid">
+                {groups.map((g) => (
+                  <article key={g.id} className="gp-card">
+                    <div className="gp-card__top">
+                      <strong className="gp-card__name" title={g.name}>{g.name}</strong>
+                      <span className="gp-count">
+                        {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <p
+                      className="gp-card__tenants"
+                      title={g.tenants.map((t) => t.name).join(", ") || undefined}
+                    >
+                      {g.tenants.length > 0
+                        ? g.tenants.map((t) => t.name).join(" · ")
+                        : "Sem empresas vinculadas — defina o grupo na coluna Grupo da tabela abaixo."}
+                    </p>
+                    <div className="gp-card__actions">
+                      <button type="button" className="row-action" onClick={() => setOverviewOf(g)}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        Consolidado
+                      </button>
+                      <button
+                        type="button"
+                        className="row-action"
+                        title="Contrato do grupo (aplica-se a todos os CNPJs)"
+                        onClick={() => setGroupContractOf({ id: g.id, name: g.name })}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M7 3h7l4 4v14H7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                          <path d="M14 3v4h4M10 12h5M10 16h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        Contrato
+                      </button>
+                      <button
+                        type="button"
+                        className="row-action row-action--danger"
+                        title={g.tenants.length > 0 ? "Só é possível excluir um grupo vazio" : "Excluir grupo"}
+                        disabled={g.tenants.length > 0}
+                        onClick={() => onDeleteGroup(g)}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Excluir
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
