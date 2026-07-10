@@ -2868,3 +2868,38 @@ button:focus-visible,
   }
   .hero--1 > .container:last-of-type { order: 3; }
 }
+
+/* — Tela 02 · fidelidade 1:1: foto sangrada mais larga, título em 4 linhas,
+   botão fantasma com borda terra, eyebrow sem traço — */
+.hero--2 .hero__inner { grid-template-columns: 1fr; }
+.hero--2 .hero__copy { max-width: 640px; }
+.hero--2 .display { font-size: clamp(28px, 3.3vw, 46px); line-height: 1.24; margin-bottom: 20px; }
+.hero--2 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+.hero--2 .eyebrow::before { display: none; }
+.hero--2 .hero__bleed { width: 55%; }
+.btn--ghost-terra {
+  background: transparent;
+  color: var(--off-white);
+  border-color: var(--terra);
+}
+.btn--ghost-terra:hover { border-color: var(--terra-claro); color: var(--terra-claro); }
+
+/* Cards creme (telas 01/02): ícone À ESQUERDA do título, na mesma linha. */
+.strip-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items: center;
+}
+.strip-card__ic { margin-bottom: 0; }
+.strip-card p { grid-column: 1 / -1; }
+
+/* Tela 02: traço laranja logo abaixo do título (não no rodapé do card). */
+.hero--2 .strip-card::after {
+  position: static;
+  grid-column: 2;
+  order: 3;
+  margin-top: -2px;
+}
+.hero--2 .strip-card p { order: 4; padding-bottom: 0; }

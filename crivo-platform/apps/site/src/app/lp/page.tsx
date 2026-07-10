@@ -84,14 +84,20 @@ export default function LandingPage() {
 
       {/* ============ 02 · IA + VANTAGEM HUMANA (tela 02) ============ */}
       <section id="ia-vantagem-humana" className="hero hero--2 section--dark">
+        <div
+          className="hero__bleed"
+          style={{ backgroundImage: "url('/imagens/ia-boardroom.jpg')" }}
+          role="img"
+          aria-label="Executivos reunidos em boardroom noturno com a marca CRIVO"
+        />
         <div className="container hero__inner">
           <div className="hero__copy">
             <span className="eyebrow eyebrow--terra">Futuro do Trabalho · IA · Pessoas · Decisões</span>
             <h2 className="display">
-              A IA amplia e acelera a capacidade das organizações.{" "}
+              A IA amplia e acelera
+              <br />a capacidade das organizações.{" "}
               <span className="terra-text">A vantagem competitiva continuará sendo humana.</span>
             </h2>
-            <span className="rule-terra" aria-hidden="true" />
             <p className="hero__sub">
               O diferencial está no julgamento, no critério e na qualidade das decisões que orientam tecnologia,
               liderança, cultura e evolução organizacional.
@@ -103,20 +109,10 @@ export default function LandingPage() {
               <Link href="/solucoes" className="btn btn--terra">
                 Conhecer Soluções CRIVO →
               </Link>
-              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
+              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost-terra">
                 Agendar conversa estratégica →
               </a>
             </div>
-          </div>
-          <div className="hero__visual">
-            <figure className="hero-card">
-              <div
-                className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/ia-boardroom.jpg')" }}
-                role="img"
-                aria-label="Executivos reunidos em boardroom noturno com a marca CRIVO"
-              />
-            </figure>
           </div>
         </div>
 
