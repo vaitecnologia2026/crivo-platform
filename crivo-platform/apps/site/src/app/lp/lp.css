@@ -2938,3 +2938,7 @@ button:focus-visible,
   background: var(--terra);
   flex-shrink: 0;
 }
+
+/* — Tela 16 · NR-1: eyebrow sem traço + ícones próprios no card escuro — */
+#nr1 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#nr1 .eyebrow::before { display: none; }

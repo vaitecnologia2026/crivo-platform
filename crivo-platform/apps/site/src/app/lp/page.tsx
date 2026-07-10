@@ -323,7 +323,9 @@ export default function LandingPage() {
               </p>
               <p className="hl-line">
                 {IC.escudo}
-                A norma gera urgência. A gestão sustenta a resposta.
+                <span>
+                  A norma gera urgência. <span className="terra-text">A gestão sustenta a resposta.</span>
+                </span>
               </p>
             </div>
             <div
@@ -335,12 +337,41 @@ export default function LandingPage() {
               <div className="nr1-dark">
                 <strong>Fatores psicossociais não tratados geram impactos reais e custos invisíveis.</strong>
                 <span className="rule-terra" aria-hidden="true" />
+                {/* Tela 16: cada item tem ícone PRÓPRIO (não check). */}
                 <ul>
-                  <li>{IC.check} Desempenho em queda</li>
-                  <li>{IC.check} Clima organizacional frágil</li>
-                  <li>{IC.check} Afastamentos e rotatividade</li>
-                  <li>{IC.check} Riscos legais e reputacionais</li>
-                  <li>{IC.check} Decisões sem informação</li>
+                  <li>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M3 6l6 6 4-4 8 8M21 12v4h-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Desempenho em queda
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" />
+                      <path d="M3.5 19c.6-3 2.9-4.5 5.5-4.5S13.9 16 14.5 19M16 5.5a3.2 3.2 0 0 1 0 5M17.5 14.6c1.6.6 2.6 1.9 3 4.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                    Clima organizacional frágil
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 20s-7-4.6-8.6-9A4.8 4.8 0 0 1 12 6.4 4.8 4.8 0 0 1 20.6 11C19 15.4 12 20 12 20z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                      <path d="M7 12h3l1.5-2.5 2 4L15 11h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Afastamentos e rotatividade
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 4v16M6 6.5h12M12 20h4M8 20h-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M6 6.5 3.5 12a2.6 2.6 0 0 0 5 0L6 6.5zM18 6.5 15.5 12a2.6 2.6 0 0 0 5 0L18 6.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                    </svg>
+                    Riscos legais e reputacionais
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M9.5 18h5M10 21h4M12 3a6 6 0 0 1 3.6 10.8c-.8.6-1.1 1.3-1.1 2.2h-5c0-.9-.3-1.6-1.1-2.2A6 6 0 0 1 12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Decisões sem informação
+                  </li>
                 </ul>
               </div>
             </div>
@@ -378,7 +409,9 @@ export default function LandingPage() {
           <div className="cta-band">
             <span className="cta-band__ic">{IC.alvo}</span>
             <div className="cta-band__text">
-              <div className="t">Comece entendendo o momento da sua empresa.</div>
+              <div className="t">
+                Comece entendendo o momento da <span className="terra-text">sua empresa.</span>
+              </div>
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
