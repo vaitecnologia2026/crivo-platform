@@ -204,19 +204,37 @@ export function TenantsManager({
                 {groups.map((g) => (
                   <article key={g.id} className="gp-card">
                     <div className="gp-card__top">
-                      <strong className="gp-card__name" title={g.name}>{g.name}</strong>
-                      <span className="gp-count">
-                        {g.tenants.length} CNPJ{g.tenants.length === 1 ? "" : "s"}
-                      </span>
+                      <span className="gp-avatar" aria-hidden="true">{groupInitials(g.name)}</span>
+                      <div className="gp-card__id">
+                        <strong className="gp-card__name" title={g.name}>{g.name}</strong>
+                        <span className="gp-card__sub">
+                          {g.tenants.length === 0
+                            ? "Nenhum CNPJ vinculado"
+                            : `${g.tenants.length} CNPJ${g.tenants.length === 1 ? "" : "s"} no grupo`}
+                        </span>
+                      </div>
                     </div>
-                    <p
-                      className="gp-card__tenants"
-                      title={g.tenants.map((t) => t.name).join(", ") || undefined}
-                    >
-                      {g.tenants.length > 0
-                        ? g.tenants.map((t) => t.name).join(" · ")
-                        : "Sem empresas vinculadas — defina o grupo na coluna Grupo da tabela abaixo."}
-                    </p>
+                    <div className="gp-card__tenants">
+                      {g.tenants.length > 0 ? (
+                        <>
+                          {g.tenants.slice(0, 3).map((t) => (
+                            <span key={t.id} className="gp-chip" title={t.name}>{t.name}</span>
+                          ))}
+                          {g.tenants.length > 3 && (
+                            <span
+                              className="gp-chip gp-chip--more"
+                              title={g.tenants.slice(3).map((t) => t.name).join(", ")}
+                            >
+                              +{g.tenants.length - 3}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="gp-card__hint">
+                          Vincule CNPJs pela coluna Grupo da tabela abaixo.
+                        </span>
+                      )}
+                    </div>
                     <div className="gp-card__actions">
                       <button type="button" className="row-action" onClick={() => setOverviewOf(g)}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -238,7 +256,7 @@ export function TenantsManager({
                       </button>
                       <button
                         type="button"
-                        className="row-action row-action--danger"
+                        className="row-action row-action--danger gp-del"
                         title={g.tenants.length > 0 ? "Só é possível excluir um grupo vazio" : "Excluir grupo"}
                         disabled={g.tenants.length > 0}
                         onClick={() => onDeleteGroup(g)}
@@ -717,4 +735,11 @@ function TenantProfileModal({
       </div>
     </div>
   );
+}
+
+/** Iniciais do grupo p/ o avatar do card (2 primeiras palavras; fallback: 2 primeiras letras). */
+function groupInitials(name: string): string {
+  const words = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const initials = words.slice(0, 2).map((w) => w[0]).join("");
+  return (initials || name.slice(0, 2) || "G").toUpperCase();
 }

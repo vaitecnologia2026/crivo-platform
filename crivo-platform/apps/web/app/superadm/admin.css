@@ -277,7 +277,7 @@
    claro fica invisível. Override escopado para o botão "Novo grupo". */
 .adm .gp-newbtn {
   color: var(--ink-900);
-  border-color: var(--line);
+  border-color: rgba(13, 31, 60, 0.18);
   background: #fff;
 }
 .adm .gp-newbtn:hover {
@@ -291,66 +291,111 @@
 }
 .adm .gp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
-  margin-top: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 6px;
 }
+/* Card branco premium (mesma família dos KPIs), com avatar do grupo como
+   âncora visual — nada de bloco bege chapado. */
 .adm .gp-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 13px 14px 11px;
-  border: 1px solid var(--line);
+  gap: 12px;
+  padding: 16px 16px 12px;
+  background: #fff;
+  border: 1px solid rgba(13, 31, 60, 0.08);
   border-radius: var(--r-md);
-  background: var(--line-soft);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04), 0 12px 28px -18px rgba(13, 31, 60, 0.16);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.adm .gp-card:hover { border-color: var(--gold-soft, #e8d3b5); background: #fff; }
+.adm .gp-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--gold-soft, #e8d3b5);
+  box-shadow: 0 2px 4px rgba(13, 31, 60, 0.05), 0 16px 36px -18px rgba(13, 31, 60, 0.22);
+}
 .adm .gp-card__top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
+}
+.adm .gp-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-sidebar, #202a3f);
+  color: #f6f2ea;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.adm .gp-card__id {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .adm .gp-card__name {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--ink-900);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.adm .gp-count {
-  flex-shrink: 0;
-  font-size: 11px;
+.adm .gp-card__sub {
+  font-size: 10.5px;
   font-weight: 600;
-  border-radius: 999px;
-  padding: 3px 10px;
-  background: var(--warn-soft);
-  color: var(--gold-deep);
-  white-space: nowrap;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-sec);
 }
 .adm .gp-card__tenants {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-sec);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+.adm .gp-chip {
+  display: inline-block;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  color: var(--ink-700);
+  white-space: nowrap;
   overflow: hidden;
-  min-height: 36px;
+  text-overflow: ellipsis;
+}
+.adm .gp-chip--more {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--gold-deep);
+}
+.adm .gp-card__hint {
+  font-size: 12px;
+  color: var(--text-mute);
 }
 .adm .gp-card__actions {
   display: flex;
-  gap: 14px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
+  align-items: center;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
 }
 .adm .gp-card__actions .row-action {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  font-size: 12.5px;
 }
+.adm .gp-card__actions .gp-del { margin-left: auto; }
 
 /* — Usuários CRIVO (Papéis & Permissões) — */
 .adm .pu-temp {
