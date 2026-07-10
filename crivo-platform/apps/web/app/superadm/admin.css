@@ -273,6 +273,17 @@
 
 /* — Grupos empresariais (Grupos e Empresas-cliente) — cards no lugar da faixa
    de chips improvisada ("funcional, mas feio" — feedback do cliente 10/07). */
+/* O variant ghost do @crivo/ui é para fundo ESCURO (texto off-white) — em card
+   claro fica invisível. Override escopado para o botão "Novo grupo". */
+.adm .gp-newbtn {
+  color: var(--ink-900);
+  border-color: var(--line);
+  background: #fff;
+}
+.adm .gp-newbtn:hover {
+  color: var(--gold-deep);
+  border-color: var(--gold);
+}
 .adm .gp-empty {
   margin: 4px 0 2px;
   font-size: 12.5px;

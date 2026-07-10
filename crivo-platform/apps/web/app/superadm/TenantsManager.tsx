@@ -193,7 +193,7 @@ export function TenantsManager({
                   Agrupe CNPJs do mesmo cliente para contrato de grupo e visão consolidada.
                 </span>
               </div>
-              <Button variant="ghost" size="sm" onClick={onCreateGroup}>
+              <Button variant="ghost" size="sm" className="gp-newbtn" onClick={onCreateGroup}>
                 Novo grupo
               </Button>
             </div>
