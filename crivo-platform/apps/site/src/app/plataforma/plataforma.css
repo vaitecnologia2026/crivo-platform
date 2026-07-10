@@ -235,3 +235,7 @@
 
 /* Tela 07: título nas 3 linhas do mockup. */
 #area-do-lider .display { font-size: clamp(24px, 2.45vw, 34px); line-height: 1.24; }
+
+/* Tela 07: coluna de texto mais larga p/ botões lado a lado como no mockup. */
+.pf-leader { grid-template-columns: 1.18fr 0.78fr 0.92fr; }
+#area-do-lider .hero__ctas .btn { padding: 12px 18px; font-size: 13px; }
