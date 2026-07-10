@@ -227,3 +227,8 @@
 .cta-band__big-ic { color: var(--terra); flex-shrink: 0; display: flex; }
 .cta-band__big-ic svg { width: 54px; height: 54px; }
 @media (max-width: 760px) { .pf-strip__item { border-left: none; padding: 6px 0; } }
+
+/* Tela 06: título nas 4 linhas do mockup (coluna mais larga + corpo menor). */
+#portal .hero__inner { grid-template-columns: 1fr 1fr; }
+#portal .hero__copy { max-width: 600px; }
+#portal .display { font-size: clamp(26px, 2.75vw, 38px); line-height: 1.22; }
