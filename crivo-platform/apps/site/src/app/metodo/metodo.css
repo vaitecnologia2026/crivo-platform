@@ -173,3 +173,26 @@
   .icd-diagram__node-ic svg { width: 17px; height: 17px; }
   .icd-diagram__node b { font-size: 9px; }
 }
+
+/* — Tela 04 · fidelidade 1:1: foto SANGRADA até a borda direita, título em
+   3 linhas, eyebrow sem traço, ícones dos movimentos maiores, banda final
+   com barra vertical + alvo grande — */
+#metodo { min-height: auto; padding-top: 0; }
+.mt-wrap { position: relative; padding: 140px 0 70px; margin-bottom: 34px; }
+.mt-wrap .hero__bleed { width: 47%; }
+#metodo .hero__inner { grid-template-columns: 1fr; }
+#metodo .hero__copy { max-width: 640px; }
+#metodo .display { font-size: clamp(30px, 3.6vw, 50px); line-height: 1.16; }
+#metodo .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#metodo .eyebrow::before { display: none; }
+
+.mv-col__ic { width: 68px; height: 68px; }
+.mv-col__ic svg { width: 32px; height: 32px; }
+
+.cta-band__big-ic { color: var(--terra); flex-shrink: 0; display: flex; }
+.cta-band__big-ic svg { width: 54px; height: 54px; }
+
+@media (max-width: 900px) {
+  .mt-wrap { padding-top: 110px; }
+  .mt-wrap .hero__bleed { position: relative; width: auto; height: 280px; margin-top: 24px; }
+}

@@ -2841,12 +2841,12 @@ button:focus-visible,
 
 /* — Tela 01 · fidelidade 1:1: foto SANGRADA na borda direita (sem card),
    título em 3 linhas, eyebrow sem traço, selos sem ícone — */
-.hero--1 .hero__inner { grid-template-columns: 1fr; }
-.hero--1 .hero__copy { max-width: 620px; }
-.hero--1 .display { font-size: clamp(32px, 3.9vw, 54px); line-height: 1.14; }
-.hero--1 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
-.hero--1 .eyebrow::before { display: none; }
-.hero--1 .seals svg { display: none; }
+#hero .hero__inner { grid-template-columns: 1fr; }
+#hero .hero__copy { max-width: 620px; }
+#hero .display { font-size: clamp(32px, 3.9vw, 54px); line-height: 1.14; }
+#hero .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#hero .eyebrow::before { display: none; }
+#hero .seals svg { display: none; }
 .hero__bleed {
   position: absolute;
   top: 0; right: 0; bottom: 0;

@@ -38,32 +38,30 @@ export default function MetodoPage() {
 
       {/* ============ 04 · MÉTODO CRIVO™ ============ */}
       <section id="metodo" className="hero hero--1">
-        <div className="container hero__inner">
-          <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">Método CRIVO™</span>
-            <h1 className="display">
-              Um método para transformar
-              <br />
-              leitura em <span className="terra-text">decisão,</span> decisão em
-              <br />
-              <span className="terra-text">ação</span> e ação em <span className="terra-text">evolução.</span>
-            </h1>
-            <span className="rule-terra" aria-hidden="true" />
-            <p className="hero__sub">
-              A CRIVO organiza a jornada da empresa a partir de cinco movimentos que ajudam líderes e equipes a
-              interpretar o cenário, assumir responsabilidades, alinhar pessoas, decidir com critério e transformar
-              prioridades em execução acompanhada.
-            </p>
-          </div>
-          <div className="hero__visual">
-            <figure className="hero-card">
-              <div
-                className="hero-card__photo"
-                style={{ backgroundImage: "url('/imagens/metodo-executivos.jpg')" }}
-                role="img"
-                aria-label="Executiva com tablet e executivo diante do skyline da cidade"
-              />
-            </figure>
+        <div className="mt-wrap">
+          <div
+            className="hero__bleed"
+            style={{ backgroundImage: "url('/imagens/metodo-executivos.jpg')" }}
+            role="img"
+            aria-label="Executiva com tablet e executivo diante do skyline da cidade"
+          />
+          <div className="container hero__inner mt-inner">
+            <div className="hero__copy">
+              <span className="eyebrow eyebrow--terra">Método CRIVO™</span>
+              <h1 className="display">
+                Um método para transformar
+                <br />
+                leitura em <span className="terra-text">decisão,</span> decisão em
+                <br />
+                <span className="terra-text">ação</span> e ação em <span className="terra-text">evolução.</span>
+              </h1>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="hero__sub">
+                A CRIVO organiza a jornada da empresa a partir de cinco movimentos que ajudam líderes e equipes a
+                interpretar o cenário, assumir responsabilidades, alinhar pessoas, decidir com critério e
+                transformar prioridades em execução acompanhada.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -158,7 +156,8 @@ export default function MetodoPage() {
           </div>
 
           <div className="cta-band">
-            <span className="cta-band__ic">{IC.alvo}</span>
+            <span className="cta-band__bar" aria-hidden="true" />
+            <span className="cta-band__big-ic" aria-hidden="true">{IC.alvo}</span>
             <div className="cta-band__text">
               <div className="t">
                 Método, dados e tecnologia
