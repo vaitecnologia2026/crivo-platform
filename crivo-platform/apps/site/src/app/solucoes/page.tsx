@@ -4,6 +4,7 @@ import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
+import { SolucoesTabs } from "./SolucoesTabs";
 import "../lp/lp.css";
 import "./solucoes.css";
 
@@ -55,29 +56,6 @@ const ICX = {
     </svg>
   ),
 };
-
-const SOL_TABS = [
-  { id: "mapa-executivo", num: "01", label: "Mapa Executivo" },
-  { id: "diagnostico-sol", num: "02", label: "Diagnóstico" },
-  { id: "gestao-da-rotina", num: "03", label: "Gestão da Rotina" },
-  { id: "lideranca", num: "04", label: "Liderança" },
-  { id: "evolucao", num: "05", label: "Evolução" },
-  { id: "enterprise", num: "06", label: "Enterprise" },
-  { id: "advisory", num: "07", label: "Advisory" },
-];
-
-function SolTabs({ current }: { current: string }) {
-  return (
-    <nav className="sol-tabs" aria-label="Soluções CRIVO™">
-      {SOL_TABS.map((t) => (
-        <a key={t.id} href={`#${t.id}`} className={t.id === current ? "is-active" : ""}>
-          <span className="sol-tabs__num">{t.num}</span>
-          <span className="sol-tabs__label">{t.label}</span>
-        </a>
-      ))}
-    </nav>
-  );
-}
 
 export default function SolucoesPage() {
   return (
@@ -133,7 +111,7 @@ export default function SolucoesPage() {
 
           {/* ============ 01 · MAPA EXECUTIVO (tela 09) ============ */}
           <div id="mapa-executivo">
-            <SolTabs current="mapa-executivo" />
+            <SolucoesTabs />
 
             <div className="sol-block">
               <div className="solu-card">
@@ -205,8 +183,6 @@ export default function SolucoesPage() {
       {/* ============ 02 · DIAGNÓSTICO (tela 10) ============ */}
       <section id="diagnostico-sol" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="diagnostico-sol" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -283,8 +259,6 @@ export default function SolucoesPage() {
       {/* ============ 03 · GESTÃO DA ROTINA (tela 11) ============ */}
       <section id="gestao-da-rotina" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="gestao-da-rotina" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -354,8 +328,6 @@ export default function SolucoesPage() {
       {/* ============ 04 · LIDERANÇA (tela 12) ============ */}
       <section id="lideranca" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="lideranca" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -425,8 +397,6 @@ export default function SolucoesPage() {
       {/* ============ 05 · EVOLUÇÃO (tela 13) ============ */}
       <section id="evolucao" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="evolucao" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -496,8 +466,6 @@ export default function SolucoesPage() {
       {/* ============ 06 · ENTERPRISE (tela 14) ============ */}
       <section id="enterprise" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="enterprise" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -570,8 +538,6 @@ export default function SolucoesPage() {
       {/* ============ 07 · ADVISORY (tela 15) ============ */}
       <section id="advisory" className="section section--light" style={{ paddingTop: 0 }}>
         <div className="container">
-          <SolTabs current="advisory" />
-
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -639,6 +605,12 @@ export default function SolucoesPage() {
             </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* ============ CRIVO Plus™ — banda final única (telas 09–15) ============ */}
+      <section className="section section--light" style={{ paddingTop: 0 }}>
+        <div className="container">
           {/* ============ CRIVO Plus™ — banda final única (rodapé, tela 09/15) ============ */}
           <div className="sol-plus">
             <div>

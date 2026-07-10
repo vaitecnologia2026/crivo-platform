@@ -163,3 +163,32 @@
   padding: 12px 14px; font-size: 12.5px; font-weight: 500; line-height: 1.3;
 }
 .sol-plus__item svg { width: 20px; height: 20px; color: var(--terra-claro); flex-shrink: 0; }
+
+/* — Telas 09–15 · barra de abas ÚNICA com setas nas pontas; o conteúdo da
+   solução ativa troca abaixo (SolucoesTabs.tsx) — */
+.sol-tabs-wrap { display: flex; align-items: stretch; gap: 8px; margin: 40px 0 0; }
+.sol-tabs-wrap .sol-tabs { flex: 1; margin: 0; }
+.sol-tabs button {
+  flex: 1 0 auto; min-width: 118px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 13px 14px; border-radius: 12px; text-align: center;
+  background: none; border: 1.5px solid transparent; cursor: pointer; font: inherit;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.sol-tabs button:hover { background: rgba(196, 103, 29, 0.06); }
+.sol-tabs button.is-active {
+  border-color: var(--terra);
+  box-shadow: inset 0 -3px 0 var(--terra);
+}
+.sol-tabs button.is-active .sol-tabs__num,
+.sol-tabs button.is-active .sol-tabs__label { color: var(--terra); }
+.sol-tabs__arrow {
+  flex-shrink: 0; width: 46px; border-radius: 14px;
+  background: #fff; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--azul-profundo); cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.sol-tabs__arrow:hover { border-color: var(--terra); color: var(--terra); }
+.sol-tabs__arrow svg { width: 20px; height: 20px; }
+@media (max-width: 700px) { .sol-tabs__arrow { display: none; } }
