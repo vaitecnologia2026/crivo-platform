@@ -2800,7 +2800,7 @@ button:focus-visible,
 /* — Fotos das telas finais do cliente (images_Crivo_nova, 10/07) — */
 
 /* Tela 03 · Arquitetura: split texto + foto da reunião com dashboard. */
-.arch-hero { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 44px; align-items: center; margin-bottom: 44px; }
+.arch-hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; margin-bottom: 44px; }
 .arch-photo {
   /* Tela 03: a foto SANGRA até a borda direita da janela e sobe até o início
      da seção (sem card arredondado, sem sombra). */
