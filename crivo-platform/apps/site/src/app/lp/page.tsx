@@ -47,7 +47,7 @@ export default function LandingPage() {
               <a href="#diagnostico" className="btn btn--terra">
                 Gerar MAPA Executivo CRIVO™ →
               </a>
-              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
+              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost">
                 Agendar conversa estratégica →
               </a>
             </div>
