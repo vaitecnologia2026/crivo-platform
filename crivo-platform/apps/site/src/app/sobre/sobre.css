@@ -143,3 +143,7 @@
   font-size: 14px; color: var(--text-dark-sec); font-weight: 400; letter-spacing: 0.02em;
 }
 .sobre-founders-tagline .rule { width: 36px; height: 1px; background: var(--terra); opacity: 0.5; }
+
+/* — Tela 20 · eyebrow sem traço (a régua fica embaixo, como no mockup) — */
+#como-nasceu .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#como-nasceu .eyebrow::before { display: none; }
