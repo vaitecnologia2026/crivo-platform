@@ -4,7 +4,7 @@ import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { VerticeMark } from "../_site/VerticeMark";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
-import { IC, Seals } from "../_site/icons";
+import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./conteudos.css";
 
@@ -14,27 +14,34 @@ export const metadata: Metadata = {
     "Análises, ferramentas e materiais práticos para transformar informação em decisões mais inteligentes: Mapa Executivo CRIVO™, Newsletter, redes sociais e CRIVO Academy™.",
 };
 
-// Ícones de traço das redes sociais (nunca emoji, nunca logo colorido de marca —
-// seguem o mesmo sistema de linha do restante do site).
 const SOCIAL = {
+  // Tela 18: logos nas cores oficiais das marcas (LinkedIn azul, Instagram
+  // rosa/gradiente, YouTube vermelho) — SVG de marca, não ícone de traço.
   linkedin: (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="8" cy="8.3" r="1" fill="currentColor" />
-      <path d="M8 11v6M12 17v-3.4c0-1.6 1.2-2.6 2.5-2.6S17 12 17 13.6V17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2" y="2" width="20" height="20" rx="4" fill="#0A66C2" />
+      <circle cx="7.6" cy="7.9" r="1.4" fill="#fff" />
+      <path d="M6.5 10.4h2.2V18H6.5zM10.6 10.4h2.1v1.1c.5-.8 1.4-1.3 2.5-1.3 1.9 0 3 1.2 3 3.4V18H16v-3.9c0-1.2-.5-1.9-1.5-1.9s-1.7.8-1.7 2V18h-2.2z" fill="#fff" />
     </svg>
   ),
   instagram: (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="17.2" cy="6.8" r="1" fill="currentColor" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="ig-g" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#FD9739" />
+          <stop offset="0.5" stopColor="#E33E5C" />
+          <stop offset="1" stopColor="#A335AF" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig-g)" />
+      <circle cx="12" cy="12" r="4.4" stroke="#fff" strokeWidth="1.8" fill="none" />
+      <circle cx="17.1" cy="6.9" r="1.2" fill="#fff" />
     </svg>
   ),
   youtube: (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2.5" y="5.5" width="19" height="13" rx="4" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M10.3 9.2v5.6l5-2.8-5-2.8z" fill="currentColor" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="1.5" y="4.5" width="21" height="15" rx="4" fill="#FF0000" />
+      <path d="M10.2 9v6l5.2-3-5.2-3z" fill="#fff" />
     </svg>
   ),
 };
@@ -51,13 +58,41 @@ export default function ConteudosPage() {
           <div className="hero__copy">
             <span className="eyebrow eyebrow--terra">Centro de Inteligência CRIVO™</span>
             <h1 className="display">
-              Conteúdo que transforma informação em <span className="terra-text">decisão.</span>
+              Conteúdo que
+              <br />
+              transforma informação
+              <br />
+              em <span className="terra-text">decisão.</span>
             </h1>
             <span className="rule-terra" aria-hidden="true" />
             <p className="hero__sub" style={{ marginBottom: 8 }}>
               Análises, ferramentas e materiais práticos para transformar informação em decisões mais inteligentes.
             </p>
-            <Seals dark items={["Confidencial", "Atualizado continuamente", "Conteúdo de alto valor"]} />
+            {/* Tela 18: cada selo tem ícone PRÓPRIO (escudo · ciclo · estrela). */}
+            <div className="seals cc-seals">
+              <span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                  <path d="m9 11.5 2.2 2.2L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Confidencial
+              </span>
+              <span>
+                <i aria-hidden="true" />
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 12a8 8 0 0 1 13.9-5.4M20 12a8 8 0 0 1-13.9 5.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M17.5 3.5v4h-4M6.5 20.5v-4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Atualizado continuamente
+              </span>
+              <span>
+                <i aria-hidden="true" />
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="m12 3.5 2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.2l-5.1 2.7 1.1-5.6-4.2-3.9 5.7-.7z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                </svg>
+                Conteúdo de alto valor
+              </span>
+            </div>
           </div>
           <div className="hero__visual">
             <div

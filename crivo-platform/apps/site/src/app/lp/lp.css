@@ -2873,12 +2873,12 @@ button:focus-visible,
 
 /* — Tela 02 · fidelidade 1:1: foto sangrada mais larga, título em 4 linhas,
    botão fantasma com borda terra, eyebrow sem traço — */
-.hero--2 .hero__inner { grid-template-columns: 1fr; }
-.hero--2 .hero__copy { max-width: 640px; }
-.hero--2 .display { font-size: clamp(28px, 3.3vw, 46px); line-height: 1.24; margin-bottom: 20px; }
-.hero--2 .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
-.hero--2 .eyebrow::before { display: none; }
-.hero--2 .hero__bleed { width: 55%; }
+#ia-vantagem-humana .hero__inner { grid-template-columns: 1fr; }
+#ia-vantagem-humana .hero__copy { max-width: 640px; }
+#ia-vantagem-humana .display { font-size: clamp(28px, 3.3vw, 46px); line-height: 1.24; margin-bottom: 20px; }
+#ia-vantagem-humana .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+#ia-vantagem-humana .eyebrow::before { display: none; }
+#ia-vantagem-humana .hero__bleed { width: 55%; }
 .btn--ghost-terra {
   background: transparent;
   color: var(--off-white);
@@ -2898,13 +2898,13 @@ button:focus-visible,
 .strip-card p { grid-column: 1 / -1; }
 
 /* Tela 02: traço laranja logo abaixo do título (não no rodapé do card). */
-.hero--2 .strip-card::after {
+#ia-vantagem-humana .strip-card::after {
   position: static;
   grid-column: 2;
   order: 3;
   margin-top: -2px;
 }
-.hero--2 .strip-card p { order: 4; padding-bottom: 0; }
+#ia-vantagem-humana .strip-card p { order: 4; padding-bottom: 0; }
 
 
 /* — Tela 03 · Arquitetura: eyebrow sem traço — */
