@@ -134,7 +134,11 @@
 .cc-social__ic svg { width: 30px !important; height: 30px !important; }
 .cc-social a:hover .cc-social__ic { background: none !important; }
 
-/* Card 1 (livro): volta ao layout original em coluna (o grid global dos
-   strip-cards da tela 02 não se aplica aqui — o livro é absoluto à esquerda
-   com o padding reservando o espaço, como no mockup). */
-.cc-card--book { display: flex; flex-direction: column; }
+/* Card 1 (livro): layout original em coluna com o livro absoluto à esquerda
+   (o padding reserva o espaço). Especificidade dobrada porque a ordem dos
+   chunks de CSS (lp.css × conteudos.css) não é garantida pelo bundler. */
+.strip-card.cc-card--book {
+  display: flex;
+  flex-direction: column;
+  padding-left: 100px;
+}
