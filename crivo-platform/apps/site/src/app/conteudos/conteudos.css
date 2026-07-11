@@ -133,3 +133,12 @@
 .cc-social__ic { background: none !important; border: none !important; }
 .cc-social__ic svg { width: 30px !important; height: 30px !important; }
 .cc-social a:hover .cc-social__ic { background: none !important; }
+
+/* Card 1 (livro): o mockup 3D fica à ESQUERDA ocupando todas as linhas;
+   ícone/título/texto/botão na coluna direita. */
+.cc-card--book { grid-template-columns: auto 1fr; }
+.cc-card--book .cc-book { grid-row: 1 / span 4; grid-column: 1; }
+.cc-card--book .strip-card__ic,
+.cc-card--book > strong,
+.cc-card--book > p,
+.cc-card--book .cc-card__cta { grid-column: 2; }
