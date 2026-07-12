@@ -64,7 +64,8 @@ export function SolucoesTabs() {
         type="button"
         className="sol-tabs__arrow"
         aria-label="Solução anterior"
-        onClick={() => go(IDS[(idx + IDS.length - 1) % IDS.length])}
+        disabled={idx === 0}
+        onClick={() => idx > 0 && go(IDS[idx - 1])}
       >
         <Chevron dir="l" />
       </button>
@@ -86,7 +87,8 @@ export function SolucoesTabs() {
         type="button"
         className="sol-tabs__arrow"
         aria-label="Próxima solução"
-        onClick={() => go(IDS[(idx + 1) % IDS.length])}
+        disabled={idx === IDS.length - 1}
+        onClick={() => idx < IDS.length - 1 && go(IDS[idx + 1])}
       >
         <Chevron dir="r" />
       </button>

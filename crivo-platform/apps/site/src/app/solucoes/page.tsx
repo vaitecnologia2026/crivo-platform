@@ -64,7 +64,7 @@ export default function SolucoesPage() {
       <SiteNav />
 
       {/* ============ HERO DA PÁGINA (tela 09) ============ */}
-      <section className="section section--light" style={{ paddingBottom: 0 }}>
+      <section className="section section--light" style={{ paddingBottom: 56 }}>
         <div className="container">
           <div className="sol-hero__inner">
             <div>
@@ -110,9 +110,9 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 01 · MAPA EXECUTIVO (tela 09) ============ */}
-          <div id="mapa-executivo">
-            <SolucoesTabs />
+          <SolucoesTabs />
 
+          <div id="mapa-executivo">
             <div className="sol-block">
               <div className="solu-card">
                 <div className="solu-card__main">
@@ -177,12 +177,9 @@ export default function SolucoesPage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ============ 02 · DIAGNÓSTICO (tela 10) ============ */}
-      <section id="diagnostico-sol" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 02 · Diagnóstico (tela 10) ============ */}
+          <div id="diagnostico-sol">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -253,12 +250,10 @@ export default function SolucoesPage() {
               <p className="sol-side__flow">Dados → Evidências → Decisões → Resultados</p>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
 
-      {/* ============ 03 · GESTÃO DA ROTINA (tela 11) ============ */}
-      <section id="gestao-da-rotina" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 03 · Gestão da Rotina (tela 11) ============ */}
+          <div id="gestao-da-rotina">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -322,12 +317,10 @@ export default function SolucoesPage() {
               </ul>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
 
-      {/* ============ 04 · LIDERANÇA (tela 12) ============ */}
-      <section id="lideranca" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 04 · Liderança (tela 12) ============ */}
+          <div id="lideranca">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -391,12 +384,10 @@ export default function SolucoesPage() {
               </ul>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
 
-      {/* ============ 05 · EVOLUÇÃO (tela 13) ============ */}
-      <section id="evolucao" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 05 · Evolução (tela 13) ============ */}
+          <div id="evolucao">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -460,12 +451,10 @@ export default function SolucoesPage() {
               </ul>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
 
-      {/* ============ 06 · ENTERPRISE (tela 14) ============ */}
-      <section id="enterprise" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 06 · Enterprise (tela 14) ============ */}
+          <div id="enterprise">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -532,12 +521,10 @@ export default function SolucoesPage() {
               </ul>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
 
-      {/* ============ 07 · ADVISORY (tela 15) ============ */}
-      <section id="advisory" className="section section--light" style={{ paddingTop: 0 }}>
-        <div className="container">
+          {/* ============ 07 · Advisory (tela 15) ============ */}
+          <div id="advisory">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -604,7 +591,7 @@ export default function SolucoesPage() {
               </ul>
             </div>
           </div>
-
+          </div>
         </div>
       </section>
 

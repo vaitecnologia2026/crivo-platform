@@ -192,3 +192,7 @@
 .sol-tabs__arrow:hover { border-color: var(--terra); color: var(--terra); }
 .sol-tabs__arrow svg { width: 20px; height: 20px; }
 @media (max-width: 700px) { .sol-tabs__arrow { display: none; } }
+
+/* Setas desabilitadas nas pontas (sem dar a volta 01↔07). */
+.sol-tabs__arrow:disabled { opacity: 0.35; cursor: default; }
+.sol-tabs__arrow:disabled:hover { border-color: var(--line); color: var(--azul-profundo); }
