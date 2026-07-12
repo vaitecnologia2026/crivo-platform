@@ -217,6 +217,55 @@ async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf:
   }
 }
 
+/**
+ * Rede de segurança: quando o registro no CRM FALHA, o visitante ainda vê
+ * sucesso (recebeu o diagnóstico por e-mail/WhatsApp) — mas a CRIVO perderia o
+ * contato para sempre, pois o e-mail vai PARA o lead, não para a equipe.
+ * Este alerta interno envia os dados completos do lead para recuperação manual.
+ */
+async function sendInternalRescueEmail(data: Payload): Promise<boolean> {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return false;
+  const to = process.env.LEAD_ALERT_EMAIL ?? user;
+  const linha = (rotulo: string, valor?: string | null) =>
+    valor
+      ? `<tr><td style="padding:4px 12px 4px 0;color:#5C6470"><strong>${rotulo}</strong></td><td style="padding:4px 0">${valor}</td></tr>`
+      : "";
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px">
+      <h2 style="color:${NAVY}">Lead da LP NÃO registrado no CRM — recuperação manual</h2>
+      <p>O site recebeu um lead e entregou o diagnóstico ao contato, mas o registro no CRM falhou.
+      Cadastre manualmente no funil:</p>
+      <table style="border-collapse:collapse;font-size:14px">
+        ${linha("Nome", data.name)}
+        ${linha("Empresa", data.company)}
+        ${linha("E-mail", data.email)}
+        ${linha("Telefone", data.phone)}
+        ${linha("Cargo", data.role)}
+        ${linha("Funcionários", data.employeesCount)}
+        ${linha("Segmento", data.segment)}
+        ${linha("CNPJ", data.cnpj)}
+        ${linha("Desafios", Array.isArray(data.challenges) ? data.challenges.join(", ") : undefined)}
+      </table>
+    </div>`;
+  try {
+    const port = Number(process.env.SMTP_PORT ?? 587);
+    const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM ?? `CRIVO <${user}>`,
+      to,
+      subject: `[CRIVO][RESGATE] Lead fora do CRM: ${data.name ?? "sem nome"} — ${data.company ?? ""}`,
+      html,
+    });
+    return true;
+  } catch (e) {
+    console.error("[diagnostic-lead][RESGATE] alerta interno falhou:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
 // ── WhatsApp ao LEAD (API da VAI: login → canal → contato → chat → mensagem) ──
 async function vaiFetch(base: string, path: string, init: RequestInit, token: string): Promise<Response> {
   return fetch(`${base}${path}`, {
@@ -373,6 +422,13 @@ export async function POST(req: Request) {
 
   if (!platformApi) {
     console.warn("[diagnostic-lead] PLATFORM_API_URL ausente — lead não registrado no CRM.");
+  }
+
+  // CRM não registrou (env ausente OU intake falhou): alerta interno com os
+  // dados completos, senão o lead some do funil com cara de sucesso.
+  if (!platformOk) {
+    const rescued = await sendInternalRescueEmail(data).catch(() => false);
+    console.warn(`[diagnostic-lead] lead NÃO registrado no CRM — alerta interno ${rescued ? "enviado" : "FALHOU"}.`);
   }
 
   const delivered = emailed || whatsapped;
