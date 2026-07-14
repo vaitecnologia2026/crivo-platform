@@ -972,6 +972,8 @@ model Organization {
   // Slug público do Questionário Psicossocial (Briefing §6): link anônimo sem
   // login (/q/<slug>), opcionalmente por setor via query. Único entre empresas.
   psychosocialSlug String? @unique
+  diagnosticLinks     DiagnosticLink[]
+  diagnosticResponses DiagnosticResponse[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1807,9 +1809,81 @@ model ContractTemplate {
 // depender do desenvolvedor) e versionados. O motor lê a versão ATIVA.
 // ───────────────────────────────────────────────────────────────────────────
 
+// LEGADO — mantido no banco até a fatia de limpeza (a coluna virou TEXT).
 enum MethodologyInstrument {
   PRE_DIAGNOSTIC // Diagnóstico Inicial (LP)
   PSYCHOSOCIAL // Diagnóstico Organizacional (psicossocial)
+}
+
+// Modo de agregação do score (call 14/07): estrutura da fórmula por instrumento.
+enum ScoreAggregation {
+  MEDIA_PONDERADA // média ponderada por pesos de pergunta e dimensão (padrão)
+  MEDIA_SIMPLES // pesos ignorados
+  SOMA_NORMALIZADA // % do máximo possível sobre todas as questões
+}
+
+/// Catálogo de instrumentos de diagnóstico (motor dinâmico — call 14/07).
+/// Os 2 built-in usam como slug os valores HISTÓRICOS do enum
+/// ('PRE_DIAGNOSTIC'/'PSYCHOSOCIAL') — zero rewrite de dados na migração e os
+/// consumidores hardcoded (LP, /q/slug, ciclos ICD) ficam intocados.
+model DiagnosticInstrument {
+  id          String              @id @default(uuid()) @db.Uuid
+  slug        String              @unique // novos: kebab-case (ex.: clima-organizacional)
+  name        String
+  bandKind    MethodologyBandKind @default(MATURITY) @map("band_kind")
+  aggregation ScoreAggregation    @default(MEDIA_PONDERADA)
+  description String?             @db.Text
+  active      Boolean             @default(true)
+  builtIn     Boolean             @default(false) @map("built_in") // imutável/indelével
+
+  versions  MethodologyVersion[]
+  links     DiagnosticLink[]
+  responses DiagnosticResponse[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("diagnostic_instruments")
+}
+
+/// Link público de aplicação de um diagnóstico do catálogo por empresa
+/// (motor dinâmico — call 14/07). Rota /d/<slug>, anônima, análoga ao /q/<slug>.
+model DiagnosticLink {
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @db.Uuid
+  org            Organization         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instrumentSlug String               @map("instrument_slug")
+  instrument     DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  slug           String               @unique // /d/<slug> — 64 bits de entropia
+  label          String?
+  active         Boolean              @default(true)
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  @@unique([tenantId, instrumentSlug])
+  @@index([tenantId])
+  @@map("diagnostic_links")
+}
+
+/// Resposta ANÔNIMA de um diagnóstico do catálogo (espelho do psicossocial):
+/// sem userId, agregação com supressão <5, RLS por tenant, pin da metodologia.
+model DiagnosticResponse {
+  id                   String               @id @default(uuid()) @db.Uuid
+  tenantId             String               @db.Uuid
+  org                  Organization         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instrumentSlug       String               @map("instrument_slug")
+  instrument           DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  sector               String?
+  answers              Json // [{ questionId, value }] escala 1–5
+  score                Int // 0–100
+  level                String // código da faixa da metodologia
+  byDimension          Json // { slug: 0–100 }
+  methodologyVersionId String?              @db.Uuid // pin MET1
+  submittedAt          DateTime             @default(now())
+
+  @@index([tenantId])
+  @@index([instrumentSlug])
+  @@index([methodologyVersionId])
+  @@map("diagnostic_responses")
 }
 
 enum MethodologyStatus {
@@ -1825,9 +1899,10 @@ enum MethodologyBandKind {
 
 /// Uma versão de metodologia de um instrumento. Só UMA fica ACTIVE por instrumento.
 model MethodologyVersion {
-  id          String                @id @default(uuid()) @db.Uuid
-  instrument  MethodologyInstrument
-  version     Int
+  id            String               @id @default(uuid()) @db.Uuid
+  instrument    String // slug do DiagnosticInstrument (era enum; TEXT desde a migração do catálogo)
+  instrumentRef DiagnosticInstrument @relation(fields: [instrument], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  version       Int
   label       String
   status      MethodologyStatus     @default(DRAFT)
   notes       String?               @db.Text

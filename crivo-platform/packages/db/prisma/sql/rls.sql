@@ -44,6 +44,8 @@ DECLARE
                          'pocket_sessions','pocket_reflections','pocket_ai_summaries',
                          -- Questionário Psicossocial amplo (Briefing §6) — anônimo por tenant.
                          'psychosocial_responses',
+                         'diagnostic_links',
+                         'diagnostic_responses',
                          -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant.
                          'invisible_cost_estimates',
                          -- People Analytics (Fase 4) — indicadores de RH por tenant.

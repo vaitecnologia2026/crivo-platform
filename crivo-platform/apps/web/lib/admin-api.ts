@@ -995,7 +995,70 @@ export function createCharge(body: {
 }
 
 // ── Metodologia configurável (Fase 1) ──
-export type MethodologyInstrument = "PRE_DIAGNOSTIC" | "PSYCHOSOCIAL";
+// Instrumento = slug do catálogo (motor dinâmico); built-in preservam o valor histórico.
+export type MethodologyInstrument = string;
+export type ScoreAggregation = "MEDIA_PONDERADA" | "MEDIA_SIMPLES" | "SOMA_NORMALIZADA";
+
+export interface InstrumentSummary {
+  id: string;
+  slug: string;
+  name: string;
+  bandKind: MethodologyBandKind;
+  aggregation: ScoreAggregation;
+  description: string | null;
+  active: boolean;
+  builtIn: boolean;
+  _count?: { versions: number };
+}
+
+export function listInstruments(): Promise<InstrumentSummary[]> {
+  return adminFetch<InstrumentSummary[]>("/admin/instruments");
+}
+export function createInstrument(input: {
+  slug: string; name: string; bandKind: MethodologyBandKind; aggregation: ScoreAggregation; description?: string | null;
+}): Promise<InstrumentSummary> {
+  return adminFetch<InstrumentSummary>("/admin/instruments", { method: "POST", body: JSON.stringify(input) });
+}
+export function updateInstrument(slug: string, input: {
+  name?: string; bandKind?: MethodologyBandKind; aggregation?: ScoreAggregation; description?: string | null; active?: boolean;
+}): Promise<InstrumentSummary> {
+  return adminFetch<InstrumentSummary>(`/admin/instruments/${slug}`, { method: "PUT", body: JSON.stringify(input) });
+}
+export function deleteInstrument(slug: string): Promise<{ ok: true; deactivated: boolean }> {
+  return adminFetch<{ ok: true; deactivated: boolean }>(`/admin/instruments/${slug}`, { method: "DELETE" });
+}
+
+export interface DiagnosticLinkSummary {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  slug: string;
+  active: boolean;
+  respondents: number;
+  createdAt: string;
+}
+export function ensureDiagnosticLink(tenantId: string, instrumentSlug: string): Promise<{ slug: string }> {
+  return adminFetch<{ slug: string }>("/admin/diagnostics/links", {
+    method: "POST",
+    body: JSON.stringify({ tenantId, instrumentSlug }),
+  });
+}
+export function listDiagnosticLinks(instrumentSlug: string): Promise<DiagnosticLinkSummary[]> {
+  return adminFetch<DiagnosticLinkSummary[]>(`/admin/diagnostics/links?instrument=${encodeURIComponent(instrumentSlug)}`);
+}
+export function getDiagnosticResults(tenantId: string, instrumentSlug: string): Promise<{
+  minRespondents: number;
+  totalRespondents: number;
+  suppressed: boolean;
+  score?: number;
+  level?: string;
+  levelLabel?: string;
+  byDimension?: Record<string, number>;
+  dimensionLabels?: Record<string, string>;
+  methodologyMixed?: boolean;
+}> {
+  return adminFetch(`/admin/diagnostics/results/${tenantId}/${encodeURIComponent(instrumentSlug)}`);
+}
 export type MethodologyStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export type MethodologyBandKind = "MATURITY" | "RISK";
 

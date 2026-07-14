@@ -2,31 +2,59 @@
 
 import { useEffect, useState } from "react";
 import {
+  createInstrument,
   createMethodologyDraft,
+  deleteInstrument,
   deleteMethodologyDraft,
+  ensureDiagnosticLink,
   getActiveMethodology,
+  getDiagnosticResults,
   getMethodologyVersion,
+  listDiagnosticLinks,
+  listInstruments,
   listMethodologyVersions,
+  listTenants,
   publishMethodology,
   updateMethodologyDraft,
+  type DiagnosticLinkSummary,
+  type InstrumentSummary,
   type MethodologyInstrument,
   type MethodologyVersion,
   type MethodologyVersionSummary,
+  type ScoreAggregation,
 } from "../../lib/admin-api";
 import "./cnae.css";
 
-const INSTRUMENTS: { key: MethodologyInstrument; label: string; bandKind: "MATURITY" | "RISK"; bandWord: string }[] = [
-  { key: "PRE_DIAGNOSTIC", label: "Diagnóstico Inicial (LP)", bandKind: "MATURITY", bandWord: "Faixas de maturidade" },
-  { key: "PSYCHOSOCIAL", label: "Diagnóstico Organizacional", bandKind: "RISK", bandWord: "Faixas de risco" },
+// Fallback enquanto o catálogo carrega (os 2 built-in existem sempre).
+const BUILTIN_TABS: InstrumentSummary[] = [
+  { id: "b1", slug: "PRE_DIAGNOSTIC", name: "Diagnóstico Inicial (LP)", bandKind: "MATURITY", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
+  { id: "b2", slug: "PSYCHOSOCIAL", name: "Diagnóstico Organizacional", bandKind: "RISK", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
 ];
+const bandWordOf = (k: "MATURITY" | "RISK") => (k === "RISK" ? "Faixas de risco" : "Faixas de maturidade");
+const AGG_LABEL: Record<ScoreAggregation, string> = {
+  MEDIA_PONDERADA: "média ponderada",
+  MEDIA_SIMPLES: "média simples",
+  SOMA_NORMALIZADA: "soma normalizada",
+};
 
 type Dim = { slug: string; label: string; weight: number };
 type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number };
 
 export function MethodologySection() {
+  const [catalog, setCatalog] = useState<InstrumentSummary[]>(BUILTIN_TABS);
   const [instrument, setInstrument] = useState<MethodologyInstrument>("PSYCHOSOCIAL");
-  const meta = INSTRUMENTS.find((i) => i.key === instrument)!;
+  const [newOpen, setNewOpen] = useState(false);
+  const inst = catalog.find((i) => i.slug === instrument) ?? BUILTIN_TABS[1];
+  const meta = { label: inst.name, bandKind: inst.bandKind, bandWord: bandWordOf(inst.bandKind) };
+
+  async function refreshCatalog() {
+    try {
+      const list = await listInstruments();
+      if (list.length > 0) setCatalog(list);
+    } catch { /* mantém fallback built-in */ }
+  }
+  useEffect(() => { void refreshCatalog(); }, []);
   const [active, setActive] = useState<MethodologyVersion | null>(null);
   const [versions, setVersions] = useState<MethodologyVersionSummary[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -147,17 +175,52 @@ export function MethodologySection() {
         desenvolvimento. Edita-se um <strong>rascunho</strong> e publica-se: vira a versão ativa, a anterior é arquivada.
       </p>
 
-      <div className="cnae-tabs" style={{ marginBottom: 14 }}>
-        {INSTRUMENTS.map((i) => (
+      <div className="cnae-tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
+        {catalog.filter((i) => i.active).map((i) => (
           <button
-            key={i.key}
-            className={`cnae-tab${instrument === i.key ? " is-active" : ""}`}
-            onClick={() => setInstrument(i.key)}
+            key={i.slug}
+            className={`cnae-tab${instrument === i.slug ? " is-active" : ""}`}
+            onClick={() => setInstrument(i.slug)}
           >
-            {i.label}
+            {i.name}
           </button>
         ))}
+        <button className="cnae-tab meth-newtab" onClick={() => setNewOpen(true)}>
+          + Novo diagnóstico
+        </button>
       </div>
+
+      {!inst.builtIn && (
+        <p className="cnae-muted" style={{ marginTop: -6 }}>
+          Diagnóstico personalizado · régua de {meta.bandWord.toLowerCase().replace("faixas de ", "")} · cálculo por {AGG_LABEL[inst.aggregation]} ·{" "}
+          <button
+            type="button"
+            className="meth-inline-del"
+            onClick={async () => {
+              if (!window.confirm(`Remover o diagnóstico "${inst.name}"? Com versões existentes ele é apenas desativado.`)) return;
+              try {
+                await deleteInstrument(inst.slug);
+                setInstrument("PSYCHOSOCIAL");
+                await refreshCatalog();
+              } catch (e) { setErr(e instanceof Error ? e.message : "Falha ao remover."); }
+            }}
+          >
+            remover
+          </button>
+        </p>
+      )}
+
+      {newOpen && (
+        <NewInstrumentModal
+          onClose={() => setNewOpen(false)}
+          onCreated={async (slug) => {
+            setNewOpen(false);
+            await refreshCatalog();
+            setInstrument(slug);
+            setMsg("Diagnóstico criado. Crie um rascunho, cadastre dimensões/perguntas/faixas e publique.");
+          }}
+        />
+      )}
 
       {err && <div className="cnae-note cnae-block--warn">{err}</div>}
       {msg && <div className="cnae-note cnae-note--ok">{msg}</div>}
@@ -201,6 +264,9 @@ export function MethodologySection() {
         {/* Conteúdo da versão ATIVA + memória de cálculo (leitura) */}
         {contentOpen && active && <VersionContent version={active} bandWord={meta.bandWord} />}
       </div>
+
+      {/* Aplicação (motor dinâmico): link público /d/<slug> por empresa */}
+      {!inst.builtIn && active && <ApplicationPanel instrumentSlug={inst.slug} />}
 
       {demoOpen && active && (
         <InstrumentDemo version={active} instrumentLabel={meta.label} onClose={() => setDemoOpen(false)} />
@@ -562,6 +628,257 @@ function InstrumentDemo({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Modal de criação de diagnóstico (motor dinâmico — call 14/07). */
+function NewInstrumentModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (slug: string) => void | Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [bandKind, setBandKind] = useState<"MATURITY" | "RISK">("MATURITY");
+  const [aggregation, setAggregation] = useState<ScoreAggregation>("MEDIA_PONDERADA");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const slugify = (v: string) =>
+    v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const finalSlug = slug || slugify(name);
+      await createInstrument({ slug: finalSlug, name: name.trim(), bandKind, aggregation, description: description.trim() || null });
+      await onCreated(finalSlug);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao criar o diagnóstico.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <h2>Novo diagnóstico</h2>
+          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+        </header>
+        <form onSubmit={submit} className="modal__body prod-form">
+          <div className="prod-form__grid">
+            <label className="prod-field prod-field--full">
+              <span>Nome do diagnóstico</span>
+              <input
+                value={name}
+                required
+                placeholder="Ex.: Clima Organizacional, Prontidão de IA"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (!slugTouched) setSlug(slugify(e.target.value));
+                }}
+              />
+            </label>
+            <label className="prod-field prod-field--full">
+              <span>Slug (URL/identificador — minúsculas e hífen)</span>
+              <input
+                value={slug}
+                required
+                pattern="[a-z0-9][a-z0-9-]{2,39}"
+                onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }}
+              />
+            </label>
+            <label className="prod-field">
+              <span>Tipo de régua</span>
+              <select value={bandKind} onChange={(e) => setBandKind(e.target.value as "MATURITY" | "RISK")}>
+                <option value="MATURITY">Maturidade (maior = melhor)</option>
+                <option value="RISK">Risco (maior = menor risco)</option>
+              </select>
+            </label>
+            <label className="prod-field">
+              <span>Memória de cálculo</span>
+              <select value={aggregation} onChange={(e) => setAggregation(e.target.value as ScoreAggregation)}>
+                <option value="MEDIA_PONDERADA">Média ponderada (pesos)</option>
+                <option value="MEDIA_SIMPLES">Média simples</option>
+                <option value="SOMA_NORMALIZADA">Soma normalizada (% do máximo)</option>
+              </select>
+            </label>
+            <label className="prod-field prod-field--full">
+              <span>Descrição (opcional)</span>
+              <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
+          </div>
+          {error && <p className="prod-note" style={{ color: "var(--danger, #b4453a)" }}>{error}</p>}
+          <p className="prod-note">
+            Depois de criar: abra a aba do diagnóstico, crie um rascunho, cadastre dimensões, perguntas e faixas e
+            publique. A aplicação gera um link público por empresa (Aplicação).
+          </p>
+          <div className="modal__foot">
+            <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !name.trim()}>
+              {saving ? "Criando…" : "Criar diagnóstico"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Aplicação de um diagnóstico dinâmico: gera o link público /d/<slug> por
+ * empresa, lista respondentes e mostra o agregado (com supressão <5).
+ */
+function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
+  const [links, setLinks] = useState<DiagnosticLinkSummary[]>([]);
+  const [tenants, setTenants] = useState<{ id: string; name: string }[]>([]);
+  const [tenantId, setTenantId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [results, setResults] = useState<{ tenantName: string; data: Awaited<ReturnType<typeof getDiagnosticResults>> } | null>(null);
+
+  async function refresh() {
+    try { setLinks(await listDiagnosticLinks(instrumentSlug)); } catch { /* silencioso */ }
+  }
+  useEffect(() => {
+    void refresh();
+    listTenants().then((ts) => setTenants(ts.map((t) => ({ id: t.id, name: t.name })))).catch(() => setTenants([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instrumentSlug]);
+
+  async function generate() {
+    if (!tenantId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await ensureDiagnosticLink(tenantId, instrumentSlug);
+      setTenantId("");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao gerar o link.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const urlOf = (slug: string) => `${window.location.origin}/d/${slug}`;
+
+  return (
+    <div className="cnae-card" style={{ marginBottom: 14 }}>
+      <div className="cnae-card__hero">
+        <strong style={{ fontSize: 15 }}>Aplicação</strong>
+        <span className="cnae-muted">link público anônimo por empresa · agregado a partir de 5 respostas</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+        <select
+          className="mod-select"
+          value={tenantId}
+          onChange={(e) => setTenantId(e.target.value)}
+          aria-label="Empresa para gerar o link"
+        >
+          <option value="">— escolha a empresa —</option>
+          {tenants.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <button className="btn btn--terra btn--sm" disabled={busy || !tenantId} onClick={generate}>
+          {busy ? "Gerando…" : "Gerar link de aplicação"}
+        </button>
+      </div>
+      {error && <p className="cnae-note cnae-block--warn" style={{ marginTop: 10 }}>{error}</p>}
+
+      {links.length > 0 && (
+        <ul className="ct-list" style={{ marginTop: 14 }}>
+          {links.map((l) => (
+            <li key={l.id} className="ct-item">
+              <div style={{ minWidth: 0 }}>
+                <strong>{l.tenantName}</strong>
+                <div className="ct-item__meta" style={{ wordBreak: "break-all" }}>
+                  /d/{l.slug} · {l.respondents} resposta(s)
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(urlOf(l.slug));
+                    setCopied(l.id);
+                    setTimeout(() => setCopied(null), 1500);
+                  }}
+                >
+                  {copied === l.id ? "Copiado" : "Copiar link"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={async () => {
+                    try {
+                      setResults({ tenantName: l.tenantName, data: await getDiagnosticResults(l.tenantId, instrumentSlug) });
+                    } catch { setError("Não foi possível carregar o agregado."); }
+                  }}
+                >
+                  Ver agregado
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {links.length === 0 && (
+        <p className="cnae-muted" style={{ marginTop: 12 }}>
+          Nenhum link gerado ainda. Escolha uma empresa e gere o link para aplicar este diagnóstico.
+        </p>
+      )}
+
+      {results && (
+        <div className="demo-result" style={{ marginTop: 14 }}>
+          <div className="cnae-card__hero" style={{ marginBottom: 8 }}>
+            <strong>{results.tenantName}</strong>
+            <span className="cnae-muted">
+              {results.data.totalRespondents} resposta(s) · mínimo p/ divulgar: {results.data.minRespondents}
+            </span>
+          </div>
+          {results.data.suppressed ? (
+            <p className="cnae-muted" style={{ margin: 0 }}>
+              Agregado suprimido — ainda não há {results.data.minRespondents} respostas (proteção de anonimato).
+            </p>
+          ) : (
+            <>
+              <div className="demo-result__score">
+                <strong>{results.data.score}</strong>
+                <span>/ 100</span>
+                <em>{results.data.levelLabel || results.data.level}</em>
+              </div>
+              <div className="demo-result__dims">
+                {Object.entries(results.data.byDimension ?? {}).map(([slug, v]) => (
+                  <div key={slug} className="demo-result__dim">
+                    <span>{results.data.dimensionLabels?.[slug] ?? slug}</span>
+                    <div className="demo-bar"><i style={{ width: `${v}%` }} /></div>
+                    <b>{v}</b>
+                  </div>
+                ))}
+              </div>
+              {results.data.methodologyMixed && (
+                <p className="demo-result__hint">
+                  Atenção: as respostas foram pontuadas por versões diferentes da metodologia (comparabilidade limitada).
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

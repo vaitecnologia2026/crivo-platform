@@ -690,6 +690,48 @@ export async function getPublicCampaign(slug: string): Promise<{
   }
   return res.json();
 }
+// ── Diagnósticos do catálogo (motor dinâmico) — link público /d/<slug> ──
+export interface PublicDiagnosticInfo {
+  tenantName: string;
+  instrumentName: string;
+  bandKind: 'MATURITY' | 'RISK';
+  questions: { id: number; dimension: string; text: string }[];
+}
+export interface PublicDiagnosticResult {
+  score: number;
+  level: string;
+  levelLabel?: string;
+  byDimension: Record<string, number>;
+  dimensionLabels: Record<string, string>;
+  topAttention: string;
+}
+export async function getPublicDiagnostic(slug: string): Promise<PublicDiagnosticInfo> {
+  const res = await fetch(`${apiBase()}/public/diagnostics/${encodeURIComponent(slug)}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Link inválido');
+  }
+  return res.json();
+}
+export async function submitPublicDiagnostic(
+  slug: string,
+  body: { sector?: string; answers: { questionId: number; value: number }[] },
+): Promise<{ ok: true; result: PublicDiagnosticResult }> {
+  const res = await fetch(`${apiBase()}/public/diagnostics/${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Falha ao enviar');
+  }
+  return res.json();
+}
+
 export async function getPublicPsychosocial(
   slug: string,
 ): Promise<{ tenantName: string; questions: PsychosocialQuestion[] }> {

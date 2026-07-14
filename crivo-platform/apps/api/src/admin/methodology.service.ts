@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { MethodologyConfig } from '@crivo/types';
+import type { MethodologyConfig, ScoreAggregationMode } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 
-export type Instrument = 'PRE_DIAGNOSTIC' | 'PSYCHOSOCIAL';
-const INSTRUMENTS: Instrument[] = ['PRE_DIAGNOSTIC', 'PSYCHOSOCIAL'];
+// O instrumento agora é um SLUG do catálogo diagnostic_instruments (motor
+// dinâmico). Os built-in preservam os valores históricos do enum.
+export type Instrument = string;
+const BUILTIN_INSTRUMENTS = ['PRE_DIAGNOSTIC', 'PSYCHOSOCIAL'];
 
 type Actor = { id: string; email: string };
 
@@ -21,7 +23,7 @@ type VersionWithContent = {
 };
 
 /** Mapeia uma versão (com conteúdo incluído) para o formato do motor de score. */
-function toConfig(v: VersionWithContent): MethodologyConfig {
+function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): MethodologyConfig {
   return {
     dimensions: v.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight })),
     questions: v.questions.map((q) => ({
@@ -31,6 +33,7 @@ function toConfig(v: VersionWithContent): MethodologyConfig {
       inverse: q.inverse,
     })),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
+    ...(aggregation ? { aggregation } : {}),
   };
 }
 
@@ -45,10 +48,10 @@ export async function resolveActiveMethodology(
 ): Promise<{ versionId: string; config: MethodologyConfig } | null> {
   const v = await prisma.admin.methodologyVersion.findFirst({
     where: { instrument, status: 'ACTIVE' },
-    include: CONTENT_INCLUDE,
+    include: { ...CONTENT_INCLUDE, instrumentRef: true },
   });
   if (!v) return null;
-  return { versionId: v.id, config: toConfig(v) };
+  return { versionId: v.id, config: toConfig(v, v.instrumentRef?.aggregation as ScoreAggregationMode | undefined) };
 }
 
 /**
@@ -93,13 +96,23 @@ export class MethodologyService {
     private readonly audit: AuditService,
   ) {}
 
-  private assertInstrument(i: string): asserts i is Instrument {
-    if (!INSTRUMENTS.includes(i as Instrument)) throw new BadRequestException('Instrumento inválido.');
+  /** Valida o instrumento contra o CATÁLOGO (motor dinâmico). Fallback defensivo
+   *  aos 2 built-in se a consulta falhar (janela de migração). */
+  private async resolveInstrument(slug: string) {
+    try {
+      const i = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug } });
+      if (!i || !i.active) throw new BadRequestException('Instrumento inválido ou inativo.');
+      return i;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      if (BUILTIN_INSTRUMENTS.includes(slug)) return null; // catálogo indisponível: aceita built-in
+      throw new BadRequestException('Instrumento inválido.');
+    }
   }
 
   /** Versões de um instrumento (resumo, sem o conteúdo). */
-  listVersions(instrument: string) {
-    this.assertInstrument(instrument);
+  async listVersions(instrument: string) {
+    await this.resolveInstrument(instrument);
     return this.prisma.admin.methodologyVersion.findMany({
       where: { instrument },
       orderBy: { version: 'desc' },
@@ -112,8 +125,8 @@ export class MethodologyService {
   }
 
   /** Versão ATIVA (com conteúdo) de um instrumento — pode ser null. */
-  getActive(instrument: string) {
-    this.assertInstrument(instrument);
+  async getActive(instrument: string) {
+    await this.resolveInstrument(instrument);
     return this.prisma.admin.methodologyVersion.findFirst({
       where: { instrument, status: 'ACTIVE' },
       include: CONTENT_INCLUDE,
@@ -129,7 +142,7 @@ export class MethodologyService {
 
   /** Cria um RASCUNHO clonando a versão ativa (próximo número de versão). */
   async createDraft(instrument: string, actor: Actor) {
-    this.assertInstrument(instrument);
+    await this.resolveInstrument(instrument);
     const active = await this.getActive(instrument);
     const max = await this.prisma.admin.methodologyVersion.aggregate({
       where: { instrument },
@@ -216,6 +229,19 @@ export class MethodologyService {
     if (v.status === 'ARCHIVED') throw new BadRequestException('Versão arquivada não pode ser publicada.');
     if (v._count.dimensions === 0 || v._count.questions === 0 || v._count.bands === 0) {
       throw new BadRequestException('Defina ao menos uma dimensão, uma pergunta e uma faixa antes de publicar.');
+    }
+    // Régua coerente com o instrumento: faixas de maturidade num instrumento de
+    // risco (ou vice-versa) confundem a leitura — bloqueia na publicação.
+    const inst = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug: v.instrument } });
+    if (inst) {
+      const wrong = await this.prisma.admin.methodologyBand.count({
+        where: { versionId: id, NOT: { kind: inst.bandKind } },
+      });
+      if (wrong > 0) {
+        throw new BadRequestException(
+          `As faixas desta versão precisam ser do tipo ${inst.bandKind === 'RISK' ? 'risco' : 'maturidade'} (definido pelo instrumento).`,
+        );
+      }
     }
     await this.prisma.admin.$transaction([
       this.prisma.admin.methodologyVersion.updateMany({

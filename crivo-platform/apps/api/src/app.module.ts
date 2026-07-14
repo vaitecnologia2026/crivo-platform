@@ -19,6 +19,7 @@ import { DecisionsModule } from './decisions/decisions.module';
 import { IcdCyclesModule } from './icd-cycles/icd-cycles.module';
 import { PocketModule } from './pocket/pocket.module';
 import { PsychosocialModule } from './psychosocial/psychosocial.module';
+import { DiagnosticsModule } from './diagnostics/diagnostics.module';
 import { CnaeModule } from './cnae/cnae.module';
 import { InvisibleCostsModule } from './invisible-costs/invisible-costs.module';
 import { PeopleAnalyticsModule } from './people-analytics/people-analytics.module';
@@ -46,6 +47,7 @@ import { HealthController } from './health/health.controller';
     IcdCyclesModule,
     PocketModule,
     PsychosocialModule,
+    DiagnosticsModule,
     CnaeModule,
     InvisibleCostsModule,
     PeopleAnalyticsModule,
