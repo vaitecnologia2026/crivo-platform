@@ -39,7 +39,7 @@ export function IcdScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Índice de Coerência Decisória</h1>
-          <p className="page-sub">A coerência decisória da liderança sob pressão — nos 4 Rs.</p>
+          <p className="page-sub">A coerência decisória da liderança sob pressão — nos 4 Eixos.</p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>
@@ -69,7 +69,7 @@ export function IcdScreen() {
             <div className="card__head">
               <div>
                 <h3>Coerência por dimensão</h3>
-                <span className="card__sub">Média da liderança nos 4 Rs do ICD</span>
+                <span className="card__sub">Média da liderança nos 4 Eixos do ICD</span>
               </div>
             </div>
             <div className="icd-dims">

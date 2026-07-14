@@ -6,11 +6,12 @@ import { IconCheck, IconLink } from "./Icons";
 import {
   closeCampaign,
   createCampaign,
+  getDiagnosticContext,
   listCampaigns,
   sendCampaignReminders,
   updateCampaign,
 } from "@/lib/api";
-import type { CampaignSummary } from "@crivo/types";
+import { DIAGNOSTIC_METHOD_LABEL, type CampaignSummary, type DiagnosticMethod } from "@crivo/types";
 
 type LoadStatus = "loading" | "error" | "ok";
 
@@ -93,6 +94,11 @@ function CampaignQrModal({ slug, name, onClose }: { slug: string; name: string; 
 export function CampanhasScreen() {
   const [data, setData] = useState<CampaignSummary[] | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
+  // Call 14/07: mostrar QUAL diagnóstico contratado as campanhas aplicam.
+  const [diagCtx, setDiagCtx] = useState<{ method: string | null; productName: string | null } | null>(null);
+  useEffect(() => {
+    getDiagnosticContext().then(setDiagCtx).catch(() => setDiagCtx(null));
+  }, []);
   const [sectorFilter, setSectorFilter] = useState<string>("");
   const [showNew, setShowNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -140,7 +146,17 @@ export function CampanhasScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Campanhas de Diagnóstico</h1>
-          <p className="page-sub">Criar, editar e acompanhar ciclos. Link público por setor disponível.</p>
+          <p className="page-sub">
+            Criar, editar e acompanhar ciclos. Link público por setor disponível.
+            {diagCtx && (
+              <>
+                {" "}
+                <span className="camp-diag-badge">
+                  Instrumento aplicado: {diagCtx.method ? DIAGNOSTIC_METHOD_LABEL[diagCtx.method as DiagnosticMethod] : diagCtx.productName ?? "Diagnóstico contratado"}
+                </span>
+              </>
+            )}
+          </p>
         </div>
         <div className="route__actions">
           <button

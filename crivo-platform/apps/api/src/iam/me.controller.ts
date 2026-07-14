@@ -71,9 +71,10 @@ export class MeController {
     return this.groups.portalOverviewForUser(user);
   }
 
-  /** #8/#10 — Tipo de diagnóstico do produto contratado (Inicial/Essencial/
-   *  Organizacional) + saídas técnicas, para a tela Diagnóstico mostrar o tipo
-   *  correto e o Portal se moldar ao produto. */
+  /** #8/#10 + call 14/07 — Diagnóstico contratado do portal. FONTE DA VERDADE:
+   *  o CONTRATO ATIVO da empresa (method/technicalOutput/produto); sem contrato,
+   *  cai no produto que originou o tenant (comportamento anterior). Corrige o
+   *  portal mostrar o diagnóstico errado quando o contrato dizia outra coisa. */
   @Get('diagnostic-context')
   async diagnosticContext(@CurrentUser() user: SessionUser): Promise<{
     method: string | null;
@@ -82,21 +83,32 @@ export class MeController {
   }> {
     const tenant = await this.prisma.admin.tenant.findFirst({
       where: { organizationId: user.tenantId },
-      select: { productId: true },
+      select: { id: true, productId: true },
     });
-    const product = tenant?.productId
+
+    // 1) Contrato ATIVO (o que a empresa realmente contratou).
+    //    Contract.organizationId → organizations.id (= user.tenantId no portal).
+    const contract = await this.prisma.admin.contract.findFirst({
+      where: { organizationId: user.tenantId, status: 'ATIVO' },
+      orderBy: { updatedAt: 'desc' },
+      select: { method: true, technicalOutput: true, productId: true },
+    });
+
+    const productId = contract?.productId ?? tenant?.productId ?? null;
+    const product = productId
       ? await this.prisma.admin.product.findUnique({
-          where: { id: tenant.productId },
+          where: { id: productId },
           select: { method: true, supportedOutputs: true, name: true },
         })
       : null;
-    return {
-      method: product?.method ?? null,
-      technicalOutputs: Array.isArray(product?.supportedOutputs)
+
+    const method = contract?.method ?? product?.method ?? null;
+    const technicalOutputs = contract?.technicalOutput
+      ? [contract.technicalOutput as string]
+      : Array.isArray(product?.supportedOutputs)
         ? (product!.supportedOutputs as string[])
-        : [],
-      productName: product?.name ?? null,
-    };
+        : [];
+    return { method, technicalOutputs, productName: product?.name ?? null };
   }
 
   /** Telas liberadas para o usuário (null = sem restrição) — filtra o menu por usuário. */

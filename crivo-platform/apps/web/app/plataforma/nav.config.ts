@@ -92,11 +92,13 @@ export const NAV: NavGroup[] = [
     title: 'Diagnóstico',
     items: [
       {
+        // Call 14/07: o INSTRUMENTO da empresa é o diagnóstico CONTRATADO
+        // (a tela se molda ao método do contrato) — não o ICD.
         route: 'essencial',
-        label: 'Diagnóstico',
+        label: 'Diagnóstico da Empresa',
         icon: '✦',
         module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico' },
+        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico da Empresa' },
       },
       {
         route: 'campanhas',
@@ -114,12 +116,14 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Diagnóstico', current: 'Parecer Consultivo CRIVO' },
       },
       {
+        // Call 14/07: ICD é aplicação DO LÍDER (equipe dele) — rótulo explícito
+        // para não parecer o instrumento diagnóstico da empresa.
         route: 'questionario',
-        label: 'Instrumentos Diagnósticos',
+        label: 'Aplicação do ICD (líderes)',
         icon: '✎',
         module: 'icd',
         perm: 'icd:submit',
-        breadcrumb: { path: 'Aplicação', current: 'Instrumentos Diagnósticos' },
+        breadcrumb: { path: 'Aplicação', current: 'Aplicação do ICD (líderes)' },
       },
     ],
   },
@@ -163,10 +167,10 @@ export const NAV: NavGroup[] = [
       },
       {
         route: 'relatorios',
-        label: 'Plano de Ação & Evidências',
+        label: 'Plano de Ação & Documentos',
         icon: '▤',
         module: 'relatorios',
-        breadcrumb: { path: 'Documentos', current: 'Plano de Ação & Evidências' },
+        breadcrumb: { path: 'Documentos', current: 'Plano de Ação & Documentos' },
       },
       {
         route: 'analytics',

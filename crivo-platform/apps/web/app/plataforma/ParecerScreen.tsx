@@ -227,7 +227,7 @@ export function ParecerScreen() {
                   <strong className="kpi__value" style={{ fontSize: "20px" }}>
                     {temaCritico ? (PATTERN_LABEL[temaCritico] ?? temaCritico) : "—"}
                   </strong>
-                  <span className="kpi__delta">tensão dominante nos 4 Rs</span>
+                  <span className="kpi__delta">tensão dominante nos 4 Eixos</span>
                 </div>
               </div>
               <div className="icd-dims" style={{ marginTop: "16px" }}>
