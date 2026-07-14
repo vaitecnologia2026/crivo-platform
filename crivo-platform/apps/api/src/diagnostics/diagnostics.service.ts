@@ -31,8 +31,20 @@ function makeSlug(base: string): string {
 export class DiagnosticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** O superadm passa Tenant.id; o data-plane usa Organization.id (gotcha
+   *  conhecido do control plane). Aceita ambos e resolve para o org id. */
+  private async resolveOrgId(id: string): Promise<string> {
+    // rls-allow: mapeamento control-plane Tenant.id → Organization.id.
+    const tenant = await this.prisma.admin.tenant.findUnique({
+      where: { id },
+      select: { organizationId: true },
+    });
+    return tenant?.organizationId ?? id;
+  }
+
   /** Gera (idempotente) o link público de um instrumento para uma empresa. */
-  async ensureLink(tenantId: string, instrumentSlug: string, _actor: Actor) {
+  async ensureLink(rawTenantId: string, instrumentSlug: string, _actor: Actor) {
+    const tenantId = await this.resolveOrgId(rawTenantId);
     const instrument = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug: instrumentSlug } });
     if (!instrument || !instrument.active) throw new BadRequestException('Instrumento inválido ou inativo.');
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
@@ -156,7 +168,8 @@ export class DiagnosticsService {
   }
 
   /** Agregado por empresa+instrumento com supressão (visão do super admin). */
-  async results(tenantId: string, instrumentSlug: string) {
+  async results(rawTenantId: string, instrumentSlug: string) {
+    const tenantId = await this.resolveOrgId(rawTenantId);
     const minRespondents = MIN_LEADERS_FOR_DISCLOSURE;
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     const dims = active ? active.config.dimensions.map((d) => ({ slug: d.slug, label: d.label })) : [];
