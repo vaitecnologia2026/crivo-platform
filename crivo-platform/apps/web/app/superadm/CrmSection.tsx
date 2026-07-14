@@ -36,52 +36,44 @@ import { ContractModal } from "./ContractModal";
 const brlCents = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-// Ciclo comercial completo (PDF §4.2 CRM Interno): captação → pós-venda.
-// PERDIDO sai do board (continua no banco) — movido via o seletor do card.
-// PRE_DIAGNOSTICO/REUNIAO (legado) são dobrados na coluna OPORTUNIDADE.
-const BOARD: PlatformLeadStage[] = [
-  "NOVO", "OPORTUNIDADE", "PROPOSTA", "FECHADO", "CONTRATO", "ONBOARDING",
-  "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL",
-];
-const ALL_STAGES: PlatformLeadStage[] = [...BOARD, "PRE_DIAGNOSTICO", "REUNIAO", "PERDIDO"];
-
-/** Próxima etapa do funil (BOARD em sequência); null se não houver. */
-function nextStage(stage: PlatformLeadStage): PlatformLeadStage | null {
-  const i = BOARD.indexOf(stage);
-  return i >= 0 && i < BOARD.length - 1 ? BOARD[i + 1] : null;
-}
-// Estágios legados que aparecem dentro de "Oportunidade" no board.
-const FOLD_INTO_OPORTUNIDADE: PlatformLeadStage[] = ["PRE_DIAGNOSTICO", "REUNIAO"];
-
-// Board em 4 MACRO-colunas (redesign aprovado pelo Elison, 09/07): as 11 etapas
-// finas continuam existindo (pill no card + "Avançar" continua fino) — só a
-// APRESENTAÇÃO agrupa, para caber na tela sem scroll horizontal.
-const MACROS: { key: string; label: string; help: string; stages: PlatformLeadStage[] }[] = [
-  { key: "comercial", label: "Comercial", help: "Da captação à proposta — qualificar e avançar.", stages: ["NOVO", "OPORTUNIDADE", "PROPOSTA"] },
-  { key: "fechamento", label: "Fechamento", help: "Negócio ganho — formalizar contrato e habilitar.", stages: ["FECHADO", "CONTRATO"] },
-  { key: "entrega", label: "Entrega", help: "Cliente novo — do onboarding à primeira entrega.", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA"] },
-  { key: "carteira", label: "Carteira", help: "Sustentação, renovação e expansão (upsell).", stages: ["SUSTENTACAO", "RENOVACAO", "UPSELL"] },
-];
-
-// Legenda curta de cada passo do funil — ajuda o operador a entender o que cada
-// coluna significa e quando mover o lead para a próxima.
-const STAGE_HELP: Partial<Record<PlatformLeadStage, string>> = {
-  NOVO: "Lead recém-chegado, ainda sem contato ou qualificação.",
-  OPORTUNIDADE: "Em conversa/qualificação — pré-diagnóstico ou reunião.",
-  PROPOSTA: "Proposta comercial enviada, aguardando decisão.",
-  FECHADO: "Negócio ganho — pronto para virar contrato e cliente.",
-  CONTRATO: "Contrato assinado e formalização concluída.",
-  ONBOARDING: "Boas-vindas e coleta dos dados iniciais do cliente.",
-  IMPLANTACAO: "Configuração e ativação do sistema/serviço.",
-  ENTREGA: "Primeira entrega/diagnóstico concluído ao cliente.",
-  SUSTENTACAO: "Acompanhamento contínuo e suporte ativo.",
-  RENOVACAO: "Ciclo perto do fim — hora de renovar o contrato.",
-  UPSELL: "Oportunidade de ampliar (novos módulos ou serviços).",
+// Board no modelo do cliente (mockup 14/07): 8 colunas da captação ao onboarding.
+// PERDIDO sai do board (painel "Motivos de perda"); etapas pós-onboarding
+// (implantação → upsell) aparecem dobradas na coluna Onboarding.
+type BoardCol = {
+  key: string;
+  label: string;
+  stages: PlatformLeadStage[];
+  pill: { label: string; tone: "lav" | "green" | "blue" | "gray" };
+  /** Ação primária do card: avança para `next` (ou ação especial via `kind`). */
+  action: { label: string; next?: PlatformLeadStage; kind?: "contato" | "habilitar" | "onboarding" };
 };
-
-function initials(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
-}
+const COLUMNS: BoardCol[] = [
+  { key: "captacao", label: "Captação", stages: ["NOVO"],
+    pill: { label: "Sem 1º contato", tone: "lav" },
+    action: { label: "Marcar 1º contato", kind: "contato", next: "OPORTUNIDADE" } },
+  { key: "qualificacao", label: "Qualificação", stages: ["OPORTUNIDADE"],
+    pill: { label: "Lead qualificado", tone: "green" },
+    action: { label: "Agendar pré-diagnóstico", next: "PRE_DIAGNOSTICO" } },
+  { key: "prediag", label: "Pré-diagnóstico", stages: ["PRE_DIAGNOSTICO", "REUNIAO"],
+    pill: { label: "Reunião marcada", tone: "lav" },
+    action: { label: "Enviar proposta", next: "PROPOSTA" } },
+  { key: "proposta", label: "Proposta", stages: ["PROPOSTA"],
+    pill: { label: "Proposta enviada", tone: "lav" },
+    action: { label: "Iniciar negociação", next: "NEGOCIACAO" } },
+  { key: "negociacao", label: "Negociação", stages: ["NEGOCIACAO"],
+    pill: { label: "Em negociação", tone: "blue" },
+    action: { label: "Registrar fechamento", next: "FECHADO" } },
+  { key: "fechamento", label: "Fechamento", stages: ["FECHADO"],
+    pill: { label: "Assinado", tone: "green" },
+    action: { label: "Gerar contrato rascunho", next: "CONTRATO" } },
+  { key: "contrato", label: "Contrato rascunho", stages: ["CONTRATO"],
+    pill: { label: "Contrato rascunho", tone: "gray" },
+    action: { label: "Enviar assinatura", kind: "habilitar", next: "ONBOARDING" } },
+  { key: "onboarding", label: "Onboarding", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"],
+    pill: { label: "Em onboarding", tone: "blue" },
+    action: { label: "Ver onboarding", kind: "onboarding" } },
+];
+const ALL_STAGES: PlatformLeadStage[] = [...COLUMNS.flatMap((c) => c.stages), "PERDIDO"];
 
 const EDITOR_LABEL: CSSProperties = { fontSize: 10.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-sec)", marginTop: 6 };
 
@@ -418,21 +410,60 @@ export function CrmSection() {
     finally { setBusyId(null); }
   }
 
-  const byStage = useMemo(() => {
-    const map = new Map<PlatformLeadStage, PlatformLeadSummary[]>();
-    for (const s of ALL_STAGES) map.set(s, []);
+  const byColumn = useMemo(() => {
+    const map = new Map<string, PlatformLeadSummary[]>();
+    for (const c of COLUMNS) map.set(c.key, []);
+    const lost: PlatformLeadSummary[] = [];
     for (const l of leads ?? []) {
-      // Leads em estágios legados aparecem na coluna Oportunidade.
-      const col = FOLD_INTO_OPORTUNIDADE.includes(l.stage) ? "OPORTUNIDADE" : l.stage;
-      map.get(col)?.push(l);
+      if (l.stage === "PERDIDO") { lost.push(l); continue; }
+      const col = COLUMNS.find((c) => c.stages.includes(l.stage));
+      map.get(col?.key ?? "captacao")?.push(l);
     }
+    map.set("__perdidos", lost);
     return map;
   }, [leads]);
 
-  const total = leads?.length ?? 0;
-  const fechados = byStage.get("FECHADO")?.length ?? 0;
-  const reunioes = byStage.get("OPORTUNIDADE")?.length ?? 0;
-  const conv = total ? Math.round((fechados / total) * 100) : 0;
+  const perdidos = byColumn.get("__perdidos") ?? [];
+  const abertos = (leads ?? []).filter((l) => l.stage !== "PERDIDO");
+  const total = abertos.length;
+  const reunioes = (byColumn.get("prediag") ?? []).length;
+  const preDiags = abertos.filter((l) => l.diagnosticScore != null).length;
+  const semContato = abertos.filter((l) => !l.firstContactedAt && !l.convertedTenantId).length;
+  const GANHO: PlatformLeadStage[] = ["FECHADO", "CONTRATO", "ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"];
+  const ganhos = abertos.filter((l) => GANHO.includes(l.stage) || l.convertedTenantId);
+  const todosLeads = leads ?? [];
+  const conv = todosLeads.length ? Math.round((ganhos.length / todosLeads.length) * 100) : 0;
+  const comValor = (ganhos.length ? ganhos : abertos).filter((l) => (l.proposedValueCents ?? 0) > 0);
+  const ticket = comValor.length
+    ? brlCents(Math.round(comValor.reduce((s, l) => s + (l.proposedValueCents ?? 0), 0) / comValor.length))
+    : "—";
+
+  // Conversão por origem: % de ganhos dentro de cada origem (inclui perdidos na base).
+  const porOrigem = useMemo(() => {
+    const acc = new Map<string, { total: number; ganhos: number }>();
+    for (const l of todosLeads) {
+      const key = platformLeadOriginLabel(l.origin);
+      const cur = acc.get(key) ?? { total: 0, ganhos: 0 };
+      cur.total += 1;
+      if (GANHO.includes(l.stage) || l.convertedTenantId) cur.ganhos += 1;
+      acc.set(key, cur);
+    }
+    return [...acc.entries()]
+      .map(([label, v]) => ({ label, pct: Math.round((v.ganhos / v.total) * 100), total: v.total }))
+      .sort((a, b) => b.total - a.total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads]);
+
+  const motivosPerda = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const l of perdidos) {
+      const r = PLATFORM_LEAD_LOST_REASONS.find((x) => x.value === l.lostReason);
+      const label = r?.label ?? (l.lostReason || "Não informado");
+      acc.set(label, (acc.get(label) ?? 0) + 1);
+    }
+    return [...acc.entries()].sort((a, b) => b[1] - a[1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads]);
 
   const [resetting, setResetting] = useState(false);
   const [deduping, setDeduping] = useState(false);
@@ -477,7 +508,7 @@ export function CrmSection() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">CRM — Funil comercial</h1>
+          <h1 className="page-title">CRM — Funil</h1>
           <p className="page-sub">
             Gestão da jornada comercial CRIVO — da captação do lead ao contrato e onboarding.
           </p>
@@ -487,7 +518,7 @@ export function CrmSection() {
             {deduping ? "Limpando…" : "Limpar duplicados"}
           </button>
           <button className="btn btn--ghost btn--sm is-danger" onClick={onResetData} disabled={resetting}>
-            {resetting ? "Zerando…" : "⚠ Zerar base de teste"}
+            {resetting ? "Zerando…" : "Zerar base (admin)"}
           </button>
         </div>
       </div>
@@ -499,216 +530,177 @@ export function CrmSection() {
 
       {status === "ok" && leads && (
         <>
-          <div className="kpi-grid" style={{ marginBottom: 20 }}>
+          <div className="kpi-grid crm-kpis" style={{ marginBottom: 20 }}>
             <div className="kpi">
               <span className="kpi__label">Leads no funil</span>
               <strong className="kpi__value">{total}</strong>
-              <span className="kpi__delta">todas as origens</span>
             </div>
             <div className="kpi">
               <span className="kpi__label">Reuniões agendadas</span>
               <strong className="kpi__value">{reunioes}</strong>
-              <span className="kpi__delta">em negociação</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Pré-diagnósticos</span>
+              <strong className="kpi__value">{preDiags}</strong>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Sem 1º contato</span>
+              <strong className="kpi__value">{semContato}</strong>
             </div>
             <div className="kpi">
               <span className="kpi__label">Taxa de conversão</span>
               <strong className="kpi__value">{conv}%</strong>
-              <span className="kpi__delta">fechados / total</span>
             </div>
             <div className="kpi">
-              <span className="kpi__label">Pré-diagnósticos</span>
-              <strong className="kpi__value">{leads.filter((l) => l.diagnosticScore != null).length}</strong>
-              <span className="kpi__delta">leads qualificados</span>
+              <span className="kpi__label">Ticket médio</span>
+              <strong className="kpi__value">{ticket}</strong>
             </div>
           </div>
 
-          <div className="kanban kanban--macro">
-            {MACROS.map((m) => {
-              const items = m.stages.flatMap((s) => byStage.get(s) ?? []);
-              const totalValue = items.reduce((sum, l) => sum + (l.proposedValueCents ?? 0), 0);
+          <div className="crm-board">
+            {COLUMNS.map((col) => {
+              const items = byColumn.get(col.key) ?? [];
               return (
-                <div className="kb-col kb-col--macro" key={m.key}>
-                  <div className="kb-col__head">
-                    {m.label}
-                    <em>{items.length}{totalValue > 0 ? ` · ${brlCents(totalValue)}` : ""}</em>
+                <div className="crm-col" key={col.key}>
+                  <div className="crm-col__head">
+                    <span>{col.label}</span>
+                    <em>{items.length}</em>
                   </div>
-                  <p className="kb-col__help">{m.help}</p>
-                  {/* Etapas FINAS sempre visíveis como subgrupos (feedback do cliente:
-                      "sumiu as etapas" / "Avançar não muda nada") — o card muda de
-                      subgrupo ao avançar, e etapas vazias ficam esmaecidas. */}
-                  {m.stages.map((s) => {
-                    const stageItems = byStage.get(s) ?? [];
+                  {items.map((l) => {
+                    const contatoFeito = !!l.firstContactedAt;
+                    const pill =
+                      col.key === "captacao" && contatoFeito
+                        ? { label: "Contato feito", tone: "green" as const }
+                        : col.pill;
+                    // Ação primária da coluna (rótulo/comportamento por etapa).
+                    let actionLabel = col.action.label;
+                    let onAction: () => void = () => {};
+                    if (col.action.kind === "contato") {
+                      if (!contatoFeito) onAction = () => markContact(l.id);
+                      else { actionLabel = "Qualificar lead"; onAction = () => move(l.id, "OPORTUNIDADE"); }
+                    } else if (col.action.kind === "habilitar") {
+                      if (l.convertedTenantId) onAction = () => openContract(l.convertedTenantId!);
+                      else { actionLabel = "Habilitar cliente (sistema)"; onAction = () => setConverting(l); }
+                    } else if (col.action.kind === "onboarding") {
+                      if (l.convertedTenantId) onAction = () => openContract(l.convertedTenantId!);
+                      else { actionLabel = "Habilitar cliente (sistema)"; onAction = () => setConverting(l); }
+                    } else if (col.action.next) {
+                      const n = col.action.next;
+                      onAction = () => move(l.id, n);
+                    }
+                    const expanded = expandedId === l.id;
                     return (
-                      <div className="kb-substage" key={s}>
-                        <div
-                          className={`kb-substage__head${stageItems.length === 0 ? " is-empty" : ""}`}
-                          title={STAGE_HELP[s] ?? ""}
-                        >
-                          <i aria-hidden="true" />
-                          <span>{PLATFORM_LEAD_STAGE_LABEL[s]}</span>
-                          <em>{stageItems.length}</em>
-                        </div>
-                        {stageItems.map((l) => (
-                    <article
-                      key={l.id}
-                      className={`kb-card${l.stage === "FECHADO" ? " kb-card--won" : l.diagnosticScore != null ? " kb-card--hot" : ""}`}
-                      style={{ opacity: busyId === l.id ? 0.5 : 1 }}
-                    >
-                      <strong>{l.company || l.name}</strong>
-                      <span className="kb-meta">
-                        {l.company ? `${l.name} · ` : ""}
-                        {l.segment ?? "—"}
-                        {l.employeesCount ? ` · ${l.employeesCount} colab.` : ""}
-                      </span>
-                      <div className="kb-foot">
-                        <span className="kb-score">
-                          {l.diagnosticScore != null ? `Pré ${l.diagnosticScore}` : "Sem pré-diag."}
-                        </span>
-                        {l.riskGrade && (
-                          <span
-                            className={`kb-risk kb-risk--${l.riskGrade.toLowerCase()}`}
-                            title="Grau de risco preliminar (base: CNPJ)"
+                      <article key={l.id} className="crm-card" style={{ opacity: busyId === l.id ? 0.55 : 1 }}>
+                        <div className="crm-card__top">
+                          <strong className="crm-card__name" title={l.company || l.name}>
+                            {l.company || l.name}
+                          </strong>
+                          <button
+                            type="button"
+                            className="crm-card__menu"
+                            aria-label="Mais ações do lead"
+                            aria-expanded={expanded}
+                            onClick={() => setExpandedId(expanded ? null : l.id)}
                           >
-                            Risco {l.riskGrade}
-                          </span>
-                        )}
-                        {l.phone && <span className="kb-wpp">{l.phone}</span>}
-                      </div>
-                      {(l.origin || l.nextActionAt || l.interestProductId || l.proposedValueCents != null || l.commercialOwner) && (
-                        <div className="kb-meta" style={{ marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {l.origin && <span title="Origem/canal">◦ {platformLeadOriginLabel(l.origin)}</span>}
-                          {l.interestProductId && (
-                            <span title="Solução de interesse">
-                              ◈ {products.find((p) => p.id === l.interestProductId)?.name ?? "Solução"}
-                            </span>
-                          )}
-                          {l.proposedValueCents != null && (
-                            <span title="Valor proposto" style={{ color: "#2E7D4F" }}>{brlCents(l.proposedValueCents)}</span>
-                          )}
-                          {l.commercialOwner && <span title="Responsável comercial">◭ {l.commercialOwner}</span>}
-                          {l.nextActionAt && (
-                            <span
-                              title={l.nextActionNote ?? "Próxima ação"}
-                              style={{ color: new Date(l.nextActionAt) < new Date(new Date().toDateString()) ? "#C0392B" : "#8A6D1F" }}
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+                            </svg>
+                          </button>
+                        </div>
+                        <span className="crm-chip">Origem: {platformLeadOriginLabel(l.origin)}</span>
+                        <div className="crm-rows">
+                          <div className="crm-row">
+                            <span>Func.</span>
+                            <b>{l.employeesCount ?? "—"}</b>
+                          </div>
+                          <div className="crm-row">
+                            <span>Resp.</span>
+                            <b>{l.commercialOwner ?? "—"}</b>
+                          </div>
+                        </div>
+                        <span className={`crm-pill crm-pill--${pill.tone}`}>{pill.label}</span>
+                        <p className="crm-next">
+                          <b>Próxima:</b>{" "}
+                          {l.nextActionNote
+                            ? `${l.nextActionNote}${l.nextActionAt ? ` · ${new Date(l.nextActionAt).toLocaleDateString("pt-BR")}` : ""}`
+                            : l.nextActionAt
+                              ? new Date(l.nextActionAt).toLocaleDateString("pt-BR")
+                              : "—"}
+                        </p>
+                        <button
+                          type="button"
+                          className={`crm-btn${col.key === "qualificacao" ? " crm-btn--dark" : ""}`}
+                          disabled={busyId === l.id}
+                          onClick={onAction}
+                        >
+                          {actionLabel}
+                        </button>
+
+                        {expanded && (
+                          <div className="crm-more">
+                            {l.convertedTenantId && (
+                              <span className="kb-converted">Cliente habilitado — sistema liberado</span>
+                            )}
+                            <button type="button" className="kb-report" onClick={() => setDataLead(l)}>
+                              Ver dados da empresa
+                            </button>
+                            {l.diagnosticScore != null && (
+                              <button type="button" className="kb-report" onClick={() => setReportingLead(l)}>
+                                Relatório Preliminar CRIVO
+                              </button>
+                            )}
+                            {l.convertedTenantId && (
+                              <button type="button" className="kb-report" onClick={() => openContract(l.convertedTenantId!)}>
+                                Contrato da empresa
+                              </button>
+                            )}
+                            {!contatoFeito && col.key !== "captacao" && (
+                              <button type="button" className="kb-report" disabled={busyId === l.id} onClick={() => markContact(l.id)}>
+                                Marcar 1º contato
+                              </button>
+                            )}
+                            <span style={EDITOR_LABEL}>Mover etapa</span>
+                            <select
+                              value={l.stage}
+                              disabled={busyId === l.id || !!l.convertedTenantId}
+                              onChange={(e) => move(l.id, e.target.value as PlatformLeadStage)}
+                              className="kb-stage-select"
+                              aria-label="Mover lead no funil"
                             >
-                              ▶ {new Date(l.nextActionAt).toLocaleDateString("pt-BR")}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <select
-                        value={l.stage}
-                        disabled={busyId === l.id || !!l.convertedTenantId}
-                        onChange={(e) => move(l.id, e.target.value as PlatformLeadStage)}
-                        className="kb-stage-select"
-                        aria-label="Mover lead no funil"
-                      >
-                        {ALL_STAGES.map((s) => (
-                          <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
-                        ))}
-                      </select>
-                      {l.stage === "PERDIDO" && (
-                        <select
-                          value={l.lostReason ?? ""}
-                          disabled={busyId === l.id}
-                          onChange={(e) => setLostReason(l.id, e.target.value)}
-                          className="kb-stage-select"
-                          style={{ marginTop: 6 }}
-                          aria-label="Motivo da perda"
-                        >
-                          <option value="">Motivo da perda…</option>
-                          {PLATFORM_LEAD_LOST_REASONS.map((r) => (
-                            <option key={r.value} value={r.value}>{r.label}</option>
-                          ))}
-                        </select>
-                      )}
-                      {!l.convertedTenantId && l.stage !== "PERDIDO" && (
-                        l.firstContactedAt ? (
-                          <span className="kb-meta" style={{ marginTop: 6, color: "#2E7D4F" }}>
-                            ✓ 1º contato {new Date(l.firstContactedAt).toLocaleDateString("pt-BR")}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="kb-report"
-                            style={{ marginTop: 6 }}
-                            disabled={busyId === l.id}
-                            onClick={() => markContact(l.id)}
-                          >
-                            ◷ Marcar 1º contato
-                          </button>
-                        )
-                      )}
-                      {l.convertedTenantId ? (
-                        <>
-                          <span className="kb-converted">✓ Cliente Habilitado · sistema liberado</span>
-                          <button
-                            type="button"
-                            className="kb-report"
-                            onClick={() => openContract(l.convertedTenantId!)}
-                            title="Abrir o contrato da empresa (configurar/assinar)"
-                          >
-                            ▦ Contrato da empresa
-                          </button>
-                        </>
-                      ) : l.stage === "ONBOARDING" ? (
-                        <button type="button" className="kb-convert" onClick={() => setConverting(l)}>
-                          Habilitar cliente (sistema) →
-                        </button>
-                      ) : nextStage(l.stage) ? (
-                        <button
-                          type="button"
-                          className="kb-convert"
-                          disabled={busyId === l.id}
-                          onClick={() => {
-                            const n = nextStage(l.stage);
-                            if (n) move(l.id, n);
-                          }}
-                        >
-                          Avançar → {PLATFORM_LEAD_STAGE_LABEL[nextStage(l.stage)!]}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="kb-report"
-                        onClick={() => setDataLead(l)}
-                        title="Ver todos os dados capturados pelo CNPJ + recomendação CNAE"
-                      >
-                        ⊙ Ver dados da empresa
-                      </button>
-                      {l.diagnosticScore != null && (
-                        <button
-                          type="button"
-                          className="kb-report"
-                          onClick={() => setReportingLead(l)}
-                          title="Gerar Relatório Preliminar CRIVO via IA"
-                        >
-                          ◈ Relatório CRIVO
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="kb-report"
-                        onClick={() => setExpandedId(expandedId === l.id ? null : l.id)}
-                        title="Registrar origem, solução de interesse e follow-up"
-                      >
-                        {expandedId === l.id ? "▾ Fechar" : "✎ Registrar (origem · solução · follow-up)"}
-                      </button>
-                      {expandedId === l.id && (
-                        <LeadEditor
-                          lead={l}
-                          products={products}
-                          busy={busyId === l.id}
-                          onOrigin={(v) => saveOrigin(l.id, v)}
-                          onInterest={(v) => saveInterest(l.id, v)}
-                          onNextAction={(at, note) => saveNextAction(l.id, at, note)}
-                          onNotes={(v) => saveNotes(l.id, v)}
-                          onCommercial={(input) => saveCommercial(l.id, input)}
-                        />
-                      )}
-                    </article>
-                        ))}
-                      </div>
+                              {ALL_STAGES.filter((s) => s !== "PERDIDO").map((s) => (
+                                <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
+                              ))}
+                            </select>
+                            {!l.convertedTenantId && (
+                              <>
+                                <span style={EDITOR_LABEL}>Marcar como perdido</span>
+                                <select
+                                  value=""
+                                  disabled={busyId === l.id}
+                                  onChange={(e) => { if (e.target.value) setLostReason(l.id, e.target.value); }}
+                                  className="kb-stage-select"
+                                  aria-label="Marcar lead como perdido com motivo"
+                                >
+                                  <option value="">Escolha o motivo…</option>
+                                  {PLATFORM_LEAD_LOST_REASONS.map((r) => (
+                                    <option key={r.value} value={r.value}>{r.label}</option>
+                                  ))}
+                                </select>
+                              </>
+                            )}
+                            <LeadEditor
+                              lead={l}
+                              products={products}
+                              busy={busyId === l.id}
+                              onOrigin={(v) => saveOrigin(l.id, v)}
+                              onInterest={(v) => saveInterest(l.id, v)}
+                              onNextAction={(at, note) => saveNextAction(l.id, at, note)}
+                              onNotes={(v) => saveNotes(l.id, v)}
+                              onCommercial={(input) => saveCommercial(l.id, input)}
+                            />
+                          </div>
+                        )}
+                      </article>
                     );
                   })}
                 </div>
@@ -716,11 +708,38 @@ export function CrmSection() {
             })}
           </div>
 
-          {(byStage.get("PERDIDO")?.length ?? 0) > 0 && (
-            <p className="dash-state" style={{ marginTop: 16 }}>
-              {byStage.get("PERDIDO")!.length} lead(s) marcados como perdidos (fora do funil).
+          <div className="crm-panels">
+            <div className="crm-panel">
+              <span className="crm-panel__title">Conversão por origem</span>
+              {porOrigem.length === 0 && <p className="dash-state">Nenhum lead com origem registrada.</p>}
+              {porOrigem.map((o) => (
+                <div className="crm-panel__row" key={o.label}>
+                  <span>{o.label}</span>
+                  <b>{o.pct}%</b>
+                </div>
+              ))}
+            </div>
+            <div className="crm-panel">
+              <span className="crm-panel__title">Motivos de perda</span>
+              {motivosPerda.length === 0 && <p className="dash-state">Nenhuma perda registrada.</p>}
+              {motivosPerda.map(([label, count]) => (
+                <div className="crm-panel__row" key={label}>
+                  <span>{label}</span>
+                  <b>{count}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="crm-rules">
+            <span className="crm-panel__title">Regras desta tela</span>
+            <p>
+              Origem do lead é preenchida <strong>automaticamente</strong> por formulário, UTM, campanha, indicação,
+              MAPA Executivo CRIVO ou cadastro manual identificado. Correção manual da origem é ação administrativa{" "}
+              <strong>auditável</strong>. Lead fechado gera <strong>contrato rascunho</strong>; a conversão real
+              ocorre em <strong>Contratos e Liberações</strong>.
             </p>
-          )}
+          </div>
         </>
       )}
 

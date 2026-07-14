@@ -500,9 +500,15 @@ export class PlatformLeadsService {
       }
     }
 
+    // Não regride a etapa: lead já em CONTRATO/ONBOARDING+ mantém a posição no funil.
+    const KEEP_STAGE = ['CONTRATO', 'ONBOARDING', 'IMPLANTACAO', 'ENTREGA', 'SUSTENTACAO', 'RENOVACAO', 'UPSELL'];
     await this.prisma.admin.platformLead.update({
       where: { id: leadId },
-      data: { stage: 'FECHADO', convertedTenantId: result.tenant.id, productId: product.id },
+      data: {
+        stage: KEEP_STAGE.includes(lead.stage) ? lead.stage : 'FECHADO',
+        convertedTenantId: result.tenant.id,
+        productId: product.id,
+      },
     });
     await this.audit.record({
       action: 'lead.convert',
@@ -725,8 +731,8 @@ export class PlatformLeadsService {
   async dedupLeads(actor: Actor): Promise<{ ok: true; deleted: number; kept: number }> {
     const STAGE_RANK: Record<string, number> = {
       NOVO: 0, PRE_DIAGNOSTICO: 1, REUNIAO: 1, OPORTUNIDADE: 2, PROPOSTA: 3,
-      FECHADO: 4, CONTRATO: 5, ONBOARDING: 6, IMPLANTACAO: 7, ENTREGA: 8,
-      SUSTENTACAO: 9, RENOVACAO: 10, UPSELL: 11, PERDIDO: -1,
+      NEGOCIACAO: 4, FECHADO: 5, CONTRATO: 6, ONBOARDING: 7, IMPLANTACAO: 8,
+      ENTREGA: 9, SUSTENTACAO: 10, RENOVACAO: 11, UPSELL: 12, PERDIDO: -1,
     };
     const leads = await this.prisma.admin.platformLead.findMany({ where: { cnpj: { not: null } } });
     const groups = new Map<string, typeof leads>();

@@ -32,7 +32,7 @@ export class DashboardService {
   private static readonly FUNNEL = [
     { key: 'captacao', label: 'Captação', stages: ['NOVO', 'PRE_DIAGNOSTICO', 'REUNIAO'] },
     { key: 'oportunidade', label: 'Oportunidade', stages: ['OPORTUNIDADE'] },
-    { key: 'proposta', label: 'Proposta', stages: ['PROPOSTA'] },
+    { key: 'proposta', label: 'Proposta', stages: ['PROPOSTA', 'NEGOCIACAO'] },
     {
       key: 'ganho',
       label: 'Fechado / pós-venda',

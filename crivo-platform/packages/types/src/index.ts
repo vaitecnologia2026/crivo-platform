@@ -921,6 +921,7 @@ export const PLATFORM_LEAD_STAGES = [
   'REUNIAO',
   'OPORTUNIDADE',
   'PROPOSTA',
+  'NEGOCIACAO',
   'FECHADO',
   'CONTRATO',
   'ONBOARDING',
@@ -934,13 +935,14 @@ export const PLATFORM_LEAD_STAGES = [
 export type PlatformLeadStage = (typeof PLATFORM_LEAD_STAGES)[number];
 
 export const PLATFORM_LEAD_STAGE_LABEL: Record<PlatformLeadStage, string> = {
-  NOVO: 'Lead',
+  NOVO: 'Captação',
   PRE_DIAGNOSTICO: 'Pré-diagnóstico',
   REUNIAO: 'Reunião',
-  OPORTUNIDADE: 'Oportunidade',
+  OPORTUNIDADE: 'Qualificação',
   PROPOSTA: 'Proposta',
+  NEGOCIACAO: 'Negociação',
   FECHADO: 'Fechamento',
-  CONTRATO: 'Contrato',
+  CONTRATO: 'Contrato rascunho',
   ONBOARDING: 'Onboarding',
   IMPLANTACAO: 'Implantação',
   ENTREGA: 'Entrega',
