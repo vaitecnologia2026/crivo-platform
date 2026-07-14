@@ -14,6 +14,7 @@ import {
   type TenantSummary,
 } from "@crivo/types";
 import {
+  archiveLead,
   convertLead,
   dedupLeads,
   listLeads,
@@ -330,6 +331,21 @@ export function CrmSection() {
     }
   }
 
+  /** Conclui a jornada do lead — sai do kanban (empresa segue em Grupos e Empresas). */
+  async function archive(id: string) {
+    if (!window.confirm("Concluir a jornada deste lead? Ele sai do funil (a empresa continua em Grupos e Empresas)."))
+      return;
+    setBusyId(id);
+    try {
+      const updated = await archiveLead(id, true);
+      setLeads((prev) => prev?.map((l) => (l.id === id ? updated : l)) ?? prev);
+    } catch {
+      try { setLeads(await listLeads()); } catch { /* mantém */ }
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   /** Registra o 1º contato (idempotente no backend). */
   async function markContact(id: string) {
     setBusyId(id);
@@ -415,6 +431,7 @@ export function CrmSection() {
     for (const c of COLUMNS) map.set(c.key, []);
     const lost: PlatformLeadSummary[] = [];
     for (const l of leads ?? []) {
+      if (l.archivedAt) continue; // jornada concluída — fora do kanban (call 14/07)
       if (l.stage === "PERDIDO") { lost.push(l); continue; }
       const col = COLUMNS.find((c) => c.stages.includes(l.stage));
       map.get(col?.key ?? "captacao")?.push(l);
@@ -424,7 +441,8 @@ export function CrmSection() {
   }, [leads]);
 
   const perdidos = byColumn.get("__perdidos") ?? [];
-  const abertos = (leads ?? []).filter((l) => l.stage !== "PERDIDO");
+  const arquivados = (leads ?? []).filter((l) => l.archivedAt).length;
+  const abertos = (leads ?? []).filter((l) => l.stage !== "PERDIDO" && !l.archivedAt);
   const total = abertos.length;
   const reunioes = (byColumn.get("prediag") ?? []).length;
   const preDiags = abertos.filter((l) => l.diagnosticScore != null).length;
@@ -635,6 +653,17 @@ export function CrmSection() {
                         >
                           {actionLabel}
                         </button>
+                        {col.key === "onboarding" && (
+                          <button
+                            type="button"
+                            className="crm-btn"
+                            disabled={busyId === l.id}
+                            onClick={() => archive(l.id)}
+                            title="O kanban é uma jornada: concluiu o onboarding, sai do funil."
+                          >
+                            Concluir jornada (sair do funil)
+                          </button>
+                        )}
 
                         {expanded && (
                           <div className="crm-more">
@@ -662,14 +691,17 @@ export function CrmSection() {
                             <span style={EDITOR_LABEL}>Mover etapa</span>
                             <select
                               value={l.stage}
-                              disabled={busyId === l.id || !!l.convertedTenantId}
+                              disabled={busyId === l.id}
                               onChange={(e) => move(l.id, e.target.value as PlatformLeadStage)}
                               className="kb-stage-select"
                               aria-label="Mover lead no funil"
                             >
-                              {ALL_STAGES.filter((s) => s !== "PERDIDO").map((s) => (
-                                <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
-                              ))}
+                              {/* Convertido não regride para antes do Fechamento (o sistema já foi liberado). */}
+                              {ALL_STAGES.filter((s) => s !== "PERDIDO")
+                                .filter((s) => !l.convertedTenantId || !["NOVO", "OPORTUNIDADE", "PRE_DIAGNOSTICO", "REUNIAO", "PROPOSTA", "NEGOCIACAO"].includes(s))
+                                .map((s) => (
+                                  <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
+                                ))}
                             </select>
                             {!l.convertedTenantId && (
                               <>

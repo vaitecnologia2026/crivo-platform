@@ -636,6 +636,7 @@ export class PlatformLeadsService {
     stage: string;
     notes: string | null;
     lostReason: string | null;
+    archivedAt: Date | null;
     firstContactedAt: Date | null;
     interestProductId: string | null;
     nextActionAt: Date | null;
@@ -667,6 +668,7 @@ export class PlatformLeadsService {
       stage: l.stage as PlatformLeadStage,
       notes: l.notes,
       lostReason: l.lostReason,
+      archivedAt: l.archivedAt ? l.archivedAt.toISOString() : null,
       firstContactedAt: l.firstContactedAt?.toISOString() ?? null,
       interestProductId: l.interestProductId,
       nextActionAt: l.nextActionAt?.toISOString() ?? null,
@@ -723,6 +725,18 @@ export class PlatformLeadsService {
    * MANTÉM: super admins (login), catálogo de PRODUTOS, módulos, permissões/papéis
    *   (RBAC) e textos editáveis (copy). Deixa o sistema "do zero", mas funcional.
    */
+  /** Conclui a jornada do lead: sai do kanban (call 14/07). Reversível. */
+  async archive(id: string, archived: boolean, actor: Actor) {
+    const existing = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const updated = await this.prisma.admin.platformLead.update({
+      where: { id },
+      data: { archivedAt: archived ? new Date() : null },
+    });
+    await this.audit.record({ action: archived ? 'lead.archive' : 'lead.unarchive', actor, target: id, meta: { name: existing.name } });
+    return this.toSummary(updated);
+  }
+
   /**
    * Remove leads DUPLICADOS pelo mesmo CNPJ — mantém os já convertidos (têm
    * empresa) e, entre os abertos, o mais avançado/recente; apaga o resto + seus

@@ -35,6 +35,16 @@ export class PlatformLeadsController {
     return this.leads.setStage(id, dto.stage, { id: admin.id, email: admin.email }, dto.lostReason);
   }
 
+  /** Conclui a jornada (sai do kanban) ou reverte. Call 14/07. */
+  @Patch(':id/archive')
+  archive(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: { archived?: boolean },
+  ) {
+    return this.leads.archive(id, dto.archived ?? true, { id: admin.id, email: admin.email });
+  }
+
   /** Registra o 1º contato com o lead (mede o tempo de resposta comercial). */
   @Patch(':id/first-contact')
   markFirstContact(

@@ -1076,6 +1076,7 @@ export interface PlatformLeadSummary {
   stage: PlatformLeadStage;
   notes: string | null;
   lostReason: string | null; // motivo de perda (só quando stage === 'PERDIDO')
+  archivedAt: string | null; // ISO — saiu do kanban (jornada concluída)
   firstContactedAt: string | null; // ISO — 1º contato registrado (tempo de resposta)
   interestProductId: string | null; // solução de interesse (pré-venda; ≠ produto de origem)
   nextActionAt: string | null; // ISO — data da próxima ação (follow-up)

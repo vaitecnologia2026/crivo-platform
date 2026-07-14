@@ -162,6 +162,12 @@ export function upsertAddon(moduleCode: string, input: AddonUpsertRequest): Prom
     body: JSON.stringify(input),
   });
 }
+export function archiveLead(id: string, archived = true): Promise<PlatformLeadSummary> {
+  return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/archive`, {
+    method: "PATCH",
+    body: JSON.stringify({ archived }),
+  });
+}
 export function deleteAddon(moduleCode: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/addons/${moduleCode}`, { method: "DELETE" });
 }

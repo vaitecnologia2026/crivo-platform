@@ -655,6 +655,7 @@ model PlatformLead {
   stage             PlatformLeadStage @default(NOVO)
   notes             String?
   lostReason        String? // motivo de perda estruturado (só quando stage=PERDIDO)
+  archivedAt        DateTime? @map("archived_at") // saiu do kanban (jornada concluída) — call 14/07
   firstContactedAt  DateTime? // 1º contato registrado — mede o tempo de resposta
   interestProductId String?           @db.Uuid // solução de interesse (pré-venda; ≠ productId de origem)
   nextActionAt      DateTime? // follow-up: data da próxima ação combinada
