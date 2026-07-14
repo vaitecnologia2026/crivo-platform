@@ -627,3 +627,87 @@ describe("computeOperationalAlerts", () => {
     expect(r.locks).toHaveLength(0);
   });
 });
+
+// ============================================================
+// Modos de agregação do motor (call 14/07) — A1
+// ============================================================
+describe("scoreWithMethodology — modos de agregação", () => {
+  const BANDS = [
+    { code: "BAIXO", label: "Baixo", min: 0, max: 49 },
+    { code: "ALTO", label: "Alto", min: 50, max: 100 },
+  ];
+  // 2 dimensões com pesos diferentes; d1 tem pergunta com peso 3.
+  const CFG: MethodologyConfig = {
+    dimensions: [
+      { slug: "d1", label: "D1", weight: 3 },
+      { slug: "d2", label: "D2", weight: 1 },
+    ],
+    questions: [
+      { dimensionSlug: "d1", text: "q1", weight: 3, inverse: false },
+      { dimensionSlug: "d1", text: "q2", weight: 1, inverse: false },
+      { dimensionSlug: "d2", text: "q3", weight: 1, inverse: false },
+    ],
+    bands: BANDS,
+  };
+  // respostas: q1=5(→100), q2=1(→0), q3=3(→50)
+  const ANSWERS = [
+    { questionId: 1, value: 5 },
+    { questionId: 2, value: 1 },
+    { questionId: 3, value: 3 },
+  ];
+
+  it("default (sem aggregation) = MEDIA_PONDERADA, byte a byte", () => {
+    const semCampo = scoreWithMethodology(ANSWERS, CFG);
+    const explicito = scoreWithMethodology(ANSWERS, { ...CFG, aggregation: "MEDIA_PONDERADA" });
+    // d1 = (100·3 + 0·1)/4 = 75; d2 = 50; final = (75·3 + 50·1)/4 = 69 (round)
+    expect(semCampo.score).toBe(69);
+    expect(explicito).toEqual(semCampo);
+  });
+
+  it("MEDIA_SIMPLES ignora pesos de pergunta e de dimensão", () => {
+    const r = scoreWithMethodology(ANSWERS, { ...CFG, aggregation: "MEDIA_SIMPLES" });
+    // d1 = (100+0)/2 = 50; d2 = 50; final = (50+50)/2 = 50
+    expect(r.byDimension.find((d) => d.slug === "d1")!.value).toBe(50);
+    expect(r.score).toBe(50);
+  });
+
+  it("SOMA_NORMALIZADA = % do máximo possível sobre todas as questões", () => {
+    const r = scoreWithMethodology(ANSWERS, { ...CFG, aggregation: "SOMA_NORMALIZADA" });
+    // Σ(norm·w) = 100·3 + 0·1 + 50·1 = 350; máx = (3+1+1)·100 = 500 → 70
+    expect(r.score).toBe(70);
+    // leitura por dimensão continua fração do máximo da dimensão
+    expect(r.byDimension.find((d) => d.slug === "d1")!.value).toBe(75);
+  });
+
+  it("clamp 0–100 em todos os modos (nunca negativo)", () => {
+    for (const aggregation of ["MEDIA_PONDERADA", "MEDIA_SIMPLES", "SOMA_NORMALIZADA"] as const) {
+      const r = scoreWithMethodology(
+        [{ questionId: 1, value: 1 }],
+        {
+          dimensions: [{ slug: "d", label: "D", weight: 1 }],
+          questions: [{ dimensionSlug: "d", text: "q", weight: 1, inverse: false }],
+          bands: BANDS,
+          aggregation,
+        },
+      );
+      expect(r.score).toBeGreaterThanOrEqual(0);
+      expect(r.score).toBeLessThanOrEqual(100);
+      expect(r.score).toBe(0);
+    }
+  });
+
+  it("perguntas invertidas funcionam nos 3 modos", () => {
+    for (const aggregation of ["MEDIA_PONDERADA", "MEDIA_SIMPLES", "SOMA_NORMALIZADA"] as const) {
+      const r = scoreWithMethodology(
+        [{ questionId: 1, value: 5 }],
+        {
+          dimensions: [{ slug: "d", label: "D", weight: 1 }],
+          questions: [{ dimensionSlug: "d", text: "q", weight: 1, inverse: true }],
+          bands: BANDS,
+          aggregation,
+        },
+      );
+      expect(r.score).toBe(0);
+    }
+  });
+});

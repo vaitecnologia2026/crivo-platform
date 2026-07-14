@@ -38,6 +38,8 @@ export function MethodologySection() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false); // conteúdo da versão ATIVA (inline)
+  const [viewVersion, setViewVersion] = useState<MethodologyVersion | null>(null); // versão do histórico (modal)
 
   async function load() {
     setErr(null);
@@ -180,6 +182,11 @@ export function MethodologySection() {
         )}
         <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
           {active && (
+            <button className="btn btn--outline-dark btn--sm" onClick={() => setContentOpen((v) => !v)}>
+              {contentOpen ? "Ocultar conteúdo" : "Ver conteúdo da versão"}
+            </button>
+          )}
+          {active && (
             <button className="btn btn--outline-dark btn--sm" onClick={() => setDemoOpen(true)}>
               Ver demo do instrumento
             </button>
@@ -190,10 +197,35 @@ export function MethodologySection() {
             </button>
           )}
         </div>
+
+        {/* Conteúdo da versão ATIVA + memória de cálculo (leitura) */}
+        {contentOpen && active && <VersionContent version={active} bandWord={meta.bandWord} />}
       </div>
 
       {demoOpen && active && (
         <InstrumentDemo version={active} instrumentLabel={meta.label} onClose={() => setDemoOpen(false)} />
+      )}
+
+      {/* Conteúdo de uma versão do HISTÓRICO (modal) */}
+      {viewVersion && (
+        <div className="modal-backdrop" onClick={() => setViewVersion(null)}>
+          <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+            <header className="modal__head">
+              <h2>
+                v{viewVersion.version} — {viewVersion.label}
+              </h2>
+              <button className="icon-btn" onClick={() => setViewVersion(null)} title="Fechar">✕</button>
+            </header>
+            <div className="modal__body">
+              <VersionContent version={viewVersion} bandWord={meta.bandWord} />
+            </div>
+            <div className="modal__foot">
+              <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => setViewVersion(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Editor do rascunho */}
@@ -288,14 +320,102 @@ export function MethodologySection() {
                     {v.publishedAt ? ` · publicada ${new Date(v.publishedAt).toLocaleDateString("pt-BR")}` : ""}
                   </div>
                 </div>
-                <span className={`cnae-badge cnae-badge--${v.status === "ACTIVE" ? "baixo" : v.status === "DRAFT" ? "medio" : "alto"}`}>
-                  {v.status === "ACTIVE" ? "Ativa" : v.status === "DRAFT" ? "Rascunho" : "Arquivada"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={async () => {
+                      try { setViewVersion(await getMethodologyVersion(v.id)); }
+                      catch { setErr("Não foi possível abrir esta versão."); }
+                    }}
+                  >
+                    Ver conteúdo
+                  </button>
+                  <span className={`cnae-badge cnae-badge--${v.status === "ACTIVE" ? "baixo" : v.status === "DRAFT" ? "medio" : "alto"}`}>
+                    {v.status === "ACTIVE" ? "Ativa" : v.status === "DRAFT" ? "Rascunho" : "Arquivada"}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Conteúdo READ-ONLY de uma versão da metodologia: memória de cálculo (como a
+ * versão pontua, derivada da config real) + dimensões→perguntas + faixas.
+ * Pedido do cliente (call 14/07): "consigo cadastrar, mas preciso VER o que
+ * tem lá dentro" + "onde vejo a memória de cálculo".
+ */
+function VersionContent({ version, bandWord }: { version: MethodologyVersion; bandWord: string }) {
+  const hasCustomWeights =
+    version.dimensions.some((d) => d.weight !== 1) || version.questions.some((q) => q.weight !== 1);
+  const invertidas = version.questions.filter((q) => q.inverse).length;
+  return (
+    <div className="meth-view">
+      <div className="meth-view__calc">
+        <span className="meth-view__title">Memória de cálculo — como esta versão pontua</span>
+        <ol>
+          <li>Cada resposta usa escala de 5 pontos, normalizada para 0–100.</li>
+          <li>
+            {invertidas > 0
+              ? `${invertidas} pergunta(s) invertida(s): afirmação negativa espelha a pontuação (100 − valor).`
+              : "Nenhuma pergunta invertida nesta versão."}
+          </li>
+          <li>
+            Score da dimensão = média {hasCustomWeights ? "PONDERADA (pesos abaixo)" : "das perguntas (pesos iguais)"}.
+          </li>
+          <li>
+            Score final = média {hasCustomWeights ? "ponderada" : ""} das dimensões, aplicada na régua de{" "}
+            {bandWord.toLowerCase()}.
+          </li>
+          <li>O resultado fica sempre entre 0 e 100 — não existe pontuação negativa.</li>
+        </ol>
+      </div>
+
+      {version.dimensions.map((d) => {
+        const qs = version.questions.filter((q) => q.dimensionSlug === d.slug);
+        return (
+          <div key={d.slug} className="meth-view__dim">
+            <div className="meth-view__dimhead">
+              <strong>{d.label}</strong>
+              <em>peso {d.weight} · {qs.length} pergunta(s)</em>
+            </div>
+            <ul>
+              {qs.map((q, i) => (
+                <li key={i}>
+                  {q.text}
+                  <span className="meth-view__qmeta">
+                    peso {q.weight}
+                    {q.inverse ? " · invertida" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+
+      <div className="meth-view__bands">
+        <span className="meth-view__title">{bandWord}</span>
+        <table>
+          <thead>
+            <tr><th>Faixa</th><th>Rótulo</th><th>Intervalo</th></tr>
+          </thead>
+          <tbody>
+            {version.bands.map((b) => (
+              <tr key={b.code}>
+                <td><code>{b.code}</code></td>
+                <td>{b.label}</td>
+                <td>{b.min}–{b.max}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -327,7 +447,8 @@ function InstrumentDemo({
   const [result, setResult] = useState<{
     score: number;
     band: { label: string; code: string } | null;
-    byDim: { label: string; score: number }[];
+    byDim: { label: string; score: number; detail: string }[];
+    finalDetail: string;
   } | null>(null);
 
   const total = version.questions.length;
@@ -351,13 +472,18 @@ function InstrumentDemo({
       acc.wsum += w;
       dimAcc.set(q.dimensionSlug, acc);
     });
-    const score = wsum > 0 ? Math.round(sum / wsum) : 0;
+    const score = Math.max(0, Math.min(100, wsum > 0 ? Math.round(sum / wsum) : 0));
     const band = version.bands.find((b) => score >= b.min && score <= b.max) ?? null;
     const byDim = version.dimensions.map((d) => {
       const acc = dimAcc.get(d.slug);
-      return { label: d.label, score: acc && acc.wsum > 0 ? Math.round(acc.sum / acc.wsum) : 0 };
+      const dimScore = acc && acc.wsum > 0 ? Math.max(0, Math.min(100, Math.round(acc.sum / acc.wsum))) : 0;
+      const detail = acc && acc.wsum > 0
+        ? `Σ(resposta normalizada × peso) ÷ Σ(pesos) = ${Math.round(acc.sum)} ÷ ${acc.wsum} = ${dimScore}`
+        : "sem respostas";
+      return { label: d.label, score: dimScore, detail };
     });
-    setResult({ score, band: band ? { label: band.label, code: band.code } : null, byDim });
+    const finalDetail = `média ponderada das respostas = ${Math.round(sum)} ÷ ${wsum} = ${score} → faixa ${band ? band.label : "—"}`;
+    setResult({ score, band: band ? { label: band.label, code: band.code } : null, byDim, finalDetail });
   }
 
   return (
@@ -411,15 +537,17 @@ function InstrumentDemo({
                 <span>/ 100</span>
                 {result.band && <em>{result.band.label}</em>}
               </div>
+              <p className="demo-result__formula">{result.finalDetail}</p>
               <div className="demo-result__dims">
                 {result.byDim.map((d) => (
-                  <div key={d.label} className="demo-result__dim">
+                  <div key={d.label} className="demo-result__dim" title={d.detail}>
                     <span>{d.label}</span>
                     <div className="demo-bar"><i style={{ width: `${d.score}%` }} /></div>
                     <b>{d.score}</b>
                   </div>
                 ))}
               </div>
+              <p className="demo-result__hint">Passe o mouse numa dimensão para ver a memória de cálculo dela.</p>
             </div>
           )}
         </div>
