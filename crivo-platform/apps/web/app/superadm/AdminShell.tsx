@@ -7,6 +7,7 @@ import { DashboardSection } from "./DashboardSection";
 import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
+import { AddonsSection } from "./AddonsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
@@ -33,7 +34,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -53,6 +54,7 @@ const NI = {
   integracoes: <svg viewBox="0 0 24 24" fill="none"><path d="M9 7H6a3 3 0 0 0 0 6h3M15 7h3a3 3 0 0 1 0 6h-3M8.5 10h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M12 16v4m-3-2h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   rbac: <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8.5" r="3" stroke="currentColor" strokeWidth="1.7"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M16.5 9.5 18 11l3-3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   auditoria: <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9.5 12h5M12 9.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  adicionais: <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="12.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="12.5" y="12.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="8" y="3.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><path d="M18 5.5h4M20 3.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
 };
 
 // Agrupamento do redesign aprovado (mockup Lovable): 5 grupos. Sem seções novas —
@@ -63,6 +65,7 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "empresas", label: "Grupos e Empresas-cliente", icon: NI.empresas, current: "Grupos e Empresas-cliente", group: "Operação" },
   { key: "contratos", label: "Contratos e Liberações", icon: NI.contratos, current: "Contratos e Liberações", group: "Operação" },
   { key: "produtos", label: "Soluções CRIVO", icon: NI.solucoes, current: "Soluções CRIVO", group: "Catálogo Comercial" },
+  { key: "adicionais", label: "Adicionais", icon: NI.adicionais, current: "Adicionais", group: "Catálogo Comercial" },
   { key: "cnae", label: "Motor de Enquadramento", icon: NI.enquadramento, current: "Motor de Enquadramento CRIVO", group: "Motores e Entrega" },
   { key: "metodologia", label: "Motor de Diagnósticos", icon: NI.diagnosticos, current: "Motor de Diagnósticos · Metodologia", group: "Motores e Entrega" },
   { key: "extras", label: "Recursos da Entrega", icon: NI.entrega, current: "Recursos da Entrega", group: "Motores e Entrega" },
@@ -175,6 +178,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "overview" && <OverviewSection onNavigate={(s) => setSection(s as Section)} />}
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
+          {section === "adicionais" && <AddonsSection />}
           {section === "cnae" && <CnaeSection />}
           {section === "contratos" && <ContractsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
@@ -260,7 +264,8 @@ const ACTION_LABEL: Record<string, string> = {
   "contract.update": "Contrato atualizado",
   "platform.user.create": "Usuário CRIVO criado",
   "platform.user.update": "Usuário CRIVO atualizado",
-  "addon.upsert": "Preço de adicional definido",
+  "addon.upsert": "Adicional salvo no catálogo",
+  "addon.delete": "Adicional removido do catálogo",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",
   "ai.prompt.update": "Prompt de IA editado",

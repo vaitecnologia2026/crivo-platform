@@ -21,9 +21,20 @@ import {
 } from "@/lib/admin-api";
 
 const brl = (cents: number) =>
-  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-/** Catálogo de PRODUTOS — núcleo product-driven (tudo nasce daqui). */
+const moduleName = (code: string) => MODULES.find((m) => m.code === code)?.name ?? code;
+
+/** Rótulo de preço do card: livre (priceLabel) ou derivado dos valores. */
+function priceText(p: ProductSummary): string {
+  if (p.priceLabel) return p.priceLabel;
+  if (p.isLeadCapture) return "Gratuito (entrada de funil)";
+  if (p.monthlyPriceCents > 0) return `${brl(p.monthlyPriceCents)} / mês`;
+  if (p.setupPriceCents > 0) return brl(p.setupPriceCents);
+  return "—";
+}
+
+/** Catálogo de Soluções CRIVO — cards no padrão do mockup do cliente (14/07). */
 export function ProductsSection() {
   const [products, setProducts] = useState<ProductSummary[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
@@ -53,12 +64,13 @@ export function ProductsSection() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Catálogo de Soluções CRIVO</h1>
+          <h1 className="page-title">Soluções CRIVO</h1>
           <p className="page-sub">
-            Tudo nasce de uma solução: preço, limites, módulos liberados, diagnóstico e IA.
+            Catálogo comercial global da CRIVO. A habilitação para cada cliente é realizada exclusivamente em
+            Contratos e Liberações.
           </p>
         </div>
-        <button className="btn btn--terra btn--sm" onClick={() => setEditing("new")}>
+        <button className="btn btn--sm sol-newbtn" onClick={() => setEditing("new")}>
           Nova solução
         </button>
       </div>
@@ -69,47 +81,88 @@ export function ProductsSection() {
       )}
 
       {status === "ok" && products && (
-        <div className="prod-grid">
-          {products.map((p) => (
-            <article key={p.id} className={`prod-card${p.isLeadCapture ? " prod-card--capture" : ""}`}>
-              <div className="prod-card__head">
-                <strong>{p.name}</strong>
-                <span className={`prod-status prod-status--${p.status}`}>
-                  {PRODUCT_STATUS_LABEL[p.status]}
-                </span>
-              </div>
-              <p className="prod-card__desc">{p.description ?? "—"}</p>
-              <div className="prod-price">
-                {p.isLeadCapture ? (
-                  <span>Captura de leads · sem cobrança</span>
-                ) : (
-                  <>
-                    {brl(p.monthlyPriceCents)}<span>/mês</span>
-                    {p.setupPriceCents > 0 && <span> · implantação {brl(p.setupPriceCents)}</span>}
-                  </>
+        <div className="sol-list">
+          {products.map((p) => {
+            const subtitle = [p.category, p.plan ? `Plano: ${p.plan.charAt(0) + p.plan.slice(1).toLowerCase()}` : null]
+              .filter(Boolean)
+              .join(" · ");
+            const compat = p.compatiblePackages.length > 0 ? p.compatiblePackages : p.allowedAddons.map(moduleName);
+            return (
+              <article key={p.id} className="sol-card">
+                <div className="sol-card__head">
+                  <div>
+                    <h2 className="sol-card__name">{p.name}</h2>
+                    {subtitle && <span className="sol-card__sub">{subtitle}</span>}
+                  </div>
+                  <div className="sol-card__actions">
+                    <span className={`sol-status sol-status--${p.status}`}>{PRODUCT_STATUS_LABEL[p.status]}</span>
+                    <button type="button" onClick={() => openEdit(p.id)}>Editar</button>
+                    <button type="button" className="is-danger" onClick={() => remove(p)}>Excluir</button>
+                  </div>
+                </div>
+
+                {p.coreDelivery && (
+                  <div className="sol-core">
+                    <span className="sol-label">Core da entrega</span>
+                    <p>{p.coreDelivery}</p>
+                  </div>
                 )}
-              </div>
-              <div className="prod-meta">
-                {p.isLeadCapture && <span className="prod-pill prod-pill--lp">Pré-Diagnóstico LP</span>}
-                {p.appearsOnLp && <span className="prod-pill prod-pill--lp">Na LP</span>}
-                {p.sellableStandalone && <span className="prod-pill">Vende isolada</span>}
-                {p.canBeAddon && <span className="prod-pill">Adicional</span>}
-                {(p.allowsAi || p.allowsCustomAi) && (
-                  <span className="prod-pill">IA{p.allowsCustomAi ? " personalizada" : ""}</span>
+                {p.description && <p className="sol-desc">{p.description}</p>}
+
+                {p.modalities.length > 0 && (
+                  <div className="sol-block">
+                    <span className="sol-label">Modalidades</span>
+                    <div className="sol-chips">
+                      {p.modalities.map((m) => <span key={m} className="sol-chip">{m}</span>)}
+                    </div>
+                  </div>
                 )}
-                {p.plan && <span className="prod-pill">Plano {p.plan}</span>}
-                <span className="prod-pill">{p.modules.length} módulos</span>
-                {p.coreModules.length > 0 && <span className="prod-pill">{p.coreModules.length} CORE</span>}
-                <span className="prod-pill">
-                  {p.maxUsers === 0 ? "Usuários ∞" : `${p.maxUsers} usuários`}
-                </span>
-              </div>
-              <div className="prod-card__foot">
-                <button onClick={() => openEdit(p.id)}>Editar</button>
-                <button className="is-danger" onClick={() => remove(p)}>Excluir</button>
-              </div>
-            </article>
-          ))}
+
+                <div className="sol-facts">
+                  <div><span className="sol-label">Preço</span><b>{priceText(p)}</b></div>
+                  <div><span className="sol-label">Implantação</span><b>{p.implementation ?? "—"}</b></div>
+                  <div><span className="sol-label">Venda isolada</span><b>{p.sellableStandalone ? "Sim" : "Não"}</b></div>
+                  <div><span className="sol-label">Aparece na LP</span><b>{p.appearsOnLp ? "Sim" : "Não"}</b></div>
+                  <div><span className="sol-label">Permite IA</span><b>{p.allowsAi || p.allowsCustomAi ? "Sim" : "Não"}</b></div>
+                  <div><span className="sol-label">Limite usuários</span><b>{p.maxUsers === 0 ? "Ilimitado" : p.maxUsers}</b></div>
+                </div>
+
+                <div className="sol-two">
+                  <div className="sol-block">
+                    <span className="sol-label">Módulos técnicos sugeridos</span>
+                    {p.modules.length > 0 ? (
+                      <div className="sol-chips">
+                        {p.modules.map((c) => <span key={c} className="sol-chip">{moduleName(c)}</span>)}
+                      </div>
+                    ) : (
+                      <span className="sol-empty">—</span>
+                    )}
+                  </div>
+                  <div className="sol-block">
+                    <span className="sol-label">Adicionais sugeridos</span>
+                    {p.suggestedAddons.length > 0 ? (
+                      <div className="sol-chips">
+                        {p.suggestedAddons.map((a) => <span key={a} className="sol-chip sol-chip--terra">{a}</span>)}
+                      </div>
+                    ) : (
+                      <span className="sol-empty">—</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sol-block">
+                  <span className="sol-label">Adicionais / pacotes compatíveis</span>
+                  {compat.length > 0 ? (
+                    <div className="sol-chips">
+                      {compat.map((a) => <span key={a} className="sol-chip">{a}</span>)}
+                    </div>
+                  ) : (
+                    <span className="sol-empty">—</span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
           {products.length === 0 && (
             <p className="dash-state">Nenhuma solução. Crie a primeira em “Nova solução”.</p>
           )}
@@ -126,6 +179,9 @@ export function ProductsSection() {
     </>
   );
 }
+
+/** Converte "a, b, c" em ["a","b","c"] (chips por vírgula). */
+const splitChips = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean);
 
 function ProductForm({
   initial,
@@ -146,6 +202,10 @@ function ProductForm({
     maxUsers: initial?.maxUsers ?? 0,
     maxLeaders: initial?.maxLeaders ?? 0,
     companyType: initial?.companyType ?? "",
+    category: initial?.category ?? "",
+    coreDelivery: initial?.coreDelivery ?? "",
+    implementation: initial?.implementation ?? "",
+    priceLabel: initial?.priceLabel ?? "",
     modules: initial?.modules ?? [],
     coreModules: initial?.coreModules ?? [],
     isLeadCapture: initial?.isLeadCapture ?? false,
@@ -158,6 +218,10 @@ function ProductForm({
     // Config técnica (diagnóstico/método/saída/IA) NÃO é editada aqui — vive na
     // Metodologia (global) e no Contrato. Omitida do payload → o backend preserva.
   }));
+  // Chips livres editados como texto separado por vírgula.
+  const [modalidadesText, setModalidadesText] = useState((initial?.modalities ?? []).join(", "));
+  const [sugeridosText, setSugeridosText] = useState((initial?.suggestedAddons ?? []).join(", "));
+  const [pacotesText, setPacotesText] = useState((initial?.compatiblePackages ?? []).join(", "));
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof UpsertProductRequest>(k: K, v: UpsertProductRequest[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -176,7 +240,13 @@ function ProductForm({
     e.preventDefault();
     setSaving(true);
     try {
-      const payload: UpsertProductRequest = { ...form, name: form.name.trim() };
+      const payload: UpsertProductRequest = {
+        ...form,
+        name: form.name.trim(),
+        modalities: splitChips(modalidadesText),
+        suggestedAddons: splitChips(sugeridosText),
+        compatiblePackages: splitChips(pacotesText),
+      };
       if (initial) await updateProduct(initial.id, payload);
       else await createProduct(payload);
       onSaved();
@@ -202,12 +272,8 @@ function ProductForm({
               <Field label="Nome da solução" full>
                 <input value={form.name} onChange={(e) => set("name", e.target.value)} required />
               </Field>
-              <Field label="Descrição" full>
-                <textarea
-                  rows={2}
-                  value={form.description ?? ""}
-                  onChange={(e) => set("description", e.target.value)}
-                />
+              <Field label="Categoria / subtítulo (ex.: Diagnóstico organizacional)">
+                <input value={form.category ?? ""} onChange={(e) => set("category", e.target.value)} />
               </Field>
               <Field label="Status">
                 <select value={form.status} onChange={(e) => set("status", e.target.value as ProductStatus)}>
@@ -215,6 +281,20 @@ function ProductForm({
                     <option key={s} value={s}>{PRODUCT_STATUS_LABEL[s]}</option>
                   ))}
                 </select>
+              </Field>
+              <Field label="Core da entrega (resumo destacado no card)" full>
+                <textarea
+                  rows={2}
+                  value={form.coreDelivery ?? ""}
+                  onChange={(e) => set("coreDelivery", e.target.value)}
+                />
+              </Field>
+              <Field label="Descrição" full>
+                <textarea
+                  rows={2}
+                  value={form.description ?? ""}
+                  onChange={(e) => set("description", e.target.value)}
+                />
               </Field>
               <Field label="Plano-base (opcional)">
                 <select
@@ -224,6 +304,9 @@ function ProductForm({
                   <option value="">— nenhum —</option>
                   {PLANS.map((p) => (<option key={p} value={p}>{p}</option>))}
                 </select>
+              </Field>
+              <Field label="Implantação (ex.: Imediata · Padrão · 30 dias)">
+                <input value={form.implementation ?? ""} onChange={(e) => set("implementation", e.target.value)} />
               </Field>
               <Field label="Valor mensal (R$)">
                 <input
@@ -239,13 +322,41 @@ function ProductForm({
                   onChange={(e) => set("setupPriceCents", Math.round(Number(e.target.value) * 100))}
                 />
               </Field>
-              <Field label="Máx. usuários (0 = ∞)">
+              <Field label="Rótulo de preço no card (opcional — ex.: R$ 5.900)" full>
+                <input
+                  value={form.priceLabel ?? ""}
+                  placeholder="Se vazio, o card deriva dos valores acima"
+                  onChange={(e) => set("priceLabel", e.target.value)}
+                />
+              </Field>
+              <Field label="Máx. usuários (0 = ilimitado)">
                 <input type="number" min={0} value={form.maxUsers ?? 0}
                   onChange={(e) => set("maxUsers", Number(e.target.value))} />
               </Field>
-              <Field label="Máx. líderes (0 = ∞)">
+              <Field label="Máx. líderes (0 = ilimitado)">
                 <input type="number" min={0} value={form.maxLeaders ?? 0}
                   onChange={(e) => set("maxLeaders", Number(e.target.value))} />
+              </Field>
+              <Field label="Modalidades (separe por vírgula)" full>
+                <input
+                  value={modalidadesText}
+                  placeholder="Diagnóstico Organizacional, Diagnóstico Inicial, Diagnóstico NR-1"
+                  onChange={(e) => setModalidadesText(e.target.value)}
+                />
+              </Field>
+              <Field label="Adicionais sugeridos (separe por vírgula)" full>
+                <input
+                  value={sugeridosText}
+                  placeholder="IA personalizada, Pocket CRIVO, ICD adicional"
+                  onChange={(e) => setSugeridosText(e.target.value)}
+                />
+              </Field>
+              <Field label="Adicionais / pacotes compatíveis (separe por vírgula)" full>
+                <input
+                  value={pacotesText}
+                  placeholder="CRIVO Plus · pacote, Dossiê adicional"
+                  onChange={(e) => setPacotesText(e.target.value)}
+                />
               </Field>
               <Field label="Tipo de empresa atendida" full>
                 <input value={form.companyType ?? ""} onChange={(e) => set("companyType", e.target.value)} />
@@ -322,7 +433,7 @@ function ProductForm({
           </fieldset>
 
           <fieldset className="prod-fs">
-            <legend>Módulos liberados</legend>
+            <legend>Módulos técnicos sugeridos (liberados)</legend>
             <div className="prod-modules">
               {MODULES.map((m) => (
                 <label key={m.code} className="prod-check">
@@ -343,7 +454,7 @@ function ProductForm({
               por cliente ficam no CONTRATO. */}
           <p className="prod-note" style={{ margin: "4px 0 0", padding: "10px 14px", border: "1px dashed var(--line, #E3DDD3)", borderRadius: 10 }}>
             <strong>Configuração técnica não fica aqui.</strong> O diagnóstico (dimensões, perguntas,
-            escala e faixas) é definido em <strong>Metodologia</strong>; o método e a saída técnica de
+            escala e faixas) é definido no <strong>Motor de Diagnósticos</strong>; o método e a saída técnica de
             cada cliente ficam no <strong>Contrato</strong>. Esta tela é só a oferta comercial.
           </p>
 

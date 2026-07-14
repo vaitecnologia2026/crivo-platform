@@ -162,6 +162,9 @@ export function upsertAddon(moduleCode: string, input: AddonUpsertRequest): Prom
     body: JSON.stringify(input),
   });
 }
+export function deleteAddon(moduleCode: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/addons/${moduleCode}`, { method: "DELETE" });
+}
 
 /** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */
 export function setTenantProfile(

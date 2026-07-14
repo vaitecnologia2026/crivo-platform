@@ -52,6 +52,13 @@ export class ProductsService {
         maxUsers: dto.maxUsers ?? 0,
         maxLeaders: dto.maxLeaders ?? 0,
         companyType: dto.companyType ?? null,
+        category: dto.category ?? null,
+        coreDelivery: dto.coreDelivery ?? null,
+        implementation: dto.implementation ?? null,
+        priceLabel: dto.priceLabel ?? null,
+        modalities: dto.modalities ?? [],
+        suggestedAddons: dto.suggestedAddons ?? [],
+        compatiblePackages: dto.compatiblePackages ?? [],
         modules: (dto.modules ?? []) as object,
         coreModules: (dto.coreModules ?? []) as object,
         diagnostic: (dto.diagnostic ?? undefined) as object | undefined,
@@ -87,6 +94,13 @@ export class ProductsService {
         maxUsers: dto.maxUsers ?? existing.maxUsers,
         maxLeaders: dto.maxLeaders ?? existing.maxLeaders,
         companyType: dto.companyType ?? existing.companyType,
+        category: dto.category === undefined ? existing.category : dto.category,
+        coreDelivery: dto.coreDelivery === undefined ? existing.coreDelivery : dto.coreDelivery,
+        implementation: dto.implementation === undefined ? existing.implementation : dto.implementation,
+        priceLabel: dto.priceLabel === undefined ? existing.priceLabel : dto.priceLabel,
+        modalities: dto.modalities ?? existing.modalities,
+        suggestedAddons: dto.suggestedAddons ?? existing.suggestedAddons,
+        compatiblePackages: dto.compatiblePackages ?? existing.compatiblePackages,
         modules: (dto.modules ?? (existing.modules as string[])) as object,
         coreModules: (dto.coreModules ?? (existing.coreModules as string[])) as object,
         diagnostic: (dto.diagnostic ?? (existing.diagnostic ?? undefined)) as object | undefined,
@@ -126,6 +140,13 @@ export class ProductsService {
     maxUsers: number;
     maxLeaders: number;
     companyType: string | null;
+    category: string | null;
+    coreDelivery: string | null;
+    implementation: string | null;
+    priceLabel: string | null;
+    modalities: string[];
+    suggestedAddons: string[];
+    compatiblePackages: string[];
     modules: unknown;
     coreModules: unknown;
     diagnostic: unknown;
@@ -156,6 +177,13 @@ export class ProductsService {
       maxUsers: p.maxUsers,
       maxLeaders: p.maxLeaders,
       companyType: p.companyType,
+      category: p.category,
+      coreDelivery: p.coreDelivery,
+      implementation: p.implementation,
+      priceLabel: p.priceLabel,
+      modalities: p.modalities ?? [],
+      suggestedAddons: p.suggestedAddons ?? [],
+      compatiblePackages: p.compatiblePackages ?? [],
       modules,
       coreModules,
       isLeadCapture: p.isLeadCapture,

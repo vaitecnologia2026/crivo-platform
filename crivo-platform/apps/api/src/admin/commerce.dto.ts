@@ -58,6 +58,28 @@ export class UpsertProductDto {
   @IsOptional() @IsString() @MaxLength(160)
   companyType?: string | null;
 
+  // Vitrine comercial (mockup 14/07)
+  @IsOptional() @IsString() @MaxLength(160)
+  category?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(600)
+  coreDelivery?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  implementation?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  priceLabel?: string | null;
+
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
+  modalities?: string[];
+
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
+  suggestedAddons?: string[];
+
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
+  compatiblePackages?: string[];
+
   @IsOptional() @IsArray() @IsString({ each: true })
   modules?: string[];
 

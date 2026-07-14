@@ -210,16 +210,40 @@ export const MODULES = [
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];
 
-/** Adicional precificado (Tela 05 · modelo Adicional c/ preço+recorrência). */
+/** Adicional do catálogo de upsells (tabela do cliente, mockup 14/07). */
+export const ADDON_RECURRENCES = ['MENSAL', 'POR_CICLO', 'UNICO', 'POR_SESSAO'] as const;
+export type AddonRecurrence = (typeof ADDON_RECURRENCES)[number];
+export const ADDON_RECURRENCE_LABEL: Record<AddonRecurrence, string> = {
+  MENSAL: 'Mensal',
+  POR_CICLO: 'Por ciclo',
+  UNICO: 'Único',
+  POR_SESSAO: 'Por sessão',
+};
+export const ADDON_STATUSES = ['ATIVO', 'EM_REVISAO', 'AGUARDANDO_DADOS'] as const;
+export type AddonStatus = (typeof ADDON_STATUSES)[number];
+export const ADDON_STATUS_LABEL: Record<AddonStatus, string> = {
+  ATIVO: 'Ativo',
+  EM_REVISAO: 'Em revisão',
+  AGUARDANDO_DADOS: 'Aguardando dados',
+};
 export interface AddonSummary {
   moduleCode: string;
   label: string;
-  category: string; // do catálogo MODULES
+  category: string; // taxonomia do cliente (ou a do MODULES como fallback)
   monthlyPriceCents: number;
   setupPriceCents: number;
   recurring: boolean;
   active: boolean;
   configured: boolean; // já tem preço/registro salvo
+  description: string | null;
+  recurrence: AddonRecurrence;
+  priceLabel: string | null; // rótulo livre (ex.: "R$ 900 / dossiê")
+  compatibleSolutions: string[];
+  activatedModules: string[]; // códigos exibidos (mod-ia, mod-people…)
+  limitsNote: string | null;
+  dependenciesNote: string | null;
+  releaseRule: string | null;
+  statusEx: AddonStatus;
 }
 export interface AddonUpsertRequest {
   label?: string;
@@ -227,6 +251,16 @@ export interface AddonUpsertRequest {
   setupPriceCents?: number;
   recurring?: boolean;
   active?: boolean;
+  description?: string | null;
+  category?: string | null;
+  recurrence?: AddonRecurrence;
+  priceLabel?: string | null;
+  compatibleSolutions?: string[];
+  activatedModules?: string[];
+  limitsNote?: string | null;
+  dependenciesNote?: string | null;
+  releaseRule?: string | null;
+  statusEx?: AddonStatus;
 }
 
 /** Códigos dos módulos liberados por um plano (minPlan ≤ plano). */
@@ -865,6 +899,13 @@ export interface ProductSummary {
   maxUsers: number;
   maxLeaders: number;
   companyType: string | null;
+  category: string | null; // subtítulo/categoria do card (vitrine)
+  coreDelivery: string | null; // "Core da entrega"
+  implementation: string | null; // implantação (ex.: "Imediata")
+  priceLabel: string | null; // rótulo livre de preço
+  modalities: string[];
+  suggestedAddons: string[];
+  compatiblePackages: string[];
   modules: string[];
   coreModules: string[]; // módulos incluídos por padrão (CORE)
   isLeadCapture: boolean;
@@ -898,6 +939,13 @@ export interface UpsertProductRequest {
   maxUsers?: number;
   maxLeaders?: number;
   companyType?: string | null;
+  category?: string | null;
+  coreDelivery?: string | null;
+  implementation?: string | null;
+  priceLabel?: string | null;
+  modalities?: string[];
+  suggestedAddons?: string[];
+  compatiblePackages?: string[];
   modules?: string[];
   coreModules?: string[];
   diagnostic?: ProductDiagnostic | null;

@@ -602,6 +602,15 @@ model Product {
   // SEM app, SEM IA. Usado pelo funil comercial da CRIVO.
   isLeadCapture Boolean @default(false)
 
+  // Vitrine comercial (mockup do cliente 14/07): campos de apresentação do card.
+  category           String? // subtítulo/categoria (ex.: "Diagnóstico organizacional")
+  coreDelivery       String? // "Core da entrega" — resumo destacado no topo do card
+  implementation     String? // implantação (ex.: "Imediata", "Padrão · 30 dias")
+  priceLabel         String? // rótulo livre de preço (sobrepõe o valor derivado)
+  modalities         String[] @default([]) // chips "Modalidades"
+  suggestedAddons    String[] @default([]) // chips "Adicionais sugeridos" (texto livre)
+  compatiblePackages String[] @default([]) // chips "Adicionais/Pacotes compatíveis"
+
   // Enquadramento comercial da solução (Caderno Tela 03 — Incluir).
   appearsOnLp        Boolean  @default(false) // aparece na LP / vitrine comercial
   sellableStandalone Boolean  @default(true) // pode ser vendida isolada
@@ -710,17 +719,44 @@ model Contract {
 /// Contract.optionalModules e no faturamento/MRR quando recurring=true.
 model Addon {
   id                String  @id @default(uuid()) @db.Uuid
-  moduleCode        String  @unique // código do ModuleCatalog (pocket, icd, mentorias…)
+  moduleCode        String  @unique // código do ModuleCatalog OU slug próprio (crivo-plus…)
   label             String // nome comercial do adicional
   monthlyPriceCents Int     @default(0) // preço mensal (centavos) — conta no MRR se recurring
   setupPriceCents   Int     @default(0) // preço de implantação/único (centavos)
   recurring         Boolean @default(true) // true = recorrente (MRR); false = pontual
   active            Boolean @default(true)
 
+  // Catálogo de upsells no padrão do cliente (mockup 14/07).
+  description      String? // subtítulo do adicional na tabela
+  category         String? // ex.: "Pacote transversal", "Governança IA", "Serviço"
+  recurrence       AddonRecurrence @default(MENSAL) // mantém `recurring` em sincronia
+  priceLabel       String? // rótulo livre (ex.: "R$ 900 / dossiê")
+  compatibleSolutions String[] @default([]) // chips de soluções compatíveis
+  activatedModules    String[] @default([]) // códigos exibidos (mod-ia, mod-people…)
+  limitsNote       String? // coluna "Limites"
+  dependenciesNote String? // coluna "Dependências"
+  releaseRule      String? // coluna "Regra de liberação"
+  statusEx         AddonStatus @default(ATIVO) // mantém `active` em sincronia
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("addons")
+}
+
+// Recorrência do adicional (tabela do cliente): mensal entra no MRR.
+enum AddonRecurrence {
+  MENSAL
+  POR_CICLO
+  UNICO
+  POR_SESSAO
+}
+
+// Estado do adicional na tabela do cliente.
+enum AddonStatus {
+  ATIVO
+  EM_REVISAO
+  AGUARDANDO_DADOS
 }
 
 // =====================================================================

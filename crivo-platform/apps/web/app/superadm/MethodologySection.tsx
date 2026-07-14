@@ -37,6 +37,7 @@ export function MethodologySection() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   async function load() {
     setErr(null);
@@ -177,14 +178,23 @@ export function MethodologySection() {
             {active.dimensions.length} dimensões · {active.questions.length} perguntas · {active.bands.length} faixas
           </p>
         )}
-        {!editing && (
-          <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {active && (
+            <button className="btn btn--outline-dark btn--sm" onClick={() => setDemoOpen(true)}>
+              Ver demo do instrumento
+            </button>
+          )}
+          {!editing && (
             <button className="btn btn--terra btn--sm" disabled={busy === "draft"} onClick={startDraft}>
               {busy === "draft" ? "Criando…" : "Criar rascunho para editar"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {demoOpen && active && (
+        <InstrumentDemo version={active} instrumentLabel={meta.label} onClose={() => setDemoOpen(false)} />
+      )}
 
       {/* Editor do rascunho */}
       {editing && (
@@ -286,6 +296,144 @@ export function MethodologySection() {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+/* Escala Likert genérica da demo (0–4 → 0–100). */
+const DEMO_SCALE = [
+  { value: 0, label: "Discordo totalmente" },
+  { value: 1, label: "Discordo" },
+  { value: 2, label: "Neutro" },
+  { value: 3, label: "Concordo" },
+  { value: 4, label: "Concordo totalmente" },
+];
+
+/**
+ * Demo interativa do instrumento — mostra a versão ATIVA como o respondente vê
+ * e calcula uma pontuação ilustrativa pela régua (faixas) publicada.
+ * NADA é gravado: é uma simulação local para o super admin conferir o motor.
+ */
+function InstrumentDemo({
+  version,
+  instrumentLabel,
+  onClose,
+}: {
+  version: MethodologyVersion;
+  instrumentLabel: string;
+  onClose: () => void;
+}) {
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [result, setResult] = useState<{
+    score: number;
+    band: { label: string; code: string } | null;
+    byDim: { label: string; score: number }[];
+  } | null>(null);
+
+  const total = version.questions.length;
+  const answered = Object.keys(answers).length;
+
+  function calc() {
+    // Pontuação 0–100: média ponderada das perguntas (inverse espelha a escala).
+    let sum = 0;
+    let wsum = 0;
+    const dimAcc = new Map<string, { sum: number; wsum: number }>();
+    version.questions.forEach((q, i) => {
+      const raw = answers[String(i)];
+      if (raw === undefined) return;
+      const norm = (raw / 4) * 100;
+      const val = q.inverse ? 100 - norm : norm;
+      const w = q.weight || 1;
+      sum += val * w;
+      wsum += w;
+      const acc = dimAcc.get(q.dimensionSlug) ?? { sum: 0, wsum: 0 };
+      acc.sum += val * w;
+      acc.wsum += w;
+      dimAcc.set(q.dimensionSlug, acc);
+    });
+    const score = wsum > 0 ? Math.round(sum / wsum) : 0;
+    const band = version.bands.find((b) => score >= b.min && score <= b.max) ?? null;
+    const byDim = version.dimensions.map((d) => {
+      const acc = dimAcc.get(d.slug);
+      return { label: d.label, score: acc && acc.wsum > 0 ? Math.round(acc.sum / acc.wsum) : 0 };
+    });
+    setResult({ score, band: band ? { label: band.label, code: band.code } : null, byDim });
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <h2>Demo — {instrumentLabel}</h2>
+          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+        </header>
+
+        <div className="modal__body">
+          <p className="cnae-muted" style={{ marginTop: 0 }}>
+            Simulação da versão ativa <strong>v{version.version} · {version.label}</strong> como o respondente vê.
+            Nada é gravado — a pontuação é ilustrativa, calculada pela régua publicada.
+          </p>
+
+          {version.dimensions.map((d) => {
+            const qs = version.questions
+              .map((q, i) => ({ q, i }))
+              .filter(({ q }) => q.dimensionSlug === d.slug);
+            if (qs.length === 0) return null;
+            return (
+              <div key={d.slug} className="demo-dim">
+                <h4 className="meth-h">{d.label}</h4>
+                {qs.map(({ q, i }) => (
+                  <div key={i} className="demo-q">
+                    <p>{q.text}</p>
+                    <div className="demo-opts">
+                      {DEMO_SCALE.map((o) => (
+                        <label key={o.value} className={answers[String(i)] === o.value ? "is-active" : ""}>
+                          <input
+                            type="radio"
+                            name={`demo-q-${i}`}
+                            checked={answers[String(i)] === o.value}
+                            onChange={() => setAnswers((a) => ({ ...a, [String(i)]: o.value }))}
+                          />
+                          {o.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {result && (
+            <div className="demo-result">
+              <div className="demo-result__score">
+                <strong>{result.score}</strong>
+                <span>/ 100</span>
+                {result.band && <em>{result.band.label}</em>}
+              </div>
+              <div className="demo-result__dims">
+                {result.byDim.map((d) => (
+                  <div key={d.label} className="demo-result__dim">
+                    <span>{d.label}</span>
+                    <div className="demo-bar"><i style={{ width: `${d.score}%` }} /></div>
+                    <b>{d.score}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal__foot">
+          <span className="cnae-muted" style={{ marginRight: "auto" }}>
+            {answered}/{total} respondidas
+          </span>
+          <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Fechar</button>
+          <button type="button" className="btn btn--terra btn--sm" disabled={answered === 0} onClick={calc}>
+            Calcular resultado
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
