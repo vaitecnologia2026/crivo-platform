@@ -772,8 +772,8 @@
   margin-left: 10px;
   font-size: 12px;
   font-weight: 600;
-  background: #ddf3e4;
-  color: #1e7a45;
+  background: rgba(13, 31, 60, 0.08);
+  color: var(--navy, #0d1f3c);
   border-radius: 999px;
   padding: 3px 12px;
 }
