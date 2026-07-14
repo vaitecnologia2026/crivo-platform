@@ -57,6 +57,7 @@ export class ProductsService {
         implementation: dto.implementation ?? null,
         priceLabel: dto.priceLabel ?? null,
         modalities: dto.modalities ?? [],
+        suggestedModules: dto.suggestedModules ?? [],
         suggestedAddons: dto.suggestedAddons ?? [],
         compatiblePackages: dto.compatiblePackages ?? [],
         modules: (dto.modules ?? []) as object,
@@ -99,6 +100,7 @@ export class ProductsService {
         implementation: dto.implementation === undefined ? existing.implementation : dto.implementation,
         priceLabel: dto.priceLabel === undefined ? existing.priceLabel : dto.priceLabel,
         modalities: dto.modalities ?? existing.modalities,
+        suggestedModules: dto.suggestedModules ?? existing.suggestedModules,
         suggestedAddons: dto.suggestedAddons ?? existing.suggestedAddons,
         compatiblePackages: dto.compatiblePackages ?? existing.compatiblePackages,
         modules: (dto.modules ?? (existing.modules as string[])) as object,
@@ -145,6 +147,7 @@ export class ProductsService {
     implementation: string | null;
     priceLabel: string | null;
     modalities: string[];
+    suggestedModules: string[];
     suggestedAddons: string[];
     compatiblePackages: string[];
     modules: unknown;
@@ -182,6 +185,7 @@ export class ProductsService {
       implementation: p.implementation,
       priceLabel: p.priceLabel,
       modalities: p.modalities ?? [],
+      suggestedModules: p.suggestedModules ?? [],
       suggestedAddons: p.suggestedAddons ?? [],
       compatiblePackages: p.compatiblePackages ?? [],
       modules,

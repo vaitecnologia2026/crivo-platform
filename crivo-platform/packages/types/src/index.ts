@@ -904,6 +904,7 @@ export interface ProductSummary {
   implementation: string | null; // implantação (ex.: "Imediata")
   priceLabel: string | null; // rótulo livre de preço
   modalities: string[];
+  suggestedModules: string[]; // chips "Módulos técnicos sugeridos" (texto livre)
   suggestedAddons: string[];
   compatiblePackages: string[];
   modules: string[];
@@ -944,6 +945,7 @@ export interface UpsertProductRequest {
   implementation?: string | null;
   priceLabel?: string | null;
   modalities?: string[];
+  suggestedModules?: string[];
   suggestedAddons?: string[];
   compatiblePackages?: string[];
   modules?: string[];

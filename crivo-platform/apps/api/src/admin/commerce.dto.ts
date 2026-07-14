@@ -75,6 +75,9 @@ export class UpsertProductDto {
   modalities?: string[];
 
   @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
+  suggestedModules?: string[];
+
+  @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)
   suggestedAddons?: string[];
 
   @IsOptional() @IsArray() @IsString({ each: true }) @ArrayMaxSize(20)

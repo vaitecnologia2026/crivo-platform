@@ -608,6 +608,7 @@ model Product {
   implementation     String? // implantação (ex.: "Imediata", "Padrão · 30 dias")
   priceLabel         String? // rótulo livre de preço (sobrepõe o valor derivado)
   modalities         String[] @default([]) // chips "Modalidades"
+  suggestedModules   String[] @default([]) // chips "Módulos técnicos sugeridos" (texto livre; ≠ modules de acesso)
   suggestedAddons    String[] @default([]) // chips "Adicionais sugeridos" (texto livre)
   compatiblePackages String[] @default([]) // chips "Adicionais/Pacotes compatíveis"
 

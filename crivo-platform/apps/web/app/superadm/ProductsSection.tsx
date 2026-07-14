@@ -83,10 +83,11 @@ export function ProductsSection() {
       {status === "ok" && products && (
         <div className="sol-list">
           {products.map((p) => {
-            const subtitle = [p.category, p.plan ? `Plano: ${p.plan.charAt(0) + p.plan.slice(1).toLowerCase()}` : null]
-              .filter(Boolean)
-              .join(" · ");
+            // Subtítulo: campo livre da vitrine; sem ele, cai no plano-base.
+            const subtitle =
+              p.category ?? (p.plan ? `Plano: ${p.plan.charAt(0) + p.plan.slice(1).toLowerCase()}` : "");
             const compat = p.compatiblePackages.length > 0 ? p.compatiblePackages : p.allowedAddons.map(moduleName);
+            const modChips = p.suggestedModules.length > 0 ? p.suggestedModules : p.modules.map(moduleName);
             return (
               <article key={p.id} className="sol-card">
                 <div className="sol-card__head">
@@ -130,9 +131,9 @@ export function ProductsSection() {
                 <div className="sol-two">
                   <div className="sol-block">
                     <span className="sol-label">Módulos técnicos sugeridos</span>
-                    {p.modules.length > 0 ? (
+                    {modChips.length > 0 ? (
                       <div className="sol-chips">
-                        {p.modules.map((c) => <span key={c} className="sol-chip">{moduleName(c)}</span>)}
+                        {modChips.map((c) => <span key={c} className="sol-chip">{c}</span>)}
                       </div>
                     ) : (
                       <span className="sol-empty">—</span>
@@ -220,6 +221,7 @@ function ProductForm({
   }));
   // Chips livres editados como texto separado por vírgula.
   const [modalidadesText, setModalidadesText] = useState((initial?.modalities ?? []).join(", "));
+  const [modSugeridosText, setModSugeridosText] = useState((initial?.suggestedModules ?? []).join(", "));
   const [sugeridosText, setSugeridosText] = useState((initial?.suggestedAddons ?? []).join(", "));
   const [pacotesText, setPacotesText] = useState((initial?.compatiblePackages ?? []).join(", "));
   const [saving, setSaving] = useState(false);
@@ -244,6 +246,7 @@ function ProductForm({
         ...form,
         name: form.name.trim(),
         modalities: splitChips(modalidadesText),
+        suggestedModules: splitChips(modSugeridosText),
         suggestedAddons: splitChips(sugeridosText),
         compatiblePackages: splitChips(pacotesText),
       };
@@ -342,6 +345,13 @@ function ProductForm({
                   value={modalidadesText}
                   placeholder="Diagnóstico Organizacional, Diagnóstico Inicial, Diagnóstico NR-1"
                   onChange={(e) => setModalidadesText(e.target.value)}
+                />
+              </Field>
+              <Field label="Módulos técnicos sugeridos (chips do card — separe por vírgula)" full>
+                <input
+                  value={modSugeridosText}
+                  placeholder="Diagnóstico, Plano de Evolução, Evidências, Dossiês"
+                  onChange={(e) => setModSugeridosText(e.target.value)}
                 />
               </Field>
               <Field label="Adicionais sugeridos (separe por vírgula)" full>
