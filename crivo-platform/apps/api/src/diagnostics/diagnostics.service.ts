@@ -117,7 +117,8 @@ export class DiagnosticsService {
       tenantName: link.org.name,
       instrumentName: link.instrument.name,
       bandKind: link.instrument.bandKind,
-      questions: active.config.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text })),
+      scaleLabels: active.config.scaleLabels && active.config.scaleLabels.length === 5 ? active.config.scaleLabels : null,
+      questions: active.config.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text, required: q.required !== false })),
     };
   }
 

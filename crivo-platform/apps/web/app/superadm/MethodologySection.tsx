@@ -23,6 +23,7 @@ import {
   type MethodologyVersionSummary,
   type ScoreAggregation,
 } from "../../lib/admin-api";
+import { DEFAULT_SCALE_LABELS } from "@crivo/types";
 import "./cnae.css";
 
 // Fallback enquanto o catálogo carrega (os 2 built-in existem sempre).
@@ -62,6 +63,7 @@ export function MethodologySection() {
   const [dims, setDims] = useState<Dim[]>([]);
   const [questions, setQuestions] = useState<Q[]>([]);
   const [bands, setBands] = useState<Band[]>([]);
+  const [scaleLabels, setScaleLabels] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export function MethodologySection() {
         setDims([]);
         setQuestions([]);
         setBands([]);
+        setScaleLabels([...DEFAULT_SCALE_LABELS]);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao carregar.");
@@ -96,6 +99,7 @@ export function MethodologySection() {
     setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null })));
     setQuestions(d.questions.map((x) => ({ dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse, required: x.required ?? true })));
     setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max })));
+    setScaleLabels(d.scaleLabels && d.scaleLabels.length === 5 ? d.scaleLabels : [...DEFAULT_SCALE_LABELS]);
   }
 
   useEffect(() => {
@@ -124,7 +128,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, dimensions: dims, questions, bands });
       setMsg("Rascunho salvo.");
       await load();
     } catch (e) {
@@ -141,7 +145,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, dimensions: dims, questions, bands });
       await publishMethodology(draftId);
       setMsg("Publicado! Esta é a nova versão ativa.");
       await load();
@@ -299,6 +303,8 @@ export function MethodologySection() {
         <DraftEditor
           label={label}
           setLabel={setLabel}
+          scaleLabels={scaleLabels}
+          setScaleLabels={setScaleLabels}
           dims={dims}
           setDims={setDims}
           questions={questions}
@@ -852,11 +858,13 @@ const AGG_SHORT: Record<ScoreAggregation, string> = {
  * subdimensões edita as perguntas direto (é uma folha).
  */
 function DraftEditor({
-  label, setLabel, dims, setDims, questions, setQuestions, bands, setBands,
+  label, setLabel, scaleLabels, setScaleLabels, dims, setDims, questions, setQuestions, bands, setBands,
   bandKind, bandWord, busy, onSave, onPublish, onDiscard,
 }: {
   label: string;
   setLabel: (v: string) => void;
+  scaleLabels: string[];
+  setScaleLabels: (v: string[]) => void;
   dims: Dim[];
   setDims: (d: Dim[]) => void;
   questions: Q[];
@@ -870,7 +878,8 @@ function DraftEditor({
   onPublish: () => void;
   onDiscard: () => void;
 }) {
-  const [tab, setTab] = useState<"estrutura" | "faixas" | "calculo">("estrutura");
+  const [tab, setTab] = useState<"estrutura" | "escalas" | "faixas" | "calculo" | "biblioteca">("estrutura");
+  const scale = scaleLabels.length === 5 ? scaleLabels : [...DEFAULT_SCALE_LABELS];
 
   const topDims = dims.filter((d) => !d.parentSlug);
   const childrenOf = (slug: string) => dims.filter((d) => d.parentSlug === slug);
@@ -951,11 +960,62 @@ function DraftEditor({
         />
       </div>
 
-      <div className="cnae-tabs" style={{ marginBottom: 16 }}>
-        {([["estrutura", "Estrutura"], ["faixas", bandWord], ["calculo", "Memória de cálculo"]] as const).map(([k, lbl]) => (
+      <div className="cnae-tabs" style={{ marginBottom: 16, flexWrap: "wrap" }}>
+        {([
+          ["estrutura", "Estrutura"],
+          ["escalas", "Escalas e regras"],
+          ["faixas", bandWord],
+          ["calculo", "Memória de cálculo"],
+          ["biblioteca", "Templates e bibliotecas"],
+        ] as const).map(([k, lbl]) => (
           <button key={k} className={`cnae-tab${tab === k ? " is-active" : ""}`} onClick={() => setTab(k)}>{lbl}</button>
         ))}
       </div>
+
+      {/* ESCALAS E REGRAS — escala de resposta + regras do diagnóstico */}
+      {tab === "escalas" && (
+        <>
+          <h4 className="meth-h">Escala de resposta</h4>
+          <p className="cnae-muted" style={{ marginTop: 0 }}>
+            Rótulos dos 5 pontos que o respondente vê. Só o texto muda — a pontuação segue normalizando de 0 a 100.
+          </p>
+          <div className="meth-scale">
+            {scale.map((lbl, i) => (
+              <div className="meth-scale__row" key={i}>
+                <span className="meth-scale__n">{i + 1}</span>
+                <input
+                  className="meth-in"
+                  value={lbl}
+                  placeholder={DEFAULT_SCALE_LABELS[i]}
+                  onChange={(e) => setScaleLabels(scale.map((x, j) => (j === i ? e.target.value : x)))}
+                />
+              </div>
+            ))}
+          </div>
+          <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => setScaleLabels([...DEFAULT_SCALE_LABELS])}>
+            Restaurar escala padrão
+          </button>
+
+          <h4 className="meth-h" style={{ marginTop: 20 }}>Regras do diagnóstico</h4>
+          <ul className="meth-rules">
+            <li><strong>Pergunta invertida</strong> — afirmação negativa; a pontuação é espelhada (100 − valor). Marcada por pergunta na aba Estrutura.</li>
+            <li><strong>Pergunta obrigatória / opcional</strong> — opcional não trava o respondente. Marcada por pergunta na aba Estrutura.</li>
+            <li><strong>Régua do instrumento</strong> — este é de {bandKind === "RISK" ? "risco (maior = menor risco)" : "maturidade (maior = melhor)"}; as faixas seguem essa régua.</li>
+            <li><strong>Supressão de anonimato</strong> — resultados agregados só aparecem a partir de 5 respondentes.</li>
+            <li><strong>Versionamento</strong> — publicar cria uma versão nova e arquiva a anterior; respostas já pontuadas não são recalculadas.</li>
+          </ul>
+        </>
+      )}
+
+      {/* TEMPLATES E BIBLIOTECAS — perguntas modelo para inserir na subdimensão */}
+      {tab === "biblioteca" && (
+        <TemplateLibrary
+          leaves={dims.filter((d) => !dims.some((c) => c.parentSlug === d.slug))}
+          onInsert={(leafSlug, qs) =>
+            setQuestions([...questions, ...qs.map((text) => ({ dimensionSlug: leafSlug, text, weight: 1, inverse: false, required: true }))])
+          }
+        />
+      )}
 
       {/* ESTRUTURA — dimensões → subdimensões → perguntas */}
       {tab === "estrutura" && (
@@ -1061,6 +1121,107 @@ function DraftEditor({
           Descartar
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Biblioteca de perguntas modelo (aba "Templates e bibliotecas"). Acelera a
+ *  montagem do diagnóstico: escolha um tema e insira as perguntas na subdimensão.
+ *  Curada pela CRIVO — ponto de partida editável (as perguntas viram itens normais). */
+const QUESTION_LIBRARY: { theme: string; questions: string[] }[] = [
+  {
+    theme: "Liderança e clareza",
+    questions: [
+      "Meu líder acompanha minha rotina com frequência.",
+      "Recebo feedback objetivo sobre meu trabalho.",
+      "Sei o que se espera de mim nas próximas semanas.",
+      "Meu líder delega com clareza de resultado.",
+    ],
+  },
+  {
+    theme: "Rotina e processos",
+    questions: [
+      "As decisões críticas têm um responsável claro.",
+      "As reuniões produzem decisões registradas.",
+      "O retrabalho é frequente na minha área.",
+      "Consigo realizar meu trabalho sem sobrecarga constante.",
+    ],
+  },
+  {
+    theme: "Fatores psicossociais (NR-1)",
+    questions: [
+      "O volume e o ritmo de trabalho são sustentáveis no dia a dia.",
+      "Tenho autonomia para organizar como faço minhas tarefas.",
+      "Recebo apoio da minha liderança quando preciso.",
+      "Sinto-me seguro(a) para falar de problemas sem medo de retaliação.",
+    ],
+  },
+  {
+    theme: "Cultura e reconhecimento",
+    questions: [
+      "Meu trabalho é reconhecido de forma justa.",
+      "As regras e decisões da empresa são aplicadas de forma justa.",
+      "Tenho oportunidades de desenvolvimento na empresa.",
+    ],
+  },
+];
+
+function TemplateLibrary({
+  leaves,
+  onInsert,
+}: {
+  leaves: Dim[];
+  onInsert: (leafSlug: string, questions: string[]) => void;
+}) {
+  const [target, setTarget] = useState<string>(leaves[0]?.slug ?? "");
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+
+  const toggle = (q: string) => setPicked((p) => ({ ...p, [q]: !p[q] }));
+  const chosen = QUESTION_LIBRARY.flatMap((g) => g.questions).filter((q) => picked[q]);
+
+  return (
+    <div>
+      <p className="cnae-muted" style={{ marginTop: 0 }}>
+        Perguntas modelo da CRIVO — um ponto de partida. Selecione as que quiser, escolha a subdimensão de
+        destino e insira; depois é só ajustar peso, invertida e obrigatória na aba Estrutura.
+      </p>
+
+      {leaves.length === 0 ? (
+        <div className="adm-empty">Crie ao menos uma dimensão/subdimensão na aba Estrutura para inserir perguntas.</div>
+      ) : (
+        <>
+          <div className="meth-leafbar">
+            <span>Inserir em:</span>
+            <select className="meth-in" value={target} onChange={(e) => setTarget(e.target.value)}>
+              {leaves.map((l) => (
+                <option key={l.slug} value={l.slug}>{l.label || l.slug}</option>
+              ))}
+            </select>
+            <button
+              className="btn btn--terra btn--sm"
+              disabled={!target || chosen.length === 0}
+              onClick={() => { onInsert(target, chosen); setPicked({}); }}
+            >
+              Inserir {chosen.length > 0 ? `(${chosen.length})` : ""}
+            </button>
+          </div>
+
+          {QUESTION_LIBRARY.map((g) => (
+            <div key={g.theme} className="meth-lib">
+              <span className="sol-label">{g.theme}</span>
+              <ul>
+                {g.questions.map((q) => (
+                  <li key={q}>
+                    <label>
+                      <input type="checkbox" checked={!!picked[q]} onChange={() => toggle(q)} /> {q}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

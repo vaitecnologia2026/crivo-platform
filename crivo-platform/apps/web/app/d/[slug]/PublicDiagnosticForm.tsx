@@ -143,13 +143,7 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
         </div>
 
         <ScaleHelpBox
-          scale={[
-            { value: 1, label: "Discordo totalmente" },
-            { value: 2, label: "Discordo" },
-            { value: 3, label: "Neutro" },
-            { value: 4, label: "Concordo" },
-            { value: 5, label: "Concordo totalmente" },
-          ]}
+          scale={(info?.scaleLabels ?? ["Discordo totalmente", "Discordo", "Neutro", "Concordo", "Concordo totalmente"]).map((label, i) => ({ value: i + 1, label }))}
           hint="Avalie o quanto você concorda com cada afirmação. Suas respostas são anônimas."
         />
         {questions.map((q, i) => (
@@ -172,8 +166,8 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
               ))}
             </div>
             <div className={s.scale}>
-              <span>Discordo</span>
-              <span>Concordo</span>
+              <span>{(info?.scaleLabels?.[0]) ?? "Discordo"}</span>
+              <span>{(info?.scaleLabels?.[info.scaleLabels.length - 1]) ?? "Concordo"}</span>
             </div>
           </div>
         ))}

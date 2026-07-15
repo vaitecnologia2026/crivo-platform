@@ -695,7 +695,8 @@ export interface PublicDiagnosticInfo {
   tenantName: string;
   instrumentName: string;
   bandKind: 'MATURITY' | 'RISK';
-  questions: { id: number; dimension: string; text: string }[];
+  scaleLabels: string[] | null;
+  questions: { id: number; dimension: string; text: string; required?: boolean }[];
 }
 export interface PublicDiagnosticResult {
   score: number;

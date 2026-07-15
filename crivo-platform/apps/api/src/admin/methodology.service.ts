@@ -17,6 +17,7 @@ const CONTENT_INCLUDE = {
 };
 
 type VersionWithContent = {
+  scaleLabels?: string[];
   dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
   questions: { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean }[];
   bands: { code: string; label: string; min: number; max: number }[];
@@ -41,6 +42,7 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
     })),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
     ...(aggregation ? { aggregation } : {}),
+    ...(v.scaleLabels && v.scaleLabels.length ? { scaleLabels: v.scaleLabels } : {}),
   };
 }
 
@@ -163,6 +165,7 @@ export class MethodologyService {
         label: `Rascunho v${nextVersion}`,
         status: 'DRAFT',
         createdBy: actor.email,
+        scaleLabels: active?.scaleLabels ?? [],
         dimensions: active
           ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation })) }
           : undefined,
@@ -185,6 +188,7 @@ export class MethodologyService {
     dto: {
       label?: string;
       notes?: string;
+      scaleLabels?: string[];
       dimensions?: { slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
       questions?: { dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
@@ -196,10 +200,14 @@ export class MethodologyService {
     if (v.status !== 'DRAFT') throw new BadRequestException('Apenas rascunhos podem ser editados. Crie um novo rascunho.');
 
     await this.prisma.admin.$transaction(async (tx) => {
-      if (dto.label !== undefined || dto.notes !== undefined) {
+      if (dto.label !== undefined || dto.notes !== undefined || dto.scaleLabels !== undefined) {
         await tx.methodologyVersion.update({
           where: { id },
-          data: { label: dto.label ?? v.label, notes: dto.notes ?? v.notes },
+          data: {
+            label: dto.label ?? v.label,
+            notes: dto.notes ?? v.notes,
+            ...(dto.scaleLabels !== undefined ? { scaleLabels: dto.scaleLabels } : {}),
+          },
         });
       }
       if (dto.dimensions) {

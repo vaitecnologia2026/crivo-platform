@@ -74,6 +74,9 @@ export class UpdateMethodologyDto {
   @IsOptional() @IsString() @MaxLength(2000)
   notes?: string;
 
+  @IsOptional() @IsArray() @IsString({ each: true })
+  scaleLabels?: string[];
+
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => DimensionDto)
   dimensions?: DimensionDto[];
 

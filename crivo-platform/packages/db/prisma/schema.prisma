@@ -1925,6 +1925,10 @@ model MethodologyVersion {
   label       String
   status      MethodologyStatus     @default(DRAFT)
   notes       String?               @db.Text
+  // Escala de resposta (aba "Escalas e regras" do mockup): rótulos dos 5 pontos
+  // Likert, editáveis por versão. Vazio = padrão CRIVO. NÃO muda a pontuação
+  // (segue normalizando 1–5 → 0–100); só o texto que o respondente vê.
+  scaleLabels String[]              @default([]) @map("scale_labels")
   createdBy   String?               @map("created_by")
   createdAt   DateTime              @default(now()) @map("created_at")
   publishedAt DateTime?             @map("published_at")

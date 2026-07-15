@@ -1168,6 +1168,7 @@ export interface MethodologyVersion {
   version: number;
   label: string;
   status: MethodologyStatus;
+  scaleLabels?: string[];
   notes?: string | null;
   createdAt: string;
   publishedAt?: string | null;
@@ -1203,8 +1204,9 @@ export function updateMethodologyDraft(
   body: {
     label?: string;
     notes?: string;
-    dimensions?: Array<{ slug: string; label: string; weight?: number }>;
-    questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean }>;
+    scaleLabels?: string[];
+    dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null }>;
+    questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean }>;
     bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string }>;
   },
 ) {

@@ -700,11 +700,22 @@ export const SCORE_AGGREGATION_LABEL: Record<ScoreAggregationMode, string> = {
   SOMA_NORMALIZADA: 'Soma normalizada (% do máximo possível)',
 };
 
+/** Escala de resposta padrão (5 pontos Likert) — usada quando a versão não
+ *  define rótulos próprios (aba "Escalas e regras"). NÃO muda a pontuação. */
+export const DEFAULT_SCALE_LABELS = [
+  'Discordo totalmente',
+  'Discordo',
+  'Neutro',
+  'Concordo',
+  'Concordo totalmente',
+] as const;
+
 export interface MethodologyConfig {
   dimensions: MethodologyConfigDimension[];
   questions: MethodologyConfigQuestion[];
   bands: MethodologyConfigBand[];
   aggregation?: ScoreAggregationMode; // ausente = MEDIA_PONDERADA (compat total)
+  scaleLabels?: string[]; // rótulos da escala (só apresentação; vazio = padrão)
 }
 
 export interface MethodologyScoreResult {
