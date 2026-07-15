@@ -34,6 +34,8 @@ import { ActionTemplatesService } from './action-templates.service';
 import { EditableTextsService } from './editable-texts.service';
 import { GlobalAcademyService } from './global-academy.service';
 import { MeteringModule } from '../metering/metering.module';
+import { EngineController } from './engine.controller';
+import { EngineService } from './engine.service';
 import { InstrumentsController } from './instruments.controller';
 import { InstrumentsService } from './instruments.service';
 import { IntegrationsController } from './integrations.controller';
@@ -78,6 +80,7 @@ import { PlatformUsersService } from './platform-users.service';
     EditableTextsController,
     GlobalAcademyController,
     AdminUsersController,
+    EngineController,
     InstrumentsController,
     IntegrationsController,
     MethodologyController,
@@ -109,6 +112,7 @@ import { PlatformUsersService } from './platform-users.service';
     ActionTemplatesService,
     EditableTextsService,
     GlobalAcademyService,
+    EngineService,
     InstrumentsService,
     IntegrationsService,
     MethodologyService,

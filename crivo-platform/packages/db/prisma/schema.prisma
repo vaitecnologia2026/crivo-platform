@@ -1305,6 +1305,16 @@ model ActionItem {
   @@map("action_items")
 }
 
+// Governança de evidências (mockup do cliente 14/07): a CRIVO aprova/rejeita/
+// substitui as evidências enviadas pelo cliente. ENVIADA = default ao criar.
+enum EvidenceStatus {
+  ENVIADA
+  PENDENTE
+  APROVADA
+  REJEITADA
+  SUBSTITUIDA
+}
+
 model Evidence {
   id        String       @id @default(uuid()) @db.Uuid
   tenantId  String       @db.Uuid
@@ -1322,10 +1332,18 @@ model Evidence {
   fileMime  String?
   fileSize  Int? // tamanho em bytes
   file      EvidenceFile?
+  // Governança (mockup 14/07): status + trilha de revisão + autor + motivo.
+  status          EvidenceStatus @default(ENVIADA)
+  author          String? // quem enviou (empresa/consultor) — texto livre
+  reviewedAt      DateTime?      @map("reviewed_at")
+  reviewedBy      String?        @map("reviewed_by")
+  rejectionReason String?        @map("rejection_reason")
+  supersededById  String?        @db.Uuid @map("superseded_by_id") // evidência que a substituiu
   createdAt DateTime     @default(now())
 
   @@index([tenantId])
   @@index([itemId])
+  @@index([status])
   @@map("evidences")
 }
 

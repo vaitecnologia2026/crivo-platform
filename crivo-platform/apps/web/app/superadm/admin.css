@@ -828,3 +828,49 @@
   background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; color: var(--danger, #b4453a); text-decoration: underline; text-underline-offset: 3px;
 }
+
+/* — Configuração do Motor (hub) — call 14/07 — */
+.adm .eng-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .adm .eng-grid { grid-template-columns: 1fr; } }
+.adm .eng-card {
+  background: #fff;
+  border: 1px solid rgba(13, 31, 60, 0.08);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04);
+}
+.adm .eng-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.adm .eng-card__name { margin: 0; font-family: var(--font-serif, "Lora", serif); font-size: 19px; font-weight: 600; color: var(--navy, #0d1f3c); }
+.adm .eng-card__feed { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #1e7a45; background: #ddf3e4; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.adm .eng-card__role { margin: 0; font-size: 13px; color: var(--text-sec); line-height: 1.55; }
+.adm .eng-metrics { display: flex; flex-wrap: wrap; gap: 22px; padding: 10px 0; border-top: 1px solid rgba(13,31,60,.07); border-bottom: 1px solid rgba(13,31,60,.07); }
+.adm .eng-metric { display: flex; flex-direction: column; }
+.adm .eng-metric strong { font-family: var(--font-serif, "Lora", serif); font-size: 24px; color: var(--navy, #0d1f3c); line-height: 1.1; }
+.adm .eng-metric span { font-size: 11.5px; color: var(--text-sec); }
+.adm .eng-pieces ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.adm .eng-pieces li { display: flex; flex-direction: column; font-size: 13px; }
+.adm .eng-pieces li strong { font-weight: 600; }
+.adm .eng-pieces li span { font-size: 12px; color: var(--text-sec); }
+.adm .eng-card__open { align-self: flex-start; margin-top: 4px; }
+.adm .eng-flow {
+  margin-top: 18px;
+  background: rgba(13, 31, 60, 0.03);
+  border: 1px solid rgba(13, 31, 60, 0.07);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.adm .eng-flow__chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 12px; }
+.adm .eng-flow__step { font-size: 12.5px; font-weight: 600; background: #fff; border: 1px solid rgba(13,31,60,.14); border-radius: 999px; padding: 5px 12px; }
+.adm .eng-flow__step--out { background: var(--navy, #0d1f3c); border-color: var(--navy, #0d1f3c); color: #fff; }
+.adm .eng-flow__chain i { color: var(--text-sec); font-style: normal; }
+.adm .eng-flow p { margin: 0; font-size: 12.5px; color: var(--text-sec); line-height: 1.6; }
+
+/* — Motor de Evolução + Evidências (filtros e status extras) — */
+.adm .evo-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.adm .evo-noev { font-size: 12px; color: var(--text-sec); }
+.adm .evd-reason { margin: 4px 0 0; font-size: 11.5px; color: #b4453a; }
+.adm .addx-status.evd-status--rej { background: #fbe3e0; color: #b4453a; }
+.adm .addx-status.evd-status--sub { background: rgba(13,31,60,.07); color: var(--text-sec); }

@@ -1034,6 +1034,72 @@ export function deleteInstrument(slug: string): Promise<{ ok: true; deactivated:
   return adminFetch<{ ok: true; deactivated: boolean }>(`/admin/instruments/${slug}`, { method: "DELETE" });
 }
 
+// ── Motores CRIVO (Configuração do Motor · Evolução · Evidências) ──
+export interface EngineOverview {
+  enquadramento: { cnaeRules: number };
+  diagnosticos: { instruments: number; activeMethodologies: number; responses: number };
+  evolucao: { actions: number };
+  evidencias: { total: number; approved: number };
+}
+export function getEngineOverview(): Promise<EngineOverview> {
+  return adminFetch<EngineOverview>("/admin/engine/overview");
+}
+export interface EngineActionRow {
+  id: string;
+  action: string;
+  point: string;
+  tenantName: string;
+  origin: string | null;
+  planSource: string | null;
+  responsible: string | null;
+  dueDate: string | null;
+  status: string;
+  expectedEvidence: string | null;
+  evidenceCount: number;
+  riskLevel: string | null;
+  overdue: boolean;
+}
+export function listEngineActions(params: { status?: string; withoutEvidence?: boolean; q?: string } = {}): Promise<{
+  stats: { total: number; emAndamento: number; emRevisao: number; atrasadas: number; semEvidencia: number };
+  rows: EngineActionRow[];
+}> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.withoutEvidence) qs.set("withoutEvidence", "1");
+  if (params.q) qs.set("q", params.q);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return adminFetch(`/admin/engine/actions${suffix}`);
+}
+export interface EngineEvidenceRow {
+  id: string;
+  kind: string;
+  title: string;
+  tenantName: string;
+  linkedAction: string | null;
+  author: string | null;
+  status: string;
+  rejectionReason: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  hasFile: boolean;
+}
+export function listEngineEvidences(params: { status?: string; kind?: string } = {}): Promise<{
+  stats: { total: number; aprovadas: number; pendentes: number; rejeitadas: number };
+  rows: EngineEvidenceRow[];
+}> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.kind) qs.set("kind", params.kind);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return adminFetch(`/admin/engine/evidences${suffix}`);
+}
+export function reviewEngineEvidence(id: string, action: "approve" | "reject" | "supersede", reason?: string): Promise<{ id: string; status: string }> {
+  return adminFetch(`/admin/engine/evidences/${id}/review`, {
+    method: "POST",
+    body: JSON.stringify({ action, reason }),
+  });
+}
+
 export interface DiagnosticLinkSummary {
   id: string;
   tenantId: string;
