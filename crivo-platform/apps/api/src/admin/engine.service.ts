@@ -1,8 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import {
+  getEngineConfig,
+  MIN_RESPONDENTS_FLOOR,
+  MIN_RESPONDENTS_CEIL,
+  type EngineConfigValues,
+} from './engine-config';
 
 type Actor = { id: string; email: string };
+
+export type EngineConfigInput = {
+  minRespondents?: number;
+  defaultAggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA';
+  defaultBandKind?: 'MATURITY' | 'RISK';
+  defaultScaleLabels?: string[];
+};
 
 /**
  * Motores CRIVO (Configuração do Motor — mockup do cliente 14/07). Visão de
@@ -16,6 +29,50 @@ export class EngineService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Configuração do Motor — LÊ as regras globais que definem como o motor funciona.
+   * Estes valores tomam efeito de verdade: supressão de anonimato e padrões dos
+   * diagnósticos novos. (Feedback do cliente 15/07: a tela DEFINE o motor.)
+   */
+  async getConfig(): Promise<EngineConfigValues & { floor: number; ceil: number }> {
+    const cfg = await getEngineConfig(this.prisma);
+    return { ...cfg, floor: MIN_RESPONDENTS_FLOOR, ceil: MIN_RESPONDENTS_CEIL };
+  }
+
+  /** GRAVA as regras do motor (com validação e auditoria). Upsert do singleton global. */
+  async saveConfig(dto: EngineConfigInput, actor: Actor) {
+    const data: EngineConfigInput = {};
+
+    if (dto.minRespondents !== undefined) {
+      const n = Math.trunc(dto.minRespondents);
+      if (!Number.isFinite(n) || n < MIN_RESPONDENTS_FLOOR || n > MIN_RESPONDENTS_CEIL) {
+        throw new BadRequestException(
+          `O mínimo de respondentes deve ficar entre ${MIN_RESPONDENTS_FLOOR} e ${MIN_RESPONDENTS_CEIL} (piso de anonimato).`,
+        );
+      }
+      data.minRespondents = n;
+    }
+    if (dto.defaultAggregation !== undefined) data.defaultAggregation = dto.defaultAggregation;
+    if (dto.defaultBandKind !== undefined) data.defaultBandKind = dto.defaultBandKind;
+    if (dto.defaultScaleLabels !== undefined) {
+      const labels = dto.defaultScaleLabels.map((s) => s.trim()).filter(Boolean);
+      if (labels.length !== 0 && labels.length !== 5) {
+        throw new BadRequestException(
+          'A escala padrão precisa ter exatamente 5 rótulos — ou nenhum, para usar a escala CRIVO.',
+        );
+      }
+      data.defaultScaleLabels = labels;
+    }
+
+    await this.prisma.admin.engineConfig.upsert({
+      where: { scope: 'global' },
+      update: data,
+      create: { scope: 'global', ...data },
+    });
+    await this.audit.record({ action: 'engine.config.update', actor, target: 'global', meta: data });
+    return this.getConfig();
+  }
 
   /** Panorama do "Configuração do Motor": o que cada motor configura + números reais. */
   async overview() {

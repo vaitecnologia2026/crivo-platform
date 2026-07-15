@@ -1044,6 +1044,30 @@ export interface EngineOverview {
 export function getEngineOverview(): Promise<EngineOverview> {
   return adminFetch<EngineOverview>("/admin/engine/overview");
 }
+
+export interface EngineConfig {
+  minRespondents: number;
+  defaultAggregation: "MEDIA_PONDERADA" | "MEDIA_SIMPLES" | "SOMA_NORMALIZADA";
+  defaultBandKind: "MATURITY" | "RISK";
+  defaultScaleLabels: string[];
+  updatedAt: string | null;
+  floor: number;
+  ceil: number;
+}
+export function getEngineConfig(): Promise<EngineConfig> {
+  return adminFetch<EngineConfig>("/admin/engine/config");
+}
+export function saveEngineConfig(input: {
+  minRespondents?: number;
+  defaultAggregation?: EngineConfig["defaultAggregation"];
+  defaultBandKind?: EngineConfig["defaultBandKind"];
+  defaultScaleLabels?: string[];
+}): Promise<EngineConfig> {
+  return adminFetch<EngineConfig>("/admin/engine/config", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
 export interface EngineActionRow {
   id: string;
   action: string;

@@ -768,6 +768,25 @@ enum AddonStatus {
 // (owner-only): nenhum usuário comum lê o token. Prompts por produto vivem em
 // Product.aiConfig; aqui ficam token, modelo, ativação e módulos habilitados.
 // =====================================================================
+/// Configuração do Motor (singleton scope='global') — regras GLOBAIS de como o
+/// motor de diagnósticos funciona, definidas pelo Super Admin e que tomam efeito:
+/// limiar de anonimato, modo de cálculo padrão, régua padrão e escala padrão dos
+/// novos diagnósticos. Não é um portal de atalhos — é onde se DEFINE o motor.
+model EngineConfig {
+  id                String              @id @default(uuid()) @db.Uuid
+  scope             String              @unique @default("global")
+  // Mínimo de respondentes para revelar qualquer agregado (proteção de anonimato).
+  minRespondents    Int                 @default(5) @map("min_respondents")
+  // Padrões aplicados ao criar um novo diagnóstico.
+  defaultAggregation ScoreAggregation   @default(MEDIA_PONDERADA) @map("default_aggregation")
+  defaultBandKind   MethodologyBandKind @default(MATURITY) @map("default_band_kind")
+  defaultScaleLabels String[]           @default([]) @map("default_scale_labels")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("engine_config")
+}
+
 model AiSettings {
   id       String @id @default(uuid()) @db.Uuid
   scope    String @unique @default("global")

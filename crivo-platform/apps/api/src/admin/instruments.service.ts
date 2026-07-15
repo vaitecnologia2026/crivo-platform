@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { getEngineConfig } from './engine-config';
 
 type Actor = { id: string; email: string };
 
@@ -47,12 +48,14 @@ export class InstrumentsService {
     const exists = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug } });
     if (exists) throw new BadRequestException('Já existe um diagnóstico com este slug.');
 
+    // Padrões DEFINIDOS na Configuração do Motor tomam efeito em todo diagnóstico novo.
+    const cfg = await getEngineConfig(this.prisma);
     const created = await this.prisma.admin.diagnosticInstrument.create({
       data: {
         slug,
         name,
-        bandKind: dto.bandKind ?? 'MATURITY',
-        aggregation: dto.aggregation ?? 'MEDIA_PONDERADA',
+        bandKind: dto.bandKind ?? cfg.defaultBandKind,
+        aggregation: dto.aggregation ?? cfg.defaultAggregation,
         description: dto.description ?? null,
         active: dto.active ?? true,
         builtIn: false,

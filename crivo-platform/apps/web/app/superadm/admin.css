@@ -867,6 +867,8 @@
 .adm .eng-flow__step--out { background: var(--navy, #0d1f3c); border-color: var(--navy, #0d1f3c); color: #fff; }
 .adm .eng-flow__chain i { color: var(--text-sec); font-style: normal; }
 .adm .eng-flow p { margin: 0; font-size: 12.5px; color: var(--text-sec); line-height: 1.6; }
+.adm .linklike { background: none; border: none; padding: 0; font: inherit; color: var(--terra, #a8693d); font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.adm .linklike:hover { color: var(--navy, #0d1f3c); }
 
 /* — Motor de Evolução + Evidências (filtros e status extras) — */
 .adm .evo-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

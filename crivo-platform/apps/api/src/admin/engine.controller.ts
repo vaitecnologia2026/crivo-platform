@@ -1,5 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import type { PlatformAdmin } from '@crivo/types';
 import { EngineService } from './engine.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
@@ -13,11 +23,35 @@ class ReviewEvidenceDto {
   reason?: string;
 }
 
+class EngineConfigDto {
+  @IsOptional() @IsInt() @Min(1) @Max(100)
+  minRespondents?: number;
+
+  @IsOptional() @IsIn(['MEDIA_PONDERADA', 'MEDIA_SIMPLES', 'SOMA_NORMALIZADA'])
+  defaultAggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA';
+
+  @IsOptional() @IsIn(['MATURITY', 'RISK'])
+  defaultBandKind?: 'MATURITY' | 'RISK';
+
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) @MaxLength(60, { each: true })
+  defaultScaleLabels?: string[];
+}
+
 /** Motores CRIVO (Configuração do Motor · Evolução · Evidências). Owner-only. */
 @Controller('admin/engine')
 @UseGuards(SuperAdminGuard)
 export class EngineController {
   constructor(private readonly engine: EngineService) {}
+
+  @Get('config')
+  getConfig() {
+    return this.engine.getConfig();
+  }
+
+  @Put('config')
+  saveConfig(@CurrentAdmin() admin: PlatformAdmin, @Body() dto: EngineConfigDto) {
+    return this.engine.saveConfig(dto, { id: admin.id, email: admin.email });
+  }
 
   @Get('overview')
   overview() {

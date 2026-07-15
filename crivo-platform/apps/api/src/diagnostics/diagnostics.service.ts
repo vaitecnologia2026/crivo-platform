@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { MIN_LEADERS_FOR_DISCLOSURE, scoreWithMethodology } from '@crivo/types';
+import { scoreWithMethodology } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
+import { getEngineConfig } from '../admin/engine-config';
 import { SubmitDiagnosticDto } from './dto';
 
 type Actor = { id: string; email: string };
@@ -171,7 +172,8 @@ export class DiagnosticsService {
   /** Agregado por empresa+instrumento com supressão (visão do super admin). */
   async results(rawTenantId: string, instrumentSlug: string) {
     const tenantId = await this.resolveOrgId(rawTenantId);
-    const minRespondents = MIN_LEADERS_FOR_DISCLOSURE;
+    // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
+    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     const dims = active ? active.config.dimensions.map((d) => ({ slug: d.slug, label: d.label })) : [];
     const bands = active?.config.bands ?? [];

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { MethodologyConfig, ScoreAggregationMode } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { getEngineConfig } from './engine-config';
 
 // O instrumento agora é um SLUG do catálogo diagnostic_instruments (motor
 // dinâmico). Os built-in preservam os valores históricos do enum.
@@ -153,6 +154,10 @@ export class MethodologyService {
   async createDraft(instrument: string, actor: Actor) {
     await this.resolveInstrument(instrument);
     const active = await this.getActive(instrument);
+    // Escala padrão DEFINIDA na Configuração do Motor semeia a 1ª versão de um
+    // diagnóstico novo (sem versão ativa da qual clonar). Só se for válida (5 âncoras).
+    const cfg = await getEngineConfig(this.prisma);
+    const seedScale = cfg.defaultScaleLabels.length === 5 ? cfg.defaultScaleLabels : [];
     const max = await this.prisma.admin.methodologyVersion.aggregate({
       where: { instrument },
       _max: { version: true },
@@ -165,7 +170,7 @@ export class MethodologyService {
         label: `Rascunho v${nextVersion}`,
         status: 'DRAFT',
         createdBy: actor.email,
-        scaleLabels: active?.scaleLabels ?? [],
+        scaleLabels: active?.scaleLabels ?? seedScale,
         dimensions: active
           ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation })) }
           : undefined,

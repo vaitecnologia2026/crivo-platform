@@ -3,7 +3,6 @@ import { randomBytes } from 'node:crypto';
 import {
   computePsychosocial,
   scoreWithMethodology,
-  MIN_LEADERS_FOR_DISCLOSURE,
   psychosocialLevel,
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
@@ -11,6 +10,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { loadActiveMethodologyConfig, resolveActiveMethodology } from '../admin/methodology.service';
+import { getEngineConfig } from '../admin/engine-config';
 import { SubmitPsychosocialDto } from './dto';
 
 // Resultado psicossocial em formato "superset" — compatível com o storage/telas
@@ -170,7 +170,8 @@ export class PsychosocialService {
    * Cada recorte (geral e cada setor) só revela agregados se tiver ≥ minRespondents.
    */
   async results(tenantId: string) {
-    const minRespondents = MIN_LEADERS_FOR_DISCLOSURE;
+    // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
+    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
     // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
     const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
     const dims = cfg
