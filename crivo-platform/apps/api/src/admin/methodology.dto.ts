@@ -22,6 +22,12 @@ class DimensionDto {
 
   @IsOptional() @IsNumber() @Min(0)
   weight?: number;
+
+  @IsOptional() @IsString() @MaxLength(80)
+  parentSlug?: string | null;
+
+  @IsOptional() @IsIn(['MEDIA_PONDERADA', 'MEDIA_SIMPLES', 'SOMA_NORMALIZADA'])
+  aggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA' | null;
 }
 
 class QuestionDto {
@@ -36,6 +42,9 @@ class QuestionDto {
 
   @IsOptional() @IsBoolean()
   inverse?: boolean;
+
+  @IsOptional() @IsBoolean()
+  required?: boolean;
 }
 
 class BandDto {

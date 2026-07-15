@@ -17,20 +17,27 @@ const CONTENT_INCLUDE = {
 };
 
 type VersionWithContent = {
-  dimensions: { slug: string; label: string; weight: number }[];
-  questions: { dimensionSlug: string; text: string; weight: number; inverse: boolean }[];
+  dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
+  questions: { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean }[];
   bands: { code: string; label: string; min: number; max: number }[];
 };
 
 /** Mapeia uma versão (com conteúdo incluído) para o formato do motor de score. */
 function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): MethodologyConfig {
   return {
-    dimensions: v.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight })),
+    dimensions: v.dimensions.map((d) => ({
+      slug: d.slug,
+      label: d.label,
+      weight: d.weight,
+      parentSlug: d.parentSlug ?? null,
+      ...(d.aggregation ? { aggregation: d.aggregation } : {}),
+    })),
     questions: v.questions.map((q) => ({
       dimensionSlug: q.dimensionSlug,
       text: q.text,
       weight: q.weight,
       inverse: q.inverse,
+      required: q.required ?? true,
     })),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
     ...(aggregation ? { aggregation } : {}),
@@ -157,10 +164,10 @@ export class MethodologyService {
         status: 'DRAFT',
         createdBy: actor.email,
         dimensions: active
-          ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order })) }
+          ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation })) }
           : undefined,
         questions: active
-          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, order: qq.order })) }
+          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, order: qq.order })) }
           : undefined,
         bands: active
           ? { create: active.bands.map((b) => ({ kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color, order: b.order })) }
@@ -178,8 +185,8 @@ export class MethodologyService {
     dto: {
       label?: string;
       notes?: string;
-      dimensions?: { slug: string; label: string; weight?: number }[];
-      questions?: { dimensionSlug: string; text: string; weight?: number; inverse?: boolean }[];
+      dimensions?: { slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
+      questions?: { dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
     },
     actor: Actor,
@@ -198,13 +205,13 @@ export class MethodologyService {
       if (dto.dimensions) {
         await tx.methodologyDimension.deleteMany({ where: { versionId: id } });
         await tx.methodologyDimension.createMany({
-          data: dto.dimensions.map((d, i) => ({ versionId: id, slug: d.slug, label: d.label, weight: d.weight ?? 1, order: i })),
+          data: dto.dimensions.map((d, i) => ({ versionId: id, slug: d.slug, label: d.label, weight: d.weight ?? 1, order: i, parentSlug: d.parentSlug ?? null, aggregation: d.aggregation ?? null })),
         });
       }
       if (dto.questions) {
         await tx.methodologyQuestion.deleteMany({ where: { versionId: id } });
         await tx.methodologyQuestion.createMany({
-          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, order: i })),
+          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, required: qq.required ?? true, order: i })),
         });
       }
       if (dto.bands) {

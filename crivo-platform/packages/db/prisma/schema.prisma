@@ -1946,8 +1946,16 @@ model MethodologyDimension {
   label     String
   weight    Float              @default(1)
   order     Int                @default(0)
+  // Árvore Dimensão → Subdimensão (mockup do cliente 15/07). parentSlug null =
+  // dimensão de topo; preenchido = subdimensão daquele pai. As perguntas se
+  // ligam às FOLHAS (dimensão/subdimensão sem filhos).
+  parentSlug  String?           @map("parent_slug")
+  // Regra de cálculo do nó (só folhas e nós internos de MÉDIA). null = herda o
+  // modo do instrumento. Espelha "média simples/ponderada" por subdimensão.
+  aggregation ScoreAggregation?
 
   @@unique([versionId, slug])
+  @@index([versionId, parentSlug])
   @@map("methodology_dimensions")
 }
 
@@ -1959,6 +1967,7 @@ model MethodologyQuestion {
   text          String             @db.Text
   weight        Float              @default(1)
   inverse       Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)
+  required      Boolean            @default(true) // obrigatória (mockup): opcional não trava o respondente
   order         Int                @default(0)
 
   @@index([versionId])

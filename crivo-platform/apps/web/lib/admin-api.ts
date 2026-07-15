@@ -1136,6 +1136,8 @@ export type MethodologyBandKind = "MATURITY" | "RISK";
 
 export interface MethodologyDimension {
   id?: string;
+  parentSlug?: string | null;
+  aggregation?: ScoreAggregation | null;
   slug: string;
   label: string;
   weight: number;
@@ -1147,6 +1149,7 @@ export interface MethodologyQuestion {
   text: string;
   weight: number;
   inverse: boolean;
+  required?: boolean;
   order?: number;
 }
 export interface MethodologyBand {

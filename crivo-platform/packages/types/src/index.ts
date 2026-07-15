@@ -674,12 +674,15 @@ export interface MethodologyConfigDimension {
   slug: string;
   label: string;
   weight: number;
+  parentSlug?: string | null; // árvore Dimensão → Subdimensão (mockup 15/07); null = topo
+  aggregation?: ScoreAggregationMode; // regra do nó; ausente = herda o modo do instrumento
 }
 export interface MethodologyConfigQuestion {
-  dimensionSlug: string;
+  dimensionSlug: string; // liga à FOLHA (dimensão/subdimensão sem filhos)
   text: string;
   weight: number;
   inverse: boolean;
+  required?: boolean; // obrigatória (default true); opcional não trava o respondente
 }
 export interface MethodologyConfigBand {
   code: string;
@@ -725,10 +728,9 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   // Resultado sempre 0–100 (regra do cliente: pontuação negativa não existe).
   const clamp = (x: number) => Math.max(0, Math.min(100, x));
   const byId = new Map(answers.map((a) => [a.questionId, a.value]));
-  const acc = new Map<string, { wsum: number; w: number }>();
-  for (const d of cfg.dimensions) acc.set(d.slug, { wsum: 0, w: 0 });
 
-  cfg.questions.forEach((q, i) => {
+  // Valor normalizado (0–100) de cada pergunta, na ordem de cfg.questions.
+  const qNorm = cfg.questions.map((q, i) => {
     const id = i + 1; // questionId = índice 1-based
     const v = byId.get(id);
     if (v == null || !Number.isFinite(v) || v < 1 || v > 5) {
@@ -736,49 +738,73 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
     }
     let norm = ((v - 1) / 4) * 100;
     if (q.inverse) norm = 100 - norm;
-    const a = acc.get(q.dimensionSlug);
-    if (a) {
-      // MEDIA_SIMPLES ignora pesos; nos demais modos o peso da pergunta conta.
-      const w = mode === 'MEDIA_SIMPLES' ? 1 : (q.weight ?? 1);
-      a.wsum += norm * w;
-      a.w += w;
-    }
+    return { norm, weight: q.weight ?? 1, dimensionSlug: q.dimensionSlug };
   });
 
-  // Por dimensão: nos 3 modos a leitura da dimensão é a fração do máximo
-  // possível (que na média equivale a Σ(norm·w)/Σw — a SOMA_NORMALIZADA
-  // difere só na consolidação final, feita sobre TODAS as questões).
-  const byDimension = cfg.dimensions.map((d) => {
-    const a = acc.get(d.slug)!;
-    return { slug: d.slug, label: d.label, value: a.w > 0 ? clamp(Math.round(a.wsum / a.w)) : 0 };
-  });
+  /** Média ponderada (0–100) de itens {value,weight}; MEDIA_SIMPLES força peso 1. */
+  const wavg = (items: { value: number; weight: number }[], m: ScoreAggregationMode): number => {
+    let wsum = 0;
+    let w = 0;
+    for (const it of items) {
+      const wt = m === 'MEDIA_SIMPLES' ? 1 : it.weight;
+      wsum += it.value * wt;
+      w += wt;
+    }
+    return w > 0 ? clamp(Math.round(wsum / w)) : 0;
+  };
+
+  // Índice da árvore Dimensão → Subdimensão. childrenOf(slug) = subdimensões;
+  // parentSlug null = nó de topo. Modelo plano: todos topo e folha (compat total).
+  const childrenOf = new Map<string, MethodologyConfigDimension[]>();
+  for (const d of cfg.dimensions) {
+    const key = d.parentSlug ?? '__root__';
+    (childrenOf.get(key) ?? childrenOf.set(key, []).get(key)!).push(d);
+  }
+  const qByDim = new Map<string, { value: number; weight: number }[]>();
+  for (const q of qNorm) {
+    (qByDim.get(q.dimensionSlug) ?? qByDim.set(q.dimensionSlug, []).get(q.dimensionSlug)!).push({
+      value: q.norm,
+      weight: q.weight,
+    });
+  }
+
+  // Pontua um nó: se tem filhos, média (ponderada por peso do filho) dos filhos;
+  // se é folha, agrega as perguntas. O modo do nó (aggregation) sobrepõe o modo
+  // do instrumento para MÉDIA (simples/ponderada). SOMA_NORMALIZADA é global.
+  const scoreNode = (dim: MethodologyConfigDimension): number => {
+    const nodeMode: ScoreAggregationMode = dim.aggregation ?? mode;
+    const kids = childrenOf.get(dim.slug) ?? [];
+    if (kids.length > 0) {
+      return wavg(kids.map((c) => ({ value: scoreNode(c), weight: c.weight ?? 1 })), nodeMode);
+    }
+    const qs = qByDim.get(dim.slug) ?? [];
+    return wavg(qs, nodeMode);
+  };
+
+  const topDims = childrenOf.get('__root__') ?? [];
+  const byDimension = topDims.map((d) => ({ slug: d.slug, label: d.label, value: scoreNode(d) }));
 
   let score: number;
   if (mode === 'SOMA_NORMALIZADA') {
-    // % do máximo possível sobre todas as questões (pesos incluídos):
-    // round(100 · Σ(norm_i·w_i) / Σ(100·w_i)) — dimensões não re-ponderam.
+    // % do máximo possível sobre TODAS as perguntas (ignora a árvore e os pesos
+    // de dimensão): round(100 · Σ(norm·w) / Σ(100·w)).
     let sum = 0;
     let max = 0;
-    for (const a of acc.values()) {
-      sum += a.wsum;
-      max += a.w * 100;
+    for (const q of qNorm) {
+      sum += q.norm * q.weight;
+      max += 100 * q.weight;
     }
     score = max > 0 ? clamp(Math.round((sum / max) * 100)) : 0;
   } else {
-    // Média (ponderada ou simples) das dimensões.
-    let wsum = 0;
-    let w = 0;
-    for (const d of cfg.dimensions) {
-      const val = byDimension.find((x) => x.slug === d.slug)!.value;
-      const dw = mode === 'MEDIA_SIMPLES' ? 1 : (d.weight ?? 1);
-      wsum += val * dw;
-      w += dw;
-    }
-    score = w > 0 ? clamp(Math.round(wsum / w)) : 0;
+    // Média (ponderada ou simples) das dimensões de topo.
+    score = wavg(byDimension.map((d) => {
+      const dim = topDims.find((x) => x.slug === d.slug)!;
+      return { value: d.value, weight: dim.weight ?? 1 };
+    }), mode);
   }
 
   const band = cfg.bands.find((b) => score >= b.min && score <= b.max) ?? cfg.bands[cfg.bands.length - 1];
-  const minVal = Math.min(...byDimension.map((d) => d.value));
+  const minVal = byDimension.length ? Math.min(...byDimension.map((d) => d.value)) : 0;
   const topAttentions = byDimension.filter((d) => d.value === minVal).map((d) => d.slug);
 
   return { score, levelCode: band?.code ?? '', levelLabel: band?.label ?? '', byDimension, topAttentions };

@@ -711,3 +711,91 @@ describe("scoreWithMethodology — modos de agregação", () => {
     }
   });
 });
+
+// ============================================================
+// Score em árvore (Dimensão → Subdimensão) — mockup do cliente 15/07
+// ============================================================
+describe("scoreWithMethodology — subdimensões aninhadas", () => {
+  const BANDS = [
+    { code: "BAIXO", label: "Baixo", min: 0, max: 49 },
+    { code: "ALTO", label: "Alto", min: 50, max: 100 },
+  ];
+
+  it("modelo plano (sem parentSlug) = comportamento anterior byte a byte", () => {
+    // Reusa o mesmo CFG do bloco de modos: 2 dimensões, pesos 3/1.
+    const CFG: MethodologyConfig = {
+      dimensions: [
+        { slug: "d1", label: "D1", weight: 3 },
+        { slug: "d2", label: "D2", weight: 1 },
+      ],
+      questions: [
+        { dimensionSlug: "d1", text: "q1", weight: 3, inverse: false },
+        { dimensionSlug: "d1", text: "q2", weight: 1, inverse: false },
+        { dimensionSlug: "d2", text: "q3", weight: 1, inverse: false },
+      ],
+      bands: BANDS,
+    };
+    const ANSWERS = [
+      { questionId: 1, value: 5 },
+      { questionId: 2, value: 1 },
+      { questionId: 3, value: 3 },
+    ];
+    // d1 = (100·3+0·1)/4 = 75; d2 = 50; final = (75·3+50·1)/4 = 69
+    expect(scoreWithMethodology(ANSWERS, CFG).score).toBe(69);
+  });
+
+  it("aninhado: Liderança(peso 3) → Clareza[média simples] + Delegação[ponderada]", () => {
+    const CFG: MethodologyConfig = {
+      dimensions: [
+        { slug: "lideranca", label: "Liderança", weight: 3, parentSlug: null },
+        { slug: "clareza", label: "Clareza de Rotina", weight: 1, parentSlug: "lideranca", aggregation: "MEDIA_SIMPLES" },
+        { slug: "delegacao", label: "Delegação", weight: 1, parentSlug: "lideranca", aggregation: "MEDIA_PONDERADA" },
+        { slug: "processos", label: "Processos", weight: 1, parentSlug: null },
+      ],
+      questions: [
+        // clareza (folha, média simples): 100 e 0 → 50
+        { dimensionSlug: "clareza", text: "c1", weight: 5, inverse: false },
+        { dimensionSlug: "clareza", text: "c2", weight: 1, inverse: false },
+        // delegacao (folha, ponderada): 100(peso0.6) e 0(peso0.4) → 60
+        { dimensionSlug: "delegacao", text: "de1", weight: 0.6, inverse: false },
+        { dimensionSlug: "delegacao", text: "de2", weight: 0.4, inverse: false },
+        // processos (folha): 100
+        { dimensionSlug: "processos", text: "p1", weight: 1, inverse: false },
+      ],
+      bands: BANDS,
+    };
+    const ANSWERS = [
+      { questionId: 1, value: 5 }, // c1 → 100
+      { questionId: 2, value: 1 }, // c2 → 0
+      { questionId: 3, value: 5 }, // de1 → 100
+      { questionId: 4, value: 1 }, // de2 → 0
+      { questionId: 5, value: 5 }, // p1 → 100
+    ];
+    const r = scoreWithMethodology(ANSWERS, CFG);
+    // clareza (simples, pesos ignorados) = (100+0)/2 = 50
+    // delegacao (ponderada) = (100·0.6+0·0.4)/1 = 60
+    // lideranca (pai, ponderada default por peso do filho 1/1) = (50+60)/2 = 55
+    // processos = 100
+    // final (ponderada, peso lideranca 3, processos 1) = (55·3+100·1)/4 = 66.25 → 66
+    expect(r.byDimension.find((d) => d.slug === "lideranca")!.value).toBe(55);
+    expect(r.byDimension.find((d) => d.slug === "processos")!.value).toBe(100);
+    expect(r.score).toBe(66);
+    // byDimension expõe só as dimensões de TOPO
+    expect(r.byDimension.map((d) => d.slug).sort()).toEqual(["lideranca", "processos"]);
+  });
+
+  it("aninhado respeita clamp e faixa final", () => {
+    const CFG: MethodologyConfig = {
+      dimensions: [
+        { slug: "g", label: "G", weight: 1, parentSlug: null },
+        { slug: "s", label: "S", weight: 1, parentSlug: "g" },
+      ],
+      questions: [{ dimensionSlug: "s", text: "q", weight: 1, inverse: true }],
+      bands: BANDS,
+    };
+    // inversa, resposta 5 → 0
+    const r = scoreWithMethodology([{ questionId: 1, value: 5 }], CFG);
+    expect(r.score).toBe(0);
+    expect(r.levelCode).toBe("BAIXO");
+  });
+});
