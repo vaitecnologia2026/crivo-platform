@@ -37,8 +37,8 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
   SOMA_NORMALIZADA: "soma normalizada",
 };
 
-type Dim = { slug: string; label: string; weight: number };
-type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean };
+type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null };
+type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number };
 
 export function MethodologySection() {
@@ -93,8 +93,8 @@ export function MethodologySection() {
     const d = await getMethodologyVersion(id);
     setDraftId(d.id);
     setLabel(d.label);
-    setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight })));
-    setQuestions(d.questions.map((x) => ({ dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse })));
+    setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null })));
+    setQuestions(d.questions.map((x) => ({ dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse, required: x.required ?? true })));
     setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max })));
   }
 
@@ -294,82 +294,24 @@ export function MethodologySection() {
         </div>
       )}
 
-      {/* Editor do rascunho */}
+      {/* Editor do rascunho — aninhado (Dimensão → Subdimensão → Pergunta), em abas */}
       {editing && (
-        <div className="cnae-card">
-          <div className="cnae-card__hero" style={{ marginBottom: 12 }}>
-            <span className="cnae-badge cnae-badge--medio">Rascunho</span>
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Nome da versão"
-              style={{ flex: 1, minWidth: 200, padding: "6px 10px", border: "1px solid var(--border,#e7e1d6)", borderRadius: 8, font: "inherit" }}
-            />
-          </div>
-
-          {/* Dimensões */}
-          <h4 className="meth-h">Dimensões</h4>
-          <div className="meth-rows">
-            {dims.map((d, i) => (
-              <div className="meth-row" key={i}>
-                <input className="meth-in meth-in--slug" value={d.slug} placeholder="slug" onChange={(e) => setDims(dims.map((x, j) => (j === i ? { ...x, slug: e.target.value } : x)))} />
-                <input className="meth-in" value={d.label} placeholder="Rótulo da dimensão" onChange={(e) => setDims(dims.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-                <input className="meth-in meth-in--num" type="number" step="0.1" value={d.weight} title="peso" onChange={(e) => setDims(dims.map((x, j) => (j === i ? { ...x, weight: Number(e.target.value) } : x)))} />
-                <button className="meth-del" title="Remover" onClick={() => setDims(dims.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn--ghost btn--sm" onClick={() => setDims([...dims, { slug: "", label: "", weight: 1 }])}>+ dimensão</button>
-
-          {/* Perguntas */}
-          <h4 className="meth-h" style={{ marginTop: 18 }}>Perguntas</h4>
-          <div className="meth-rows">
-            {questions.map((qq, i) => (
-              <div className="meth-row" key={i}>
-                <select className="meth-in meth-in--slug" value={qq.dimensionSlug} onChange={(e) => setQuestions(questions.map((x, j) => (j === i ? { ...x, dimensionSlug: e.target.value } : x)))}>
-                  <option value="">— dimensão —</option>
-                  {dims.map((d) => (
-                    <option key={d.slug} value={d.slug}>{d.slug || "(sem slug)"}</option>
-                  ))}
-                </select>
-                <input className="meth-in" value={qq.text} placeholder="Texto da pergunta" onChange={(e) => setQuestions(questions.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))} />
-                <label className="meth-inv" title="Afirmação negativa (inverte a pontuação)">
-                  <input type="checkbox" checked={qq.inverse} onChange={(e) => setQuestions(questions.map((x, j) => (j === i ? { ...x, inverse: e.target.checked } : x)))} /> inv
-                </label>
-                <button className="meth-del" title="Remover" onClick={() => setQuestions(questions.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn--ghost btn--sm" onClick={() => setQuestions([...questions, { dimensionSlug: dims[0]?.slug ?? "", text: "", weight: 1, inverse: false }])}>+ pergunta</button>
-
-          {/* Faixas */}
-          <h4 className="meth-h" style={{ marginTop: 18 }}>{meta.bandWord}</h4>
-          <div className="meth-rows">
-            {bands.map((b, i) => (
-              <div className="meth-row" key={i}>
-                <input className="meth-in meth-in--slug" value={b.code} placeholder="código" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))} />
-                <input className="meth-in" value={b.label} placeholder="Rótulo" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.min} title="mín" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, min: Number(e.target.value) } : x)))} />
-                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.max} title="máx" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, max: Number(e.target.value) } : x)))} />
-                <button className="meth-del" title="Remover" onClick={() => setBands(bands.filter((_, j) => j !== i))}>✕</button>
-              </div>
-            ))}
-          </div>
-          <button className="btn btn--ghost btn--sm" onClick={() => setBands([...bands, { kind: meta.bandKind, code: "", label: "", min: 0, max: 100 }])}>+ faixa</button>
-
-          {/* Ações */}
-          <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-            <button className="btn btn--outline-dark btn--sm" disabled={busy === "save"} onClick={save}>
-              {busy === "save" ? "Salvando…" : "Salvar rascunho"}
-            </button>
-            <button className="btn btn--terra btn--sm" disabled={busy === "publish"} onClick={publish}>
-              {busy === "publish" ? "Publicando…" : "Salvar e publicar"}
-            </button>
-            <button className="btn btn--ghost btn--sm" style={{ color: "var(--danger,#b4453a)" }} disabled={busy === "discard"} onClick={discard}>
-              Descartar
-            </button>
-          </div>
-        </div>
+        <DraftEditor
+          label={label}
+          setLabel={setLabel}
+          dims={dims}
+          setDims={setDims}
+          questions={questions}
+          setQuestions={setQuestions}
+          bands={bands}
+          setBands={setBands}
+          bandKind={meta.bandKind}
+          bandWord={meta.bandWord}
+          busy={busy}
+          onSave={save}
+          onPublish={publish}
+          onDiscard={discard}
+        />
       )}
 
       {/* Histórico */}
@@ -442,25 +384,39 @@ function VersionContent({ version, bandWord }: { version: MethodologyVersion; ba
         </ol>
       </div>
 
-      {version.dimensions.map((d) => {
-        const qs = version.questions.filter((q) => q.dimensionSlug === d.slug);
+      {version.dimensions.filter((d) => !d.parentSlug).map((d) => {
+        const subs = version.dimensions.filter((s) => s.parentSlug === d.slug);
+        const directQs = version.questions.filter((q) => q.dimensionSlug === d.slug);
+        const renderQs = (slug: string) =>
+          version.questions.filter((q) => q.dimensionSlug === slug).map((q, i) => (
+            <li key={i}>
+              {q.text}
+              <span className="meth-view__qmeta">
+                peso {q.weight}
+                {q.required === false ? " · opcional" : ""}
+                {q.inverse ? " · invertida" : ""}
+              </span>
+            </li>
+          ));
         return (
           <div key={d.slug} className="meth-view__dim">
             <div className="meth-view__dimhead">
               <strong>{d.label}</strong>
-              <em>peso {d.weight} · {qs.length} pergunta(s)</em>
+              <em>peso {d.weight}{subs.length ? ` · ${subs.length} subdimensão(ões)` : ` · ${directQs.length} pergunta(s)`}</em>
             </div>
-            <ul>
-              {qs.map((q, i) => (
-                <li key={i}>
-                  {q.text}
-                  <span className="meth-view__qmeta">
-                    peso {q.weight}
-                    {q.inverse ? " · invertida" : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {subs.length > 0 ? (
+              subs.map((sub) => (
+                <div key={sub.slug} className="meth-view__sub">
+                  <div className="meth-view__subhead">
+                    <strong>{sub.label}</strong>
+                    <em>peso {sub.weight} · {AGG_LABEL[sub.aggregation ?? "MEDIA_PONDERADA"]}</em>
+                  </div>
+                  <ul>{renderQs(sub.slug)}</ul>
+                </div>
+              ))
+            ) : (
+              <ul>{renderQs(d.slug)}</ul>
+            )}
           </div>
         );
       })}
@@ -879,6 +835,232 @@ function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const AGG_SHORT: Record<ScoreAggregation, string> = {
+  MEDIA_PONDERADA: "média ponderada",
+  MEDIA_SIMPLES: "média simples",
+  SOMA_NORMALIZADA: "soma normalizada",
+};
+
+/**
+ * Editor do rascunho aninhado (mockup do cliente 15/07): Dimensão → Subdimensão →
+ * Pergunta, com regra de cálculo por subdimensão, em abas (Estrutura · Faixas ·
+ * Memória de cálculo). Modelo plano (built-in) segue editável: uma dimensão sem
+ * subdimensões edita as perguntas direto (é uma folha).
+ */
+function DraftEditor({
+  label, setLabel, dims, setDims, questions, setQuestions, bands, setBands,
+  bandKind, bandWord, busy, onSave, onPublish, onDiscard,
+}: {
+  label: string;
+  setLabel: (v: string) => void;
+  dims: Dim[];
+  setDims: (d: Dim[]) => void;
+  questions: Q[];
+  setQuestions: (q: Q[]) => void;
+  bands: Band[];
+  setBands: (b: Band[]) => void;
+  bandKind: "MATURITY" | "RISK";
+  bandWord: string;
+  busy: string | null;
+  onSave: () => void;
+  onPublish: () => void;
+  onDiscard: () => void;
+}) {
+  const [tab, setTab] = useState<"estrutura" | "faixas" | "calculo">("estrutura");
+
+  const topDims = dims.filter((d) => !d.parentSlug);
+  const childrenOf = (slug: string) => dims.filter((d) => d.parentSlug === slug);
+  const qsOf = (slug: string) => questions.map((q, i) => ({ q, i })).filter(({ q }) => q.dimensionSlug === slug);
+
+  /** slug livre a partir de um prefixo (dim-1, sub-2…). */
+  const freeSlug = (prefix: string) => {
+    let n = 1;
+    while (dims.some((d) => d.slug === `${prefix}-${n}`)) n++;
+    return `${prefix}-${n}`;
+  };
+  const setDim = (slug: string, patch: Partial<Dim>) => setDims(dims.map((d) => (d.slug === slug ? { ...d, ...patch } : d)));
+  const setQ = (idx: number, patch: Partial<Q>) => setQuestions(questions.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
+
+  const addDimension = () => setDims([...dims, { slug: freeSlug("dim"), label: "", weight: 1, parentSlug: null }]);
+  const addSubdimension = (parentSlug: string) => {
+    // Se o pai tem perguntas diretas (era folha), move-as para uma subdimensão
+    // "Geral" antes de criar a nova — mantém a árvore limpa (nó interno não pontua
+    // perguntas diretas).
+    const direct = questions.filter((q) => q.dimensionSlug === parentSlug);
+    let nextDims = dims;
+    let nextQs = questions;
+    if (direct.length > 0) {
+      const geral = freeSlug("sub");
+      nextDims = [...nextDims, { slug: geral, label: "Geral", weight: 1, parentSlug, aggregation: null }];
+      nextQs = nextQs.map((q) => (q.dimensionSlug === parentSlug ? { ...q, dimensionSlug: geral } : q));
+    }
+    const novo = freeSlug("sub");
+    nextDims = [...nextDims, { slug: novo, label: "", weight: 1, parentSlug, aggregation: null }];
+    setDims(nextDims);
+    setQuestions(nextQs);
+  };
+  const removeDim = (slug: string) => {
+    const kids = dims.filter((d) => d.parentSlug === slug).map((d) => d.slug);
+    const toRemove = new Set([slug, ...kids]);
+    setDims(dims.filter((d) => !toRemove.has(d.slug)));
+    setQuestions(questions.filter((q) => !toRemove.has(q.dimensionSlug)));
+  };
+  const addQuestion = (leafSlug: string) =>
+    setQuestions([...questions, { dimensionSlug: leafSlug, text: "", weight: 1, inverse: false, required: true }]);
+
+  /** Renderiza as perguntas de uma folha (subdimensão ou dimensão-folha). */
+  const LeafQuestions = ({ leafSlug, aggregation, onAgg }: { leafSlug: string; aggregation: ScoreAggregation | null | undefined; onAgg: (a: ScoreAggregation) => void }) => (
+    <>
+      <div className="meth-leafbar">
+        <span>Cálculo desta subdimensão:</span>
+        <select className="meth-in" value={aggregation ?? "MEDIA_PONDERADA"} onChange={(e) => onAgg(e.target.value as ScoreAggregation)}>
+          <option value="MEDIA_PONDERADA">Média ponderada (pesos)</option>
+          <option value="MEDIA_SIMPLES">Média simples</option>
+        </select>
+      </div>
+      {qsOf(leafSlug).map(({ q, i }) => (
+        <div className="meth-row" key={i}>
+          <input className="meth-in" value={q.text} placeholder="Texto da pergunta" onChange={(e) => setQ(i, { text: e.target.value })} />
+          <input className="meth-in meth-in--num" type="number" step="0.1" value={q.weight} title="peso" onChange={(e) => setQ(i, { weight: Number(e.target.value) })} />
+          <label className="meth-inv" title="Obrigatória (opcional não trava o respondente)">
+            <input type="checkbox" checked={q.required ?? true} onChange={(e) => setQ(i, { required: e.target.checked })} /> obr
+          </label>
+          <label className="meth-inv" title="Afirmação negativa (inverte a pontuação)">
+            <input type="checkbox" checked={q.inverse} onChange={(e) => setQ(i, { inverse: e.target.checked })} /> inv
+          </label>
+          <button className="meth-del" title="Remover" onClick={() => setQuestions(questions.filter((_, j) => j !== i))}>✕</button>
+        </div>
+      ))}
+      <button className="btn btn--ghost btn--sm" onClick={() => addQuestion(leafSlug)}>+ pergunta</button>
+    </>
+  );
+
+  return (
+    <div className="cnae-card">
+      <div className="cnae-card__hero" style={{ marginBottom: 12 }}>
+        <span className="cnae-badge cnae-badge--medio">Rascunho</span>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Nome da versão"
+          style={{ flex: 1, minWidth: 200, padding: "6px 10px", border: "1px solid var(--border,#e7e1d6)", borderRadius: 8, font: "inherit" }}
+        />
+      </div>
+
+      <div className="cnae-tabs" style={{ marginBottom: 16 }}>
+        {([["estrutura", "Estrutura"], ["faixas", bandWord], ["calculo", "Memória de cálculo"]] as const).map(([k, lbl]) => (
+          <button key={k} className={`cnae-tab${tab === k ? " is-active" : ""}`} onClick={() => setTab(k)}>{lbl}</button>
+        ))}
+      </div>
+
+      {/* ESTRUTURA — dimensões → subdimensões → perguntas */}
+      {tab === "estrutura" && (
+        <>
+          {topDims.map((d) => {
+            const subs = childrenOf(d.slug);
+            return (
+              <div className="meth-dim" key={d.slug}>
+                <div className="meth-dim__head">
+                  <input className="meth-in" value={d.label} placeholder="Dimensão (ex.: Liderança)" onChange={(e) => setDim(d.slug, { label: e.target.value })} />
+                  <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={d.weight} onChange={(e) => setDim(d.slug, { weight: Number(e.target.value) })} /></label>
+                  <button className="meth-del" title="Remover dimensão" onClick={() => removeDim(d.slug)}>✕</button>
+                </div>
+
+                {subs.length > 0 ? (
+                  subs.map((sub) => (
+                    <div className="meth-sub" key={sub.slug}>
+                      <div className="meth-sub__head">
+                        <input className="meth-in" value={sub.label} placeholder="Subdimensão (ex.: Clareza de Rotina)" onChange={(e) => setDim(sub.slug, { label: e.target.value })} />
+                        <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={sub.weight} onChange={(e) => setDim(sub.slug, { weight: Number(e.target.value) })} /></label>
+                        <button className="meth-del" title="Remover subdimensão" onClick={() => removeDim(sub.slug)}>✕</button>
+                      </div>
+                      <LeafQuestions leafSlug={sub.slug} aggregation={sub.aggregation} onAgg={(a) => setDim(sub.slug, { aggregation: a })} />
+                    </div>
+                  ))
+                ) : (
+                  // Dimensão-folha (modelo plano): edita as perguntas direto.
+                  <div className="meth-sub">
+                    <LeafQuestions leafSlug={d.slug} aggregation={d.aggregation} onAgg={(a) => setDim(d.slug, { aggregation: a })} />
+                  </div>
+                )}
+
+                <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => addSubdimension(d.slug)}>+ subdimensão</button>
+              </div>
+            );
+          })}
+          <button className="btn btn--outline-dark btn--sm" style={{ marginTop: 12 }} onClick={addDimension}>+ dimensão</button>
+        </>
+      )}
+
+      {/* FAIXAS */}
+      {tab === "faixas" && (
+        <>
+          <div className="meth-rows">
+            {bands.map((b, i) => (
+              <div className="meth-row" key={i}>
+                <input className="meth-in meth-in--slug" value={b.code} placeholder="código" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))} />
+                <input className="meth-in" value={b.label} placeholder="Rótulo" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.min} title="mín" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, min: Number(e.target.value) } : x)))} />
+                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.max} title="máx" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, max: Number(e.target.value) } : x)))} />
+                <button className="meth-del" title="Remover" onClick={() => setBands(bands.filter((_, j) => j !== i))}>✕</button>
+              </div>
+            ))}
+          </div>
+          <p className="cnae-muted" style={{ margin: "8px 0" }}>Faixas do <strong>score final</strong> (0–100). Régua do instrumento: {bandKind === "RISK" ? "risco" : "maturidade"}.</p>
+          <button className="btn btn--ghost btn--sm" onClick={() => setBands([...bands, { kind: bandKind, code: "", label: "", min: 0, max: 100 }])}>+ faixa</button>
+        </>
+      )}
+
+      {/* MEMÓRIA DE CÁLCULO */}
+      {tab === "calculo" && (
+        <div className="meth-view__calc">
+          <span className="meth-view__title">Como esta versão pontua</span>
+          <ol>
+            <li>Cada resposta (escala 1–5) é normalizada para 0–100; perguntas invertidas espelham (100 − valor).</li>
+            <li>Cada <strong>subdimensão</strong> agrega suas perguntas pela sua própria regra ({topDims.some((d) => childrenOf(d.slug).length) ? "média simples ou ponderada, definida em Estrutura" : "média das perguntas"}).</li>
+            <li>Cada <strong>dimensão</strong> é a média ponderada das suas subdimensões (pelo peso de cada uma).</li>
+            <li>O <strong>score final</strong> é a média ponderada das dimensões (pelo peso de cada dimensão) e cai numa faixa de {bandWord.toLowerCase()}.</li>
+            <li>O resultado fica sempre entre 0 e 100 — não existe pontuação negativa.</li>
+          </ol>
+          <div style={{ marginTop: 10 }}>
+            {topDims.map((d) => {
+              const subs = childrenOf(d.slug);
+              return (
+                <div key={d.slug} className="meth-view__dim">
+                  <div className="meth-view__dimhead">
+                    <strong>{d.label || "(dimensão)"}</strong>
+                    <em>peso {d.weight}{subs.length ? ` · ${subs.length} subdimensão(ões)` : ` · ${qsOf(d.slug).length} pergunta(s)`}</em>
+                  </div>
+                  {subs.length > 0 && (
+                    <ul>
+                      {subs.map((sub) => (
+                        <li key={sub.slug}>{sub.label || "(subdimensão)"}<span className="meth-view__qmeta">peso {sub.weight} · {AGG_SHORT[sub.aggregation ?? "MEDIA_PONDERADA"]} · {qsOf(sub.slug).length} pergunta(s)</span></li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Ações */}
+      <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+        <button className="btn btn--outline-dark btn--sm" disabled={busy === "save"} onClick={onSave}>
+          {busy === "save" ? "Salvando…" : "Salvar rascunho"}
+        </button>
+        <button className="btn btn--terra btn--sm" disabled={busy === "publish"} onClick={onPublish}>
+          {busy === "publish" ? "Publicando…" : "Salvar e publicar"}
+        </button>
+        <button className="btn btn--ghost btn--sm" style={{ color: "var(--danger,#b4453a)" }} disabled={busy === "discard"} onClick={onDiscard}>
+          Descartar
+        </button>
+      </div>
     </div>
   );
 }
