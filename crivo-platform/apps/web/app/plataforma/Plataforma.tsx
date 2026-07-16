@@ -366,7 +366,8 @@ export function Plataforma() {
       // Fecha ao clicar fora (no main / overlay)
       const mainEl = document.querySelector(".main");
       if (mainEl) on(mainEl, "click", () => {
-        if (window.innerWidth <= 768) aside.classList.remove("is-open");
+        // 880 = breakpoint do drawer unificado (Apple 2.1a) — manter em sincronia com app.css.
+        if (window.innerWidth <= 880) aside.classList.remove("is-open");
       });
     }
 

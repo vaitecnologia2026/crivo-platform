@@ -37,7 +37,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         </div>
         <div class="login__row">
           <label class="check"><input type="checkbox" checked /> Manter conectado</label>
-          <a href="#" class="link-gold">Esqueci minha senha</a>
+          <a href="https://wa.me/5511918531796?text=Ol%C3%A1!%20Esqueci%20minha%20senha%20da%20plataforma%20CRIVO%20e%20preciso%20recuperar%20o%20acesso." class="link-gold" target="_blank" rel="noopener">Esqueci minha senha</a>
         </div>
         <button type="submit" class="btn btn--gold btn--block">Entrar na plataforma →</button>
         <p class="login__error" id="loginError" role="alert" aria-live="assertive"></p>
@@ -45,7 +45,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <div class="login__footer">
         <span>Não tem acesso?</span>
-        <a href="#" class="link-gold">Falar com a CRIVO</a>
+        <a href="https://wa.me/5511918531796?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20o%20acesso%20%C3%A0%20plataforma%20CRIVO." class="link-gold" target="_blank" rel="noopener">Falar com a CRIVO</a>
       </div>
 
       <a href="https://crivolegacy.com.br" class="login__back">← Voltar ao site</a>
@@ -98,8 +98,13 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
             <span>⌕</span>
             <input type="text" placeholder="Buscar líder, área, indicador..." />
           </div>
-          <button class="icon-btn" title="Notificações">
-            <span>🔔</span>
+          <!-- Sineta: navega ao Dashboard (card Notificações & travas) via data-route-link;
+               ícone SVG de traço (sem emoji de sistema no produto). -->
+          <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações" data-route-link="dashboard">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+              <path d="M6 9.5a6 6 0 1 1 12 0c0 3.8 1.3 5.3 1.9 5.9H4.1c.6-.6 1.9-2.1 1.9-5.9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M10.2 18.4a2 2 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
             <span class="badge-dot"></span>
           </button>
           <div class="user-chip">

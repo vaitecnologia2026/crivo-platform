@@ -1575,11 +1575,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 
 /* ==================== MOBILE ==================== */
+/* Apple 2.1a — em <=880px a sidebar SAI DO GRID mas nunca é display:none;
+   quem a esconde/mostra é o drawer unificado (seção MOBILE POLISH, também em
+   880px — precisa vir DEPOIS da regra-base de .topbar__menu na cascata). */
 @media (max-width: 880px) {
   .screen--app.is-active {
     grid-template-columns: 1fr;
   }
-  .sidebar { display: none; }
   .route { padding: 20px; }
   .route__head { flex-direction: column; align-items: flex-start; }
 }
@@ -2022,15 +2024,18 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 }
 .topbar__menu:hover { background: var(--line-soft); }
 
-@media (max-width: 768px) {
+/* Apple 2.1a — DRAWER UNIFICADO em 880px: mesmo breakpoint em que a sidebar
+   sai do grid. O bug era o drawer só existir em <=768px sem nunca redefinir o
+   display escondido em <=880px — no iPad portrait (~810px, device da review)
+   não havia nem hambúrguer nem sidebar. Este bloco precisa vir DEPOIS da
+   regra-base .topbar__menu (mesma especificidade; a ordem decide). */
+@media (max-width: 880px) {
   .topbar__menu { display: inline-flex; }
 
-  /* Layout do shell: sidebar vira drawer fora da tela. */
-  .screen--app.is-active {
-    grid-template-columns: 1fr;
-  }
+  /* Layout do shell: sidebar vira drawer fora da tela (nunca display:none). */
   .sidebar {
     position: fixed; inset: 0 auto 0 0; width: 280px;
+    height: 100vh;
     transform: translateX(-100%);
     transition: transform .25s ease;
     z-index: 200;
@@ -2043,6 +2048,10 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
     left: 280px; right: 0; top: 0; bottom: 0;
     background: rgba(11,31,51,0.45); z-index: -1;
   }
+}
+
+@media (max-width: 768px) {
+  /* Compactações de telefone (o drawer vive no bloco 880px acima). */
 
   /* Topbar mais compacta. */
   .topbar { padding: 10px 14px; gap: 8px; }
