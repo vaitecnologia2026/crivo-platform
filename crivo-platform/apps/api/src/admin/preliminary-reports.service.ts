@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from './ai-settings.service';
 import { AiPromptsService } from './ai-prompts.service';
 import { EditableTextsService } from './editable-texts.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import {
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
   type MaturityLevel,
@@ -34,6 +35,7 @@ export class PreliminaryReportsService {
     private readonly ai: AiSettingsService,
     private readonly prompts: AiPromptsService,
     private readonly texts: EditableTextsService,
+    private readonly notifications: NotificationSettingsService,
   ) {}
 
   /** Lista os relatórios de um lead. */
@@ -248,6 +250,24 @@ export class PreliminaryReportsService {
       ? `Seu Relatório Preliminar CRIVO — ${input.company}`
       : 'Seu Relatório Preliminar CRIVO';
     const html = renderEmailHtml(input.leadName, input.markdown, input.footer);
+
+    // Push para a equipe CRIVO (self-gate no pushEnabled do painel).
+    await this.notifications.dispatchPush('relatorio_preliminar.enviado', {
+      title: 'Relatório preliminar enviado',
+      body: input.company ? `${input.leadName} — ${input.company}` : input.leadName,
+    });
+
+    // Gate de e-mail do painel de Notificações (respeitado no disparo).
+    if (!(await this.notifications.isEnabled('relatorio_preliminar.enviado', 'email'))) {
+      this.log.warn(
+        `E-mail do relatório de "${input.leadName}" desativado no painel de Notificações — não enviado.`,
+      );
+      return {
+        ok: false,
+        provider: 'disabled',
+        reason: 'Canal de e-mail deste gatilho desativado no painel de Notificações.',
+      };
+    }
 
     // #5 — anexa o e-book complementar ao relatório (busca do /public da LP).
     let ebook: Buffer | null = null;

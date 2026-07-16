@@ -9,6 +9,7 @@ import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
 import { AddonsSection } from "./AddonsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
+import { NotificationsSection } from "./NotificationsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
@@ -37,7 +38,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -61,6 +62,7 @@ const NI = {
   evolucao: <svg viewBox="0 0 24 24" fill="none"><path d="M5 15c-1.5 3-1 5-1 5s2 .5 5-1M8.5 18.5C7 17 7 15 8.5 11.5 11 6 15.5 4 19.5 4.5c.5 4-1.5 8.5-7 11-3.5 1.5-5.5 1.5-4-1.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><circle cx="14.5" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.6"/></svg>,
   evidencias: <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M13.5 3.5V7.5h4M9 13l2 2 4-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   engineconfig: <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M4 12h6M14 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><circle cx="16" cy="7" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="10" cy="17" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.7"/></svg>,
+  notificacoes: <svg viewBox="0 0 24 24" fill="none"><path d="M6 9.5a6 6 0 1 1 12 0c0 3.8 1.3 5.3 1.9 5.9H4.1c.6-.6 1.9-2.1 1.9-5.9Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M10.2 18.4a2 2 0 0 0 3.6 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
 };
 
 // Agrupamento do redesign aprovado (mockup Lovable): 5 grupos. Sem seções novas —
@@ -81,6 +83,7 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "inteligencia", label: "Inteligência CRIVO", icon: NI.inteligencia, current: "Inteligência CRIVO", group: "Inteligência" },
   { key: "basecrivo", label: "Base CRIVO", icon: NI.base, current: "Base CRIVO · Benchmarks", group: "Inteligência" },
   { key: "ia", label: "Configurações de IA", icon: NI.ia, current: "Configurações de IA", group: "Governança" },
+  { key: "notificacoes", label: "Notificações", icon: NI.notificacoes, current: "Configuração de Notificações", group: "Governança" },
   { key: "integracoes", label: "Integrações", icon: NI.integracoes, current: "Integrações", group: "Governança" },
   { key: "rbac", label: "Papéis e Permissões", icon: NI.rbac, current: "Papéis & Permissões", group: "Governança" },
   { key: "auditoria", label: "Auditoria", icon: NI.auditoria, current: "Auditoria", group: "Governança" },
@@ -199,6 +202,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}
+          {section === "notificacoes" && <NotificationsSection />}
           {section === "extras" && <ExtrasSection />}
           {section === "rbac" && <RbacSection />}
           {section === "auditoria" && <AuditSection />}

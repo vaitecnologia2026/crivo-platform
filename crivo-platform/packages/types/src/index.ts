@@ -1455,6 +1455,38 @@ export interface AiTestResult {
   message?: string;
 }
 
+// ── Notificações (push FCM + gates por gatilho) ──
+
+/** Canais possíveis de uma notificação. */
+export type NotificationChannel = 'email' | 'push';
+
+/** Um gatilho de notificação com seu estado de ativação por canal.
+ *  label/description vêm do registry no backend (PT-BR). */
+export interface NotificationSettingData {
+  key: string;
+  label: string;
+  description: string;
+  /** Evento de código que dispara (ex.: "Admin envia lembrete da campanha"). */
+  event: string;
+  /** Canais que este gatilho suporta — controla quais toggles aparecem. */
+  channels: NotificationChannel[];
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  updatedAt: string | null;
+}
+
+/** Atualização de um gatilho (só os canais suportados são respeitados). */
+export interface UpdateNotificationSettingRequest {
+  emailEnabled?: boolean;
+  pushEnabled?: boolean;
+}
+
+/** Registro de um token push do dispositivo (rota /me/push-tokens). */
+export interface RegisterPushTokenRequest {
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+}
+
 // ── Documentos gerados (portal · Briefing §15 + Matriz "Documentos Gerados") ──
 
 /** Frase de responsabilidade OBRIGATÓRIA em todos os documentos técnicos. */

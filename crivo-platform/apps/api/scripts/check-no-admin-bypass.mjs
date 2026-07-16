@@ -16,8 +16,10 @@ const ALLOW = [
 // Módulos control-plane inteiros: admin (provisionamento/super admin), iam
 // (identidade, papéis, permissões — atravessam tenants no login/RBAC por design)
 // e cnae (regras de divisão CNAE globais + histórico de decisão; controller 100%
-// SuperAdminGuard, sem coluna de tenant — não há query de negócio por tenant aqui).
-const ALLOW_DIRS = ['admin/', 'iam/', 'cnae/'];
+// SuperAdminGuard, sem coluna de tenant — não há query de negócio por tenant aqui)
+// e notifications (config global de gatilhos + tokens push; tabelas owner-only
+// registradas no sql/rls.sql, push_tokens filtrado por tenantId/userId no app).
+const ALLOW_DIRS = ['admin/', 'iam/', 'cnae/', 'notifications/'];
 
 const PATTERN = /\bprisma\.admin\b/;
 // Marcador inline para um bypass legítimo e REVISADO (tabela control-plane ou

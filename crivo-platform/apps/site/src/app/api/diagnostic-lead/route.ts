@@ -390,6 +390,29 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
   }
 }
 
+// Consulta o painel de Notificações (backend) e dispara o push da equipe CRIVO.
+// Fail-open: gate indisponível → o e-mail de aviso continua saindo.
+async function notifyGate(key: string, title: string, body: string): Promise<{ emailEnabled: boolean }> {
+  const api = process.env.PLATFORM_API_URL;
+  if (!api) return { emailEnabled: true };
+  try {
+    const r = await fetch(`${api}/notifications/site-event/${key}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-site-secret": process.env.SITE_NOTIFY_SECRET ?? "",
+      },
+      body: JSON.stringify({ title, body }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return { emailEnabled: true };
+    const j = (await r.json()) as { emailEnabled?: boolean };
+    return { emailEnabled: j.emailEnabled !== false };
+  } catch {
+    return { emailEnabled: true };
+  }
+}
+
 export async function POST(req: Request) {
   let data: Payload;
   try {
@@ -403,6 +426,15 @@ export async function POST(req: Request) {
   }
 
   const platformApi = process.env.PLATFORM_API_URL;
+
+  // Dispara o push da equipe CRIVO (novo diagnóstico) — fire-and-forget. As
+  // entregas ao LEAD (e-mail + WhatsApp abaixo) são do cliente, não passam pelo
+  // toggle do painel; o push interno respeita o pushEnabled no backend.
+  void notifyGate(
+    "site.diagnostico_lead",
+    "Novo diagnóstico inicial",
+    String(data.company ?? data.name ?? data.email ?? "lead"),
+  );
 
   // 1. Cria o lead no CRM e recupera o pré-diagnóstico.
   let result: DiagResult | undefined;

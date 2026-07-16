@@ -2043,3 +2043,36 @@ model PeopleAnalyticsData {
   @@unique([tenantId])
   @@map("people_analytics_data")
 }
+
+// =====================================================================
+// NOTIFICAÇÕES (push FCM + gates por gatilho) — control plane, owner-only.
+// - NotificationSetting: 1 linha por gatilho (key). Guarda só o override de
+//   ativação por canal; o rótulo/descrição PT-BR vivem no código (registry).
+//   Ausência de linha = ativo por padrão (default true nas colunas).
+// - PushToken: tokens FCM por usuário/dispositivo. Gravado/lido só via owner
+//   (prisma.admin); a rota /me/push-tokens escopa por tenantId+userId da sessão.
+// =====================================================================
+
+model NotificationSetting {
+  key          String   @id
+  emailEnabled Boolean  @default(true)
+  pushEnabled  Boolean  @default(true)
+  updatedBy    String?
+  updatedAt    DateTime @updatedAt
+
+  @@map("notification_settings")
+}
+
+model PushToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  userId     String   @db.Uuid
+  token      String   @unique
+  platform   String // ios | android | web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("push_tokens")
+}

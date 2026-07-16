@@ -28,6 +28,11 @@ crivo-platform/apps/web/public/dev-login.html
 **/android/app/build/
 **/android/app/release/
 **/android/capacitor-cordova-android-plugins/
+**/android/app/google-services.json
+
+# Firebase/APNs iOS — segredos (NUNCA versionar)
+**/ios/App/App/GoogleService-Info.plist
+**/*.p8
 *.jks
 *.keystore
 *.aab

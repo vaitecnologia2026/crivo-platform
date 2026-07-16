@@ -104,7 +104,11 @@ DECLARE
                               -- RBAC dinâmico (#68): papéis customizados e atribuições. Acessados SÓ via
                               -- prisma.admin (owner) com filtro tenantId no app (tenant-roles.service,
                               -- effectiveForUser) → owner-only; crivo_app não deve ler papéis de outros tenants.
-                              'tenant_roles','user_roles'];
+                              'tenant_roles','user_roles',
+                              -- Notificações push: config global de gatilhos e tokens FCM.
+                              -- push_tokens tem tenantId mas é gerido pelo control plane
+                              -- (owner + filtro no app), como mentorias → owner-only.
+                              'notification_settings','push_tokens'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

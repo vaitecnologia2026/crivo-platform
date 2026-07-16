@@ -2013,7 +2013,7 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 .role-form .pill:hover { opacity: .85; }
 
 /* ==================== MOBILE POLISH (#66) ==================== */
-/* Botão hambúrguer escondido em desktop, aparece em <=768px. */
+/* Botão hambúrguer escondido em desktop, aparece em <=880px (bloco MOBILE). */
 .topbar__menu {
   display: none;
   align-items: center; justify-content: center;

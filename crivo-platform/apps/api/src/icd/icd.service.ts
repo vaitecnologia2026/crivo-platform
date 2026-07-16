@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import type { SubmitIcdDto } from './dto';
 import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
@@ -11,6 +12,7 @@ export class IcdService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly texts: EditableTextsService,
+    private readonly notifications: NotificationSettingsService,
   ) {}
 
   /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
@@ -272,13 +274,26 @@ export class IcdService {
         tx.assessmentCycle.update({ where: { id: cycleId }, data: { reminderSentAt: new Date() } }),
       );
 
-    if (!mailConfigured()) {
+    // Gate do painel de Notificações (respeitado no momento do disparo) + push FCM.
+    const emailOn = await this.notifications.isEnabled('icd.lembrete_campanha', 'email');
+    const pushPayload = {
+      title: 'Lembrete de campanha',
+      body: `Você ainda não respondeu à campanha "${prep.cycle.name}".`,
+      userIds: prep.pendentes.map((p) => p.id),
+    };
+
+    // E-mail desativado no painel, ou sem provider → não envia e-mail, mas
+    // ainda dispara o push (se ligado) e marca o lembrete como processado.
+    if (!emailOn || !mailConfigured()) {
       await markSent();
+      await this.notifications.dispatchPush('icd.lembrete_campanha', pushPayload);
       return {
         sent: 0,
         pending: prep.pendentes.length,
-        provider: 'stub',
-        reason: 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.',
+        provider: emailOn ? 'stub' : 'disabled',
+        reason: emailOn
+          ? 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.'
+          : 'Canal de e-mail deste gatilho desativado no painel de Notificações.',
       };
     }
 
@@ -299,8 +314,9 @@ export class IcdService {
       provider = r.provider;
     }
 
-    // 3) Marca reminderSentAt numa transação curta.
+    // 3) Marca reminderSentAt numa transação curta + dispara o push (FCM).
     await markSent();
+    await this.notifications.dispatchPush('icd.lembrete_campanha', pushPayload);
     return { sent, pending: prep.pendentes.length, provider };
   }
 
