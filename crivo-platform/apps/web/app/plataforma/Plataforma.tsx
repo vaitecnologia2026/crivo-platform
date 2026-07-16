@@ -348,6 +348,12 @@ export function Plataforma() {
     }
     if (chgPwdBtn) on(chgPwdBtn, "click", openChangePassword);
 
+    // Sineta de notificações → Dashboard (card "Notificações & travas
+    // operacionais"). setRoute já degrada pro DEFAULT_ROUTE se o papel não
+    // tiver acesso — sem isso o botão era um ícone morto (Apple 2.1a).
+    const notifBtn = document.getElementById("notifBtn");
+    if (notifBtn) on(notifBtn, "click", () => setRoute(DEFAULT_ROUTE));
+
     // #66 — Mobile drawer da sidebar. Toggle pelo botão hambúrguer; fecha
     // automaticamente ao clicar num item da nav ou no overlay/main.
     const sidebarToggle = document.getElementById("sidebarToggle");
@@ -361,7 +367,7 @@ export function Plataforma() {
       // Fecha ao clicar fora (no main / overlay)
       const mainEl = document.querySelector(".main");
       if (mainEl) on(mainEl, "click", () => {
-        if (window.innerWidth <= 768) aside.classList.remove("is-open");
+        if (window.innerWidth <= 880) aside.classList.remove("is-open");
       });
     }
 

@@ -1552,11 +1552,27 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 
 /* ==================== MOBILE ==================== */
+/* A sidebar NÃO pode ser display:none aqui — ela vira drawer controlado pelo
+   hambúrguer (ver bloco #66 abaixo); escondê-la deixava o toggle sem efeito
+   (rejeição Apple 2.1a, iPhone/iPad). */
 @media (max-width: 880px) {
   .screen--app.is-active {
     grid-template-columns: 1fr;
   }
-  .sidebar { display: none; }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; width: 280px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 200;
+    box-shadow: var(--shadow-3);
+  }
+  .sidebar.is-open { transform: translateX(0); }
+  /* Overlay escurecido (o ::after fica sobre o main) */
+  .sidebar.is-open::after {
+    content: ""; position: fixed; inset: 0;
+    left: 280px; right: 0; top: 0; bottom: 0;
+    background: rgba(11,31,51,0.45); z-index: -1;
+  }
   .route { padding: 20px; }
   .route__head { flex-direction: column; align-items: flex-start; }
 }
@@ -1988,7 +2004,7 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 .role-form .pill:hover { opacity: .85; }
 
 /* ==================== MOBILE POLISH (#66) ==================== */
-/* Botão hambúrguer escondido em desktop, aparece em <=768px. */
+/* Botão hambúrguer escondido em desktop, aparece em <=880px (bloco MOBILE). */
 .topbar__menu {
   display: none;
   align-items: center; justify-content: center;
@@ -1999,27 +2015,14 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 }
 .topbar__menu:hover { background: var(--line-soft); }
 
-@media (max-width: 768px) {
+/* Precisa vir DEPOIS da regra base acima (mesma especificidade) — o drawer
+   correspondente vive no bloco MOBILE (880px). */
+@media (max-width: 880px) {
   .topbar__menu { display: inline-flex; }
+}
 
-  /* Layout do shell: sidebar vira drawer fora da tela. */
-  .screen--app.is-active {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: fixed; inset: 0 auto 0 0; width: 280px;
-    transform: translateX(-100%);
-    transition: transform .25s ease;
-    z-index: 200;
-    box-shadow: var(--shadow-3);
-  }
-  .sidebar.is-open { transform: translateX(0); }
-  /* Overlay escurecido (uma única regra; o ::after fica sobre o main) */
-  .sidebar.is-open::after {
-    content: ""; position: fixed; inset: 0;
-    left: 280px; right: 0; top: 0; bottom: 0;
-    background: rgba(11,31,51,0.45); z-index: -1;
-  }
+@media (max-width: 768px) {
+  /* O drawer da sidebar vive no bloco 880px (seção MOBILE). */
 
   /* Topbar mais compacta. */
   .topbar { padding: 10px 14px; gap: 8px; }

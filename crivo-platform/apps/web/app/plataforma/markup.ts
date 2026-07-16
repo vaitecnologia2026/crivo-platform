@@ -37,7 +37,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         </div>
         <div class="login__row">
           <label class="check"><input type="checkbox" checked /> Manter conectado</label>
-          <a href="#" class="link-gold">Esqueci minha senha</a>
+          <a href="https://wa.me/5511918531796?text=Ol%C3%A1!%20Esqueci%20minha%20senha%20de%20acesso%20ao%20CRIVO%20e%20preciso%20de%20ajuda%20para%20redefinir." target="_blank" rel="noopener" class="link-gold">Esqueci minha senha</a>
         </div>
         <button type="submit" class="btn btn--gold btn--block">Entrar na plataforma →</button>
         <p class="login__error" id="loginError" role="alert" aria-live="assertive"></p>
@@ -45,10 +45,10 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
 
       <div class="login__footer">
         <span>Não tem acesso?</span>
-        <a href="#" class="link-gold">Falar com a CRIVO</a>
+        <a href="https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO" target="_blank" rel="noopener" class="link-gold">Falar com a CRIVO</a>
       </div>
 
-      <a href="https://crivo.vai-sistema.com/lp" class="login__back">← Voltar ao site</a>
+      <a href="https://crivolegacy.com.br" class="login__back">← Voltar ao site</a>
     </div>
   </div>
 
@@ -98,7 +98,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
             <span>⌕</span>
             <input type="text" placeholder="Buscar líder, área, indicador..." />
           </div>
-          <button class="icon-btn" title="Notificações">
+          <button class="icon-btn" id="notifBtn" title="Notificações">
             <span>🔔</span>
             <span class="badge-dot"></span>
           </button>
