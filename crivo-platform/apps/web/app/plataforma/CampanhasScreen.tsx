@@ -11,6 +11,7 @@ import {
   updateCampaign,
 } from "@/lib/api";
 import type { CampaignSummary } from "@crivo/types";
+import { publicOrigin } from "@/lib/share-url";
 
 type LoadStatus = "loading" | "error" | "ok";
 
@@ -44,7 +45,7 @@ function IconQr({ size = 14 }: { size?: number }) {
  */
 function CampaignQrModal({ slug, name, onClose }: { slug: string; name: string; onClose: () => void }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const url = typeof window !== "undefined" ? `${window.location.origin}/p/c/${slug}` : `/p/c/${slug}`;
+  const url = `${publicOrigin()}/p/c/${slug}`;
 
   function downloadSvg() {
     const svg = boxRef.current?.querySelector("svg");
@@ -125,7 +126,7 @@ export function CampanhasScreen() {
   }, [data]);
 
   async function copyLink(slug: string) {
-    const url = `${window.location.origin}/p/c/${slug}`;
+    const url = `${publicOrigin()}/p/c/${slug}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopiedSlug(slug);

@@ -18,6 +18,7 @@ import {
   type PsychosocialRiskLevel,
 } from "@crivo/types";
 import { ScaleHelpBox } from "@crivo/ui";
+import { publicOrigin } from "@/lib/share-url";
 import { IconCheck } from "./Icons";
 
 /**
@@ -277,8 +278,7 @@ function LinkPanel() {
       .finally(() => setLoading(false));
   }, []);
 
-  const url =
-    slug && typeof window !== "undefined" ? `${window.location.origin}/q/${slug}` : "";
+  const url = slug ? `${publicOrigin()}/q/${slug}` : "";
 
   async function generate() {
     setGenerating(true);

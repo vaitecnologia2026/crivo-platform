@@ -466,7 +466,7 @@ export async function sendReportEmailViaRelay(input: {
   markdown: string;
   footer?: string;
 }): Promise<{ ok: boolean; provider?: string; error?: string }> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://crivo.vai-sistema.com";
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://crivolegacy.com.br";
   const token = getAdminToken();
   try {
     const r = await fetch(`${base}/api/send-report`, {

@@ -39,9 +39,26 @@ export async function registerPushForCurrentUser(): Promise<void> {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     const platform = Capacitor.getPlatform(); // 'ios' | 'android'
 
-    // Token FCM emitido pelo SO → envia ao backend.
-    await PushNotifications.addListener("registration", (t) => {
-      void sendToken(t.value, platform);
+    // Token emitido pelo SO → envia ao backend.
+    await PushNotifications.addListener("registration", async (t) => {
+      let actualToken = t.value;
+
+      // No iOS o plugin emite o APNs hex (64 chars), que o Firebase Admin SDK
+      // rejeita. O AppDelegate salva o FCM token real em UserDefaults
+      // (CapacitorStorage.fcmToken) ~ms depois; lemos via Preferences (poll até 5s).
+      if (platform === "ios") {
+        const { Preferences } = await import("@capacitor/preferences");
+        for (let i = 0; i < 10; i++) {
+          const { value: fcm } = await Preferences.get({ key: "fcmToken" });
+          if (fcm && fcm.length > 80) {
+            actualToken = fcm;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+
+      void sendToken(actualToken, platform);
     });
     await PushNotifications.addListener("registrationError", () => {
       /* sem token; tenta de novo na próxima abertura */

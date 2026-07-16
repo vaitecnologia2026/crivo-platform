@@ -9,12 +9,19 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "cap:build": "CAP_EXPORT=1 NODE_ENV=production next build",
-    "cap:sync": "pnpm cap:build && npx cap sync android",
-    "android:aab": "pnpm cap:sync && cd android && ./gradlew bundleRelease"
+    "cap:sync": "./scripts/cap-sync.sh",
+    "cap:sync:android": "./scripts/cap-sync.sh android",
+    "cap:sync:ios": "./scripts/cap-sync.sh ios",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "android:aab": "pnpm cap:build && ./scripts/cap-sync.sh android && cd android && ./gradlew bundleRelease",
+    "ios:sync": "pnpm cap:build && ./scripts/cap-sync.sh ios"
   },
   "dependencies": {
     "@capacitor/android": "^8",
     "@capacitor/core": "^8",
+    "@capacitor/ios": "^8",
+    "@capacitor/preferences": "^8",
     "@capacitor/push-notifications": "^8.1.1",
     "@crivo/types": "workspace:*",
     "@crivo/ui": "workspace:*",

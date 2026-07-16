@@ -22,7 +22,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL:
       process.env.API_URL ||
       (isCapExport || process.env.NODE_ENV === "production"
-        ? "https://crivo-platform-production.up.railway.app/api"
+        ? "https://app.crivolegacy.com.br/api"
         : "http://localhost:3333"),
   },
 
