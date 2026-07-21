@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
+  classifyTechnicalRisk,
   DOCUMENT_TYPE_LABEL,
   INVENTORY_RISK_LABEL,
   RESPONSIBILITY_NOTE,
   type DocumentDescriptor,
   type DocumentSection,
   type GeneratedDocument,
+  type RiskLevel3,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -26,6 +28,59 @@ const ACTION_LABEL: Record<string, string> = {
 const CNAE_RISK_LABEL: Record<string, string> = {
   BAIXO: 'Baixo', BAIXO_MEDIO: 'Baixo/Médio', MEDIO: 'Médio', MEDIO_ALTO: 'Médio/Alto', ALTO: 'Alto',
 };
+
+const RISK3 = ['Baixa', 'Moderada', 'Alta'] as const;
+const asRisk3 = (v: string | null | undefined): RiskLevel3 | null =>
+  v && (RISK3 as readonly string[]).includes(v) ? (v as RiskLevel3) : null;
+
+export type FactorItem = {
+  point: string; origin: string | null; action: string; responsible: string | null;
+  dueDate: Date | null; status: string; expectedEvidence: string | null;
+  exposedGroup: string | null; severity: string | null; probability: string | null;
+  riskLevel: string | null;
+};
+
+/**
+ * Risco técnico do fator no dossiê (doc 09 §6). DERIVADO da matriz 3x3
+ * Severidade x Probabilidade — nunca digitado. Sem os dois eixos, cai no
+ * `riskLevel` legado (registros anteriores à matriz) e devolve `derived:false`.
+ */
+export function factorRisk(i: FactorItem): { label: string; derived: boolean; isHigh: boolean } {
+  const sev = asRisk3(i.severity);
+  const prob = asRisk3(i.probability);
+  if (sev && prob) {
+    const r = classifyTechnicalRisk(prob, sev);
+    return { label: r, derived: true, isHigh: r === 'Alto' };
+  }
+  const legacyMap = INVENTORY_RISK_LABEL as Record<string, string | undefined>;
+  const legacy = i.riskLevel ? (legacyMap[i.riskLevel] ?? i.riskLevel) : '—';
+  return { label: legacy, derived: false, isHigh: /alto|cr[ií]tico/i.test(legacy) };
+}
+
+/**
+ * Bloqueios de emissão do dossiê final (doc 09 §9). Regra de compliance,
+ * validada no SERVIDOR: fator Alto exige responsável, prazo e evidência
+ * esperada; e nenhuma ação pode estar sugerida ou em revisão.
+ */
+export function dossierBlockers(items: FactorItem[]): string[] {
+  const out: string[] = [];
+  const pendentes = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO');
+  if (pendentes.length) {
+    out.push(
+      `${pendentes.length} ação(ões) ainda sugerida(s) ou em revisão — o dossiê final exige plano aprovado.`,
+    );
+  }
+  const altosIncompletos = items.filter((i) => {
+    if (!factorRisk(i).isHigh) return false;
+    return !i.responsible || !i.dueDate || !i.expectedEvidence;
+  });
+  if (altosIncompletos.length) {
+    out.push(
+      `${altosIncompletos.length} fator(es) de risco Alto sem responsável, prazo ou evidência esperada.`,
+    );
+  }
+  return out;
+}
 
 /** Seção "Base Técnica da Recomendação" — classificação CNAE/NR-1 que embasou o método. */
 type CnaeDecisionRow = {
@@ -130,6 +185,17 @@ export class DocumentsService {
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
+
+    // Bloqueios de emissão do dossiê final (doc 09 §9), avaliados no servidor.
+    // Como generate() revalida via available() (C2), isto também barra a rota direta.
+    const validated = plans.find((p) => p.validatedAt) ?? plans[0];
+    const blockers = validated ? dossierBlockers(validated.items as FactorItem[]) : [];
+    const dossieOk = hasValidated && blockers.length === 0;
+    const dossieReason = !hasValidated
+      ? 'Requer plano de ação validado'
+      : blockers.length
+        ? blockers.join(' ')
+        : undefined;
     const hasCycleHistory = cycles.some((c) => c.companyResult);
 
     const docs: DocumentDescriptor[] = [];
@@ -139,10 +205,10 @@ export class DocumentsService {
     if (method === 'INICIAL' || !contract) add('relatorio_preliminar', true);
     if (hasPlan) add('plano_acao', true);
     if (output === 'AEP' || output === 'AEP_PGR')
-      add('dossie_aep', hasValidated, hasValidated ? undefined : 'Requer plano de ação validado');
+      add('dossie_aep', dossieOk, dossieReason);
     if (output === 'AEP_PGR') {
-      add('dossie_aep_pgr', hasValidated, hasValidated ? undefined : 'Requer plano de ação validado');
-      add('inventario_pgr', hasValidated, hasValidated ? undefined : 'Requer plano de ação validado');
+      add('dossie_aep_pgr', dossieOk, dossieReason);
+      add('inventario_pgr', dossieOk, dossieReason);
     }
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
     add('relatorio_executivo', true);
@@ -184,6 +250,40 @@ export class DocumentsService {
 
     // Plano de ação (tabela) — núcleo dos dossiês.
     const validatedPlan = plans.find((p) => p.validatedAt) ?? plans[0];
+
+    // Matriz de fatores de risco psicossociais (doc 09 §6 / doc 10). O risco é
+    // DERIVADO de Severidade x Probabilidade — separado do índice do
+    // questionário, que orienta achados mas não classifica o dossiê.
+    if (validatedPlan && validatedPlan.items.length) {
+      const its = validatedPlan.items as FactorItem[];
+      sections.push({
+        heading: 'Matriz de fatores de risco psicossociais',
+        table: {
+          columns: ['ID', 'Fator', 'Fonte/circunstância', 'Grupo exposto', 'Sev.', 'Prob.', 'Risco', 'Ação'],
+          data: its.map((i, n) => [
+            `FP-${String(n + 1).padStart(3, '0')}`,
+            i.point,
+            i.origin ?? '—',
+            i.exposedGroup ?? '—',
+            asRisk3(i.severity) ?? '—',
+            asRisk3(i.probability) ?? '—',
+            factorRisk(i).label,
+            i.action,
+          ]),
+        },
+      });
+      const semMatriz = its.filter((i) => !factorRisk(i).derived).length;
+      if (semMatriz > 0) {
+        sections.push({
+          heading: 'Nota sobre a classificação de risco',
+          body:
+            `${semMatriz} fator(es) ainda usam a classificação manual anterior. A classificação ` +
+            'técnica oficial do dossiê vem da matriz Severidade × Probabilidade (Baixo/Moderado/Alto); ' +
+            'informe os dois eixos para que o risco seja derivado automaticamente.',
+        });
+      }
+    }
+
     if (validatedPlan) {
       sections.push({
         heading: `Plano de ação${validatedPlan.validatedAt ? ' (validado)' : ' (minuta)'}`,

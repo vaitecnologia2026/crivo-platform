@@ -1316,6 +1316,12 @@ model ActionItem {
   // estruturam o ponto como fator de risco. exposedGroup = grupos expostos;
   // riskLevel = classificação (BAIXO|MEDIO|ALTO|CRITICO).
   exposedGroup     String?
+  // Matriz de risco do dossiê (doc 09 §6): severidade e probabilidade são as
+  // ENTRADAS; o risco técnico (Baixo/Moderado/Alto) é DERIVADO delas pela matriz
+  // 3x3 — nunca digitado. `riskLevel` fica como valor legado/manual dos registros
+  // anteriores e é usado só quando não há severidade+probabilidade.
+  severity         String? // Baixa | Moderada | Alta
+  probability      String? // Baixa | Moderada | Alta
   riskLevel        String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
