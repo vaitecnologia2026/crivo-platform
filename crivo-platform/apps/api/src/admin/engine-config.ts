@@ -12,6 +12,8 @@ export type EngineConfigValues = {
   defaultAggregation: ScoreAggregationMode;
   defaultBandKind: 'MATURITY' | 'RISK';
   defaultScaleLabels: string[];
+  defaultRounding: number;
+  defaultMinValidCompletionPercent: number;
   updatedAt: Date | null;
 };
 
@@ -41,6 +43,8 @@ export async function getEngineConfig(prisma: PrismaService): Promise<EngineConf
     defaultAggregation: (row?.defaultAggregation ?? 'MEDIA_PONDERADA') as ScoreAggregationMode,
     defaultBandKind: (row?.defaultBandKind ?? 'MATURITY') as 'MATURITY' | 'RISK',
     defaultScaleLabels: row?.defaultScaleLabels ?? [],
+    defaultRounding: row?.defaultRounding ?? 1,
+    defaultMinValidCompletionPercent: row?.defaultMinValidCompletionPercent ?? 70,
     updatedAt: row?.updatedAt ?? null,
   };
 }

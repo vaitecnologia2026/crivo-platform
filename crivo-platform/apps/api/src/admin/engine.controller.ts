@@ -35,6 +35,12 @@ class EngineConfigDto {
 
   @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) @MaxLength(60, { each: true })
   defaultScaleLabels?: string[];
+
+  @IsOptional() @IsInt() @Min(0) @Max(3)
+  defaultRounding?: number;
+
+  @IsOptional() @IsInt() @Min(1) @Max(100)
+  defaultMinValidCompletionPercent?: number;
 }
 
 /** Motores CRIVO (Configuração do Motor · Evolução · Evidências). Owner-only. */

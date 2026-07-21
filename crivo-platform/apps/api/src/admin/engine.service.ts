@@ -15,6 +15,8 @@ export type EngineConfigInput = {
   defaultAggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA';
   defaultBandKind?: 'MATURITY' | 'RISK';
   defaultScaleLabels?: string[];
+  defaultRounding?: number;
+  defaultMinValidCompletionPercent?: number;
 };
 
 /**
@@ -55,6 +57,20 @@ export class EngineService {
     }
     if (dto.defaultAggregation !== undefined) data.defaultAggregation = dto.defaultAggregation;
     if (dto.defaultBandKind !== undefined) data.defaultBandKind = dto.defaultBandKind;
+    if (dto.defaultRounding !== undefined) {
+      const n = Math.trunc(dto.defaultRounding);
+      if (!Number.isFinite(n) || n < 0 || n > 3) {
+        throw new BadRequestException('Casas decimais do resultado devem ficar entre 0 e 3.');
+      }
+      data.defaultRounding = n;
+    }
+    if (dto.defaultMinValidCompletionPercent !== undefined) {
+      const n = Math.trunc(dto.defaultMinValidCompletionPercent);
+      if (!Number.isFinite(n) || n < 1 || n > 100) {
+        throw new BadRequestException('A cobertura mínima deve ficar entre 1% e 100%.');
+      }
+      data.defaultMinValidCompletionPercent = n;
+    }
     if (dto.defaultScaleLabels !== undefined) {
       const labels = dto.defaultScaleLabels.map((s) => s.trim()).filter(Boolean);
       if (labels.length !== 0 && labels.length !== 5) {

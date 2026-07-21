@@ -683,6 +683,12 @@ export interface MethodologyConfigQuestion {
   weight: number;
   inverse: boolean;
   required?: boolean; // obrigatória (default true); opcional não trava o respondente
+  /** Item de CONTEXTO: coletado mas fora do cálculo (Anexo D/E `scored:false`).
+   *  Ex.: texto livre, multi_select, número. Não entra em nenhum denominador. */
+  scored?: boolean; // default true
+  /** Exibição condicional (Anexo D/E `show_when`). Quando a condição é falsa o
+   *  item é NÃO APLICÁVEL: não é exibido nem entra no cálculo/cobertura. */
+  showWhen?: { questionId: number; operator: '>=' | '>' | '<=' | '<' | '==' | '!='; value: number };
 }
 export interface MethodologyConfigBand {
   code: string;
@@ -716,6 +722,40 @@ export interface MethodologyConfig {
   bands: MethodologyConfigBand[];
   aggregation?: ScoreAggregationMode; // ausente = MEDIA_PONDERADA (compat total)
   scaleLabels?: string[]; // rótulos da escala (só apresentação; vazio = padrão)
+  /** Casas decimais do resultado (Anexo D/E `rounding`). Ausente = 0 (inteiro),
+   *  que preserva byte-a-byte o comportamento dos built-in já homologados. Os
+   *  instrumentos da spec v3.1 usam 1 — é o que reproduz 62,4 e 47,3. */
+  rounding?: number;
+  /** Cobertura mínima de respostas válidas (%) para liberar o RESULTADO OFICIAL
+   *  (Anexo D/E `minimum_valid_completion_percent`, tipicamente 70). Ausente =
+   *  sem trava. Abaixo disso o score é calculado mas vem marcado como bloqueado. */
+  minimumValidCompletionPercent?: number;
+}
+
+// ── Matriz de risco do dossiê (doc 09 §6) ─────────────────────────────────────
+// SEPARAÇÃO ESSENCIAL: o índice do questionário ORIENTA achados; a classificação
+// técnica Baixo/Moderado/Alto do dossiê é validada SEPARADAMENTE por esta matriz.
+// Nunca derivar uma da outra (Anexo D `important_separation`).
+
+export const RISK_LEVELS_3 = ['Baixa', 'Moderada', 'Alta'] as const;
+export type RiskLevel3 = (typeof RISK_LEVELS_3)[number];
+export const TECHNICAL_RISKS = ['Baixo', 'Moderado', 'Alto'] as const;
+export type TechnicalRisk = (typeof TECHNICAL_RISKS)[number];
+
+/** Matriz 3×3 literal do doc 09 §6 — linha = Probabilidade, coluna = Severidade. */
+const RISK_MATRIX: Record<RiskLevel3, Record<RiskLevel3, TechnicalRisk>> = {
+  Baixa: { Baixa: 'Baixo', Moderada: 'Baixo', Alta: 'Moderado' },
+  Moderada: { Baixa: 'Baixo', Moderada: 'Moderado', Alta: 'Alto' },
+  Alta: { Baixa: 'Moderado', Moderada: 'Alto', Alta: 'Alto' },
+};
+
+/**
+ * Classificação técnica do fator no dossiê final (doc 09 §6). Determinística.
+ * Probabilidade = exposição/frequência/recorrência do fator nas condições reais
+ * de trabalho — NÃO é previsão clínica de adoecimento individual.
+ */
+export function classifyTechnicalRisk(probability: RiskLevel3, severity: RiskLevel3): TechnicalRisk {
+  return RISK_MATRIX[probability][severity];
 }
 
 export interface MethodologyScoreResult {
@@ -724,6 +764,11 @@ export interface MethodologyScoreResult {
   levelLabel: string; // rótulo da faixa
   byDimension: { slug: string; label: string; value: number }[]; // 0–100 por dimensão
   topAttentions: string[]; // slugs das dimensões de menor valor (pontos de atenção)
+  /** % de itens pontuáveis APLICÁVEIS que foram respondidos (0–100). */
+  coverage: number;
+  /** true quando coverage < minimumValidCompletionPercent: o score existe, mas
+   *  NÃO pode ser publicado como resultado oficial (Anexo D `missing_rule`). */
+  officialResultBlocked: boolean;
 }
 
 /**
@@ -738,19 +783,61 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   const mode: ScoreAggregationMode = cfg.aggregation ?? 'MEDIA_PONDERADA';
   // Resultado sempre 0–100 (regra do cliente: pontuação negativa não existe).
   const clamp = (x: number) => Math.max(0, Math.min(100, x));
+  // Precisão do resultado. 0 = inteiro (built-in homologados); 1 = spec v3.1.
+  const places = Number.isFinite(cfg.rounding) ? Math.max(0, Math.trunc(cfg.rounding!)) : 0;
+  const roundTo = (x: number) => {
+    const f = 10 ** places;
+    // +Number.EPSILON evita que 47.25 caia para 47.2 por erro de ponto flutuante.
+    return Math.round((x + Number.EPSILON) * f) / f;
+  };
   const byId = new Map(answers.map((a) => [a.questionId, a.value]));
 
-  // Valor normalizado (0–100) de cada pergunta, na ordem de cfg.questions.
-  const qNorm = cfg.questions.map((q, i) => {
+  // Aplicabilidade condicional (Anexo D/E `show_when`): item cuja condição é
+  // falsa é NÃO APLICÁVEL — não pontua nem conta na cobertura.
+  const isApplicable = (q: MethodologyConfigQuestion): boolean => {
+    if (!q.showWhen) return true;
+    const dep = byId.get(q.showWhen.questionId);
+    if (dep == null || !Number.isFinite(dep)) return false; // dependência sem resposta
+    const v = q.showWhen.value;
+    switch (q.showWhen.operator) {
+      case '>=': return dep >= v;
+      case '>': return dep > v;
+      case '<=': return dep <= v;
+      case '<': return dep < v;
+      case '==': return dep === v;
+      case '!=': return dep !== v;
+      default: return true;
+    }
+  };
+
+  // Valor normalizado (0–100) de cada pergunta PONTUÁVEL e APLICÁVEL.
+  // Itens de contexto (`scored:false`) e não aplicáveis saem do cálculo.
+  let applicableScored = 0;
+  let answeredScored = 0;
+  const qNorm: { norm: number; weight: number; dimensionSlug: string }[] = [];
+  cfg.questions.forEach((q, i) => {
     const id = i + 1; // questionId = índice 1-based
+    if (q.scored === false) return; // item de contexto: coletado, não pontuado
+    if (!isApplicable(q)) return; // condicional não disparado: não aplicável
+    applicableScored += 1;
     const v = byId.get(id);
     if (v == null || !Number.isFinite(v) || v < 1 || v > 5) {
-      throw new Error(`Resposta inválida ou ausente para a questão ${id}`);
+      // Sem trava de cobertura configurada mantemos o contrato antigo (erro).
+      // Com trava, ausência é permitida: sai do denominador e derruba a cobertura.
+      if (cfg.minimumValidCompletionPercent == null) {
+        throw new Error(`Resposta inválida ou ausente para a questão ${id}`);
+      }
+      return;
     }
+    answeredScored += 1;
     let norm = ((v - 1) / 4) * 100;
     if (q.inverse) norm = 100 - norm;
-    return { norm, weight: q.weight ?? 1, dimensionSlug: q.dimensionSlug };
+    qNorm.push({ norm, weight: q.weight ?? 1, dimensionSlug: q.dimensionSlug });
   });
+
+  const coverage = applicableScored > 0 ? (answeredScored / applicableScored) * 100 : 0;
+  const officialResultBlocked =
+    cfg.minimumValidCompletionPercent != null && coverage < cfg.minimumValidCompletionPercent;
 
   /** Média ponderada (0–100) de itens {value,weight}; MEDIA_SIMPLES força peso 1. */
   const wavg = (items: { value: number; weight: number }[], m: ScoreAggregationMode): number => {
@@ -761,7 +848,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
       wsum += it.value * wt;
       w += wt;
     }
-    return w > 0 ? clamp(Math.round(wsum / w)) : 0;
+    return w > 0 ? clamp(roundTo(wsum / w)) : 0;
   };
 
   // Índice da árvore Dimensão → Subdimensão. childrenOf(slug) = subdimensões;
@@ -805,7 +892,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
       sum += q.norm * q.weight;
       max += 100 * q.weight;
     }
-    score = max > 0 ? clamp(Math.round((sum / max) * 100)) : 0;
+    score = max > 0 ? clamp(roundTo((sum / max) * 100)) : 0;
   } else {
     // Média (ponderada ou simples) das dimensões de topo.
     score = wavg(byDimension.map((d) => {
@@ -818,7 +905,15 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   const minVal = byDimension.length ? Math.min(...byDimension.map((d) => d.value)) : 0;
   const topAttentions = byDimension.filter((d) => d.value === minVal).map((d) => d.slug);
 
-  return { score, levelCode: band?.code ?? '', levelLabel: band?.label ?? '', byDimension, topAttentions };
+  return {
+    score,
+    levelCode: band?.code ?? '',
+    levelLabel: band?.label ?? '',
+    byDimension,
+    topAttentions,
+    coverage: roundTo(coverage),
+    officialResultBlocked,
+  };
 }
 
 // ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico AMPLO) ──

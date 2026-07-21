@@ -19,10 +19,21 @@ const CONTENT_INCLUDE = {
 
 type VersionWithContent = {
   scaleLabels?: string[];
+  rounding?: number | null;
+  minValidCompletionPercent?: number | null;
   dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
-  questions: { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean }[];
+  questions: {
+    dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean;
+    scored?: boolean;
+    showWhenQuestionId?: number | null;
+    showWhenOperator?: string | null;
+    showWhenValue?: number | null;
+  }[];
   bands: { code: string; label: string; min: number; max: number }[];
 };
+
+const SHOW_WHEN_OPS = ['>=', '>', '<=', '<', '==', '!='] as const;
+type ShowWhenOp = (typeof SHOW_WHEN_OPS)[number];
 
 /** Mapeia uma versão (com conteúdo incluído) para o formato do motor de score. */
 function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): MethodologyConfig {
@@ -34,16 +45,30 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
       parentSlug: d.parentSlug ?? null,
       ...(d.aggregation ? { aggregation: d.aggregation } : {}),
     })),
-    questions: v.questions.map((q) => ({
-      dimensionSlug: q.dimensionSlug,
-      text: q.text,
-      weight: q.weight,
-      inverse: q.inverse,
-      required: q.required ?? true,
-    })),
+    questions: v.questions.map((q) => {
+      const op = SHOW_WHEN_OPS.includes(q.showWhenOperator as ShowWhenOp)
+        ? (q.showWhenOperator as ShowWhenOp)
+        : null;
+      const hasCond = q.showWhenQuestionId != null && op != null && q.showWhenValue != null;
+      return {
+        dimensionSlug: q.dimensionSlug,
+        text: q.text,
+        weight: q.weight,
+        inverse: q.inverse,
+        required: q.required ?? true,
+        ...(q.scored === false ? { scored: false } : {}),
+        ...(hasCond
+          ? { showWhen: { questionId: q.showWhenQuestionId!, operator: op!, value: q.showWhenValue! } }
+          : {}),
+      };
+    }),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
     ...(aggregation ? { aggregation } : {}),
     ...(v.scaleLabels && v.scaleLabels.length ? { scaleLabels: v.scaleLabels } : {}),
+    ...(v.rounding != null ? { rounding: v.rounding } : {}),
+    ...(v.minValidCompletionPercent != null
+      ? { minimumValidCompletionPercent: v.minValidCompletionPercent }
+      : {}),
   };
 }
 
@@ -171,11 +196,16 @@ export class MethodologyService {
         status: 'DRAFT',
         createdBy: actor.email,
         scaleLabels: active?.scaleLabels ?? seedScale,
+        // Motor v3.1: precisão e cobertura herdam da versão ativa ou da
+        // Configuração do Motor (padrão 1 casa decimal / 70%).
+        rounding: active?.rounding ?? cfg.defaultRounding,
+        minValidCompletionPercent:
+          active?.minValidCompletionPercent ?? cfg.defaultMinValidCompletionPercent,
         dimensions: active
           ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation })) }
           : undefined,
         questions: active
-          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, order: qq.order })) }
+          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, scored: qq.scored, showWhenQuestionId: qq.showWhenQuestionId, showWhenOperator: qq.showWhenOperator, showWhenValue: qq.showWhenValue, order: qq.order })) }
           : undefined,
         bands: active
           ? { create: active.bands.map((b) => ({ kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color, order: b.order })) }

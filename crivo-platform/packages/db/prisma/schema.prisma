@@ -781,6 +781,9 @@ model EngineConfig {
   defaultAggregation ScoreAggregation   @default(MEDIA_PONDERADA) @map("default_aggregation")
   defaultBandKind   MethodologyBandKind @default(MATURITY) @map("default_band_kind")
   defaultScaleLabels String[]           @default([]) @map("default_scale_labels")
+  // Padrões do motor v3.1 aplicados a todo diagnóstico novo (Anexo D/E).
+  defaultRounding    Int                @default(1) @map("default_rounding")
+  defaultMinValidCompletionPercent Int  @default(70) @map("default_min_valid_completion_percent")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1912,7 +1915,7 @@ model DiagnosticResponse {
   instrument           DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
   sector               String?
   answers              Json // [{ questionId, value }] escala 1–5
-  score                Int // 0–100
+  score                Float // 0–100 (Float: o motor v3.1 pontua com 1 casa decimal)
   level                String // código da faixa da metodologia
   byDimension          Json // { slug: 0–100 }
   methodologyVersionId String?              @db.Uuid // pin MET1
@@ -1948,6 +1951,11 @@ model MethodologyVersion {
   // Likert, editáveis por versão. Vazio = padrão CRIVO. NÃO muda a pontuação
   // (segue normalizando 1–5 → 0–100); só o texto que o respondente vê.
   scaleLabels String[]              @default([]) @map("scale_labels")
+  // Motor v3.1 (Anexo D/E): casas decimais do resultado (`rounding`; 1 reproduz
+  // 62,4 e 47,3 da homologação) e cobertura mínima de respostas válidas (%) para
+  // liberar o RESULTADO OFICIAL (`minimum_valid_completion_percent`, típico 70).
+  rounding    Int?                  @map("rounding")
+  minValidCompletionPercent Int?    @map("min_valid_completion_percent")
   createdBy   String?               @map("created_by")
   createdAt   DateTime              @default(now()) @map("created_at")
   publishedAt DateTime?             @map("published_at")
@@ -1991,6 +1999,14 @@ model MethodologyQuestion {
   weight        Float              @default(1)
   inverse       Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)
   required      Boolean            @default(true) // obrigatória (mockup): opcional não trava o respondente
+  // Item de CONTEXTO (Anexo D/E `scored:false`): coletado, fora do cálculo.
+  scored        Boolean            @default(true)
+  // Exibição condicional (`show_when`): item só é aplicável quando a resposta da
+  // pergunta `showWhenQuestionId` satisfaz `operador valor`. Não aplicável = fora
+  // do cálculo E do denominador de cobertura.
+  showWhenQuestionId Int?          @map("show_when_question_id")
+  showWhenOperator   String?       @map("show_when_operator")
+  showWhenValue      Int?          @map("show_when_value")
   order         Int                @default(0)
 
   @@index([versionId])
