@@ -20,14 +20,23 @@ export type ContractAccessInput = {
 
 export type ContractAccessState = {
   allowed: boolean;
-  reason?: 'expired_end_date' | 'expired_access_days';
+  reason?: 'expired_end_date' | 'expired_access_days' | 'contract_suspended' | 'contract_closed';
 };
 
 export function contractAccessState(
   contract: ContractAccessInput | null | undefined,
   now: Date,
 ): ContractAccessState {
-  if (!contract || contract.status !== 'ATIVO') return { allowed: true };
+  if (!contract) return { allowed: true };
+
+  // SUSPENSO/ENCERRADO barram por si só. Antes o contrato só valia quando ATIVO:
+  // suspender ou encerrar no Super Admin não revogava acesso nenhum (o cliente
+  // seguia entrando até o tenant ser desativado à mão).
+  if (contract.status === 'SUSPENSO') return { allowed: false, reason: 'contract_suspended' };
+  if (contract.status === 'ENCERRADO') return { allowed: false, reason: 'contract_closed' };
+
+  // RASCUNHO ainda não ativou nada — permissivo (pré-contrato).
+  if (contract.status !== 'ATIVO') return { allowed: true };
 
   if (contract.endDate && now.getTime() > contract.endDate.getTime()) {
     return { allowed: false, reason: 'expired_end_date' };

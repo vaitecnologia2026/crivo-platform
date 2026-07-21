@@ -14,11 +14,14 @@ describe('contractAccessState (CT1 — prazo do contrato)', () => {
     expect(contractAccessState(base, NOW)).toEqual({ allowed: true });
   });
 
-  it('NÃO bloqueia contrato não-ATIVO mesmo com endDate vencida', () => {
+  // REGRA REVISADA (C3 · auditoria 15/07): antes NENHUM status não-ATIVO
+  // bloqueava — suspender/encerrar no Super Admin não revogava acesso. Agora só
+  // RASCUNHO segue permissivo (pré-contrato); SUSPENSO/ENCERRADO barram.
+  it('NÃO bloqueia RASCUNHO mesmo com endDate vencida (pré-contrato)', () => {
     const past = new Date('2026-01-01T00:00:00Z');
-    for (const status of ['RASCUNHO', 'SUSPENSO', 'ENCERRADO'] as const) {
-      expect(contractAccessState({ ...base, status, endDate: past }, NOW)).toEqual({ allowed: true });
-    }
+    expect(contractAccessState({ ...base, status: 'RASCUNHO', endDate: past }, NOW)).toEqual({
+      allowed: true,
+    });
   });
 
   it('bloqueia ATIVO com endDate no passado', () => {
@@ -43,5 +46,36 @@ describe('contractAccessState (CT1 — prazo do contrato)', () => {
 
   it('ignora accessDays sem startDate (não dá pra computar a janela)', () => {
     expect(contractAccessState({ ...base, startDate: null, accessDays: 5 }, NOW)).toEqual({ allowed: true });
+  });
+
+  // ── C3 (auditoria 15/07): status do contrato passa a valer no acesso ──
+  // Antes, suspender ou encerrar no Super Admin NÃO revogava nada: o chamador só
+  // procurava contrato ATIVO, não achava, e liberava.
+  it('bloqueia contrato SUSPENSO', () => {
+    const r = contractAccessState({ ...base, status: 'SUSPENSO' }, NOW);
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('contract_suspended');
+  });
+
+  it('bloqueia contrato ENCERRADO', () => {
+    const r = contractAccessState({ ...base, status: 'ENCERRADO' }, NOW);
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('contract_closed');
+  });
+
+  it('bloqueia SUSPENSO mesmo com prazo em dia (o status manda)', () => {
+    const r = contractAccessState(
+      { ...base, status: 'SUSPENSO', endDate: new Date('2026-12-31T00:00:00Z') },
+      NOW,
+    );
+    expect(r.allowed).toBe(false);
+  });
+
+  it('libera RASCUNHO (pré-contrato, ainda não ativou nada)', () => {
+    expect(contractAccessState({ ...base, status: 'RASCUNHO' }, NOW)).toEqual({ allowed: true });
+  });
+
+  it('libera quando não há contrato', () => {
+    expect(contractAccessState(null, NOW)).toEqual({ allowed: true });
   });
 });

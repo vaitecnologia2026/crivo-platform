@@ -74,13 +74,30 @@ export class AuthService {
     // libera (não trava login por erro de leitura). O gate por status do tenant
     // acima continua sendo o principal.
     try {
-      const contract = await this.prisma.admin.contract.findFirst({
-        where: { organizationId: user.tenantId, status: 'ATIVO' },
-        orderBy: { updatedAt: 'desc' },
-        select: { status: true, startDate: true, endDate: true, accessDays: true },
-      });
+      // Precedência: um contrato ATIVO manda. Só quando NÃO existe ativo é que um
+      // SUSPENSO/ENCERRADO passa a barrar — assim um encerrado antigo nunca
+      // derruba quem já tem contrato novo em vigor.
+      const sel = { status: true, startDate: true, endDate: true, accessDays: true } as const;
+      const contract =
+        (await this.prisma.admin.contract.findFirst({
+          where: { organizationId: user.tenantId, status: 'ATIVO' },
+          orderBy: { updatedAt: 'desc' },
+          select: sel,
+        })) ??
+        (await this.prisma.admin.contract.findFirst({
+          where: { organizationId: user.tenantId, status: { in: ['SUSPENSO', 'ENCERRADO'] } },
+          orderBy: { updatedAt: 'desc' },
+          select: sel,
+        }));
       if (contract && !contractAccessState(contract, new Date()).allowed) {
-        throw new UnauthorizedException('Contrato expirado. Contate o suporte para renovar o acesso.');
+        const st = contractAccessState(contract, new Date());
+        throw new UnauthorizedException(
+          st.reason === 'contract_suspended'
+            ? 'Contrato suspenso. Contate o suporte.'
+            : st.reason === 'contract_closed'
+              ? 'Contrato encerrado. Contate o suporte para renovar o acesso.'
+              : 'Contrato expirado. Contate o suporte para renovar o acesso.',
+        );
       }
     } catch (e) {
       if (e instanceof UnauthorizedException) throw e;

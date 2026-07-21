@@ -160,6 +160,17 @@ export class DocumentsService {
     const { contract, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
     if (!DOCUMENT_TYPE_LABEL[type]) throw new BadRequestException('Tipo de documento inválido');
 
+    // GATE server-side: repetir a elegibilidade de available(). Sem isto, bastava
+    // chamar generate() com um tipo válido para emitir documento que o contrato
+    // não libera (ou sem plano validado) — brecha de autorização de saída.
+    const eligible = await this.available(tenantId);
+    const desc = eligible.find((d) => d.type === type);
+    if (!desc || !desc.available) {
+      throw new BadRequestException(
+        desc?.reason ?? 'Este documento não está liberado para o contrato desta empresa.',
+      );
+    }
+
     const method = contract?.method ?? null;
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const meta: GeneratedDocument['meta'] = [
@@ -192,13 +203,33 @@ export class DocumentsService {
         },
       });
 
-      const evid = validatedPlan.items.flatMap((i) =>
-        i.evidences.map((e) => [e.title, e.kind, e.url ?? '—']),
-      );
-      if (evid.length) {
+      // REGRA DO PACOTE v3.1: só evidência APROVADA alimenta dossiê/relatório.
+      // Antes entravam também REJEITADA/SUBSTITUIDA/pendente — o documento saía
+      // apoiado em prova recusada (exposição em AEP/GRO/PGR).
+      const allEvid = validatedPlan.items.flatMap((i) => i.evidences);
+      const approved = allEvid.filter((e) => e.status === 'APROVADA');
+      const excluded = allEvid.length - approved.length;
+      if (approved.length) {
         sections.push({
-          heading: 'Histórico de evidências',
-          table: { columns: ['Evidência', 'Tipo', 'Link/Referência'], data: evid },
+          heading: 'Evidências validadas',
+          table: {
+            columns: ['Evidência', 'Tipo', 'Link/Referência', 'Validada em'],
+            data: approved.map((e) => [
+              e.title,
+              e.kind,
+              e.url ?? '—',
+              e.reviewedAt ? fmt(e.reviewedAt) : '—',
+            ]),
+          },
+        });
+      }
+      if (excluded > 0) {
+        sections.push({
+          heading: 'Evidências não incluídas',
+          body:
+            `${excluded} evidência(s) enviada(s) não entram neste documento por não estarem ` +
+            'validadas (pendentes, rejeitadas ou substituídas). Somente evidência aprovada ' +
+            'compõe a documentação técnica.',
         });
       }
     } else {
