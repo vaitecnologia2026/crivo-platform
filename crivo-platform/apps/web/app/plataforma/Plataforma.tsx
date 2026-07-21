@@ -6,6 +6,7 @@ import { createLogger } from "@crivo/ui/logger";
 import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
 import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken, logout } from "@/lib/api";
 import { registerPushForCurrentUser } from "@/lib/push";
+import { Capacitor } from "@capacitor/core";
 
 /** localStorage do papel para resolver a HOME por papel sem chamada extra na 2ª sessão. */
 const ROLE_STORAGE_KEY = "crivo_role";
@@ -93,6 +94,29 @@ export function Plataforma() {
     if (!login || !app || !loginForm || !logoutBtn) {
       log.error("estrutura da plataforma incompleta");
       return;
+    }
+
+    // Guideline 3.1.1 (App Store): no app NATIVO o login não pode ter CTA que
+    // leve a canal externo de contato/venda (WhatsApp, site de marketing) —
+    // rejeição Apple 20/07. A web mantém os links; aqui eles somem ou viram
+    // orientação in-app.
+    if (Capacitor.isNativePlatform()) {
+      login.querySelector(".login__footer")?.remove();
+      login.querySelector(".login__back")?.remove();
+      const forgot = login.querySelector<HTMLAnchorElement>(".login__row a.link-gold");
+      if (forgot) {
+        forgot.removeAttribute("target");
+        forgot.setAttribute("href", "#");
+        on(forgot, "click", (e) => {
+          e.preventDefault();
+          const err = document.getElementById("loginError");
+          if (err) {
+            err.textContent =
+              "Para redefinir sua senha, fale com o administrador da sua organização.";
+            err.classList.add("is-visible");
+          }
+        });
+      }
     }
 
     // ---------- BAR ANIMATIONS ----------

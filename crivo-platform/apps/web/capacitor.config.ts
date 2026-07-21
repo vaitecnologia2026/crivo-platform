@@ -11,7 +11,9 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
   },
   ios: {
-    contentInset: "automatic",
+    // "never" (default). "automatic" deslocava o conteúdo horizontalmente no
+    // iPadOS 26 em janela (conteúdo cortado à esquerda — rejeição Apple G4).
+    contentInset: "never",
   },
   plugins: {
     PushNotifications: {
