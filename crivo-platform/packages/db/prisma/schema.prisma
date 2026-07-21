@@ -2020,8 +2020,9 @@ model MethodologyBand {
   kind      MethodologyBandKind
   code      String
   label     String
-  min       Int
-  max       Int
+  // Motor v3.1: limites DECIMAIS (illustrative_bands 0–24.9 / 25–49.9 / 50–74.9).
+  min       Float
+  max       Float
   color     String?
   order     Int                 @default(0)
 

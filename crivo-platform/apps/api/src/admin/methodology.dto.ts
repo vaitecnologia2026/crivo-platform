@@ -57,10 +57,13 @@ class BandDto {
   @IsString() @MaxLength(80)
   label!: string;
 
-  @IsInt() @Min(0) @Max(100)
+  // Motor v3.1: limites de faixa aceitam DECIMAL — as `illustrative_bands` dos
+  // Anexos D/E são 0–24.9 / 25–49.9 / 50–74.9 / 75–100. Exigir inteiro aqui
+  // impedia cadastrar a régua oficial (achado da verificação E2E em prod).
+  @IsNumber() @Min(0) @Max(100)
   min!: number;
 
-  @IsInt() @Min(0) @Max(100)
+  @IsNumber() @Min(0) @Max(100)
   max!: number;
 
   @IsOptional() @IsString() @MaxLength(20)
