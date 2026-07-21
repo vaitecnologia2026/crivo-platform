@@ -1192,6 +1192,12 @@ export interface MethodologyQuestion {
   weight: number;
   inverse: boolean;
   required?: boolean;
+  /** Motor v3.1 — item de CONTEXTO: coletado, fora do cálculo. */
+  scored?: boolean;
+  /** Motor v3.1 — exibição CONDICIONAL (`show_when`), questionId 1-based. */
+  showWhenQuestionId?: number | null;
+  showWhenOperator?: string | null;
+  showWhenValue?: number | null;
   order?: number;
 }
 export interface MethodologyBand {
@@ -1211,6 +1217,9 @@ export interface MethodologyVersion {
   label: string;
   status: MethodologyStatus;
   scaleLabels?: string[];
+  /** Motor v3.1: casas decimais do resultado e cobertura mínima (%). */
+  rounding?: number | null;
+  minValidCompletionPercent?: number | null;
   notes?: string | null;
   createdAt: string;
   publishedAt?: string | null;
@@ -1247,8 +1256,10 @@ export function updateMethodologyDraft(
     label?: string;
     notes?: string;
     scaleLabels?: string[];
+    rounding?: number;
+    minValidCompletionPercent?: number;
     dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null }>;
-    questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean }>;
+    questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null }>;
     bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string }>;
   },
 ) {

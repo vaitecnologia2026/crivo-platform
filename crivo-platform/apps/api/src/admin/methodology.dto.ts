@@ -45,6 +45,20 @@ class QuestionDto {
 
   @IsOptional() @IsBoolean()
   required?: boolean;
+
+  // Motor v3.1 — item de CONTEXTO (coletado, fora do cálculo).
+  @IsOptional() @IsBoolean()
+  scored?: boolean;
+
+  // Motor v3.1 — exibição CONDICIONAL (`show_when`): questionId 1-based.
+  @IsOptional() @IsInt() @Min(1)
+  showWhenQuestionId?: number | null;
+
+  @IsOptional() @IsIn(['>=', '>', '<=', '<', '==', '!='])
+  showWhenOperator?: string | null;
+
+  @IsOptional() @IsInt() @Min(1) @Max(5)
+  showWhenValue?: number | null;
 }
 
 class BandDto {
@@ -79,6 +93,13 @@ export class UpdateMethodologyDto {
 
   @IsOptional() @IsArray() @IsString({ each: true })
   scaleLabels?: string[];
+
+  // Motor v3.1: precisão do resultado e cobertura mínima para liberar o oficial.
+  @IsOptional() @IsInt() @Min(0) @Max(3)
+  rounding?: number;
+
+  @IsOptional() @IsInt() @Min(1) @Max(100)
+  minValidCompletionPercent?: number;
 
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => DimensionDto)
   dimensions?: DimensionDto[];

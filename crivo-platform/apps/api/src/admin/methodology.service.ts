@@ -224,8 +224,17 @@ export class MethodologyService {
       label?: string;
       notes?: string;
       scaleLabels?: string[];
+      // Motor v3.1: precisão do resultado e cobertura mínima do oficial.
+      rounding?: number;
+      minValidCompletionPercent?: number;
       dimensions?: { slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
-      questions?: { dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean }[];
+      questions?: {
+        dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean;
+        scored?: boolean;
+        showWhenQuestionId?: number | null;
+        showWhenOperator?: string | null;
+        showWhenValue?: number | null;
+      }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
     },
     actor: Actor,
@@ -235,13 +244,23 @@ export class MethodologyService {
     if (v.status !== 'DRAFT') throw new BadRequestException('Apenas rascunhos podem ser editados. Crie um novo rascunho.');
 
     await this.prisma.admin.$transaction(async (tx) => {
-      if (dto.label !== undefined || dto.notes !== undefined || dto.scaleLabels !== undefined) {
+      if (
+        dto.label !== undefined ||
+        dto.notes !== undefined ||
+        dto.scaleLabels !== undefined ||
+        dto.rounding !== undefined ||
+        dto.minValidCompletionPercent !== undefined
+      ) {
         await tx.methodologyVersion.update({
           where: { id },
           data: {
             label: dto.label ?? v.label,
             notes: dto.notes ?? v.notes,
             ...(dto.scaleLabels !== undefined ? { scaleLabels: dto.scaleLabels } : {}),
+            ...(dto.rounding !== undefined ? { rounding: dto.rounding } : {}),
+            ...(dto.minValidCompletionPercent !== undefined
+              ? { minValidCompletionPercent: dto.minValidCompletionPercent }
+              : {}),
           },
         });
       }
@@ -254,7 +273,7 @@ export class MethodologyService {
       if (dto.questions) {
         await tx.methodologyQuestion.deleteMany({ where: { versionId: id } });
         await tx.methodologyQuestion.createMany({
-          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, required: qq.required ?? true, order: i })),
+          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, required: qq.required ?? true, scored: qq.scored ?? true, showWhenQuestionId: qq.showWhenQuestionId ?? null, showWhenOperator: qq.showWhenOperator ?? null, showWhenValue: qq.showWhenValue ?? null, order: i })),
         });
       }
       if (dto.bands) {

@@ -39,7 +39,7 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
 };
 
 type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null };
-type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean };
+type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number };
 
 export function MethodologySection() {
@@ -64,6 +64,9 @@ export function MethodologySection() {
   const [questions, setQuestions] = useState<Q[]>([]);
   const [bands, setBands] = useState<Band[]>([]);
   const [scaleLabels, setScaleLabels] = useState<string[]>([]);
+  // Motor v3.1: precisão do resultado e cobertura mínima para o resultado oficial.
+  const [rounding, setRounding] = useState<number>(1);
+  const [minCoverage, setMinCoverage] = useState<number>(70);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -86,6 +89,8 @@ export function MethodologySection() {
         setQuestions([]);
         setBands([]);
         setScaleLabels([...DEFAULT_SCALE_LABELS]);
+        setRounding(1);
+        setMinCoverage(70);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao carregar.");
@@ -97,9 +102,18 @@ export function MethodologySection() {
     setDraftId(d.id);
     setLabel(d.label);
     setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null })));
-    setQuestions(d.questions.map((x) => ({ dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse, required: x.required ?? true })));
+    setQuestions(d.questions.map((x) => ({
+      dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse,
+      required: x.required ?? true,
+      scored: x.scored ?? true,
+      showWhenQuestionId: x.showWhenQuestionId ?? null,
+      showWhenOperator: x.showWhenOperator ?? null,
+      showWhenValue: x.showWhenValue ?? null,
+    })));
     setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max })));
     setScaleLabels(d.scaleLabels && d.scaleLabels.length === 5 ? d.scaleLabels : [...DEFAULT_SCALE_LABELS]);
+    setRounding(d.rounding ?? 1);
+    setMinCoverage(d.minValidCompletionPercent ?? 70);
   }
 
   useEffect(() => {
@@ -128,7 +142,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, scaleLabels, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
       setMsg("Rascunho salvo.");
       await load();
     } catch (e) {
@@ -145,7 +159,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, scaleLabels, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
       await publishMethodology(draftId);
       setMsg("Publicado! Esta é a nova versão ativa.");
       await load();
@@ -305,6 +319,10 @@ export function MethodologySection() {
           setLabel={setLabel}
           scaleLabels={scaleLabels}
           setScaleLabels={setScaleLabels}
+          rounding={rounding}
+          setRounding={setRounding}
+          minCoverage={minCoverage}
+          setMinCoverage={setMinCoverage}
           dims={dims}
           setDims={setDims}
           questions={questions}
@@ -858,13 +876,18 @@ const AGG_SHORT: Record<ScoreAggregation, string> = {
  * subdimensões edita as perguntas direto (é uma folha).
  */
 function DraftEditor({
-  label, setLabel, scaleLabels, setScaleLabels, dims, setDims, questions, setQuestions, bands, setBands,
+  label, setLabel, scaleLabels, setScaleLabels, rounding, setRounding, minCoverage, setMinCoverage,
+  dims, setDims, questions, setQuestions, bands, setBands,
   bandKind, bandWord, busy, onSave, onPublish, onDiscard,
 }: {
   label: string;
   setLabel: (v: string) => void;
   scaleLabels: string[];
   setScaleLabels: (v: string[]) => void;
+  rounding: number;
+  setRounding: (v: number) => void;
+  minCoverage: number;
+  setMinCoverage: (v: number) => void;
   dims: Dim[];
   setDims: (d: Dim[]) => void;
   questions: Q[];
@@ -932,16 +955,49 @@ function DraftEditor({
         </select>
       </div>
       {qsOf(leafSlug).map(({ q, i }) => (
-        <div className="meth-row" key={i}>
+        <div key={i}>
+        <div className="meth-row">
           <input className="meth-in" value={q.text} placeholder="Texto da pergunta" onChange={(e) => setQ(i, { text: e.target.value })} />
-          <input className="meth-in meth-in--num" type="number" step="0.1" value={q.weight} title="peso" onChange={(e) => setQ(i, { weight: Number(e.target.value) })} />
+          <input className="meth-in meth-in--num" type="number" step="0.1" value={q.weight} title="peso" disabled={q.scored === false} onChange={(e) => setQ(i, { weight: Number(e.target.value) })} />
           <label className="meth-inv" title="Obrigatória (opcional não trava o respondente)">
             <input type="checkbox" checked={q.required ?? true} onChange={(e) => setQ(i, { required: e.target.checked })} /> obr
           </label>
           <label className="meth-inv" title="Afirmação negativa (inverte a pontuação)">
-            <input type="checkbox" checked={q.inverse} onChange={(e) => setQ(i, { inverse: e.target.checked })} /> inv
+            <input type="checkbox" checked={q.inverse} disabled={q.scored === false} onChange={(e) => setQ(i, { inverse: e.target.checked })} /> inv
+          </label>
+          {/* Motor v3.1 — item de CONTEXTO: coletado, mas fora do cálculo. */}
+          <label className="meth-inv" title="Pontua? Desmarcado = item de contexto (coletado, fora do cálculo e da cobertura)">
+            <input type="checkbox" checked={q.scored !== false} onChange={(e) => setQ(i, { scored: e.target.checked })} /> pontua
           </label>
           <button className="meth-del" title="Remover" onClick={() => setQuestions(questions.filter((_, j) => j !== i))}>✕</button>
+        </div>
+        {/* Motor v3.1 — exibição CONDICIONAL (`show_when`). Não disparado = item
+            não aplicável: sai do cálculo E do denominador de cobertura. */}
+        <div className="meth-cond">
+          <label className="meth-inv" title="Só exibir esta pergunta quando outra tiver determinado valor">
+            <input
+              type="checkbox"
+              checked={q.showWhenQuestionId != null}
+              onChange={(e) => setQ(i, e.target.checked
+                ? { showWhenQuestionId: 1, showWhenOperator: ">=", showWhenValue: 4 }
+                : { showWhenQuestionId: null, showWhenOperator: null, showWhenValue: null })}
+            /> condicional
+          </label>
+          {q.showWhenQuestionId != null && (
+            <>
+              <span className="meth-cond__txt">exibir se a pergunta</span>
+              <select className="meth-in meth-in--num" value={q.showWhenQuestionId ?? 1} onChange={(e) => setQ(i, { showWhenQuestionId: Number(e.target.value) })}>
+                {questions.map((_, qi) => qi !== i && (<option key={qi} value={qi + 1}>#{qi + 1}</option>))}
+              </select>
+              <select className="meth-in meth-in--num" value={q.showWhenOperator ?? ">="} onChange={(e) => setQ(i, { showWhenOperator: e.target.value })}>
+                {[">=", ">", "<=", "<", "==", "!="].map((op) => (<option key={op} value={op}>{op}</option>))}
+              </select>
+              <select className="meth-in meth-in--num" value={q.showWhenValue ?? 4} onChange={(e) => setQ(i, { showWhenValue: Number(e.target.value) })}>
+                {[1, 2, 3, 4, 5].map((v) => (<option key={v} value={v}>{v}</option>))}
+              </select>
+            </>
+          )}
+        </div>
         </div>
       ))}
       <button className="btn btn--ghost btn--sm" onClick={() => addQuestion(leafSlug)}>+ pergunta</button>
@@ -996,12 +1052,46 @@ function DraftEditor({
             Restaurar escala padrão
           </button>
 
+          {/* Motor v3.1 (Anexos D/E): precisão do resultado e cobertura mínima. */}
+          <h4 className="meth-h" style={{ marginTop: 20 }}>Precisão e cobertura</h4>
+          <p className="cnae-muted" style={{ marginTop: 0 }}>
+            Regras de cálculo desta versão. A homologação oficial (Anexos D e E) usa <strong>1 casa decimal</strong> —
+            é o que reproduz os resultados conhecidos 62,4 e 47,3.
+          </p>
+          <div className="meth-precision">
+            <label className="meth-precision__f">
+              <span>Casas decimais do resultado</span>
+              <select className="meth-in" value={rounding} onChange={(e) => setRounding(Number(e.target.value))}>
+                <option value={0}>0 — inteiro (ex.: 62)</option>
+                <option value={1}>1 — uma casa (ex.: 62,4)</option>
+                <option value={2}>2 — duas casas (ex.: 62,40)</option>
+              </select>
+            </label>
+            <label className="meth-precision__f">
+              <span>Cobertura mínima para resultado oficial (%)</span>
+              <input
+                className="meth-in"
+                type="number"
+                min={1}
+                max={100}
+                value={minCoverage}
+                onChange={(e) => setMinCoverage(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+              />
+            </label>
+          </div>
+          <p className="cnae-muted" style={{ marginTop: 6 }}>
+            Abaixo da cobertura mínima o resultado é calculado mas fica <strong>bloqueado como oficial</strong> —
+            itens de contexto e condicionais não disparados ficam fora do denominador.
+          </p>
+
           <h4 className="meth-h" style={{ marginTop: 20 }}>Regras do diagnóstico</h4>
           <ul className="meth-rules">
             <li><strong>Pergunta invertida</strong> — afirmação negativa; a pontuação é espelhada (100 − valor). Marcada por pergunta na aba Estrutura.</li>
             <li><strong>Pergunta obrigatória / opcional</strong> — opcional não trava o respondente. Marcada por pergunta na aba Estrutura.</li>
+            <li><strong>Item de contexto</strong> — pergunta com &quot;pontua&quot; desmarcado: é coletada, mas fica fora do cálculo e da cobertura.</li>
+            <li><strong>Pergunta condicional</strong> — só aparece quando outra resposta satisfaz a regra; se não dispara, é não aplicável (fora do cálculo e do denominador).</li>
             <li><strong>Régua do instrumento</strong> — este é de {bandKind === "RISK" ? "risco (maior = menor risco)" : "maturidade (maior = melhor)"}; as faixas seguem essa régua.</li>
-            <li><strong>Supressão de anonimato</strong> — resultados agregados só aparecem a partir de 5 respondentes.</li>
+            <li><strong>Supressão de anonimato</strong> — resultados agregados só aparecem a partir do mínimo de respondentes definido em <strong>Configuração do Motor</strong>.</li>
             <li><strong>Versionamento</strong> — publicar cria uma versão nova e arquiva a anterior; respostas já pontuadas não são recalculadas.</li>
           </ul>
         </>
