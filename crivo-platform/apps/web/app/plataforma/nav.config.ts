@@ -58,54 +58,41 @@ export function homeForRole(role: string | null | undefined): string {
 // e NÃO deve aparecer como produto/entrega no portal do cliente. Ele vive só no
 // Super Admin (control plane, CrmSection). Por isso não há grupo "Comercial" aqui.
 export const NAV: NavGroup[] = [
+  // Reorganização do mockup do cliente (Portal do Cliente, 22/07): três grupos —
+  // Portal (operação da jornada) · Programas (frentes contratáveis) ·
+  // Administração (gestão do próprio portal). Rotas existentes preservam o id
+  // histórico (ex.: 'relatorios' = Plano de Evolução) para não invalidar as
+  // listas de acesso por usuário (screenAccess) já gravadas.
   {
-    title: 'Geral',
+    title: 'Portal',
     items: [
       {
         route: 'dashboard',
-        label: 'Dashboard',
+        label: 'Visão Geral',
         icon: '▣',
         module: 'dashboard',
-        breadcrumb: { path: 'Dashboard', current: 'Visão Executiva' },
+        breadcrumb: { path: 'Portal', current: 'Visão Geral Executiva' },
       },
       {
-        route: 'icd',
-        label: 'Índice de Coerência (ICD)',
-        icon: '◈',
-        module: 'icd',
-        perm: 'icd:view',
-        breadcrumb: { path: 'Indicadores', current: 'Índice de Coerência (ICD)' },
+        route: 'organizacao',
+        label: 'Minha Organização',
+        icon: '⚙',
+        perm: 'branding:edit',
+        breadcrumb: { path: 'Portal', current: 'Minha Organização' },
       },
       {
-        // F3 — Consolidado do Grupo Empresarial. O módulo virtual 'grupo' só é
-        // devolvido por /me/modules quando o usuário está autorizado (grupo
-        // consolidado + e-mail na lista de acesso), então o item só aparece p/ eles.
-        route: 'grupo',
-        label: 'Grupo Empresarial',
-        icon: '◧',
-        module: 'grupo',
-        breadcrumb: { path: 'Grupo', current: 'Consolidado do Grupo' },
-      },
-    ],
-  },
-  {
-    title: 'Diagnóstico',
-    items: [
-      {
-        // Call 14/07: o INSTRUMENTO da empresa é o diagnóstico CONTRATADO
-        // (a tela se molda ao método do contrato) — não o ICD.
         route: 'essencial',
-        label: 'Diagnóstico da Empresa',
+        label: 'Diagnósticos',
         icon: '✦',
         module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Diagnóstico da Empresa' },
+        breadcrumb: { path: 'Portal', current: 'Diagnósticos' },
       },
       {
         route: 'campanhas',
         label: 'Campanhas de Diagnóstico',
         icon: '◭',
         module: 'campanhas',
-        breadcrumb: { path: 'Diagnóstico', current: 'Campanhas de Diagnóstico' },
+        breadcrumb: { path: 'Portal', current: 'Campanhas de Diagnóstico' },
       },
       {
         route: 'parecer',
@@ -113,111 +100,161 @@ export const NAV: NavGroup[] = [
         icon: '❖',
         module: 'parecer',
         perm: 'parecer:view',
-        breadcrumb: { path: 'Diagnóstico', current: 'Parecer Consultivo CRIVO' },
+        breadcrumb: { path: 'Portal', current: 'Parecer Consultivo CRIVO' },
       },
       {
-        // Call 14/07: ICD é aplicação DO LÍDER (equipe dele) — rótulo explícito
-        // para não parecer o instrumento diagnóstico da empresa.
+        route: 'relatorios',
+        label: 'Plano de Evolução',
+        icon: '▤',
+        module: 'relatorios',
+        breadcrumb: { path: 'Portal', current: 'Plano de Evolução' },
+      },
+      {
+        route: 'evidencias',
+        label: 'Evidências',
+        icon: '▧',
+        module: 'relatorios',
+        breadcrumb: { path: 'Portal', current: 'Evidências' },
+      },
+      {
+        route: 'documentos',
+        label: 'Relatórios e Dossiês',
+        icon: '▦',
+        module: 'relatorios',
+        breadcrumb: { path: 'Portal', current: 'Relatórios e Dossiês' },
+      },
+      {
+        route: 'grupo',
+        label: 'Grupo Empresarial',
+        icon: '◧',
+        module: 'grupo',
+        breadcrumb: { path: 'Portal', current: 'Consolidado do Grupo' },
+      },
+    ],
+  },
+  {
+    title: 'Programas',
+    items: [
+      {
+        route: 'lider',
+        label: 'Liderança — Área do Líder',
+        icon: '★',
+        module: 'lider',
+        breadcrumb: { path: 'Programas', current: 'Liderança — Área do Líder' },
+      },
+      {
+        route: 'icd',
+        label: 'Liderança — ICD (agregado)',
+        icon: '◈',
+        module: 'icd',
+        perm: 'icd:view',
+        breadcrumb: { path: 'Programas', current: 'ICD — Visão Agregada' },
+      },
+      {
         route: 'questionario',
         label: 'Aplicação do ICD (líderes)',
         icon: '✎',
         module: 'icd',
         perm: 'icd:submit',
-        breadcrumb: { path: 'Aplicação', current: 'Aplicação do ICD (líderes)' },
-      },
-    ],
-  },
-  {
-    title: 'Desenvolvimento',
-    items: [
-      {
-        route: 'lider',
-        label: 'Área do Líder',
-        icon: '★',
-        module: 'lider',
-        breadcrumb: { path: 'Desenvolvimento', current: 'Área do Líder' },
+        breadcrumb: { path: 'Programas', current: 'Aplicação do ICD (líderes)' },
       },
       {
         route: 'decisoes',
         label: 'Registro de Decisões',
         icon: '◬',
         module: 'icd',
-        breadcrumb: { path: 'Desenvolvimento', current: 'Registro de Decisões' },
+        breadcrumb: { path: 'Programas', current: 'Registro de Decisões' },
       },
       {
         route: 'pocket',
         label: 'Pocket CRIVO',
         icon: '◐',
         module: 'pocket',
-        breadcrumb: { path: 'Desenvolvimento', current: 'Pocket CRIVO' },
+        breadcrumb: { path: 'Programas', current: 'Pocket CRIVO' },
       },
       {
-        route: 'mentorias',
-        label: 'Mentorias',
-        icon: '☉',
-        module: 'mentorias',
-        breadcrumb: { path: 'Desenvolvimento', current: 'Mentorias' },
+        route: 'govia',
+        label: 'Governança de IA',
+        icon: '◎',
+        breadcrumb: { path: 'Programas', current: 'Governança de IA' },
       },
       {
-        route: 'biblioteca',
-        label: 'Academia CRIVO',
-        icon: '▦',
-        module: 'biblioteca',
-        breadcrumb: { path: 'Desenvolvimento', current: 'Biblioteca & Formação' },
-      },
-      {
-        route: 'relatorios',
-        label: 'Plano de Ação & Documentos',
-        icon: '▤',
-        module: 'relatorios',
-        breadcrumb: { path: 'Documentos', current: 'Plano de Ação & Documentos' },
+        route: 'workforce',
+        label: 'Workforce Intelligence',
+        icon: '⌬',
+        breadcrumb: { path: 'Programas', current: 'Workforce Intelligence' },
       },
       {
         route: 'analytics',
         label: 'People Analytics',
         icon: '⌭',
         module: 'analytics',
-        breadcrumb: { path: 'Indicadores', current: 'People Analytics' },
+        breadcrumb: { path: 'Programas', current: 'People Analytics' },
       },
       {
         route: 'custo',
-        label: 'Custo Invisível',
+        label: 'Radar de Custos Invisíveis',
         icon: '◇',
         module: 'custo',
-        breadcrumb: { path: 'Indicadores', current: 'Custo Invisível' },
+        breadcrumb: { path: 'Programas', current: 'Radar de Custos Invisíveis' },
       },
       {
-        route: 'historico',
-        label: 'Histórico & Auditoria',
-        icon: '⊞',
-        module: 'historico',
-        breadcrumb: { path: 'Plataforma', current: 'Histórico & Auditoria' },
+        route: 'contexto',
+        label: 'Contexto e Diretrizes',
+        icon: '❈',
+        breadcrumb: { path: 'Programas', current: 'Contexto e Diretrizes (IA)' },
+      },
+      {
+        route: 'biblioteca',
+        label: 'Academia e Recursos',
+        icon: '▥',
+        module: 'biblioteca',
+        breadcrumb: { path: 'Programas', current: 'Academia e Recursos' },
+      },
+      {
+        route: 'mentorias',
+        label: 'Mentorias e Agenda',
+        icon: '☉',
+        module: 'mentorias',
+        breadcrumb: { path: 'Programas', current: 'Mentorias e Agenda' },
       },
     ],
   },
   {
-    title: 'Configurações',
+    title: 'Administração',
     items: [
       {
-        route: 'organizacao',
-        label: 'Organização',
-        icon: '⚙',
-        perm: 'branding:edit',
-        breadcrumb: { path: 'Configurações', current: 'Organização' },
-      },
-      {
         route: 'usuarios',
-        label: 'Usuários',
+        label: 'Usuários e Acessos',
         icon: '◌',
         perm: 'users:view',
-        breadcrumb: { path: 'Configurações', current: 'Usuários & Equipe' },
+        breadcrumb: { path: 'Administração', current: 'Usuários e Acessos' },
       },
       {
         route: 'papeis',
         label: 'Papéis & Permissões',
         icon: '▥',
         perm: 'users:view',
-        breadcrumb: { path: 'Configurações', current: 'Papéis & Permissões' },
+        breadcrumb: { path: 'Administração', current: 'Papéis & Permissões' },
+      },
+      {
+        route: 'contratacao',
+        label: 'Minha Contratação',
+        icon: '▦',
+        breadcrumb: { path: 'Administração', current: 'Minha Contratação' },
+      },
+      {
+        route: 'historico',
+        label: 'Histórico & Auditoria',
+        icon: '⊞',
+        module: 'historico',
+        breadcrumb: { path: 'Administração', current: 'Histórico & Auditoria' },
+      },
+      {
+        route: 'suporte',
+        label: 'Suporte',
+        icon: '✆',
+        breadcrumb: { path: 'Administração', current: 'Suporte' },
       },
     ],
   },
@@ -230,7 +267,7 @@ export const NAV: NavGroup[] = [
  */
 export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] = NAV.flatMap(
   (g) =>
-    g.title === 'Configurações'
+    g.title === 'Administração'
       ? []
       : g.items
           // 'grupo' (F3) é liberado por autorização de grupo, não pela checklist por usuário.

@@ -218,5 +218,28 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="biblioteca-root"></div>
       </section>
 
+      <!-- ============ PORTAL v2 (mockup 22/07): rotas novas ============ -->
+      <section class="route" data-route="evidencias">
+        <div id="evidencias-root"></div>
+      </section>
+      <section class="route" data-route="documentos">
+        <div id="documentos-root"></div>
+      </section>
+      <section class="route" data-route="contratacao">
+        <div id="contratacao-root"></div>
+      </section>
+      <section class="route" data-route="suporte">
+        <div id="suporte-root"></div>
+      </section>
+      <section class="route" data-route="govia">
+        <div id="govia-root"></div>
+      </section>
+      <section class="route" data-route="workforce">
+        <div id="workforce-root"></div>
+      </section>
+      <section class="route" data-route="contexto">
+        <div id="contexto-root"></div>
+      </section>
+
     </main>
   </div>`;

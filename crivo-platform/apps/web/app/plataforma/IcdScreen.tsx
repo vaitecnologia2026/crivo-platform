@@ -40,6 +40,10 @@ export function IcdScreen() {
         <div>
           <h1 className="page-title">Índice de Coerência Decisória</h1>
           <p className="page-sub">A coerência decisória da liderança sob pressão — nos 4 Eixos.</p>
+          <p className="page-sub" style={{ marginTop: 4, fontSize: 12.5 }}>
+            Visão exclusivamente agregada — nenhuma métrica ou resposta individual de líder é
+            exibida no portal da empresa.
+          </p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>

@@ -27,7 +27,6 @@ import {
   validateActionPlan,
   type ActionTemplateLite,
 } from "@/lib/api";
-import { DocumentsPanel } from "./DocumentsPanel";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
 const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link"];
@@ -47,9 +46,10 @@ export function PlanoAcaoScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Plano de Ação &amp; Evidências</h1>
+          <h1 className="page-title">Plano de Evolução</h1>
           <p className="page-sub">
-            Ponto → ação → responsável → prazo → status → evidência. O plano só vira documento após validação.
+            Fonte única das ações do programa: fator → ação → responsável → prazo → risco (Sev×Prob) →
+            evidência. Documentos e dossiês vivem em <strong>Relatórios e Dossiês</strong>.
           </p>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setCreating(true)}>Novo plano</button>
@@ -57,8 +57,6 @@ export function PlanoAcaoScreen() {
 
       {status === "loading" && <p className="dash-state">Carregando planos…</p>}
       {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar.</div>}
-
-      {status === "ok" && <DocumentsPanel />}
 
       {creating && <NewPlanForm onClose={() => setCreating(false)} onCreated={async () => { setCreating(false); await refresh(); }} />}
 
@@ -180,7 +178,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
             <ItemRow key={it.id} item={it} onChanged={onChanged} />
           ))}
           {plan.items.length === 0 && (
-            <tr><td colSpan={6} style={{ textAlign: "center", padding: 20 }}>Nenhuma ação. Adicione abaixo.</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: "center", padding: 20 }}>Nenhuma ação. Adicione abaixo.</td></tr>
           )}
         </tbody>
       </table>
