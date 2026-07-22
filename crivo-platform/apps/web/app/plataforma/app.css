@@ -2360,3 +2360,16 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 .exec-kpis .kpi__sub { display: block; margin-top: 4px; font-size: 10.5px; line-height: 1.35; color: var(--text-sec); }
 @media (max-width: 1200px) { .exec-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .exec-kpis { grid-template-columns: 1fr 1fr; } }
+
+/* Heatmap NR-1 (mockup 22/07): Setor × Dimensão, cor pela faixa de risco. */
+.heatmap-wrap { overflow-x: auto; }
+.heatmap { width: 100%; border-collapse: collapse; font-size: 12px; }
+.heatmap th { text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-sec); border-bottom: 2px solid var(--line); }
+.heatmap td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); }
+.heatmap td em { font-style: normal; color: var(--text-sec); font-size: 11px; }
+.heatmap .hm { text-align: center; font-weight: 600; min-width: 52px; }
+.heatmap .hm--baixo { background: #eaf5ef; color: #2d6a4f; }
+.heatmap .hm--moderado { background: #fdf3e3; color: #8a6116; }
+.heatmap .hm--alto { background: #fdeada; color: #a8531f; }
+.heatmap .hm--critico { background: #fbe3e3; color: #a12f2f; }
+.heatmap .hm--na { color: var(--text-mute); }

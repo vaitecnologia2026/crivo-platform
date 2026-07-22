@@ -88,6 +88,15 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Portal', current: 'Diagnósticos' },
       },
       {
+        // Mockup 22/07 (/diagnosticos/nr1): a tela psicossocial existia mas
+        // estava FORA do menu — só alcançável por link interno.
+        route: 'psicossocial',
+        label: 'NR-1 · Riscos Psicossociais',
+        icon: '◮',
+        module: 'campanhas',
+        breadcrumb: { path: 'Portal', current: 'NR-1 · Riscos Psicossociais' },
+      },
+      {
         route: 'campanhas',
         label: 'Campanhas de Diagnóstico',
         icon: '◭',

@@ -8,6 +8,7 @@ import {
   getPsychosocialLink,
   ensurePsychosocialLink,
   type PsychosocialResults,
+  listActionPlans,
 } from "@/lib/api";
 import {
   PSYCHOSOCIAL_DIMENSION_LABEL,
@@ -16,7 +17,11 @@ import {
   type PsychosocialResult,
   type PsychosocialDimension,
   type PsychosocialRiskLevel,
-} from "@crivo/types";
+  classifyTechnicalRisk,
+  RISK_LEVELS_3,
+  type RiskLevel3,
+  type ActionPlanData,
+ } from "@crivo/types";
 import { ScaleHelpBox } from "@crivo/ui";
 import { publicOrigin } from "@/lib/share-url";
 import { IconCheck } from "./Icons";
@@ -461,7 +466,124 @@ function ResultadosBody({
           </tbody>
         </table>
       </div>
+
+      {/* Mockup 22/07 — detalhe NR-1: heatmap + matriz técnica. */}
+      <SectorHeatmap data={data} />
+      <TechnicalRiskMatrix />
     </>
+  );
+}
+
+
+/** Mockup 22/07 (/diagnosticos/nr1): HEATMAP Setor × Dimensão com dado REAL do
+ *  diagnóstico e a mesma supressão de anonimato dos recortes (§14). */
+function SectorHeatmap({ data }: { data: PsychosocialResults }) {
+  const dims = Object.keys(PSYCHOSOCIAL_DIMENSION_LABEL) as PsychosocialDimension[];
+  const visible = data.sectors.filter((s) => !s.suppressed && s.byDimension);
+  if (!visible.length) {
+    return (
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card__head"><h3>Heatmap por setor e dimensão</h3></div>
+        <p className="dash-state">
+          O heatmap aparece quando ao menos um setor atinge o mínimo de {data.minRespondents}{" "}
+          respostas (proteção de anonimato).
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card__head">
+        <div>
+          <h3>Heatmap por setor e dimensão</h3>
+          <span className="card__sub">Score 0–100 por recorte; célula colorida pela faixa de risco.</span>
+        </div>
+      </div>
+      <div className="heatmap-wrap">
+        <table className="heatmap">
+          <thead>
+            <tr>
+              <th>Setor</th>
+              {dims.map((d) => (<th key={d}>{PSYCHOSOCIAL_DIMENSION_LABEL[d]}</th>))}
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((s) => (
+              <tr key={s.sector}>
+                <td>{s.sector} <em>({s.respondents})</em></td>
+                {dims.map((d) => {
+                  const v = s.byDimension?.[d];
+                  if (v == null) return <td key={d} className="hm hm--na">—</td>;
+                  const lvl = levelOf(v);
+                  return <td key={d} className={`hm hm--${lvl.toLowerCase()}`} title={`${PSYCHOSOCIAL_DIMENSION_LABEL[d]}: ${v}`}>{v}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Mockup 22/07: matriz técnica dos fatores (Prob. × Sev. → Nível), a MESMA do
+ *  dossiê (doc 09 §6) — risco derivado, nunca digitado. Fonte: Plano de Evolução. */
+function TechnicalRiskMatrix() {
+  const [plans, setPlans] = useState<ActionPlanData[] | null>(null);
+  useEffect(() => { listActionPlans().then(setPlans).catch(() => setPlans([])); }, []);
+  const items = (plans ?? []).flatMap((p) => p.items);
+  const rows = items.map((i, n) => {
+    const sev = i.severity as RiskLevel3 | null;
+    const prob = i.probability as RiskLevel3 | null;
+    const ok = sev && prob && RISK_LEVELS_3.includes(sev) && RISK_LEVELS_3.includes(prob);
+    return {
+      id: `FP-${String(n + 1).padStart(3, "0")}`,
+      fator: i.point,
+      grupo: i.exposedGroup ?? "—",
+      prob: prob ?? "—",
+      sev: sev ?? "—",
+      nivel: ok ? classifyTechnicalRisk(prob!, sev!) : (i.riskLevel ? "manual" : "—"),
+    };
+  });
+  if (!plans) return null;
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card__head">
+        <div>
+          <h3>Matriz de fatores de risco (classificação técnica)</h3>
+          <span className="card__sub">
+            Nível derivado de Severidade × Probabilidade (doc 09 §6) — separado do índice do
+            questionário. Editável no Plano de Evolução.
+          </span>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <p className="dash-state">Nenhum fator registrado no Plano de Evolução ainda.</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr><th>ID</th><th>Fator</th><th>Grupo exposto</th><th>Prob.</th><th>Sev.</th><th>Nível</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td className="cell-code">{r.id}</td>
+                <td><strong>{r.fator}</strong></td>
+                <td>{r.grupo}</td>
+                <td>{r.prob}</td>
+                <td>{r.sev}</td>
+                <td>
+                  {r.nivel === "manual"
+                    ? <span className="risk-pill risk-pill--legacy">manual</span>
+                    : r.nivel === "—" ? <span className="cell-na">—</span>
+                    : <span className={`risk-pill risk-pill--${r.nivel === "Alto" ? "alto" : r.nivel === "Moderado" ? "moderado" : "baixo"}`}>{r.nivel}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
