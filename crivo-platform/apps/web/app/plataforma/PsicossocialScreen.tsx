@@ -358,9 +358,15 @@ function ResultadosBody({
 
   if (data.totalRespondents === 0)
     return (
-      <div className="dash-state">
-        Ainda não há respostas. Compartilhe o questionário com os colaboradores na aba “Responder”.
-      </div>
+      <>
+        <div className="dash-state">
+          Ainda não há respostas. Compartilhe o questionário com os colaboradores na aba “Responder”.
+        </div>
+        {/* A matriz técnica vem do PLANO (independe do questionário); o heatmap
+            mostra seu estado vazio honesto — mockup 22/07. */}
+        <SectorHeatmap data={data} />
+        <TechnicalRiskMatrix />
+      </>
     );
 
   return (
