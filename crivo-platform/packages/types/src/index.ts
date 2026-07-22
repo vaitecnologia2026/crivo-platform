@@ -737,6 +737,7 @@ export interface MethodologyConfig {
 // técnica Baixo/Moderado/Alto do dossiê é validada SEPARADAMENTE por esta matriz.
 // Nunca derivar uma da outra (Anexo D `important_separation`).
 
+/** Eixos da matriz de risco do dossiê (doc 09 §6). Entrada do consultor. */
 export const RISK_LEVELS_3 = ['Baixa', 'Moderada', 'Alta'] as const;
 export type RiskLevel3 = (typeof RISK_LEVELS_3)[number];
 export const TECHNICAL_RISKS = ['Baixo', 'Moderado', 'Alto'] as const;
@@ -1430,6 +1431,10 @@ export interface ActionItemData {
   reviewDate: string | null;
   /** Inventário §6/§15: grupos expostos + classificação de risco do fator. */
   exposedGroup: string | null;
+  /** Matriz do dossiê (doc 09 §6): eixos de ENTRADA. O risco é derivado deles. */
+  severity: string | null;
+  probability: string | null;
+  /** Classificação manual legada — só vale quando faltam os dois eixos acima. */
   riskLevel: string | null;
   createdAt: string;
   evidences: EvidenceData[];
@@ -1457,6 +1462,8 @@ export interface CreateActionItemRequest {
   dueDate?: string | null;
   expectedEvidence?: string;
   exposedGroup?: string;
+  severity?: string;
+  probability?: string;
   riskLevel?: string;
 }
 export interface UpdateActionItemRequest {
@@ -1469,6 +1476,8 @@ export interface UpdateActionItemRequest {
   expectedEvidence?: string;
   reviewDate?: string | null;
   exposedGroup?: string;
+  severity?: string;
+  probability?: string;
   riskLevel?: string;
 }
 export interface CreateEvidenceRequest {

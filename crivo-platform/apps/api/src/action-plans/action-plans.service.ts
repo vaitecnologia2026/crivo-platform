@@ -79,6 +79,8 @@ export class ActionPlansService {
           dueDate: parseDate(dto.dueDate),
           expectedEvidence: dto.expectedEvidence ?? null,
           exposedGroup: dto.exposedGroup ?? null,
+          severity: dto.severity ?? null,
+          probability: dto.probability ?? null,
           riskLevel: dto.riskLevel ?? null,
         },
         include: { evidences: true },
@@ -147,6 +149,8 @@ export class ActionPlansService {
             dto.expectedEvidence === undefined ? existing.expectedEvidence : dto.expectedEvidence,
           reviewDate: dto.reviewDate === undefined ? existing.reviewDate : parseDate(dto.reviewDate),
           exposedGroup: dto.exposedGroup === undefined ? existing.exposedGroup : dto.exposedGroup,
+          severity: dto.severity === undefined ? existing.severity : dto.severity,
+          probability: dto.probability === undefined ? existing.probability : dto.probability,
           riskLevel: dto.riskLevel === undefined ? existing.riskLevel : dto.riskLevel,
         },
         include: { evidences: { orderBy: { createdAt: 'desc' } } },
@@ -318,7 +322,8 @@ export class ActionPlansService {
   private toItem(i: {
     id: string; planId: string; point: string; origin: string | null; action: string;
     responsible: string | null; dueDate: Date | null; status: string; expectedEvidence: string | null;
-    reviewDate: Date | null; exposedGroup?: string | null; riskLevel?: string | null;
+    reviewDate: Date | null; exposedGroup?: string | null;
+    severity?: string | null; probability?: string | null; riskLevel?: string | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
   }): ActionItemData {
     return {
@@ -332,6 +337,8 @@ export class ActionPlansService {
       status: i.status as ActionStatus,
       expectedEvidence: i.expectedEvidence,
       exposedGroup: i.exposedGroup ?? null,
+      severity: i.severity ?? null,
+      probability: i.probability ?? null,
       riskLevel: i.riskLevel ?? null,
       reviewDate: i.reviewDate?.toISOString() ?? null,
       createdAt: i.createdAt.toISOString(),

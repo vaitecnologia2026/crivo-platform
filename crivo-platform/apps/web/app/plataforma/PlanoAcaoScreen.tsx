@@ -6,6 +6,9 @@ import {
   ACTION_STATUS_LABEL,
   INVENTORY_RISK_LEVELS,
   INVENTORY_RISK_LABEL,
+  RISK_LEVELS_3,
+  classifyTechnicalRisk,
+  type RiskLevel3,
   type ActionPlanData,
   type ActionStatus,
 } from "@crivo/types";
@@ -67,6 +70,31 @@ export function PlanoAcaoScreen() {
         <PlanCard key={plan.id} plan={plan} onChanged={refresh} />
       ))}
     </>
+  );
+}
+
+
+/**
+ * Risco técnico do fator — DERIVADO da matriz 3x3 Severidade x Probabilidade
+ * (doc 09 §6). Não é editável: mostra o resultado e explica o que falta.
+ * Regra do Anexo D: esta classificação é SEPARADA do índice do questionário.
+ */
+function DerivedRisk({ severity, probability }: { severity: string; probability: string }) {
+  const ok = RISK_LEVELS_3.includes(severity as RiskLevel3) && RISK_LEVELS_3.includes(probability as RiskLevel3);
+  if (!ok) {
+    return (
+      <span className="risk-derived risk-derived--empty">
+        Informe severidade e probabilidade para o risco ser classificado.
+      </span>
+    );
+  }
+  const risk = classifyTechnicalRisk(probability as RiskLevel3, severity as RiskLevel3);
+  const mod = risk === "Alto" ? "alto" : risk === "Moderado" ? "moderado" : "baixo";
+  return (
+    <span className={`risk-derived risk-derived--${mod}`}>
+      {risk}
+      <em>Severidade {severity} × Probabilidade {probability}</em>
+    </span>
   );
 }
 
@@ -145,7 +173,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
 
       <table className="data-table">
         <thead>
-          <tr><th>Ponto</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Evidências</th></tr>
+          <tr><th>Ponto</th><th>Ação</th><th>Risco</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Evidências</th></tr>
         </thead>
         <tbody>
           {plan.items.map((it) => (
@@ -166,6 +194,27 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
   );
 }
 
+
+/** Risco do fator na lista: derivado da matriz quando há os dois eixos;
+ *  senão mostra a classificação manual antiga, marcada como legado. */
+function RiskCell({ item }: { item: ActionPlanData["items"][number] }) {
+  const sev = item.severity as RiskLevel3 | null;
+  const prob = item.probability as RiskLevel3 | null;
+  if (sev && prob && RISK_LEVELS_3.includes(sev) && RISK_LEVELS_3.includes(prob)) {
+    const risk = classifyTechnicalRisk(prob, sev);
+    const mod = risk === "Alto" ? "alto" : risk === "Moderado" ? "moderado" : "baixo";
+    return <span className={`risk-pill risk-pill--${mod}`} title={`Severidade ${sev} × Probabilidade ${prob}`}>{risk}</span>;
+  }
+  if (item.riskLevel) {
+    return (
+      <span className="risk-pill risk-pill--legacy" title="Classificação manual anterior à matriz — informe severidade e probabilidade">
+        {(INVENTORY_RISK_LABEL as Record<string, string | undefined>)[item.riskLevel] ?? item.riskLevel} <em>manual</em>
+      </span>
+    );
+  }
+  return <span className="cell-na">—</span>;
+}
+
 function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; onChanged: () => void }) {
   const [evOpen, setEvOpen] = useState(false);
   async function setStatus(s: ActionStatus) {
@@ -177,6 +226,7 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
       <tr>
         <td><strong>{item.point}</strong>{item.origin && <span className="card__sub"> · {item.origin}</span>}</td>
         <td>{item.action}</td>
+        <td><RiskCell item={item} /></td>
         <td>{item.responsible ?? "—"}</td>
         <td>{item.dueDate ? new Date(item.dueDate).toLocaleDateString("pt-BR") : "—"}</td>
         <td>
@@ -271,7 +321,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", riskLevel: "" });
+  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "" });
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
@@ -305,7 +355,9 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         point: f.point.trim(), action: f.action.trim(),
         origin: f.origin || undefined, responsible: f.responsible || undefined,
         dueDate: f.dueDate || null, expectedEvidence: f.expectedEvidence || undefined,
-        exposedGroup: f.exposedGroup || undefined, riskLevel: f.riskLevel || undefined,
+        exposedGroup: f.exposedGroup || undefined,
+        severity: f.severity || undefined, probability: f.probability || undefined,
+        riskLevel: f.riskLevel || undefined,
       });
       onAdded();
     } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
@@ -422,11 +474,22 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         <label className="prod-field"><span>Grupos expostos (inventário/PGR)</span>
           <input value={f.exposedGroup} onChange={(e) => set("exposedGroup")(e.target.value)} placeholder="Ex.: turno B, líderes intermediários…" />
         </label>
-        <label className="prod-field"><span>Classificação de risco</span>
-          <select value={f.riskLevel} onChange={(e) => set("riskLevel")(e.target.value)}>
+        {/* Matriz do dossiê (doc 09 §6): severidade e probabilidade são as ENTRADAS;
+            o risco técnico é DERIVADO delas — o consultor não digita o risco. */}
+        <label className="prod-field"><span>Severidade</span>
+          <select value={f.severity} onChange={(e) => set("severity")(e.target.value)}>
             <option value="">—</option>
-            {INVENTORY_RISK_LEVELS.map((r) => (<option key={r} value={r}>{INVENTORY_RISK_LABEL[r]}</option>))}
+            {RISK_LEVELS_3.map((r) => (<option key={r} value={r}>{r}</option>))}
           </select>
+        </label>
+        <label className="prod-field"><span>Probabilidade (exposição/recorrência)</span>
+          <select value={f.probability} onChange={(e) => set("probability")(e.target.value)}>
+            <option value="">—</option>
+            {RISK_LEVELS_3.map((r) => (<option key={r} value={r}>{r}</option>))}
+          </select>
+        </label>
+        <label className="prod-field prod-field--full"><span>Risco técnico (derivado da matriz)</span>
+          <DerivedRisk severity={f.severity} probability={f.probability} />
         </label>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
