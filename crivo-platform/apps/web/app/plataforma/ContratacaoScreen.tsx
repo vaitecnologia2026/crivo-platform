@@ -34,7 +34,8 @@ export function ContratacaoScreen() {
 
   useEffect(() => {
     Promise.all([getDiagnosticContext(), getMyModules()])
-      .then(([c, m]) => { setCtx(c); setMods(m); })
+      // §16: CRM é ferramenta interna da CRIVO — não é entrega do portal.
+      .then(([c, m]) => { setCtx(c); setMods(m.filter((x) => x !== "crm")); })
       .catch((e) => setErr(e instanceof Error ? e.message : "Falha ao carregar a contratação."));
   }, []);
 
