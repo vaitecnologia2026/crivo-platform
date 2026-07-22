@@ -2354,3 +2354,9 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 .risk-pill--moderado { background: #fff7ee; border-color: #ecd7bb; color: #a8693d; }
 .risk-pill--alto { background: #fff2f2; border-color: #e8c4c4; color: #b33a3a; }
 .risk-pill--legacy { background: var(--line-soft); color: var(--text-sec); }
+
+/* Fileira executiva do dashboard (mockup Portal 22/07): 6 KPIs no topo. */
+.exec-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.exec-kpis .kpi__sub { display: block; margin-top: 4px; font-size: 10.5px; line-height: 1.35; color: var(--text-sec); }
+@media (max-width: 1200px) { .exec-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .exec-kpis { grid-template-columns: 1fr 1fr; } }

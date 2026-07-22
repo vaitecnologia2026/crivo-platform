@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
-import { listActionPlans } from "@/lib/api";
+import { getPsychosocialResults, listActionPlans, listDocuments, type PsychosocialResults } from "@/lib/api";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OperationalAlerts } from "./OperationalAlerts";
 import {
   ACTION_STATUS_LABEL,
+  classifyTechnicalRisk,
+  RISK_LEVELS_3,
+  type RiskLevel3,
   getIcdMaturityBand,
   ICD_AXES,
   ICD_AXIS_LABEL,
@@ -131,6 +134,71 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
   );
 }
 
+
+/**
+ * Fileira executiva do mockup do Portal (22/07): 6 KPIs com DADOS REAIS —
+ * participação do diagnóstico organizacional, riscos altos derivados da matriz
+ * Severidade × Probabilidade (doc 09 §6), execução do plano, evidências e
+ * documentos liberados pelo contrato. Sem número inventado: célula sem dado
+ * mostra "—" e explica a origem.
+ */
+function ExecutiveKpiRow({ plans }: { plans: ActionPlanData[] | null }) {
+  const [psy, setPsy] = useState<PsychosocialResults | null>(null);
+  const [docsAvail, setDocsAvail] = useState<number | null>(null);
+  const [docsTotal, setDocsTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getPsychosocialResults().then((r) => { if (alive) setPsy(r); }).catch(() => {});
+    listDocuments()
+      .then((d) => { if (alive) { setDocsAvail(d.filter((x) => x.available).length); setDocsTotal(d.length); } })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const items = plans?.flatMap((p) => p.items) ?? [];
+  const highRisks = items.filter((i) => {
+    const sev = i.severity as RiskLevel3 | null;
+    const prob = i.probability as RiskLevel3 | null;
+    if (sev && prob && RISK_LEVELS_3.includes(sev) && RISK_LEVELS_3.includes(prob)) {
+      return classifyTechnicalRisk(prob, sev) === "Alto";
+    }
+    return i.riskLevel === "ALTO" || i.riskLevel === "CRITICO";
+  }).length;
+  const emAndamento = items.filter((i) => i.status === "EM_ANDAMENTO" || i.status === "APROVADA").length;
+  const concluidas = items.filter((i) => i.status === "CONCLUIDA").length;
+  const evidencias = items.reduce((n, i) => n + i.evidences.length, 0);
+  const setores = psy ? psy.sectors.length : null;
+  const respondentes = psy ? psy.totalRespondents : null;
+
+  const cells: { label: string; value: string; sub: string }[] = [
+    { label: "Participação", value: respondentes === null ? "—" : String(respondentes), sub: "respondentes · diagnóstico organizacional" },
+    { label: "Setores avaliados", value: setores === null ? "—" : String(setores), sub: "recortes com supressão de anonimato" },
+    { label: "Riscos altos", value: plans ? String(highRisks) : "—", sub: "matriz Severidade × Probabilidade" },
+    { label: "Ações em andamento", value: plans ? String(emAndamento) : "—", sub: `${concluidas} concluída(s)` },
+    { label: "Evidências", value: plans ? String(evidencias) : "—", sub: "vinculadas às ações do plano" },
+    {
+      label: "Relatórios",
+      value: docsAvail === null ? "—" : String(docsAvail),
+      sub: docsTotal === null || docsAvail === null
+        ? "documentos do contrato"
+        : `${docsTotal - docsAvail} bloqueado(s) por gate`,
+    },
+  ];
+
+  return (
+    <div className="exec-kpis">
+      {cells.map((c) => (
+        <div className="kpi" key={c.label}>
+          <span className="kpi__label">{c.label}</span>
+          <span className="kpi__value">{c.value}</span>
+          <span className="kpi__sub">{c.sub}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardScreen() {
   const { data, status, refresh } = useIcdDashboard();
   const { data: axesData, status: axesStatus } = useIcdAxes();
@@ -161,7 +229,7 @@ export function DashboardScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Visão Executiva</h1>
+          <h1 className="page-title">Visão Geral Executiva</h1>
           <p className="page-sub">
             Diagnóstico organizacional, plano de ação e camada complementar de coerência decisória.
           </p>
@@ -172,6 +240,9 @@ export function DashboardScreen() {
           </button>
         </div>
       </div>
+
+      {/* Fileira executiva (mockup 22/07) — 6 KPIs reais no topo. */}
+      <ExecutiveKpiRow plans={plans} />
 
       {status === "loading" && <p className="dash-state">Carregando indicadores…</p>}
 
