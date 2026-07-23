@@ -65,6 +65,19 @@ export class AiPromptsService {
     }
   }
 
+  /**
+   * Rótulo da versão EFETIVA do prompt (p/ carimbar em documentos gerados —
+   * ex.: PreliminaryReport.promptVersion). "padrão" = usando o default em código.
+   */
+  async resolveVersionLabel(useCase: AiPromptUseCase): Promise<string> {
+    try {
+      const row = await this.prisma.admin.aiPrompt.findUnique({ where: { useCase } });
+      return row ? `v${row.version}` : 'padrão';
+    } catch {
+      return 'padrão';
+    }
+  }
+
   /** Salva (versiona) o prompt de um caso de uso. */
   async upsert(useCase: string, content: string, actor: Actor): Promise<AiPromptItem> {
     if (!isAiPromptUseCase(useCase)) throw new BadRequestException('Caso de uso de IA inválido.');

@@ -42,49 +42,44 @@ export class CopilotoService {
       return { ok: false, reason: 'A IA não está habilitada para o Copiloto do líder.' };
     }
 
-    const key = await this.ai.getApiKey();
-    if (!key) return { ok: false, reason: 'Token de IA indisponível.' };
-
     // Prompt-base vem da Central de Prompts (Configurações de IA); IA2: + diretrizes
     // aprovadas do cliente (se o produto contratado permitir IA personalizada).
     const base = await this.prompts.resolve('copiloto');
     const directives = await this.ai.buildTenantDirectives(tenantId);
     const system = this.systemPrompt(base, dto.context) + directives;
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: settings.model || 'gpt-4o-mini',
-          temperature: 0.5,
-          max_tokens: 600,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: question },
-          ],
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!res.ok) {
-        const reason =
-          res.status === 401
-            ? 'Token de IA inválido. Verifique a configuração no Super Admin.'
-            : res.status === 429
-              ? 'Limite de uso da IA excedido. Tente novamente em instantes.'
-              : `Falha ao consultar a IA (HTTP ${res.status}).`;
-        return { ok: false, reason };
-      }
-      const data = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      const answer = data.choices?.[0]?.message?.content?.trim();
-      if (!answer) return { ok: false, reason: 'A IA não retornou resposta.' };
-      return { ok: true, answer };
-    } catch (e) {
-      return {
-        ok: false,
-        reason: e instanceof Error ? `Falha de conexão com a IA: ${e.message}` : 'Falha de conexão com a IA.',
-      };
+
+    const r = await this.ai.chat({
+      useCase: 'copiloto',
+      tenantId,
+      temperature: 0.5,
+      maxTokens: 600,
+      timeoutMs: 30000,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: question },
+      ],
+    });
+    if (r.ok) return { ok: true, answer: r.content };
+    switch (r.kind) {
+      case 'no_key':
+        return { ok: false, reason: 'Token de IA indisponível.' };
+      case 'http':
+        return {
+          ok: false,
+          reason:
+            r.httpStatus === 401
+              ? 'Token de IA inválido. Verifique a configuração no Super Admin.'
+              : r.httpStatus === 429
+                ? 'Limite de uso da IA excedido. Tente novamente em instantes.'
+                : `Falha ao consultar a IA (HTTP ${r.httpStatus}).`,
+        };
+      case 'empty':
+        return { ok: false, reason: 'A IA não retornou resposta.' };
+      default:
+        return {
+          ok: false,
+          reason: r.message ? `Falha de conexão com a IA: ${r.message}` : 'Falha de conexão com a IA.',
+        };
     }
   }
 

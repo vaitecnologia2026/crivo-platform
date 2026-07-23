@@ -13,7 +13,6 @@ import {
   type PreliminaryReportData,
 } from '@crivo/types';
 
-const PROMPT_VERSION = 'v1';
 
 /**
  * Relatório Preliminar CRIVO (Briefing §5, Portal §7).
@@ -99,7 +98,7 @@ export class PreliminaryReportsService {
         topAttention: diagnostic.topAttention,
         content: '',
         modelVersion: reportModel,
-        promptVersion: PROMPT_VERSION,
+        promptVersion: await this.prompts.resolveVersionLabel('preliminary_report'),
         status: 'GERANDO',
       },
     });
@@ -195,46 +194,39 @@ export class PreliminaryReportsService {
     diagnostic: PreDiagnosticResult,
     model: string,
   ): Promise<string> {
-    const key = await this.ai.getApiKey();
-    if (!key) throw new Error('Token de IA indisponível.');
-
     const system = await this.prompts.resolve('preliminary_report');
     const user = buildUserMessage(lead, diagnostic);
 
-    let res: Response;
-    try {
-      res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          temperature: 0.4,
-          max_tokens: 2000,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-        signal: AbortSignal.timeout(55000),
-      });
-    } catch (e) {
-      if (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+    // Relatório é de LEAD da LP (sem tenant) → tenantId null na telemetria.
+    const r = await this.ai.chat({
+      useCase: 'preliminary_report',
+      tenantId: null,
+      model,
+      temperature: 0.4,
+      maxTokens: 2000,
+      timeoutMs: 55000,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+    if (r.ok) return r.content;
+    switch (r.kind) {
+      case 'no_key':
+        throw new Error('Token de IA indisponível.');
+      case 'timeout':
         throw new Error(
           'A IA demorou demais para responder. Tente novamente; se persistir, escolha um modelo mais rápido (gpt-4o-mini) em Configurações de IA.',
         );
-      }
-      throw e;
+      case 'http':
+        if (r.httpStatus === 401) throw new Error('Token de IA inválido.');
+        if (r.httpStatus === 429) throw new Error('Limite da IA excedido. Tente novamente em instantes.');
+        throw new Error(`Falha na IA (HTTP ${r.httpStatus}).`);
+      case 'empty':
+        throw new Error('A IA não retornou conteúdo.');
+      default:
+        throw new Error(r.message ?? 'Falha de conexão com a IA.');
     }
-
-    if (!res.ok) {
-      if (res.status === 401) throw new Error('Token de IA inválido.');
-      if (res.status === 429) throw new Error('Limite da IA excedido. Tente novamente em instantes.');
-      throw new Error(`Falha na IA (HTTP ${res.status}).`);
-    }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data.choices?.[0]?.message?.content?.trim();
-    if (!content) throw new Error('A IA não retornou conteúdo.');
-    return content;
   }
 
   // ── E-mail (Resend OU stub log) ──────────────────────────────────────

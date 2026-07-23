@@ -214,33 +214,31 @@ export class PocketService {
     );
     if (!hasContent) return;
 
-    const key = await this.ai.getApiKey();
-    if (!key) return;
-
     const system = await this.prompts.resolve('pocket_summary');
     const user = buildPocketSummaryUserMessage(session);
 
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: settings.model || 'gpt-4o-mini',
-          temperature: 0.5,
-          max_tokens: 700,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-        signal: AbortSignal.timeout(30000),
+      const r = await this.ai.chat({
+        useCase: 'pocket_summary',
+        tenantId,
+        temperature: 0.5,
+        maxTokens: 700,
+        timeoutMs: 30000,
+        responseFormat: 'json_object',
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
       });
-      if (!res.ok) return;
-      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const raw = data.choices?.[0]?.message?.content?.trim();
-      if (!raw) return;
-      const parsed = safeParseJson(raw);
+      if (!r.ok) {
+        // best-effort: síntese ausente é aceitável — mas registra (como antes da
+        // centralização), senão a falha some do log da aplicação.
+        this.log.warn(
+          `Falha de IA para sessão ${sessionId}: ${r.kind}${r.httpStatus ? ` (HTTP ${r.httpStatus})` : ''}${r.message ? ` — ${r.message}` : ''}`,
+        );
+        return;
+      }
+      const parsed = safeParseJson(r.content);
       if (!parsed?.synthesis || typeof parsed.synthesis !== 'string') return;
 
       // A IA pode devolver tipos inesperados — só persiste string (senão null),
@@ -250,7 +248,7 @@ export class PocketService {
         synthesis: parsed.synthesis,
         recommendation: asStr(parsed.recommendation),
         nextStep: asStr(parsed.nextStep),
-        modelVersion: settings.model || 'gpt-4o-mini',
+        modelVersion: r.model,
       };
       // Grava a síntese numa transação CURTA (a chamada à OpenAI acima ocorreu
       // FORA de qualquer transação, então nada segurou conexão do pool).

@@ -1399,3 +1399,57 @@ export function getReportEmission(id: string): Promise<ReportEmissionRow & { con
 export function reviewReportEmission(id: string): Promise<ReportEmissionRow> {
   return adminFetch(`/admin/reports/emissions/${id}/review`, { method: "POST" });
 }
+
+// ── IA da Plataforma — consumo, logs e contextos por cliente (motor de IA) ──
+
+export interface AiUsageSummary {
+  days: number;
+  since: string;
+  totals: {
+    calls: number;
+    okCalls: number;
+    errorCalls: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  byUseCase: { useCase: string; calls: number; errors: number; totalTokens: number }[];
+  byTenant: { tenantId: string | null; tenantName: string; calls: number; totalTokens: number }[];
+}
+export function getAiUsage(days = 30): Promise<AiUsageSummary> {
+  return adminFetch<AiUsageSummary>(`/admin/ai/usage?days=${days}`);
+}
+
+export interface AiLogRow {
+  id: string;
+  createdAt: string;
+  useCase: string;
+  tenantName: string | null;
+  model: string;
+  ok: boolean;
+  errorReason: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  latencyMs: number;
+}
+export function getAiLogs(params: { limit?: number; useCase?: string; onlyErrors?: boolean } = {}): Promise<AiLogRow[]> {
+  const qs = new URLSearchParams();
+  if (params.limit) qs.set("limit", String(params.limit));
+  if (params.useCase) qs.set("useCase", params.useCase);
+  if (params.onlyErrors) qs.set("onlyErrors", "1");
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return adminFetch<AiLogRow[]>(`/admin/ai/logs${suffix}`);
+}
+
+export interface AiContextRow {
+  tenantId: string;
+  tenantName: string;
+  contractStatus: string;
+  productName: string | null;
+  allowsCustomAi: boolean;
+  directives: string;
+}
+export function getAiContexts(): Promise<AiContextRow[]> {
+  return adminFetch<AiContextRow[]>("/admin/ai/contexts");
+}

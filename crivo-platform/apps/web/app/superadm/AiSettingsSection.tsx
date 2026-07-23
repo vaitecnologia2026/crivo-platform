@@ -14,11 +14,41 @@ import {
   getAiPrompts,
   updateAiPrompt,
   resetAiPrompt,
+  getAiUsage,
+  getAiLogs,
+  getAiContexts,
   type AiPromptItem,
+  type AiUsageSummary,
+  type AiLogRow,
+  type AiContextRow,
 } from "@/lib/admin-api";
 
-/** Configurações de IA (auditoria 2.3.1) — token OpenAI, modelo, módulos. */
+/** Casos de uso REAIS do motor de IA e o módulo que os libera (gate). */
+const USE_CASES: { useCase: string; where: string; gateModules: string[] }[] = [
+  { useCase: "copiloto", where: "Portal do Cliente · Área do Líder (Copiloto)", gateModules: ["copiloto", "lider"] },
+  { useCase: "preliminary_report", where: "LP / CRM · Relatório Preliminar do lead (e-mail)", gateModules: ["relatorios"] },
+  { useCase: "pocket_summary", where: "Portal do Cliente · síntese da Mentoria IA Pocket", gateModules: ["pocket"] },
+  { useCase: "people_analytics", where: "Portal do Cliente · People Analytics (análise de RH)", gateModules: ["analytics"] },
+];
+
+type Tab = "provedores" | "casos" | "prompts" | "contextos" | "consumo" | "logs";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "provedores", label: "Provedores e Modelos" },
+  { key: "casos", label: "Casos de Uso" },
+  { key: "prompts", label: "Prompts e Políticas" },
+  { key: "contextos", label: "Contextos por Cliente" },
+  { key: "consumo", label: "Consumo e Limites" },
+  { key: "logs", label: "Versões e Logs" },
+];
+
+/**
+ * IA da Plataforma (grupo Motores, mockup do cliente) — governança central da IA
+ * em 6 abas: conexão/modelo, casos de uso (gates por módulo), Central de Prompts,
+ * contextos por cliente (diretrizes do contrato), consumo real (ai_call_logs) e
+ * logs por chamada. Toda chamada de IA passa pelo motor central e é medida.
+ */
 export function AiSettingsSection() {
+  const [tab, setTab] = useState<Tab>("provedores");
   const [data, setData] = useState<AiSettingsData | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [apiKey, setApiKey] = useState(""); // token novo (vazio = manter)
@@ -90,15 +120,24 @@ export function AiSettingsSection() {
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); } finally { setSaving(false); }
   }
 
+  const saveRow = (
+    <div style={{ display: "flex", gap: 10, marginTop: 18, alignItems: "center" }}>
+      <button className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
+        {saving ? "Salvando…" : "Salvar configurações"}
+      </button>
+      {savedMsg && <span className="kb-converted">✓ Salvo</span>}
+    </div>
+  );
+
   return (
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Configurações de IA</h1>
+          <h1 className="page-title">IA da Plataforma</h1>
           <p className="page-sub">
-            Governança central da IA: token OpenAI/ChatGPT criptografado, modelo e em quais módulos a IA pode atuar.
-            A solução (Produtos) indica se <em>permite</em> IA; o contrato libera. Os <strong>prompts técnicos</strong> ficam
-            centralizados aqui (editáveis e versionados, por caso de uso) — não no cadastro de solução.
+            Motor de IA da CRIVO: conexão e modelo, casos de uso liberados, prompts técnicos
+            versionados, contextos por cliente e o consumo real — cada chamada de IA passa pelo
+            motor central e fica registrada (tokens, latência e erros).
           </p>
         </div>
       </div>
@@ -109,21 +148,25 @@ export function AiSettingsSection() {
         do especialista humano. Ela também <strong>não valida plano, evidência, dossiê ou economia automaticamente</strong>.
       </div>
 
-      <div className="adm-callout">
-        <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. As
-        <strong> diretrizes aprovadas do cliente</strong> (objetivo, regras, base de conhecimento e limitações
-        em <em>Soluções → aiConfig</em>) são <strong>injetadas como contexto</strong> no prompt do Mentor/App
-        (Copiloto) quando o produto contratado permite IA personalizada — sem sobrescrever o prompt técnico, que
-        fica na <strong>Central de Prompts</strong> abaixo (versionado). Log por chamada segue como próxima fatia.
+      <div className="adm-tabs">
+        {TABS.map((t) => (
+          <button key={t.key} className={`adm-tab${tab === t.key ? " is-active" : ""}`} onClick={() => setTab(t.key)}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {status === "loading" && <p className="dash-state">Carregando…</p>}
       {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar.</div>}
 
-      {status === "ok" && data && (
+      {status === "ok" && data && tab === "provedores" && (
         <div className="card" style={{ maxWidth: 720 }}>
           <fieldset className="prod-fs">
             <legend>Conexão</legend>
+            <p className="prod-note" style={{ marginTop: 0 }}>
+              Provedor atual: <strong>OpenAI</strong> (único suportado nesta versão). O token fica
+              criptografado em repouso e nunca é exibido.
+            </p>
             <div className="prod-form__grid">
               <label className="prod-field prod-field--full">
                 <span>Token da OpenAI {data.hasKey && <em style={{ color: "var(--success)", fontStyle: "normal" }}>· configurado (••••{data.keyHint})</em>}</span>
@@ -162,34 +205,336 @@ export function AiSettingsSection() {
               {testMsg && <span className="prod-note" style={{ margin: 0 }}>{testMsg}</span>}
             </div>
           </fieldset>
-
-          <fieldset className="prod-fs" style={{ marginTop: 16 }}>
-            <legend>Ativação</legend>
-            <label className="prod-check" style={{ marginBottom: 12 }}>
-              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-              IA ativada no sistema
-            </label>
-            <span className="prod-note" style={{ margin: "0 0 8px" }}>Módulos que podem usar IA:</span>
-            <div className="prod-modules">
-              {MODULES.map((m) => (
-                <label key={m.code} className="prod-check">
-                  <input type="checkbox" checked={mods.includes(m.code)} onChange={() => toggleMod(m.code)} disabled={!enabled} />
-                  {m.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div style={{ display: "flex", gap: 10, marginTop: 18, alignItems: "center" }}>
-            <button className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
-              {saving ? "Salvando…" : "Salvar configurações"}
-            </button>
-            {savedMsg && <span className="kb-converted">✓ Salvo</span>}
-          </div>
+          {saveRow}
         </div>
       )}
 
-      <AiPromptsManager />
+      {status === "ok" && data && tab === "casos" && (
+        <>
+          <div className="card" style={{ maxWidth: 720 }}>
+            <fieldset className="prod-fs">
+              <legend>Ativação</legend>
+              <label className="prod-check" style={{ marginBottom: 12 }}>
+                <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+                IA ativada no sistema
+              </label>
+              <span className="prod-note" style={{ margin: "0 0 8px" }}>Módulos que podem usar IA (vazio = todos liberados):</span>
+              <div className="prod-modules">
+                {MODULES.map((m) => (
+                  <label key={m.code} className="prod-check">
+                    <input type="checkbox" checked={mods.includes(m.code)} onChange={() => toggleMod(m.code)} disabled={!enabled} />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {saveRow}
+          </div>
+
+          <div className="addx-wrap" style={{ marginTop: 18 }}>
+            <table className="addx-table">
+              <thead>
+                <tr>
+                  <th>Caso de uso</th>
+                  <th>Onde roda</th>
+                  <th>Módulo que libera</th>
+                  <th>Situação agora</th>
+                </tr>
+              </thead>
+              <tbody>
+                {USE_CASES.map((u) => {
+                  // Mesmo gate do backend: sem token configurado, nenhum caso roda
+                  // (copiloto/pocket/relatórios checam `!enabled || !hasKey`).
+                  const blockedBy = !enabled
+                    ? "IA desativada no sistema"
+                    : !data.hasKey
+                      ? "Sem token configurado"
+                      : mods.length > 0 && !u.gateModules.some((g) => mods.includes(g))
+                        ? "Módulo não liberado acima"
+                        : null;
+                  return (
+                    <tr key={u.useCase}>
+                      <td className="cell-code"><code>{u.useCase}</code></td>
+                      <td>{u.where}</td>
+                      <td>{u.gateModules.join(" ou ")}</td>
+                      <td>
+                        <span className={`addx-status ${blockedBy ? "addx-status--AGUARDANDO_DADOS" : "addx-status--ATIVO"}`}>
+                          {blockedBy ? "Bloqueado" : "Liberado"}
+                        </span>
+                        {blockedBy && <p className="evd-reason">{blockedBy}</p>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {status === "ok" && tab === "prompts" && (
+        <>
+          <div className="adm-callout">
+            <strong>Prompt técnico é fixo e interno.</strong> O cliente nunca edita o prompt técnico. As
+            <strong> diretrizes aprovadas do cliente</strong> (objetivo, regras, base de conhecimento e limitações
+            em <em>Soluções → IA personalizada</em>) são <strong>injetadas como contexto</strong> quando o produto
+            contratado permite — veja a aba <em>Contextos por Cliente</em>.
+          </div>
+          <AiPromptsManager />
+        </>
+      )}
+
+      {status === "ok" && tab === "contextos" && <AiContextsPanel />}
+      {status === "ok" && tab === "consumo" && <AiUsagePanel />}
+      {status === "ok" && tab === "logs" && <AiLogsPanel />}
+    </>
+  );
+}
+
+/** Contextos por Cliente — o bloco de diretrizes EXATO aplicado ao Copiloto de cada empresa. */
+function AiContextsPanel() {
+  const [rows, setRows] = useState<AiContextRow[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    getAiContexts().then(setRows).catch(() => setError(true));
+  }, []);
+
+  if (error) return <div className="dash-state dash-state--error">Não foi possível carregar os contextos.</div>;
+  if (!rows) return <p className="dash-state">Carregando contextos…</p>;
+
+  return (
+    <>
+      <div className="adm-callout">
+        As diretrizes são definidas por <strong>solução</strong> (Soluções CRIVO → IA personalizada) e
+        valem para a empresa via <strong>contrato</strong>. O texto abaixo é exatamente o bloco anexado
+        ao prompt do Copiloto de cada cliente — mesma resolução usada em tempo de execução.
+      </div>
+      <div className="addx-wrap">
+        <table className="addx-table">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Solução contratada</th>
+              <th>Contrato</th>
+              <th>IA personalizada</th>
+              <th>Diretrizes aplicadas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.tenantId}>
+                <td className="addx-name"><strong>{r.tenantName}</strong></td>
+                <td>{r.productName ?? "—"}</td>
+                <td>{r.contractStatus}</td>
+                <td>
+                  <span className={`addx-status ${r.allowsCustomAi ? "addx-status--ATIVO" : "addx-status--AGUARDANDO_DADOS"}`}>
+                    {r.allowsCustomAi ? "Permitida" : "Padrão CRIVO"}
+                  </span>
+                </td>
+                <td style={{ maxWidth: 420 }}>
+                  {r.allowsCustomAi && r.directives ? (
+                    <details>
+                      <summary style={{ cursor: "pointer" }}>Ver bloco de contexto</summary>
+                      <pre style={{ whiteSpace: "pre-wrap", fontSize: 11.5, lineHeight: 1.5, margin: "8px 0 0" }}>{r.directives}</pre>
+                    </details>
+                  ) : r.allowsCustomAi ? (
+                    <span className="cell-mute">Permitida, mas sem diretrizes preenchidas na solução.</span>
+                  ) : (
+                    <span className="cell-mute">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={5} className="addx-empty">Nenhuma empresa com contrato ativo ou em rascunho.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** Consumo e Limites — agregado real de ai_call_logs (últimos 30 dias). */
+function AiUsagePanel() {
+  const [usage, setUsage] = useState<AiUsageSummary | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    getAiUsage(30).then(setUsage).catch(() => setError(true));
+  }, []);
+
+  if (error) return <div className="dash-state dash-state--error">Não foi possível carregar o consumo.</div>;
+  if (!usage) return <p className="dash-state">Carregando consumo…</p>;
+
+  const t = usage.totals;
+  const fmt = (n: number) => n.toLocaleString("pt-BR");
+  return (
+    <>
+      <div className="kpi-grid crm-kpis" style={{ marginBottom: 20, gridTemplateColumns: "repeat(4, minmax(0,1fr))" }}>
+        <div className="kpi"><span className="kpi__label">Chamadas ({usage.days}d)</span><strong className="kpi__value">{fmt(t.calls)}</strong></div>
+        <div className="kpi"><span className="kpi__label">Com erro</span><strong className="kpi__value">{fmt(t.errorCalls)}</strong></div>
+        <div className="kpi"><span className="kpi__label">Tokens totais</span><strong className="kpi__value">{fmt(t.totalTokens)}</strong></div>
+        <div className="kpi"><span className="kpi__label">Tokens de resposta</span><strong className="kpi__value">{fmt(t.completionTokens)}</strong></div>
+      </div>
+
+      <div className="addx-wrap">
+        <table className="addx-table">
+          <thead>
+            <tr><th>Caso de uso</th><th>Chamadas</th><th>Erros</th><th>Tokens</th></tr>
+          </thead>
+          <tbody>
+            {usage.byUseCase.map((u) => (
+              <tr key={u.useCase}>
+                <td className="cell-code"><code>{u.useCase}</code></td>
+                <td>{fmt(u.calls)}</td>
+                <td>{fmt(u.errors)}</td>
+                <td>{fmt(u.totalTokens)}</td>
+              </tr>
+            ))}
+            {usage.byUseCase.length === 0 && (
+              <tr><td colSpan={4} className="addx-empty">Nenhuma chamada de IA registrada nos últimos {usage.days} dias.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="addx-wrap" style={{ marginTop: 18 }}>
+        <table className="addx-table">
+          <thead>
+            <tr><th>Empresa</th><th>Chamadas</th><th>Tokens</th></tr>
+          </thead>
+          <tbody>
+            {usage.byTenant.map((u) => (
+              <tr key={u.tenantId ?? "none"}>
+                <td className="addx-name"><strong>{u.tenantName}</strong></td>
+                <td>{fmt(u.calls)}</td>
+                <td>{fmt(u.totalTokens)}</td>
+              </tr>
+            ))}
+            {usage.byTenant.length === 0 && (
+              <tr><td colSpan={3} className="addx-empty">Sem consumo por empresa no período.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="crm-rules" style={{ marginTop: 18 }}>
+        <span className="crm-panel__title">Limites</span>
+        <p>
+          Hoje o controle é por <strong>ativação global + módulos liberados</strong> (aba Casos de Uso).
+          Não há cota de IA por empresa — quando essa regra comercial for definida, ela entra aqui
+          usando esta mesma medição por chamada.
+        </p>
+      </div>
+    </>
+  );
+}
+
+/** Versões e Logs — versão efetiva dos prompts + telemetria por chamada. */
+function AiLogsPanel() {
+  const [logs, setLogs] = useState<AiLogRow[] | null>(null);
+  const [prompts, setPrompts] = useState<AiPromptItem[] | null>(null);
+  const [useCase, setUseCase] = useState("");
+  const [onlyErrors, setOnlyErrors] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    getAiPrompts().then(setPrompts).catch(() => setPrompts([]));
+  }, []);
+  useEffect(() => {
+    // Guard de resposta obsoleta: trocar o filtro rápido pode fazer a resposta
+    // ANTIGA chegar depois da nova e sobrescrever a lista.
+    let alive = true;
+    setLogs(null);
+    setError(false);
+    getAiLogs({ limit: 100, useCase: useCase || undefined, onlyErrors })
+      .then((rows) => { if (alive) setLogs(rows); })
+      .catch(() => { if (alive) setError(true); });
+    return () => { alive = false; };
+  }, [useCase, onlyErrors]);
+
+  return (
+    <>
+      {prompts && prompts.length > 0 && (
+        <div className="addx-wrap" style={{ marginBottom: 18 }}>
+          <table className="addx-table">
+            <thead>
+              <tr><th>Prompt</th><th>Versão em uso</th><th>Última edição</th></tr>
+            </thead>
+            <tbody>
+              {prompts.map((p) => (
+                <tr key={p.useCase}>
+                  <td className="addx-name"><strong>{p.label}</strong><p><code>{p.useCase}</code></p></td>
+                  <td>{p.isDefault ? "padrão do sistema" : `v${p.version}`}</td>
+                  <td>{p.updatedAt ? `${new Date(p.updatedAt).toLocaleString("pt-BR")}${p.updatedBy ? ` · ${p.updatedBy}` : ""}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="evo-filters" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <select className="mod-select" value={useCase} onChange={(e) => setUseCase(e.target.value)}>
+          <option value="">Caso de uso: Todos</option>
+          {USE_CASES.map((u) => (<option key={u.useCase} value={u.useCase}>{u.useCase}</option>))}
+        </select>
+        <label className="prod-check" style={{ margin: 0 }}>
+          <input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} />
+          Só erros
+        </label>
+      </div>
+
+      {error && (
+        <div className="dash-state dash-state--error" style={{ marginTop: 14 }}>
+          Não foi possível carregar os logs. Ajuste um filtro para tentar de novo.
+        </div>
+      )}
+      {!logs && !error && <p className="dash-state">Carregando logs…</p>}
+      {logs && (
+        <div className="addx-wrap" style={{ marginTop: 14 }}>
+          <table className="addx-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Caso de uso</th>
+                <th>Empresa</th>
+                <th>Modelo</th>
+                <th>Tokens</th>
+                <th>Latência</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((l) => (
+                <tr key={l.id}>
+                  <td style={{ whiteSpace: "nowrap" }}>{new Date(l.createdAt).toLocaleString("pt-BR")}</td>
+                  <td className="cell-code"><code>{l.useCase}</code></td>
+                  <td>{l.tenantName ?? "—"}</td>
+                  <td>{l.model}</td>
+                  <td>{l.totalTokens != null ? l.totalTokens.toLocaleString("pt-BR") : "—"}</td>
+                  <td>{(l.latencyMs / 1000).toFixed(1)}s</td>
+                  <td>
+                    <span className={`addx-status ${l.ok ? "addx-status--ATIVO" : "evd-status--rej"}`}>
+                      {l.ok ? "OK" : "Erro"}
+                    </span>
+                    {!l.ok && l.errorReason && <p className="evd-reason">{l.errorReason}</p>}
+                  </td>
+                </tr>
+              ))}
+              {logs.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="addx-empty">
+                    Nenhuma chamada registrada{useCase || onlyErrors ? " com estes filtros" : " ainda — os logs começam a aparecer quando a IA for usada"}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }
@@ -243,7 +588,7 @@ function AiPromptsManager() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 720, marginTop: 18 }}>
+    <div className="card" style={{ maxWidth: 720 }}>
       <fieldset className="prod-fs">
         <legend>Central de Prompts</legend>
         <p className="prod-note" style={{ marginTop: 0 }}>

@@ -84,7 +84,7 @@ export class PeopleAnalyticsService {
     if (!periods.length) {
       throw new BadRequestException('Adicione ao menos um período de indicadores antes de gerar a análise.');
     }
-    const analysis = await this.callOpenAi(key, periods, context);
+    const analysis = await this.callOpenAi(tenantId, periods, context);
     const saved = await this.prisma.forTenant(tenantId, async (tx) =>
       tx.peopleAnalyticsData.update({
         where: { tenantId },
@@ -94,7 +94,7 @@ export class PeopleAnalyticsService {
     return { analysis, analysisAt: saved.analysisAt };
   }
 
-  private async callOpenAi(key: string, periods: PeoplePeriod[], context?: string): Promise<PeopleAnalysis> {
+  private async callOpenAi(tenantId: string, periods: PeoplePeriod[], context?: string): Promise<PeopleAnalysis> {
     const trends = computePeopleTrends(periods);
     const indicatorsTxt = trends.trends
       .map((t) => {
@@ -109,28 +109,31 @@ export class PeopleAnalyticsService {
       `Indicadores de RH (último período: ${trends.latestPeriod ?? '—'}, ${trends.periodsCount} período(s)):\n${indicatorsTxt}\n\n` +
       `Contexto CRIVO da empresa (diagnóstico/risco psicossocial/custos/plano):\n${context?.trim() || '(não informado)'}\n\nGere a análise.`;
 
-    let res: Response;
-    try {
-      res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.4,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-        signal: AbortSignal.timeout(45000),
-      });
-    } catch {
-      throw new BadRequestException('A IA demorou demais para responder. Tente novamente.');
+    // Modelo vem das Configurações de IA (era hardcoded gpt-4o-mini — corrigido
+    // na centralização do motor de IA).
+    const r = await this.ai.chat({
+      useCase: 'people_analytics',
+      tenantId,
+      temperature: 0.4,
+      timeoutMs: 45000,
+      responseFormat: 'json_object',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    });
+    if (!r.ok) {
+      if (r.kind === 'timeout' || r.kind === 'network') {
+        throw new BadRequestException('A IA demorou demais para responder. Tente novamente.');
+      }
+      if (r.kind === 'no_key') {
+        throw new BadRequestException('IA não configurada. Defina a chave da OpenAI em Configurações de IA (Super Admin).');
+      }
+      if (r.kind !== 'empty') {
+        throw new BadRequestException('A IA não conseguiu gerar a análise agora. Tente novamente.');
+      }
     }
-    if (!res.ok) throw new BadRequestException('A IA não conseguiu gerar a análise agora. Tente novamente.');
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const content = data?.choices?.[0]?.message?.content ?? '{}';
+    const content = r.ok ? r.content : '{}';
     let parsed: Partial<PeopleAnalysis> = {};
     try {
       parsed = JSON.parse(content);

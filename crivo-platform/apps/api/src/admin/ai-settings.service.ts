@@ -11,6 +11,21 @@ import { formatAiDirectives } from './ai-directives';
 
 type Actor = { id: string; email: string };
 
+export type AiChatArgs = {
+  useCase: string; // copiloto | preliminary_report | pocket_summary | people_analytics
+  tenantId?: string | null; // null = chamada sem tenant (ex.: relatório de lead)
+  messages: { role: 'system' | 'user'; content: string }[];
+  temperature?: number;
+  maxTokens?: number;
+  timeoutMs?: number;
+  responseFormat?: 'json_object';
+  model?: string; // override pontual; default = modelo das Configurações de IA
+};
+
+export type AiChatResult =
+  | { ok: true; content: string; model: string }
+  | { ok: false; kind: 'no_key' | 'http' | 'timeout' | 'network' | 'empty'; httpStatus?: number; message?: string };
+
 /**
  * Configuração GLOBAL de IA (Super Admin · auditoria 2.3.1). Token OpenAI
  * criptografado em repouso, nunca retornado em claro. Permite escolher modelo,
@@ -82,6 +97,99 @@ export class AiSettingsService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Chamada CENTRAL ao provedor de IA (motor "IA da Plataforma"). Todos os
+   * consumidores passam por aqui: um único fetch, com telemetria em
+   * ai_call_logs (tokens/latência/erro por chamada — best-effort, nunca
+   * derruba a operação). Os GATES de enabled/enabledModules continuam em cada
+   * consumidor (mensagens específicas por módulo); aqui é só executar e medir.
+   */
+  async chat(args: AiChatArgs): Promise<AiChatResult> {
+    const key = await this.getApiKey();
+    if (!key) return { ok: false, kind: 'no_key' };
+
+    const settings = await this.get();
+    const model = args.model || settings.model || 'gpt-4o-mini';
+    const started = Date.now();
+
+    const log = (fields: {
+      ok: boolean;
+      errorReason?: string;
+      promptTokens?: number;
+      completionTokens?: number;
+      totalTokens?: number;
+    }) =>
+      this.prisma.admin.aiCallLog
+        .create({
+          data: {
+            tenantId: args.tenantId ?? null,
+            useCase: args.useCase,
+            model,
+            ok: fields.ok,
+            errorReason: fields.errorReason ?? null,
+            promptTokens: fields.promptTokens ?? null,
+            completionTokens: fields.completionTokens ?? null,
+            totalTokens: fields.totalTokens ?? null,
+            latencyMs: Date.now() - started,
+          },
+        })
+        .catch(() => undefined);
+
+    let res: Response;
+    try {
+      res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
+          ...(args.maxTokens !== undefined ? { max_tokens: args.maxTokens } : {}),
+          ...(args.responseFormat ? { response_format: { type: args.responseFormat } } : {}),
+          messages: args.messages,
+        }),
+        signal: AbortSignal.timeout(args.timeoutMs ?? 30000),
+      });
+    } catch (e) {
+      const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+      const message = e instanceof Error ? e.message : 'Falha de conexão';
+      await log({ ok: false, errorReason: timeout ? `timeout ${args.timeoutMs ?? 30000}ms` : message });
+      return { ok: false, kind: timeout ? 'timeout' : 'network', message };
+    }
+
+    if (!res.ok) {
+      await log({ ok: false, errorReason: `HTTP ${res.status}` });
+      return { ok: false, kind: 'http', httpStatus: res.status };
+    }
+
+    // O corpo também pode falhar (conexão cai no meio, resposta não-JSON, ou o
+    // AbortSignal dispara durante a leitura) — sem este guard a exceção escaparia
+    // de chat() sem telemetria e viraria 500 em quem não trata (ex.: Copiloto).
+    let data: {
+      choices?: { message?: { content?: string } }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+    try {
+      data = (await res.json()) as typeof data;
+    } catch (e) {
+      const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+      const message = e instanceof Error ? e.message : 'Resposta ilegível da IA';
+      await log({ ok: false, errorReason: `corpo inválido: ${message}` });
+      return { ok: false, kind: timeout ? 'timeout' : 'network', message };
+    }
+    const content = data.choices?.[0]?.message?.content?.trim();
+    const usage = {
+      promptTokens: data.usage?.prompt_tokens,
+      completionTokens: data.usage?.completion_tokens,
+      totalTokens: data.usage?.total_tokens,
+    };
+    if (!content) {
+      await log({ ok: false, errorReason: 'resposta vazia', ...usage });
+      return { ok: false, kind: 'empty' };
+    }
+    await log({ ok: true, ...usage });
+    return { ok: true, content, model };
   }
 
   async update(dto: UpsertAiSettingsRequest, actor: Actor): Promise<AiSettingsData> {

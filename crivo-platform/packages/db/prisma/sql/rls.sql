@@ -108,7 +108,11 @@ DECLARE
                               -- Notificações push: config global de gatilhos e tokens FCM.
                               -- push_tokens tem tenantId mas é gerido pelo control plane
                               -- (owner + filtro no app), como mentorias → owner-only.
-                              'notification_settings','push_tokens'];
+                              'notification_settings','push_tokens',
+                              -- Telemetria do motor de IA: tem tenantId, mas é leitura
+                              -- CROSS-TENANT do super admin (Consumo e Logs) e escrita pelo
+                              -- motor central via owner → owner-only, como audit_log.
+                              'ai_call_logs'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
