@@ -1361,3 +1361,41 @@ export function getIntelligenceOverview(
   const qs = q.toString();
   return adminFetch<IntelligenceOverview>(`/admin/intelligence/${tenantId}/overview${qs ? `?${qs}` : ""}`);
 }
+
+// ── Motor 4 — Relatórios e Dossiês (R-001): repositório cross-tenant + revisão ──
+
+export interface ReportEmissionRow {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  type: string;
+  title: string;
+  emissionNumber: number;
+  method: string | null;
+  technicalOutput: string | null;
+  contentHash: string;
+  status: string; // EMITIDA | REVISADA
+  generatedBy: string | null;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+export interface ReportsOverview {
+  total: number;
+  pendingReview: number;
+  reviewed: number;
+  tenantsWithEmissions: number;
+  byType: { type: string; count: number }[];
+}
+export function getReportsOverview(): Promise<ReportsOverview> {
+  return adminFetch<ReportsOverview>("/admin/reports/overview");
+}
+export function listReportEmissions(): Promise<ReportEmissionRow[]> {
+  return adminFetch<ReportEmissionRow[]>("/admin/reports/emissions");
+}
+export function getReportEmission(id: string): Promise<ReportEmissionRow & { content: unknown }> {
+  return adminFetch(`/admin/reports/emissions/${id}`);
+}
+export function reviewReportEmission(id: string): Promise<ReportEmissionRow> {
+  return adminFetch(`/admin/reports/emissions/${id}/review`, { method: "POST" });
+}

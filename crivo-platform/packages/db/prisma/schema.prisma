@@ -1036,6 +1036,7 @@ model Organization {
   TenantRole          TenantRole[]
 
   @@map("organizations")
+  reportEmissions ReportEmission[]
 }
 
 model Company {
@@ -1341,6 +1342,33 @@ enum EvidenceStatus {
   APROVADA
   REJEITADA
   SUBSTITUIDA
+}
+
+/// Motor de Relatórios (Motor 4, R-001) — EMISSÃO IMUTÁVEL. O preview continua
+/// dinâmico; "emitir" congela o documento inteiro (conteúdo + contexto do
+/// contrato) com hash e numeração sequencial por tipo. Regra v3.1: "documento
+/// emitido mantém a versão usada e não é reprocessado silenciosamente".
+model ReportEmission {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  org             Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type            String // relatorio_preliminar | dossie_aep | dossie_aep_pgr | ...
+  title           String
+  emissionNumber  Int // sequencial por tenant+type (v1, v2, …)
+  method          String? // método do contrato NO MOMENTO da emissão
+  technicalOutput String?
+  content         Json // GeneratedDocument completo (snapshot; nunca reprocessado)
+  contentHash     String @map("content_hash") // sha256 do JSON canônico
+  generatedBy     String? @map("generated_by") // e-mail de quem emitiu
+  status          String @default("EMITIDA") // EMITIDA | REVISADA
+  reviewedBy      String?   @map("reviewed_by")
+  reviewedAt      DateTime? @map("reviewed_at")
+  createdAt       DateTime  @default(now())
+
+  @@unique([tenantId, type, emissionNumber])
+  @@index([tenantId])
+  @@index([type])
+  @@map("report_emissions")
 }
 
 model Evidence {

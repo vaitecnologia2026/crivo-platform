@@ -56,6 +56,8 @@ import { AiPromptsController } from './ai-prompts.controller';
 import { AiPromptsService } from './ai-prompts.service';
 import { ContractsController } from './contracts.controller';
 import { PlatformUsersController } from './platform-users.controller';
+import { ReportsAdminController } from './reports.controller';
+import { ReportsAdminService } from './reports.service';
 import { PlatformUsersService } from './platform-users.service';
 
 /**
@@ -92,6 +94,7 @@ import { PlatformUsersService } from './platform-users.service';
     AiPromptsController,
     ContractsController,
     PlatformUsersController,
+    ReportsAdminController,
   ],
   providers: [
     AdminAuthService,
@@ -123,6 +126,7 @@ import { PlatformUsersService } from './platform-users.service';
     IntelligenceService,
     AiPromptsService,
     PlatformUsersService,
+    ReportsAdminService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })

@@ -447,6 +447,32 @@ export function generateDocument(type: string): Promise<GeneratedDocument> {
   return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`);
 }
 
+// ── Emissões oficiais (Motor 4 — R-001): versão congelada + numerada ──
+
+export interface ReportEmissionMeta {
+  id: string;
+  type: string;
+  title: string;
+  emissionNumber: number;
+  method: string | null;
+  technicalOutput: string | null;
+  contentHash: string;
+  status: string; // EMITIDA | REVISADA
+  generatedBy: string | null;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+export function listReportEmissions(): Promise<ReportEmissionMeta[]> {
+  return apiFetch<ReportEmissionMeta[]>('/action-plans/documents/emissions');
+}
+export function getReportEmission(id: string): Promise<ReportEmissionMeta & { content: GeneratedDocument }> {
+  return apiFetch(`/action-plans/documents/emissions/${id}`);
+}
+export function emitReportDocument(type: string): Promise<{ emission: ReportEmissionMeta & { content: GeneratedDocument }; reused: boolean }> {
+  return apiFetch(`/action-plans/documents/${type}/emit`, { method: 'POST' });
+}
+
 // ── Parecer Consultivo CRIVO (Briefing §6 — autoria do consultor) ──
 
 export function listPareceres(): Promise<ParecerData[]> {

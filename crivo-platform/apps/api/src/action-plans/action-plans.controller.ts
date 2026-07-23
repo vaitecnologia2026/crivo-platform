@@ -55,6 +55,21 @@ export class ActionPlansController {
   }
 
   /** Conteúdo estruturado de um documento (montado dos dados reais). */
+  @Get('documents/emissions')
+  listEmissions(@CurrentUser() user: SessionUser) {
+    return this.documents.listEmissions(user.tenantId);
+  }
+
+  @Get('documents/emissions/:id')
+  getEmission(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.documents.getEmission(user.tenantId, id);
+  }
+
+  @Post('documents/:type/emit')
+  emitDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
+    return this.documents.emit(user.tenantId, type, user.email);
+  }
+
   @Get('documents/:type')
   generateDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
     return this.documents.generate(user.tenantId, type);

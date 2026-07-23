@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import {
   classifyTechnicalRisk,
   DOCUMENT_TYPE_LABEL,
@@ -441,6 +442,76 @@ export class DocumentsService {
       sections,
       responsibilityNote: RESPONSIBILITY_NOTE,
     };
+  }
+
+  /**
+   * Motor 4 (R-001) — EMITE a versão oficial: gera o documento (com todos os
+   * gates de available()/§9 via generate) e o CONGELA como ReportEmission —
+   * conteúdo + contexto do contrato + hash + numeração sequencial por tipo.
+   * O preview (GET) continua dinâmico; a emissão nunca é reprocessada.
+   */
+  async emit(tenantId: string, type: string, actorEmail?: string) {
+    const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
+    const canonical = JSON.stringify(doc);
+    const contentHash = createHash('sha256').update(canonical).digest('hex');
+    // rls-allow: contract é control-plane; snapshot do contexto no momento da emissão.
+    const contract = await this.prisma.admin.contract.findFirst({
+      where: { organizationId: tenantId },
+      orderBy: { createdAt: 'desc' },
+      select: { method: true, technicalOutput: true },
+    });
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const last = await tx.reportEmission.findFirst({
+        where: { type },
+        orderBy: { emissionNumber: 'desc' },
+        select: { emissionNumber: true, contentHash: true },
+      });
+      // Idempotência amigável: conteúdo idêntico ao da última emissão não gera
+      // versão nova — devolve a existente (evita v2 igual à v1 por duplo clique).
+      if (last && last.contentHash === contentHash) {
+        const existing = await tx.reportEmission.findFirst({
+          where: { type, emissionNumber: last.emissionNumber },
+        });
+        return { emission: existing!, reused: true as const };
+      }
+      const emission = await tx.reportEmission.create({
+        data: {
+          tenantId,
+          type,
+          title: doc.title,
+          emissionNumber: (last?.emissionNumber ?? 0) + 1,
+          method: contract?.method ?? null,
+          technicalOutput: contract?.technicalOutput ?? null,
+          content: doc as unknown as object,
+          contentHash,
+          generatedBy: actorEmail ?? null,
+        },
+      });
+      return { emission, reused: false as const };
+    });
+  }
+
+  /** Repositório do TENANT: emissões próprias (metadados; conteúdo sob demanda). */
+  async listEmissions(tenantId: string) {
+    return this.prisma.forTenant(tenantId, (tx) =>
+      tx.reportEmission.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, type: true, title: true, emissionNumber: true, method: true,
+          technicalOutput: true, contentHash: true, status: true, generatedBy: true,
+          createdAt: true, reviewedBy: true, reviewedAt: true,
+        },
+      }),
+    );
+  }
+
+  /** Conteúdo congelado de uma emissão do tenant (para reimprimir a versão exata). */
+  async getEmission(tenantId: string, id: string) {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const e = await tx.reportEmission.findUnique({ where: { id } });
+      if (!e) throw new BadRequestException('Emissão não encontrada.');
+      return e;
+    });
   }
 }
 

@@ -20,6 +20,7 @@ import { MethodologySection } from "./MethodologySection";
 import { EngineConfigSection } from "./EngineConfigSection";
 import { EvolutionSection } from "./EvolutionSection";
 import { EvidencesSection } from "./EvidencesSection";
+import { ReportsSection } from "./ReportsSection";
 import { BaseCrivoSection } from "./BaseCrivoSection";
 import { IntelligenceSection } from "./IntelligenceSection";
 import "./admin.css";
@@ -38,7 +39,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "relatorios" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -61,6 +62,7 @@ const NI = {
   adicionais: <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="12.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="12.5" y="12.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><rect x="8" y="3.5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.7"/><path d="M18 5.5h4M20 3.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   evolucao: <svg viewBox="0 0 24 24" fill="none"><path d="M5 15c-1.5 3-1 5-1 5s2 .5 5-1M8.5 18.5C7 17 7 15 8.5 11.5 11 6 15.5 4 19.5 4.5c.5 4-1.5 8.5-7 11-3.5 1.5-5.5 1.5-4-1.5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><circle cx="14.5" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.6"/></svg>,
   evidencias: <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M13.5 3.5V7.5h4M9 13l2 2 4-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  relatorios: <svg viewBox="0 0 24 24" fill="none"><path d="M8 3h8l3 3v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M15.5 3.5V6.5h3.5M10 11h7M10 14.5h7M10 18h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M4 7v13.5a1 1 0 0 0 1 1h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   engineconfig: <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M4 12h6M14 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><circle cx="16" cy="7" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="10" cy="17" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.7"/></svg>,
   notificacoes: <svg viewBox="0 0 24 24" fill="none"><path d="M6 9.5a6 6 0 1 1 12 0c0 3.8 1.3 5.3 1.9 5.9H4.1c.6-.6 1.9-2.1 1.9-5.9Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M10.2 18.4a2 2 0 0 0 3.6 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
 };
@@ -78,6 +80,7 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "metodologia", label: "Motor de Diagnósticos", icon: NI.diagnosticos, current: "Motor de Diagnósticos · Metodologia", group: "Motores e Entrega" },
   { key: "evolucao", label: "Motor de Evolução", icon: NI.evolucao, current: "Motor de Evolução", group: "Motores e Entrega" },
   { key: "evidencias", label: "Evidências", icon: NI.evidencias, current: "Evidências", group: "Motores e Entrega" },
+  { key: "relatorios", label: "Relatórios e Dossiês", icon: NI.relatorios, current: "Motor de Relatórios e Dossiês", group: "Motores e Entrega" },
   { key: "engineconfig", label: "Configuração do Motor", icon: NI.engineconfig, current: "Configuração do Motor", group: "Motores e Entrega" },
   { key: "extras", label: "Recursos da Entrega", icon: NI.entrega, current: "Recursos da Entrega", group: "Motores e Entrega" },
   { key: "inteligencia", label: "Inteligência CRIVO", icon: NI.inteligencia, current: "Inteligência CRIVO", group: "Inteligência" },
@@ -198,6 +201,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "metodologia" && <MethodologySection />}
           {section === "evolucao" && <EvolutionSection />}
           {section === "evidencias" && <EvidencesSection />}
+          {section === "relatorios" && <ReportsSection />}
           {section === "engineconfig" && <EngineConfigSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}

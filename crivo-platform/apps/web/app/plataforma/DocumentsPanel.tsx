@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import type { DocumentDescriptor, GeneratedDocument } from "@crivo/types";
-import { generateDocument, listDocuments } from "@/lib/api";
+import { emitReportDocument, generateDocument, listDocuments } from "@/lib/api";
 import { IconGrid } from "./Icons";
 
-/** Documentos gerados conforme produto/saída técnica (Briefing §15). */
-export function DocumentsPanel() {
+/**
+ * Documentos gerados conforme produto/saída técnica (Briefing §15).
+ * Pré-visualizar = geração dinâmica (sempre reflete o estado atual).
+ * Emitir versão oficial = Motor 4 (R-001): congela o conteúdo com numeração
+ * sequencial e hash — a versão emitida nunca muda depois.
+ */
+export function DocumentsPanel({ onEmitted }: { onEmitted?: () => void } = {}) {
   const [docs, setDocs] = useState<DocumentDescriptor[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -23,6 +28,22 @@ export function DocumentsPanel() {
       printDocument(doc);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao gerar documento");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function emit(type: string) {
+    setBusy(type);
+    try {
+      const { emission, reused } = await emitReportDocument(type);
+      if (reused) {
+        alert(`O conteúdo não mudou desde a emissão v${emission.emissionNumber} — nenhuma versão nova foi criada.`);
+      }
+      printDocument(emission.content);
+      onEmitted?.();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao emitir o documento");
     } finally {
       setBusy(null);
     }
@@ -46,13 +67,23 @@ export function DocumentsPanel() {
               <strong>{d.title}</strong>
               <span>{d.available ? "Pronto para gerar" : d.reason ?? "Indisponível"}</span>
             </div>
-            <button
-              className="btn btn--outline-dark btn--sm"
-              disabled={!d.available || busy === d.type}
-              onClick={() => open(d.type)}
-            >
-              {busy === d.type ? "Gerando…" : "Gerar / Baixar PDF"}
-            </button>
+            <span style={{ display: "inline-flex", gap: 8 }}>
+              <button
+                className="btn btn--outline-dark btn--sm"
+                disabled={!d.available || busy === d.type}
+                onClick={() => open(d.type)}
+              >
+                {busy === d.type ? "Gerando…" : "Pré-visualizar"}
+              </button>
+              <button
+                className="btn btn--gold btn--sm"
+                disabled={!d.available || busy === d.type}
+                onClick={() => emit(d.type)}
+                title="Congela esta versão no repositório oficial (numerada e com hash de integridade)."
+              >
+                Emitir versão oficial
+              </button>
+            </span>
           </li>
         ))}
         {docs.length === 0 && <li className="card__sub">Nenhum documento disponível no momento.</li>}
