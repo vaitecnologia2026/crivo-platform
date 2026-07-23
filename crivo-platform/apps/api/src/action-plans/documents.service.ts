@@ -452,8 +452,10 @@ export class DocumentsService {
    */
   async emit(tenantId: string, type: string, actorEmail?: string) {
     const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
-    const canonical = JSON.stringify(doc);
-    const contentHash = createHash('sha256').update(canonical).digest('hex');
+    // Hash de integridade sobre o CONTEÚDO estável — generatedAt muda a cada
+    // geração e não pode participar, senão a idempotência nunca dispara.
+    const { generatedAt: _volatile, ...stable } = doc;
+    const contentHash = createHash('sha256').update(JSON.stringify(stable)).digest('hex');
     // rls-allow: contract é control-plane; snapshot do contexto no momento da emissão.
     const contract = await this.prisma.admin.contract.findFirst({
       where: { organizationId: tenantId },
