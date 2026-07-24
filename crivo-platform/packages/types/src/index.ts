@@ -656,10 +656,16 @@ export function computePreDiagnostic(answers: IcdAnswer[]): PreDiagnosticResult 
   const score = Math.round(
     PRE_DIAGNOSTIC_DIMENSIONS.reduce((s, d) => s + byDimension[d], 0) / PRE_DIAGNOSTIC_DIMENSIONS.length,
   );
-  // #4 — empate: TODAS as dimensões com a menor maturidade entram como pontos de atenção (não só uma).
-  const minDim = Math.min(...PRE_DIAGNOSTIC_DIMENSIONS.map((d) => byDimension[d]));
-  const topAttentions = PRE_DIAGNOSTIC_DIMENSIONS.filter((d) => byDimension[d] === minDim);
-  const topAttention = topAttentions[0];
+  // #4 — empate parcial: TODAS as dimensões com a menor maturidade entram como
+  // pontos de atenção. Empate TOTAL (todas iguais) = nada se destaca → lista vazia,
+  // senão o relatório marcaria 100% das dimensões como atenção (ruído, não sinal).
+  const dimValues = PRE_DIAGNOSTIC_DIMENSIONS.map((d) => byDimension[d]);
+  const minDim = Math.min(...dimValues);
+  const maxDim = Math.max(...dimValues);
+  const topAttentions =
+    minDim < maxDim ? PRE_DIAGNOSTIC_DIMENSIONS.filter((d) => byDimension[d] === minDim) : [];
+  // topAttention (singular, legado) segue apontando a dimensão de menor maturidade.
+  const topAttention = topAttentions[0] ?? PRE_DIAGNOSTIC_DIMENSIONS.find((d) => byDimension[d] === minDim)!;
   const level: MaturityLevel =
     score >= 80 ? 'AVANCADO' : score >= 60 ? 'ESTRUTURADO' : score >= 40 ? 'EM_ESTRUTURACAO' : 'INICIAL';
   return { score, level, byDimension, topAttention, topAttentions };
@@ -903,8 +909,15 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   }
 
   const band = cfg.bands.find((b) => score >= b.min && score <= b.max) ?? cfg.bands[cfg.bands.length - 1];
-  const minVal = byDimension.length ? Math.min(...byDimension.map((d) => d.value)) : 0;
-  const topAttentions = byDimension.filter((d) => d.value === minVal).map((d) => d.slug);
+  // "Ponto de atenção" é DESTAQUE RELATIVO: só existe quando alguma dimensão fica
+  // ABAIXO das outras. Com todas empatadas (ex.: mesma resposta em tudo) nada se
+  // destaca — marcar 100% das dimensões como atenção não informa nada; nesse caso
+  // quem comunica a situação é o score geral e a faixa de maturidade.
+  const values = byDimension.map((d) => d.value);
+  const minVal = values.length ? Math.min(...values) : 0;
+  const maxVal = values.length ? Math.max(...values) : 0;
+  const topAttentions =
+    minVal < maxVal ? byDimension.filter((d) => d.value === minVal).map((d) => d.slug) : [];
 
   return {
     score,

@@ -102,7 +102,11 @@ export class MeController {
         })
       : null;
 
-    const method = contract?.method ?? product?.method ?? null;
+    // A SOLUÇÃO contratada manda no método (é característica do produto). O
+    // `contract.method` é exceção e só vale quando a solução não define o seu —
+    // antes ele tinha precedência e ficava preso ao trocar a solução do contrato
+    // (contrato virava Organizacional e o portal seguia mostrando Essencial).
+    const method = product?.method ?? contract?.method ?? null;
     const technicalOutputs = contract?.technicalOutput
       ? [contract.technicalOutput as string]
       : Array.isArray(product?.supportedOutputs)

@@ -29,7 +29,12 @@ type Payload = {
 type DiagResult = {
   score: number;
   level: string;
+  levelLabel?: string;
   byDimension?: Record<string, number>;
+  // Rótulos da metodologia ATIVA (slug → nome exibível). A plataforma devolve
+  // isto no intake; sem ele, dimensões criadas pelo cliente (ex.: "dim-1")
+  // apareceriam como slug cru no e-mail.
+  dimensionLabels?: Record<string, string>;
   topAttention?: string;
   topAttentions?: string[];
 };
@@ -59,8 +64,20 @@ const TERRA = "#c4894a";
 function firstName(name?: string): string {
   return (name ?? "").trim().split(/\s+/)[0] || "tudo bem";
 }
-function levelLabel(level?: string): string {
-  return level ? LEVEL_LABEL[level] ?? level : "—";
+function levelLabel(result?: DiagResult): string {
+  // Faixa da metodologia ATIVA primeiro (o nome da faixa é configurável no motor,
+  // ex.: "Vulnerável"); só depois o mapa fixo dos níveis legados.
+  if (result?.levelLabel?.trim()) return result.levelLabel.trim();
+  return result?.level ? LEVEL_LABEL[result.level] ?? result.level : "—";
+}
+/**
+ * Rótulo exibível de uma dimensão: metodologia ATIVA → mapa fixo → nada.
+ * NUNCA cai no slug cru ("dim-1" no e-mail confundia quem recebia).
+ */
+function dimLabel(result: DiagResult | undefined, slug: string): string | null {
+  const fromMethodology = result?.dimensionLabels?.[slug];
+  if (fromMethodology?.trim()) return fromMethodology.trim();
+  return DIM_LABEL[slug] ?? null;
 }
 function attentionLabels(result?: DiagResult): string[] {
   const keys = result?.topAttentions?.length
@@ -68,7 +85,9 @@ function attentionLabels(result?: DiagResult): string[] {
     : result?.topAttention
       ? [result.topAttention]
       : [];
-  return keys.map((k) => DIM_LABEL[k] ?? k);
+  // Sem rótulo conhecido a dimensão é OMITIDA — melhor uma lista menor do que
+  // um item ilegível no e-mail do lead.
+  return keys.map((k) => dimLabel(result, k)).filter((l): l is string => !!l);
 }
 
 // ── 1. Encaminha à plataforma e devolve o pré-diagnóstico ────────────────────
@@ -105,7 +124,7 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: bool
 function leadEmailHtml(data: Payload, result?: DiagResult): string {
   const empresa = data.company || "sua empresa";
   const score = result?.score ?? null;
-  const nivel = levelLabel(result?.level);
+  const nivel = levelLabel(result);
   const atencao = attentionLabels(result);
   const scoreBlock =
     score != null
@@ -333,7 +352,7 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
     }
     if (!chatId) return false;
 
-    const nivel = levelLabel(result?.level);
+    const nivel = levelLabel(result);
     const score = result?.score != null ? `${result.score}/100` : "";
     const atencao = attentionLabels(result);
     const msg =

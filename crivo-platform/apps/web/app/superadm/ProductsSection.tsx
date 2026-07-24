@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import {
+  DIAGNOSTIC_METHOD_LABEL,
+  DIAGNOSTIC_METHODS,
   MODULES,
   PLANS,
   PRODUCT_STATUS_LABEL,
   PRODUCT_STATUSES,
+  type DiagnosticMethod,
   type Plan,
   type ProductDetail,
   type ProductStatus,
@@ -210,6 +213,7 @@ function ProductForm({
     modules: initial?.modules ?? [],
     coreModules: initial?.coreModules ?? [],
     isLeadCapture: initial?.isLeadCapture ?? false,
+    method: initial?.method ?? null,
     appearsOnLp: initial?.appearsOnLp ?? false,
     sellableStandalone: initial?.sellableStandalone ?? true,
     canBeAddon: initial?.canBeAddon ?? false,
@@ -367,6 +371,22 @@ function ProductForm({
                   placeholder="CRIVO Plus · pacote, Dossiê adicional"
                   onChange={(e) => setPacotesText(e.target.value)}
                 />
+              </Field>
+              <Field label="Método CRIVO aplicado" full>
+                <select
+                  value={form.method ?? ""}
+                  onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}
+                >
+                  <option value="">— não definido —</option>
+                  {DIAGNOSTIC_METHODS.map((m) => (
+                    <option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>
+                  ))}
+                </select>
+                <span className="prod-note" style={{ margin: "6px 0 0" }}>
+                  Define o instrumento que o cliente aplica no portal e quais documentos ficam
+                  disponíveis. Sem isto, o método só existe como exceção dentro de cada contrato —
+                  e trocar a solução do contrato não corrige o método sozinho.
+                </span>
               </Field>
               <Field label="Tipo de empresa atendida" full>
                 <input value={form.companyType ?? ""} onChange={(e) => set("companyType", e.target.value)} />

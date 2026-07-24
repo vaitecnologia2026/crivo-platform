@@ -97,7 +97,18 @@ export function ContractModal({
 
   function toggleSolution(id: string) {
     const cur = form.solutionIds ?? [];
-    set("solutionIds", cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id]);
+    const next = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id];
+    // A solução PRINCIPAL (1ª) define o método. Ao trocá-la, o override do
+    // contrato acompanha — antes ele ficava preso no método da solução anterior
+    // (contrato virava Organizacional e o portal seguia mostrando Essencial).
+    const previousPrimary = cur[0];
+    const nextPrimary = next[0];
+    if (nextPrimary !== previousPrimary) {
+      const solutionMethod = products.find((p) => p.id === nextPrimary)?.method ?? null;
+      setForm((f) => ({ ...f, solutionIds: next, method: solutionMethod }));
+      return;
+    }
+    set("solutionIds", next);
   }
 
   async function save(e: React.FormEvent) {
@@ -175,6 +186,18 @@ export function ContractModal({
                     <option value="">— herdar da solução —</option>
                     {DIAGNOSTIC_METHODS.map((m) => (<option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>))}
                   </select>
+                  <span className="prod-note" style={{ margin: "6px 0 0" }}>
+                    {(() => {
+                      const primary = products.find((p) => p.id === (form.solutionIds ?? [])[0]);
+                      if (!primary) return "Escolha a solução principal acima — é ela que define o método.";
+                      if (primary.method) {
+                        return form.method && form.method !== primary.method
+                          ? `Atenção: “${primary.name}” aplica ${DIAGNOSTIC_METHOD_LABEL[primary.method]}. Este contrato está sobrescrevendo para ${DIAGNOSTIC_METHOD_LABEL[form.method]}.`
+                          : `Herdado de “${primary.name}”: ${DIAGNOSTIC_METHOD_LABEL[primary.method]}.`;
+                      }
+                      return `“${primary.name}” ainda não define método (cadastre em Soluções CRIVO). Enquanto isso, vale o escolhido aqui.`;
+                    })()}
+                  </span>
                 </label>
                 <label className="prod-field">
                   <span>Saída técnica (documentos)</span>

@@ -359,10 +359,11 @@ export function CrmSection() {
     }
   }
 
-  // Catálogo de soluções (para "solução de interesse"). Só ativas, sem captura de lead.
+  // Catálogo de soluções (para "solução de interesse") — todas as cadastradas,
+  // exceto a de captura de lead (mesma regra do modal de conversão e de Contratos).
   useEffect(() => {
     listProducts()
-      .then((ps) => setProducts(ps.filter((p) => p.status === "ACTIVE" && !p.isLeadCapture)))
+      .then((ps) => setProducts(ps.filter((p) => !p.isLeadCapture)))
       .catch(() => setProducts([]));
     // Empresas — para "link para contrato" (abre o contrato da empresa convertida).
     listTenants().then(setTenants).catch(() => setTenants([]));
@@ -820,9 +821,13 @@ function ConvertModal({
       try {
         const all = await listProducts();
         if (!alive) return;
-        const active = all.filter((p) => !p.isLeadCapture && p.status === "ACTIVE");
+        // TODAS as soluções do catálogo (menos a de captura de lead, que é a porta
+        // de entrada e não se contrata). Filtrar por status ACTIVE escondia
+        // soluções recém-cadastradas — e Contratos já as listava, então o mesmo
+        // produto aparecia lá e sumia aqui. Rascunho aparece sinalizado.
+        const active = all.filter((p) => !p.isLeadCapture);
         setProducts(active);
-        // Pré-seleciona a solução de interesse do lead (Tela 02 [4]→[3]), se ativa.
+        // Pré-seleciona a solução de interesse do lead (Tela 02 [4]→[3]), se listada.
         if (lead.interestProductId && active.some((p) => p.id === lead.interestProductId)) {
           setProductId(lead.interestProductId);
         }
@@ -919,10 +924,16 @@ function ConvertModal({
                   {(products ?? []).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {p.modules.length} módulos
+                      {p.status !== "ACTIVE" ? " (rascunho)" : ""}
                     </option>
                   ))}
                 </select>
               </label>
+              {products?.length === 0 && (
+                <p className="convert-warn">
+                  Nenhuma solução cadastrada em Catálogo Comercial · Soluções CRIVO.
+                </p>
+              )}
               <p className="prod-note">
                 O sistema cria automaticamente: empresa, admin, módulos liberados, perguntas e IA do produto.
               </p>

@@ -12,6 +12,8 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 
+type DiagnosticMethodLike = string | null;
+
 const METHOD_LABEL: Record<string, string> = {
   INICIAL: 'Diagnóstico Inicial',
   ESSENCIAL: 'Diagnóstico Essencial',
@@ -176,13 +178,24 @@ export class DocumentsService {
       where: { companyId: tenantId },
       orderBy: { createdAt: 'desc' },
     });
-    return { contract, company: org?.name ?? 'Empresa', plans, cycles, cnaeDecision };
+    // Método EFETIVO: a SOLUÇÃO contratada manda; `contract.method` é exceção e
+    // só vale se a solução não define o seu. Antes o override do contrato tinha
+    // precedência e ficava preso ao trocar a solução (documentos saíam com o
+    // método antigo). Mesma regra do portal (/me/diagnostic-context).
+    // rls-allow: product é control-plane (catálogo global).
+    const product = contract?.productId
+      ? await this.prisma.admin.product.findUnique({
+          where: { id: contract.productId },
+          select: { method: true },
+        })
+      : null;
+    const method = (product?.method ?? contract?.method ?? null) as DiagnosticMethodLike;
+    return { contract, method, company: org?.name ?? 'Empresa', plans, cycles, cnaeDecision };
   }
 
   /** Documentos disponíveis conforme método + saída técnica do contrato. */
   async available(tenantId: string): Promise<DocumentDescriptor[]> {
-    const { contract, plans, cycles } = await this.context(tenantId);
-    const method = contract?.method ?? null;
+    const { contract, method, plans, cycles } = await this.context(tenantId);
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
@@ -224,7 +237,7 @@ export class DocumentsService {
 
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
   async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
-    const { contract, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
+    const { contract, method, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
     if (!DOCUMENT_TYPE_LABEL[type]) throw new BadRequestException('Tipo de documento inválido');
 
     // GATE server-side: repetir a elegibilidade de available(). Sem isto, bastava
@@ -238,7 +251,6 @@ export class DocumentsService {
       );
     }
 
-    const method = contract?.method ?? null;
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: company },
@@ -456,12 +468,9 @@ export class DocumentsService {
     // geração e não pode participar, senão a idempotência nunca dispara.
     const { generatedAt: _volatile, ...stable } = doc;
     const contentHash = createHash('sha256').update(JSON.stringify(stable)).digest('hex');
-    // rls-allow: contract é control-plane; snapshot do contexto no momento da emissão.
-    const contract = await this.prisma.admin.contract.findFirst({
-      where: { organizationId: tenantId },
-      orderBy: { createdAt: 'desc' },
-      select: { method: true, technicalOutput: true },
-    });
+    // Snapshot do contexto no momento da emissão — método EFETIVO (solução
+    // contratada primeiro), o mesmo que aparece no documento e no portal.
+    const { contract, method } = await this.context(tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const last = await tx.reportEmission.findFirst({
         where: { type },
@@ -482,7 +491,7 @@ export class DocumentsService {
           type,
           title: doc.title,
           emissionNumber: (last?.emissionNumber ?? 0) + 1,
-          method: contract?.method ?? null,
+          method,
           technicalOutput: contract?.technicalOutput ?? null,
           content: doc as unknown as object,
           contentHash,

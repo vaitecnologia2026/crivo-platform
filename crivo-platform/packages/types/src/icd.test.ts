@@ -71,6 +71,25 @@ describe("computePreDiagnostic (Briefing §5)", () => {
     expect(r.topAttentions).toEqual(["pressao_rotina", "lideranca_sustentacao"]);
     expect(r.topAttentions).toContain(r.topAttention);
   });
+
+  it("empate TOTAL: nenhuma dimensão vira ponto de atenção (não marca 100% delas)", () => {
+    // Mesma resposta em tudo → todas as dimensões empatam; nada se destaca.
+    for (const value of [1, 3, 5]) {
+      const r = computePreDiagnostic(PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value })));
+      expect(r.topAttentions).toEqual([]);
+      // topAttention (legado) segue apontando a dimensão de menor maturidade.
+      expect(PRE_DIAGNOSTIC_DIMENSIONS).toContain(r.topAttention);
+    }
+  });
+
+  it("uma única dimensão baixa continua sendo ponto de atenção", () => {
+    const answers = PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({
+      questionId: q.id,
+      value: q.dimension === "cultura_comunicacao" ? 1 : 5,
+    }));
+    const r = computePreDiagnostic(answers);
+    expect(r.topAttentions).toEqual(["cultura_comunicacao"]);
+  });
 });
 
 // ============================================================
@@ -467,7 +486,13 @@ describe("scoreWithMethodology vs computePsychosocial (v1 = padrão Organizacion
       expect(cfg.levelCode).toBe(hard.level);
       const hardByDim = hard.byDimension as Record<string, number>;
       for (const d of cfg.byDimension) expect(d.value).toBe(hardByDim[d.slug]);
-      expect(cfg.topAttentions[0]).toBe(hard.topRisk);
+      // DIVERGÊNCIA INTENCIONAL do legado: com TODAS as dimensões empatadas nada
+      // se destaca, então topAttentions vem vazio (o legado apontava uma dimensão
+      // arbitrária como "maior risco"). Havendo destaque, os dois coincidem.
+      const dimValues = cfg.byDimension.map((d) => d.value);
+      const hasStandout = Math.min(...dimValues) < Math.max(...dimValues);
+      if (hasStandout) expect(cfg.topAttentions[0]).toBe(hard.topRisk);
+      else expect(cfg.topAttentions).toEqual([]);
     });
   });
 });

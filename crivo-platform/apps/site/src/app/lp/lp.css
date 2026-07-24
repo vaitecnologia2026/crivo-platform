@@ -1453,6 +1453,7 @@ th.compare__crivo { color: var(--terra) !important; }
 .diag-quiz__dim { display: grid; grid-template-columns: 1fr 120px 32px; align-items: center; gap: 12px; }
 .diag-quiz__dim-label { font-size: 13px; color: var(--text-dark); }
 .diag-quiz__flag { color: var(--terra-escura); font-style: normal; font-weight: 600; font-size: 12px; }
+.diag-quiz__note { margin: -4px 0 16px; font-size: 13px; line-height: 1.55; color: var(--texto-secundario, #5a6b7b); }
 .diag-quiz__bar { height: 8px; background: var(--bg-light-dim); border-radius: 999px; overflow: hidden; }
 .diag-quiz__bar-fill { display: block; height: 100%; background: var(--terra-dourado); border-radius: 999px; }
 .diag-quiz__dim-val { font-size: 13px; font-weight: 600; color: var(--azul-profundo); text-align: right; }

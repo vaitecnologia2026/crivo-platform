@@ -303,6 +303,13 @@ export function DiagnosticoInicialQuiz() {
           })}
         </ul>
 
+        {result.topAttentions.length === 0 && (
+          <p className="diag-quiz__note">
+            As dimensões ficaram equilibradas entre si — nenhuma se destaca isoladamente como ponto
+            de atenção. A leitura, aqui, é o nível geral de maturidade.
+          </p>
+        )}
+
         <div className="diag-sent" data-state={sent}>
           {sent === "sending" && "Enviando seu diagnóstico…"}
           {sent === "ok" && (

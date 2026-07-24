@@ -99,7 +99,9 @@ export function CnpjLookupCard() {
     setConverting(true);
     if (!products) {
       try {
-        setProducts((await listProducts()).filter((p) => !p.isLeadCapture && p.status === "ACTIVE"));
+        // Todas as soluções cadastradas (menos a de captura) — mesma regra do CRM
+        // e de Contratos; filtrar por ACTIVE escondia soluções recém-criadas.
+        setProducts((await listProducts()).filter((p) => !p.isLeadCapture));
       } catch {
         setProducts([]);
       }
