@@ -1,0 +1,319 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  createReportTemplate,
+  deleteReportTemplate,
+  listReportInstrumentOptions,
+  listReportTemplates,
+  updateReportTemplate,
+  type ReportInstrumentOption,
+  type ReportTemplateRow,
+  type ReportTemplateSection,
+  type UpsertReportTemplateRequest,
+} from "@/lib/admin-api";
+
+type FormState = {
+  id: string | null;
+  name: string;
+  description: string;
+  instrumentSlug: string;
+  sections: ReportTemplateSection[];
+  includeResults: boolean;
+  includeDimensions: boolean;
+  includePlan: boolean;
+  active: boolean;
+};
+
+const EMPTY: FormState = {
+  id: null,
+  name: "",
+  description: "",
+  instrumentSlug: "",
+  sections: [{ heading: "", body: "" }],
+  includeResults: true,
+  includeDimensions: true,
+  includePlan: false,
+  active: true,
+};
+
+/**
+ * Modelos de relatório do Motor 4 — cada modelo é VINCULADO a um diagnóstico do
+ * Motor de Diagnósticos (cultura, NR-1, IA, governança…). Ao salvar, o relatório
+ * passa a aparecer no Portal do Cliente das empresas que aplicaram aquele
+ * diagnóstico, e o conteúdo é montado com o resultado real do motor.
+ */
+export function ReportTemplatesPanel() {
+  const [rows, setRows] = useState<ReportTemplateRow[] | null>(null);
+  const [instruments, setInstruments] = useState<ReportInstrumentOption[]>([]);
+  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function load() {
+    setStatus("loading");
+    try {
+      const [list, opts] = await Promise.all([listReportTemplates(), listReportInstrumentOptions()]);
+      setRows(list);
+      setInstruments(opts);
+      setStatus("ok");
+    } catch {
+      setStatus("error");
+    }
+  }
+  useEffect(() => { void load(); }, []);
+
+  function openNew() {
+    setForm({ ...EMPTY, instrumentSlug: instruments[0]?.slug ?? "" });
+  }
+  function openEdit(r: ReportTemplateRow) {
+    setForm({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? "",
+      instrumentSlug: r.instrumentSlug,
+      sections: r.sections.length ? r.sections : [{ heading: "", body: "" }],
+      includeResults: r.includeResults,
+      includeDimensions: r.includeDimensions,
+      includePlan: r.includePlan,
+      active: r.active,
+    });
+  }
+
+  function setField<K extends keyof FormState>(k: K, v: FormState[K]) {
+    setForm((f) => (f ? { ...f, [k]: v } : f));
+  }
+  function setSection(i: number, patch: Partial<ReportTemplateSection>) {
+    setForm((f) =>
+      f ? { ...f, sections: f.sections.map((s, idx) => (idx === i ? { ...s, ...patch } : s)) } : f,
+    );
+  }
+
+  async function save() {
+    if (!form) return;
+    if (!form.name.trim()) { alert("Informe o nome do relatório."); return; }
+    if (!form.instrumentSlug) { alert("Vincule o relatório a um diagnóstico do Motor de Diagnósticos."); return; }
+    setSaving(true);
+    try {
+      const dto: UpsertReportTemplateRequest = {
+        name: form.name.trim(),
+        description: form.description.trim() || null,
+        instrumentSlug: form.instrumentSlug,
+        sections: form.sections.filter((s) => s.heading.trim() || s.body.trim()),
+        includeResults: form.includeResults,
+        includeDimensions: form.includeDimensions,
+        includePlan: form.includePlan,
+        active: form.active,
+      };
+      if (form.id) await updateReportTemplate(form.id, dto);
+      else await createReportTemplate(dto);
+      setForm(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao salvar o modelo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(r: ReportTemplateRow) {
+    if (!window.confirm(`Remover o modelo “${r.name}”? Emissões já feitas continuam no repositório.`)) return;
+    setBusyId(r.id);
+    try {
+      const res = await deleteReportTemplate(r.id);
+      if (res.deactivatedInsteadOfDeleted) {
+        alert(`O modelo tem ${res.emitted} emissão(ões) no repositório — foi DESATIVADO em vez de excluído, para preservar o histórico.`);
+      }
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao remover.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (status === "loading") return <p className="dash-state">Carregando modelos…</p>;
+  if (status === "error") return <div className="dash-state dash-state--error">Não foi possível carregar os modelos de relatório.</div>;
+
+  return (
+    <>
+      <div className="adm-callout">
+        Cada modelo é <strong>vinculado a um diagnóstico</strong> do Motor de Diagnósticos. Ao ativar,
+        o relatório aparece no Portal do Cliente das empresas que aplicaram aquele diagnóstico — e o
+        conteúdo é montado com o <strong>resultado real</strong> (índice, faixa e dimensões da
+        metodologia ativa), respeitando o mínimo de respondentes definido em Configuração do Motor.
+      </div>
+
+      {!form && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+          <button className="btn btn--terra btn--sm" onClick={openNew} disabled={instruments.length === 0}>
+            + Novo relatório
+          </button>
+        </div>
+      )}
+      {instruments.length === 0 && (
+        <div className="dash-state dash-state--error">
+          Nenhum diagnóstico ativo no Motor de Diagnósticos — cadastre um instrumento antes de criar relatórios.
+        </div>
+      )}
+
+      {form && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <fieldset className="prod-fs">
+            <legend>{form.id ? "Editar relatório" : "Novo relatório"}</legend>
+            <div className="prod-form__grid">
+              <label className="prod-field prod-field--full">
+                <span>Nome do relatório</span>
+                <input
+                  value={form.name}
+                  placeholder="Ex.: Relatório de Cultura Organizacional"
+                  onChange={(e) => setField("name", e.target.value)}
+                />
+              </label>
+              <label className="prod-field prod-field--full">
+                <span>Diagnóstico vinculado (Motor de Diagnósticos)</span>
+                <select value={form.instrumentSlug} onChange={(e) => setField("instrumentSlug", e.target.value)}>
+                  {instruments.map((i) => (
+                    <option key={i.slug} value={i.slug}>
+                      {i.name} {i.versions === 0 ? "(sem versão publicada)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="prod-note" style={{ margin: "6px 0 0" }}>
+                  É daqui que vêm o índice, a faixa e as dimensões do relatório.
+                </span>
+              </label>
+              <label className="prod-field prod-field--full">
+                <span>Descrição (subtítulo do documento)</span>
+                <input
+                  value={form.description}
+                  placeholder="Leitura executiva do clima e da cultura por dimensão"
+                  onChange={(e) => setField("description", e.target.value)}
+                />
+              </label>
+            </div>
+
+            <span className="prod-note" style={{ margin: "10px 0 6px" }}>O que o motor injeta automaticamente:</span>
+            <div className="prod-modules">
+              <label className="prod-check">
+                <input type="checkbox" checked={form.includeResults} onChange={(e) => setField("includeResults", e.target.checked)} />
+                Índice e faixa do diagnóstico
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.includeDimensions} onChange={(e) => setField("includeDimensions", e.target.checked)} />
+                Tabela por dimensão
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.includePlan} onChange={(e) => setField("includePlan", e.target.checked)} />
+                Ações do Plano de Evolução
+              </label>
+              <label className="prod-check">
+                <input type="checkbox" checked={form.active} onChange={(e) => setField("active", e.target.checked)} />
+                Ativo (visível no portal)
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="prod-fs" style={{ marginTop: 16 }}>
+            <legend>Texto fixo do relatório</legend>
+            <p className="prod-note" style={{ marginTop: 0 }}>
+              Contexto, metodologia e limites — o que é igual para toda empresa. Os números entram
+              automaticamente nas seções acima.
+            </p>
+            {form.sections.map((s, i) => (
+              <div key={i} style={{ borderTop: i ? "1px solid var(--line)" : "none", paddingTop: i ? 12 : 0, marginTop: i ? 12 : 0 }}>
+                <label className="prod-field prod-field--full">
+                  <span>Título da seção</span>
+                  <input
+                    value={s.heading}
+                    placeholder="Ex.: Como ler este relatório"
+                    onChange={(e) => setSection(i, { heading: e.target.value })}
+                  />
+                </label>
+                <label className="prod-field prod-field--full" style={{ marginTop: 8 }}>
+                  <span>Texto</span>
+                  <textarea
+                    rows={4}
+                    value={s.body}
+                    onChange={(e) => setSection(i, { body: e.target.value })}
+                    style={{ width: "100%", resize: "vertical" }}
+                  />
+                </label>
+              </div>
+            ))}
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ marginTop: 10 }}
+              onClick={() => setField("sections", [...form.sections, { heading: "", body: "" }])}
+            >
+              + Adicionar seção
+            </button>
+          </fieldset>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <button className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
+              {saving ? "Salvando…" : form.id ? "Salvar alterações" : "Criar relatório"}
+            </button>
+            <button className="btn btn--ghost btn--sm" disabled={saving} onClick={() => setForm(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="addx-wrap">
+        <table className="addx-table">
+          <thead>
+            <tr>
+              <th>Relatório</th>
+              <th>Diagnóstico vinculado</th>
+              <th>Conteúdo automático</th>
+              <th>Status</th>
+              <th aria-label="Ações" />
+            </tr>
+          </thead>
+          <tbody>
+            {(rows ?? []).map((r) => (
+              <tr key={r.id}>
+                <td className="addx-name">
+                  <strong>{r.name}</strong>
+                  <p>{r.description || <code>tpl:{r.key}</code>}</p>
+                </td>
+                <td>
+                  {r.instrumentName}
+                  {!r.instrumentActive && <p className="evd-reason">Diagnóstico inativo</p>}
+                </td>
+                <td>
+                  {[
+                    r.includeResults ? "índice e faixa" : null,
+                    r.includeDimensions ? "dimensões" : null,
+                    r.includePlan ? "plano" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "só texto fixo"}
+                </td>
+                <td>
+                  <span className={`addx-status ${r.active ? "addx-status--ATIVO" : "addx-status--AGUARDANDO_DADOS"}`}>
+                    {r.active ? "Ativo" : "Inativo"}
+                  </span>
+                </td>
+                <td className="addx-actions">
+                  <button type="button" disabled={busyId === r.id} onClick={() => openEdit(r)}>Editar</button>
+                  <button type="button" disabled={busyId === r.id} onClick={() => remove(r)}>Remover</button>
+                </td>
+              </tr>
+            ))}
+            {rows?.length === 0 && (
+              <tr>
+                <td colSpan={5} className="addx-empty">
+                  Nenhum relatório cadastrado. Use “+ Novo relatório” para criar um vinculado a um diagnóstico.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}

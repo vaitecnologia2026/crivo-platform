@@ -112,7 +112,9 @@ DECLARE
                               -- Telemetria do motor de IA: tem tenantId, mas é leitura
                               -- CROSS-TENANT do super admin (Consumo e Logs) e escrita pelo
                               -- motor central via owner → owner-only, como audit_log.
-                              'ai_call_logs'];
+                              'ai_call_logs',
+                              -- Catálogo de modelos de relatório (Motor 4): global, owner-only.
+                              'report_templates'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

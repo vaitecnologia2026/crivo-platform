@@ -1453,3 +1453,57 @@ export interface AiContextRow {
 export function getAiContexts(): Promise<AiContextRow[]> {
   return adminFetch<AiContextRow[]>("/admin/ai/contexts");
 }
+
+// ── Motor 4 — modelos de relatório vinculados ao Motor de Diagnósticos ──
+
+export interface ReportTemplateSection {
+  heading: string;
+  body: string;
+}
+export interface ReportTemplateRow {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  instrumentSlug: string;
+  instrumentName: string;
+  instrumentActive: boolean;
+  sections: ReportTemplateSection[];
+  includeResults: boolean;
+  includeDimensions: boolean;
+  includePlan: boolean;
+  active: boolean;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+export interface ReportInstrumentOption {
+  slug: string;
+  name: string;
+  versions: number;
+}
+export interface UpsertReportTemplateRequest {
+  key?: string;
+  name: string;
+  description?: string | null;
+  instrumentSlug: string;
+  sections?: ReportTemplateSection[];
+  includeResults?: boolean;
+  includeDimensions?: boolean;
+  includePlan?: boolean;
+  active?: boolean;
+}
+export function listReportTemplates(): Promise<ReportTemplateRow[]> {
+  return adminFetch<ReportTemplateRow[]>("/admin/reports/templates");
+}
+export function listReportInstrumentOptions(): Promise<ReportInstrumentOption[]> {
+  return adminFetch<ReportInstrumentOption[]>("/admin/reports/templates/instruments");
+}
+export function createReportTemplate(dto: UpsertReportTemplateRequest): Promise<ReportTemplateRow> {
+  return adminFetch("/admin/reports/templates", { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateReportTemplate(id: string, dto: UpsertReportTemplateRequest): Promise<ReportTemplateRow> {
+  return adminFetch(`/admin/reports/templates/${id}`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function deleteReportTemplate(id: string): Promise<{ deactivatedInsteadOfDeleted: boolean; emitted: number }> {
+  return adminFetch(`/admin/reports/templates/${id}`, { method: "DELETE" });
+}

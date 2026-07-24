@@ -11,8 +11,11 @@ import {
   type RiskLevel3,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveActiveMethodology } from '../admin/methodology.service';
+import { getEngineConfig } from '../admin/engine-config';
 
 type DiagnosticMethodLike = string | null;
+type ReportTemplateSectionRow = { heading?: string; body?: string };
 
 const METHOD_LABEL: Record<string, string> = {
   INICIAL: 'Diagnóstico Inicial',
@@ -232,13 +235,225 @@ export class DocumentsService {
       hasCycleHistory,
       hasCycleHistory ? undefined : 'Requer ao menos um ciclo trimestral de ICD consolidado',
     );
+
+    // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
+    // de Diagnósticos (cultura, NR-1, IA, governança…). Ficam disponíveis quando
+    // a empresa aplicou aquele diagnóstico e o volume permite divulgar (supressão).
+    for (const t of await this.reportTemplates()) {
+      const agg = await this.instrumentSummary(tenantId, t.instrumentSlug);
+      const ok = !!agg && !agg.suppressed;
+      docs.push({
+        type: `tpl:${t.key}`,
+        title: t.name,
+        available: ok,
+        reason: ok
+          ? undefined
+          : !agg || agg.totalRespondents === 0
+            ? `Requer respostas do diagnóstico "${t.instrumentName}"`
+            : `Requer ao menos ${agg.minRespondents} respostas no diagnóstico "${t.instrumentName}" (hoje: ${agg.totalRespondents}) — regra de anonimato`,
+      });
+    }
     return docs;
+  }
+
+  /**
+   * Documento de um MODELO cadastrado: junta o texto fixo do modelo com o
+   * RESULTADO REAL do diagnóstico vinculado (agregado, com supressão) e, se
+   * marcado, as ações do Plano de Evolução. É o que liga o Motor 4 ao Motor de
+   * Diagnósticos: trocar a metodologia muda o conteúdo do relatório.
+   */
+  private async generateFromTemplate(
+    tenantId: string,
+    key: string,
+    ctx: {
+      company: string;
+      contract: { technicalOutput?: string | null; responsible?: string | null } | null;
+      method: DiagnosticMethodLike;
+      plans: { title: string; validatedAt: Date | null; items: FactorItem[] }[];
+    },
+  ): Promise<GeneratedDocument> {
+    // rls-allow: report_templates é control-plane (catálogo global, owner-only).
+    const tpl = await this.prisma.admin.reportTemplate.findUnique({
+      where: { key },
+      include: { instrument: { select: { name: true, slug: true } } },
+    });
+    if (!tpl) throw new BadRequestException('Modelo de relatório não encontrado.');
+
+    const agg = await this.instrumentSummary(tenantId, tpl.instrumentSlug);
+    if (!agg || agg.suppressed) {
+      throw new BadRequestException(
+        `Sem respostas suficientes no diagnóstico "${tpl.instrument.name}" para emitir este relatório.`,
+      );
+    }
+
+    const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Empresa', value: ctx.company },
+      { label: 'Diagnóstico aplicado', value: tpl.instrument.name },
+      { label: 'Método', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
+      { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
+      { label: 'Respondentes', value: String(agg.totalRespondents) },
+      { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
+    ];
+
+    const sections: DocumentSection[] = [];
+
+    // 1) Texto fixo do modelo (contexto, metodologia, limites) — o que a CRIVO
+    //    cadastrou no Super Admin.
+    for (const s of (tpl.sections as ReportTemplateSectionRow[] | null) ?? []) {
+      if (s?.heading || s?.body) {
+        sections.push({ heading: s.heading || 'Contexto', body: s.body || '' });
+      }
+    }
+
+    // 2) Resultado do diagnóstico (score + faixa) direto do motor.
+    if (tpl.includeResults) {
+      sections.push({
+        heading: 'Resultado do diagnóstico',
+        body:
+          `Resultado agregado de "${tpl.instrument.name}" com base em ${agg.totalRespondents} ` +
+          `respondente(s)${agg.sectors ? ` em ${agg.sectors} setor(es)` : ''}. ` +
+          'Resultado coletivo — nenhuma resposta individual é exibida ou identificável.',
+        rows: [
+          { label: 'Índice do diagnóstico (0–100)', value: String(agg.score) },
+          { label: 'Faixa', value: agg.levelLabel },
+          { label: 'Respondentes', value: String(agg.totalRespondents) },
+          {
+            label: 'Última resposta',
+            value: agg.lastResponseAt ? fmt(agg.lastResponseAt) : '—',
+          },
+        ],
+      });
+    }
+
+    // 3) Dimensões do instrumento (a estrutura publicada na metodologia ativa).
+    if (tpl.includeDimensions && agg.byDimension.length) {
+      sections.push({
+        heading: 'Resultado por dimensão',
+        body: 'Média por dimensão da versão da metodologia ativa no período.',
+        table: {
+          columns: ['Dimensão', 'Índice (0–100)'],
+          data: agg.byDimension.map((d) => [d.label, String(d.value)]),
+        },
+      });
+    }
+
+    // 4) Ações do Plano de Evolução (quando o modelo pede).
+    if (tpl.includePlan) {
+      const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+      const items = plan?.items ?? [];
+      sections.push({
+        heading: 'Plano de Evolução vinculado',
+        body: plan
+          ? `Ações registradas em "${plan.title}"${plan.validatedAt ? ' (plano validado)' : ' (plano ainda não validado)'}.`
+          : 'Nenhum plano de evolução registrado para esta empresa até o momento.',
+        table: items.length
+          ? {
+              columns: ['Ponto de atenção', 'Ação', 'Responsável', 'Prazo', 'Risco', 'Status'],
+              data: items.map((i) => [
+                i.point,
+                i.action,
+                i.responsible ?? '—',
+                i.dueDate ? fmt(i.dueDate) : '—',
+                factorRisk(i).label,
+                ACTION_LABEL[i.status] ?? i.status,
+              ]),
+            }
+          : undefined,
+      });
+    }
+
+    sections.push({
+      heading: 'Conclusão e validação',
+      body:
+        'A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de ' +
+        'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
+      table: {
+        columns: ['Responsável', 'Nome', 'Cargo', 'Data', 'Validação'],
+        data: [
+          ['Empresa', '—', '—', '—', 'Validação eletrônica'],
+          ['Responsável técnico/designado', '—', '—', '—', 'Validação eletrônica'],
+        ],
+      },
+    });
+
+    return {
+      type: `tpl:${tpl.key}`,
+      title: tpl.name,
+      subtitle: tpl.description || `Relatório vinculado ao diagnóstico ${tpl.instrument.name}`,
+      company: ctx.company,
+      generatedAt: new Date().toISOString(),
+      meta,
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
+
+  /** Modelos ATIVOS do catálogo (control-plane). */
+  private async reportTemplates() {
+    // rls-allow: report_templates é control-plane (catálogo global, owner-only).
+    const rows = await this.prisma.admin.reportTemplate.findMany({
+      where: { active: true, instrument: { active: true } },
+      orderBy: { name: 'asc' },
+      include: { instrument: { select: { name: true } } },
+    });
+    return rows.map(({ instrument, ...t }) => ({ ...t, instrumentName: instrument.name }));
+  }
+
+  /**
+   * Agregado do instrumento para a empresa — MESMA regra da tela de resultados:
+   * média das respostas, faixa da metodologia ativa e supressão por volume
+   * mínimo (Configuração do Motor). Nunca expõe resposta individual.
+   */
+  private async instrumentSummary(tenantId: string, instrumentSlug: string) {
+    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
+    const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
+    const bands = active?.config.bands ?? [];
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.diagnosticResponse.findMany({
+        where: { instrumentSlug },
+        select: { score: true, byDimension: true, sector: true, submittedAt: true },
+      });
+      const total = rows.length;
+      if (total === 0 || total < minRespondents) {
+        return { suppressed: true as const, totalRespondents: total, minRespondents };
+      }
+      const score = Math.round((rows.reduce((s, r) => s + r.score, 0) / total) * 10) / 10;
+      const byDimension = dims.map((d) => {
+        const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
+        return {
+          slug: d.slug,
+          label: d.label,
+          value: Math.round((vals.reduce((s, x) => s + x, 0) / vals.length) * 10) / 10,
+        };
+      });
+      const band = bands.find((b) => score >= b.min && score <= b.max);
+      const sectors = new Set(rows.map((r) => r.sector).filter(Boolean));
+      const last = rows.reduce<Date | null>(
+        (acc, r) => (!acc || r.submittedAt > acc ? r.submittedAt : acc),
+        null,
+      );
+      return {
+        suppressed: false as const,
+        totalRespondents: total,
+        minRespondents,
+        score,
+        levelLabel: band?.label ?? '—',
+        byDimension,
+        sectors: sectors.size,
+        lastResponseAt: last,
+      };
+    });
   }
 
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
   async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
     const { contract, method, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
-    if (!DOCUMENT_TYPE_LABEL[type]) throw new BadRequestException('Tipo de documento inválido');
+    const isTemplate = type.startsWith('tpl:');
+    if (!isTemplate && !DOCUMENT_TYPE_LABEL[type]) {
+      throw new BadRequestException('Tipo de documento inválido');
+    }
 
     // GATE server-side: repetir a elegibilidade de available(). Sem isto, bastava
     // chamar generate() com um tipo válido para emitir documento que o contrato
@@ -249,6 +464,16 @@ export class DocumentsService {
       throw new BadRequestException(
         desc?.reason ?? 'Este documento não está liberado para o contrato desta empresa.',
       );
+    }
+
+    // Relatório cadastrado no Motor 4 e vinculado a um diagnóstico do motor.
+    if (isTemplate) {
+      return this.generateFromTemplate(tenantId, type.slice(4), {
+        company,
+        contract,
+        method,
+        plans,
+      });
     }
 
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';

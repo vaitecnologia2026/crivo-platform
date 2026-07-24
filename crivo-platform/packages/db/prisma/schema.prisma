@@ -544,6 +544,34 @@ model GlobalAcademyContent {
 // Telemetria do motor de IA (control plane, owner-only como o audit_log).
 // UMA linha por chamada real ao provedor — tokens/latência/erro. Alimenta as
 // abas "Consumo e Limites" e "Versões e Logs" da seção IA da Plataforma.
+/// Modelo de relatório do Motor 4, VINCULADO a um instrumento do Motor de
+/// Diagnósticos (cultura, NR-1, IA, governança…). O super admin cadastra aqui e
+/// o relatório passa a ficar disponível no portal das empresas que aplicaram
+/// aquele diagnóstico — o conteúdo é montado com o resultado real do motor.
+/// Control-plane (catálogo global), owner-only como products.
+model ReportTemplate {
+  id             String               @id @default(uuid()) @db.Uuid
+  key            String               @unique // usado como tipo do documento (kebab-case)
+  name           String
+  description    String?              @db.Text
+  instrumentSlug String               @map("instrument_slug")
+  instrument     DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  /// Seções fixas de texto: [{ heading, body }] — contexto/metodologia/limites.
+  sections          Json    @default("[]")
+  /// O que o motor injeta automaticamente no documento.
+  includeResults    Boolean @default(true) @map("include_results") // score + faixa
+  includeDimensions Boolean @default(true) @map("include_dimensions") // tabela por dimensão
+  includePlan       Boolean @default(false) @map("include_plan") // ações do Plano de Evolução
+  active            Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@index([instrumentSlug])
+  @@map("report_templates")
+}
+
 model AiCallLog {
   id               String   @id @default(uuid()) @db.Uuid
   tenantId         String?  @db.Uuid // null = chamada sem tenant (ex.: relatório de lead da LP)
@@ -1936,6 +1964,7 @@ model DiagnosticInstrument {
   versions  MethodologyVersion[]
   links     DiagnosticLink[]
   responses DiagnosticResponse[]
+  reportTemplates ReportTemplate[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

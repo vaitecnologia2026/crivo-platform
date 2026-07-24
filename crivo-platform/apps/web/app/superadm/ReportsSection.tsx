@@ -11,6 +11,7 @@ import {
   type ReportsOverview,
 } from "@/lib/admin-api";
 import { printDocument } from "../plataforma/DocumentsPanel";
+import { ReportTemplatesPanel } from "./ReportTemplatesPanel";
 
 const STATUS_LABEL: Record<string, string> = {
   EMITIDA: "Aguardando revisão",
@@ -27,7 +28,10 @@ const STATUS_CLASS: Record<string, string> = {
  * fila de revisão técnica da CRIVO. A emissão acontece no Portal do Cliente;
  * aqui o Super Admin consulta a versão exata emitida e a marca como revisada.
  */
+type Tab = "emissoes" | "modelos";
+
 export function ReportsSection() {
+  const [tab, setTab] = useState<Tab>("emissoes");
   const [overview, setOverview] = useState<ReportsOverview | null>(null);
   const [rows, setRows] = useState<ReportEmissionRow[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
@@ -87,12 +91,23 @@ export function ReportsSection() {
         </div>
       </div>
 
-      {status === "loading" && <p className="dash-state">Carregando emissões…</p>}
-      {status === "error" && (
+      <div className="adm-tabs">
+        <button className={`adm-tab${tab === "emissoes" ? " is-active" : ""}`} onClick={() => setTab("emissoes")}>
+          Emissões e revisão
+        </button>
+        <button className={`adm-tab${tab === "modelos" ? " is-active" : ""}`} onClick={() => setTab("modelos")}>
+          Modelos de relatório
+        </button>
+      </div>
+
+      {tab === "modelos" && <ReportTemplatesPanel />}
+
+      {tab === "emissoes" && status === "loading" && <p className="dash-state">Carregando emissões…</p>}
+      {tab === "emissoes" && status === "error" && (
         <div className="dash-state dash-state--error">Não foi possível carregar o repositório de emissões.</div>
       )}
 
-      {status === "ok" && overview && rows && (
+      {tab === "emissoes" && status === "ok" && overview && rows && (
         <>
           <div className="kpi-grid crm-kpis" style={{ marginBottom: 20, gridTemplateColumns: "repeat(4, minmax(0,1fr))" }}>
             <div className="kpi"><span className="kpi__label">Emissões</span><strong className="kpi__value">{overview.total}</strong></div>
