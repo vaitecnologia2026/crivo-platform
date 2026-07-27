@@ -130,6 +130,70 @@ function buildBaseTecnicaSection(decision: CnaeDecisionRow | null): DocumentSect
   return { heading: 'Base Técnica da Recomendação', body, table: { columns: ['Item', 'Valor'], data } };
 }
 
+// ── Pacote Final de Templates (layouts oficiais) ─────────────────────────────
+
+/** Códigos oficiais das dimensões do MAPA (ME1–ME6, confirmados pelo cliente). */
+const ME_CODE: Record<string, string> = {
+  pressao_rotina: 'ME1',
+  lideranca_sustentacao: 'ME2',
+  cultura_comunicacao: 'ME3',
+  fatores_psicossociais: 'ME4',
+  governanca_plano: 'ME5',
+  'dim-1': 'ME6', // Futuro do Trabalho e IA
+};
+
+type BandLike = { label: string; min: number; max: number };
+/**
+ * Classificação pela régua ativa — a MESMA régua vale p/ score geral e cada
+ * dimensão. Scores fracionários podem cair no VÃO entre faixas inteiras
+ * (ex.: 39,4 entre 0–39 e 40–59): classifica pela faixa imediatamente abaixo,
+ * no mesmo espírito do fallback do motor canônico (nunca devolve "—" para um
+ * score válido).
+ */
+function bandLabelOf(value: number, bands: BandLike[]): string {
+  const exact = bands.find((b) => value >= b.min && value <= b.max);
+  if (exact) return exact.label;
+  const floor = [...bands].sort((a, b) => b.min - a.min).find((b) => value >= b.min);
+  return floor?.label ?? bands[0]?.label ?? '—';
+}
+
+/**
+ * Bloco de assinatura EM BRANCO (decisão do cliente 27/07): o PDF sai com os
+ * campos para assinar FORA do sistema — sem login do RT, sem assinatura na
+ * CRIVO, sem upload obrigatório. Registro profissional quando aplicável.
+ */
+function signatureSection(conclusionBody: string): DocumentSection {
+  return {
+    heading: 'Conclusão e validação',
+    body: conclusionBody,
+    table: {
+      columns: ['Responsável', 'Nome', 'Cargo', 'Registro profissional', 'Data', 'Assinatura'],
+      data: [
+        ['Empresa', '', '', '', '', ''],
+        ['Responsável técnico/designado', '', '', '', '', ''],
+      ],
+    },
+  };
+}
+
+/**
+ * Controle documental (todos os TPL). Na PRÉ-VISUALIZAÇÃO sai como rascunho;
+ * na emissão oficial, emit() substitui esta seção por status "Documento
+ * emitido" + versão + data + hash reais (após calcular o hash de integridade).
+ */
+function docControlSection(): DocumentSection {
+  return {
+    heading: 'Controle documental',
+    rows: [
+      { label: 'Status do documento', value: 'Rascunho (pré-visualização)' },
+      { label: 'Versão do documento', value: 'Atribuída na emissão oficial' },
+      { label: 'Data de emissão', value: '—' },
+      { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
+      { label: 'Hash/Identificador', value: 'Atribuído na emissão oficial' },
+    ],
+  };
+}
+
 /**
  * Geração de documentos proporcionais ao produto/saída técnica (Briefing §15).
  * Lê o contrato via owner (control plane) e os dados do plano/evidências via
@@ -168,13 +232,6 @@ export class DocumentsService {
         include: { items: { include: { evidences: true } } },
       }),
     );
-    // Histórico de ciclos trimestrais (para o relatório de evolução, §15).
-    const cycles = await this.prisma.forTenant(tenantId, (tx) =>
-      tx.icdCycle.findMany({
-        orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
-        include: { companyResult: true },
-      }),
-    );
     // Base Técnica da Recomendação: última decisão CNAE/NR-1 vinculada à empresa.
     // rls-allow: cnae_decision_history é control-plane (global); filtrado por companyId = tenantId.
     const cnaeDecision = await this.prisma.admin.cnaeDecisionHistory.findFirst({
@@ -193,12 +250,79 @@ export class DocumentsService {
         })
       : null;
     const method = (product?.method ?? contract?.method ?? null) as DiagnosticMethodLike;
-    return { contract, method, company: org?.name ?? 'Empresa', plans, cycles, cnaeDecision };
+    return { contract, method, org, company: org?.name ?? 'Empresa', plans, cnaeDecision };
+  }
+
+  /**
+   * Fonte do MAPA Executivo CRIVO™ (TPL-001) para a empresa: (1) o lead
+   * convertido que respondeu o MAPA na LP/CRM; (2) fallback: agregado das
+   * respostas do instrumento PRE_DIAGNOSTIC aplicadas pela própria empresa.
+   * Template único nos dois canais — muda só a origem do dado (decisão 27/07).
+   */
+  private async mapaSource(tenantId: string) {
+    const active = await resolveActiveMethodology(this.prisma, 'PRE_DIAGNOSTIC');
+    const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
+    const bands = (active?.config.bands ?? []) as BandLike[];
+    // rls-allow: tenant/platform_lead são control-plane; leitura self-scoped pela empresa.
+    const tenant = await this.prisma.admin.tenant.findFirst({
+      where: { organizationId: tenantId },
+      select: { id: true },
+    });
+    if (tenant) {
+      const leads = await this.prisma.admin.platformLead.findMany({
+        where: { convertedTenantId: tenant.id },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      });
+      const lead = leads.find((l) => l.diagnosticResult && l.diagnosticScore != null);
+      if (lead) {
+        const r = lead.diagnosticResult as {
+          score: number;
+          level?: string;
+          levelLabel?: string;
+          byDimension?: Record<string, number>;
+          dimensionLabels?: Record<string, string>;
+        };
+        return {
+          kind: 'lead' as const,
+          respondentName: lead.name,
+          respondentRole: lead.company ? `Contato — ${lead.company}` : '—',
+          concludedAt: lead.createdAt,
+          score: r.score,
+          byDimension: r.byDimension ?? {},
+          dimensionLabels: r.dimensionLabels ?? {},
+          dims,
+          bands,
+        };
+      }
+    }
+    // Fallback: a empresa aplicou o MAPA logada (respostas do PRE_DIAGNOSTIC).
+    const agg = await this.instrumentSummary(tenantId, 'PRE_DIAGNOSTIC');
+    if (agg && !agg.suppressed) {
+      const byDimension: Record<string, number> = {};
+      const dimensionLabels: Record<string, string> = {};
+      for (const d of agg.byDimension) {
+        byDimension[d.slug] = d.value;
+        dimensionLabels[d.slug] = d.label;
+      }
+      return {
+        kind: 'aggregate' as const,
+        respondentName: 'Aplicação coletiva',
+        respondentRole: `${agg.totalRespondents} respondente(s)`,
+        concludedAt: agg.lastResponseAt,
+        score: agg.score,
+        byDimension,
+        dimensionLabels,
+        dims,
+        bands,
+      };
+    }
+    return null;
   }
 
   /** Documentos disponíveis conforme método + saída técnica do contrato. */
   async available(tenantId: string): Promise<DocumentDescriptor[]> {
-    const { contract, method, plans, cycles } = await this.context(tenantId);
+    const { contract, method, plans } = await this.context(tenantId);
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
@@ -213,31 +337,36 @@ export class DocumentsService {
       : blockers.length
         ? blockers.join(' ')
         : undefined;
-    // TPL-003 só sai com COMPARAÇÃO VÁLIDA (Pacote §2): ao menos DOIS ciclos
-    // consolidados. Um só não gera "evolução e efetividade".
-    const consolidatedCycles = cycles.filter((c) => c.companyResult).length;
-    const hasComparison = consolidatedCycles >= 2;
-
     const docs: DocumentDescriptor[] = [];
     const add = (type: string, available: boolean, reason?: string) =>
       docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason });
 
     if (method === 'INICIAL' || !contract) add('relatorio_preliminar', true);
-    // TPL-001 — Relatório Executivo do MAPA CRIVO™: sempre (não é doc técnico NR-1).
-    add('relatorio_executivo', true);
+    // TPL-001 — Relatório Executivo do MAPA CRIVO™: evento de geração é "MAPA
+    // concluído" (Pacote §1) — precisa existir a fonte do MAPA (lead convertido
+    // ou aplicação do PRE_DIAGNOSTIC pela empresa).
+    const mapa = await this.mapaSource(tenantId);
+    add(
+      'relatorio_executivo',
+      !!mapa,
+      mapa ? undefined : 'Requer o MAPA Executivo CRIVO™ concluído (diagnóstico inicial respondido)',
+    );
     // TPL-004 — Extrato do Plano de Ação Preventivo: quando há plano.
     if (hasPlan) add('plano_acao', true);
     // TPL-002 — Dossiê Técnico (template ÚNICO, Pacote §3): sai com saída técnica
     // AEP ou AEP+PGR; os blocos por método/saída são resolvidos na geração.
     if (output === 'AEP' || output === 'AEP_PGR') add('dossie_tecnico', dossieOk, dossieReason);
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
-    // TPL-003 — Relatório de Evolução e Efetividade: só com comparação válida.
+    // TPL-003 — Relatório de Evolução e Efetividade: compara DOIS CICLOS FORMAIS
+    // do diagnóstico (definição do cliente 27/07: aplicação aberta e encerrada,
+    // com período/escopo/versão próprios — atualizar ação/prazo NÃO cria ciclo).
+    // O controle de ciclos formais está em implantação; sem ele não há comparação
+    // válida — bloqueado com motivo honesto (não usamos mais a trajetória do ICD,
+    // que não é o comparativo fator a fator que o template oficial exige).
     add(
       'relatorio_evolucao',
-      hasComparison,
-      hasComparison
-        ? undefined
-        : `Requer comparação válida: ao menos 2 ciclos consolidados (hoje: ${consolidatedCycles})`,
+      false,
+      'Requer dois ciclos formais de diagnóstico encerrados e comparáveis — controle de ciclos em implantação',
     );
 
     // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
@@ -367,19 +496,13 @@ export class DocumentsService {
       });
     }
 
-    sections.push({
-      heading: 'Conclusão e validação',
-      body:
+    sections.push(
+      signatureSection(
         'A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de ' +
-        'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
-      table: {
-        columns: ['Responsável', 'Nome', 'Cargo', 'Data', 'Validação'],
-        data: [
-          ['Empresa', '—', '—', '—', 'Validação eletrônica'],
-          ['Responsável técnico/designado', '—', '—', '—', 'Validação eletrônica'],
-        ],
-      },
-    });
+          'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
+      ),
+    );
+    sections.push(docControlSection());
 
     return {
       type: `tpl:${tpl.key}`,
@@ -477,9 +600,559 @@ export class DocumentsService {
     });
   }
 
+  /**
+   * Agregado do questionário PSICOSSOCIAL da empresa (tabela própria, não a de
+   * instrumentos dinâmicos): score/dimensões pela metodologia ATIVA, período
+   * (1ª e última resposta) e supressão pelo mínimo de confidencialidade.
+   */
+  private async psychosocialSummary(tenantId: string) {
+    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
+    const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
+    const bands = (active?.config.bands ?? []) as BandLike[];
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.psychosocialResponse.findMany({
+        select: { sector: true, score: true, byDimension: true, submittedAt: true },
+      });
+      const total = rows.length;
+      const dates = rows.map((r) => r.submittedAt).sort((a, b) => a.getTime() - b.getTime());
+      const period =
+        dates.length > 0 ? `${fmt(dates[0])} a ${fmt(dates[dates.length - 1])}` : '—';
+      if (total < minRespondents) {
+        return { suppressed: true as const, totalRespondents: total, minRespondents, period };
+      }
+      const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / total);
+      const byDimension = dims.map((d) => {
+        const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
+        return {
+          slug: d.slug,
+          label: d.label,
+          value: Math.round(vals.reduce((s, x) => s + x, 0) / vals.length),
+        };
+      });
+      const sectorsList = [...new Set(rows.map((r) => r.sector?.trim()).filter(Boolean))] as string[];
+      return {
+        suppressed: false as const,
+        totalRespondents: total,
+        minRespondents,
+        period,
+        score,
+        levelLabel: bandLabelOf(score, bands),
+        byDimension,
+        bands,
+        sectorsList,
+      };
+    });
+  }
+
+  /** Número da versão metodológica ATIVA de um instrumento (rótulo "v N"). */
+  private async activeVersionLabel(instrument: string): Promise<string> {
+    // rls-allow: methodology_versions é control-plane (catálogo global).
+    const v = await this.prisma.admin.methodologyVersion.findFirst({
+      where: { instrument, status: 'ACTIVE' },
+      select: { version: true },
+    });
+    return v ? `v${v.version}` : '—';
+  }
+
+  // ── TPL-001 · Relatório Executivo do MAPA CRIVO™ (layout oficial) ──────────
+  private async generateMapaExecutivo(
+    tenantId: string,
+    ctx: { company: string; org: { taxId: string | null } | null; cnaeDecision: CnaeDecisionRow | null },
+  ): Promise<GeneratedDocument> {
+    const mapa = await this.mapaSource(tenantId);
+    if (!mapa) throw new BadRequestException('Requer o MAPA Executivo CRIVO™ concluído.');
+
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Empresa', value: ctx.company },
+      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
+      { label: 'Respondente', value: mapa.respondentName },
+      { label: 'Cargo/Função', value: mapa.respondentRole },
+      { label: 'Data da conclusão', value: mapa.concludedAt ? fmt(mapa.concludedAt) : '—' },
+      { label: 'Versão metodológica', value: await this.activeVersionLabel('PRE_DIAGNOSTIC') },
+    ];
+
+    // Dimensões na ordem da metodologia ativa, com código oficial ME1–ME6.
+    const dimRows = mapa.dims.map((d, i) => {
+      const value = mapa.byDimension[d.slug];
+      const name = mapa.dimensionLabels[d.slug] ?? d.label;
+      return {
+        code: ME_CODE[d.slug] ?? `ME${i + 1}`,
+        name,
+        value: typeof value === 'number' ? value : null,
+      };
+    });
+    // Fallback: o snapshot do respondente pode ter dimensões que a metodologia
+    // ATIVA não tem mais (republicação com slugs novos, ou sem versão ativa).
+    // Os valores gravados NÃO são descartados — entram com o rótulo do snapshot.
+    const knownSlugs = new Set(mapa.dims.map((d) => d.slug));
+    for (const slug of Object.keys(mapa.byDimension)) {
+      if (knownSlugs.has(slug)) continue;
+      const value = mapa.byDimension[slug];
+      if (typeof value !== 'number') continue;
+      dimRows.push({
+        code: ME_CODE[slug] ?? `ME${dimRows.length + 1}`,
+        name: mapa.dimensionLabels[slug] ?? slug,
+        value,
+      });
+    }
+    const scored = dimRows.filter((d): d is typeof d & { value: number } => d.value != null);
+    const sorted = [...scored].sort((a, b) => b.value - a.value);
+    // Forças e Atenções são conjuntos DISJUNTOS: as atenções saem do restante
+    // (com ≤2 dimensões pontuadas não há "atenção" separada — nada duplica).
+    const forces = sorted.slice(0, 2);
+    const attentions = sorted.slice(2).slice(-2).reverse();
+
+    const sections: DocumentSection[] = [
+      {
+        heading: 'Documento executivo preliminar',
+        body:
+          'O MAPA Executivo CRIVO™ é uma leitura preliminar executiva. Não é diagnóstico técnico, ' +
+          'AEP, PGR, dossiê NR-1, avaliação clínica ou evidência normativa isolada.',
+      },
+      {
+        heading: '1. Síntese executiva',
+        body:
+          'Síntese narrativa gerada pela IA da Plataforma e aprovada pela equipe CRIVO antes da ' +
+          'emissão. Disponível quando a etapa de aprovação de textos estiver ativa (em implantação).',
+      },
+      {
+        heading: '2. Resultado geral',
+        rows: [
+          { label: 'Score geral', value: String(mapa.score) },
+          { label: 'Classificação', value: bandLabelOf(mapa.score, mapa.bands) },
+        ],
+      },
+      {
+        heading: '3. Dimensões oficiais',
+        table: {
+          columns: ['Código', 'Dimensão', 'Score', 'Classificação'],
+          data: dimRows.map((d) => [
+            d.code,
+            d.name,
+            d.value != null ? String(d.value) : '—',
+            d.value != null ? bandLabelOf(d.value, mapa.bands) : '—',
+          ]),
+        },
+      },
+      {
+        heading: '4. Principais sinais',
+        body:
+          'Forças = dimensões com maior resultado; Atenções = menor resultado. A leitura narrativa ' +
+          'de cada sinal é aprovada pela equipe CRIVO (etapa de aprovação de textos em implantação).',
+        table: {
+          columns: ['Tipo', 'Dimensão/Fator', 'Leitura aprovada'],
+          data: [
+            ...forces.map((d) => ['Força', `${d.code} · ${d.name} (${d.value})`, '—']),
+            ...attentions.map((d) => ['Atenção', `${d.code} · ${d.name} (${d.value})`, '—']),
+          ],
+        },
+      },
+      {
+        heading: '5. Recomendação de próximo passo',
+        rows: [
+          {
+            label: 'Recomendação',
+            value: ctx.cnaeDecision?.recommendedMethod
+              ? METHOD_LABEL[ctx.cnaeDecision.recommendedMethod] ?? ctx.cnaeDecision.recommendedMethod
+              : 'Conversa com a equipe CRIVO para definição do método',
+          },
+          {
+            label: 'Justificativa',
+            value: ctx.cnaeDecision
+              ? 'Recomendação técnica derivada do enquadramento CNAE/NR-1 registrado para a empresa.'
+              : '—',
+          },
+        ],
+      },
+      docControlSection(),
+    ];
+
+    return {
+      type: 'relatorio_executivo',
+      title: DOCUMENT_TYPE_LABEL['relatorio_executivo'],
+      subtitle: 'Template final de saída · TPL-001 · Documento executivo preliminar',
+      company: ctx.company,
+      generatedAt: new Date().toISOString(),
+      meta,
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
+
+  // ── TPL-002 · Dossiê Técnico (template ÚNICO, 14 seções na ordem oficial) ──
+  private async generateDossieTecnico(
+    tenantId: string,
+    ctx: {
+      company: string;
+      org: { legalName: string | null; taxId: string | null } | null;
+      contract: { technicalOutput?: string | null; responsible?: string | null } | null;
+      method: DiagnosticMethodLike;
+      plans: {
+        title: string;
+        validatedAt: Date | null;
+        validatedBy: string | null;
+        items: (FactorItem & { evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[] })[];
+      }[];
+      cnaeDecision: CnaeDecisionRow | null;
+    },
+  ): Promise<GeneratedDocument> {
+    const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
+    const psy = await this.psychosocialSummary(tenantId);
+    const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+    const items = (plan?.items ?? []) as (FactorItem & {
+      evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[];
+    })[];
+
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Empresa', value: ctx.org?.legalName ?? ctx.company },
+      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
+      { label: 'Unidade/Estabelecimento', value: '—' },
+      { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
+      { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
+      { label: 'Período avaliado', value: psy.period },
+      { label: 'Respostas válidas', value: String(psy.totalRespondents) },
+      { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
+    ];
+
+    const sections: DocumentSection[] = [];
+
+    // Declaração de escopo (título por saída técnica — Bloqueio §3 garantido no generate).
+    sections.push({
+      heading:
+        output === 'AEP_PGR'
+          ? 'Declaração de escopo — Integração à AEP + GRO/PGR'
+          : 'Declaração de subsídio à AEP',
+      body:
+        'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
+        'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
+        'Preliminar (AEP)' +
+        (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
+        '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
+    });
+
+    // 1. Finalidade e limites — texto obrigatório do pacote.
+    sections.push({
+      heading: '1. Finalidade e limites',
+      body:
+        'Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental ' +
+        'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
+        'relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses ' +
+        'documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da ' +
+        'empresa contratante e/ou do responsável técnico/designado.',
+    });
+
+    // 2. Escopo e fontes da avaliação.
+    sections.push({
+      heading: '2. Escopo e fontes da avaliação',
+      rows: [
+        { label: 'Número de empregados', value: '—' },
+        { label: 'Áreas/Setores considerados', value: (psy.suppressed ? [] : psy.sectorsList).join(', ') || '—' },
+        { label: 'Modelo de trabalho', value: '—' },
+        {
+          label: 'Fontes utilizadas',
+          value: 'Questionário psicossocial CRIVO; Matriz técnica do diagnóstico; Plano de Evolução; Motor de Evidências',
+        },
+        { label: 'Versão metodológica', value: await this.activeVersionLabel('PSYCHOSOCIAL') },
+        {
+          label: 'Regra de confidencialidade',
+          value: `Recortes com menos de ${psy.minRespondents} respondentes são omitidos`,
+        },
+      ],
+    });
+
+    // 3. Síntese dos resultados (agregado psicossocial + fatores priorizados).
+    const altos = items.filter((i) => factorRisk(i).isHigh);
+    sections.push({
+      heading: '3. Síntese dos resultados',
+      rows: psy.suppressed
+        ? [
+            {
+              label: 'Índice/resultado geral',
+              value: `Dados omitidos por confidencialidade — volume mínimo de respostas não atingido (${psy.totalRespondents}/${psy.minRespondents})`,
+            },
+            { label: 'Principais fatores priorizados', value: altos.map((i) => i.point).join('; ') || '—' },
+          ]
+        : [
+            { label: 'Índice/resultado geral', value: String(psy.score) },
+            { label: 'Classificação geral', value: psy.levelLabel },
+            { label: 'Principais fatores priorizados', value: altos.map((i) => i.point).join('; ') || '—' },
+            {
+              label: 'Grupos/áreas prioritários',
+              value: [...new Set(altos.map((i) => i.exposedGroup).filter(Boolean))].join(', ') || '—',
+            },
+          ],
+    });
+
+    // 4. Resultados por dimensão (classificação pela régua do instrumento).
+    if (!psy.suppressed && psy.byDimension.length) {
+      sections.push({
+        heading: '4. Resultados por dimensão',
+        table: {
+          columns: ['Dimensão oficial', 'Resultado', 'Classificação'],
+          data: psy.byDimension.map((d) => [d.label, String(d.value), bandLabelOf(d.value, psy.bands)]),
+        },
+      });
+    }
+
+    // 5. Análise por recorte — SÓ Organizacional; Essencial = consolidado (Pacote §3).
+    if (ctx.method === 'ORGANIZACIONAL') {
+      const adh = await this.sectorAdhesion(tenantId);
+      sections.push({
+        heading: '5. Análise por recorte',
+        body:
+          `Adesão por área/setor/turno. Recortes com menos de ${adh.minRespondents} respondentes ` +
+          'exibem: "Dados omitidos por confidencialidade. Volume mínimo de respostas não atingido."',
+        table: {
+          columns: ['Recorte', 'Respondentes', 'Exibição', 'Observação'],
+          data: adh.sectors.length
+            ? adh.sectors.map((s) => [
+                s.sector,
+                s.suppressed ? '—' : String(s.respondents),
+                s.suppressed ? 'Omitido' : 'Exibido',
+                s.suppressed ? 'Dados omitidos por confidencialidade. Volume mínimo de respostas não atingido.' : '—',
+              ])
+            : [['—', '—', '—', 'Sem respostas registradas']],
+        },
+      });
+    } else {
+      sections.push({
+        heading: 'Resultados consolidados',
+        body:
+          'No método Essencial os recortes por área/setor/turno não se aplicam — o resultado é ' +
+          'apresentado de forma agregada para a organização.',
+      });
+    }
+
+    // 6. Matriz técnica de fatores de risco (colunas oficiais).
+    sections.push({
+      heading: '6. Matriz técnica de fatores de risco',
+      table: {
+        columns: ['ID', 'Área/Processo', 'Grupo exposto', 'Fator', 'Fonte/Circunstância', 'Sev.', 'Prob.', 'Risco', 'Ação'],
+        data: items.length
+          ? items.map((i, n) => [
+              `FP-${String(n + 1).padStart(3, '0')}`,
+              '—',
+              i.exposedGroup ?? '—',
+              i.point,
+              i.origin ?? '—',
+              asRisk3(i.severity) ?? '—',
+              asRisk3(i.probability) ?? '—',
+              factorRisk(i).label,
+              i.action,
+            ])
+          : [['—', '—', '—', '—', '—', '—', '—', '—', '—']],
+      },
+    });
+    const semMatriz = items.filter((i) => !factorRisk(i).derived).length;
+    if (semMatriz > 0) {
+      sections.push({
+        heading: 'Nota sobre a classificação de risco',
+        body:
+          `${semMatriz} fator(es) ainda usam a classificação manual anterior. A classificação ` +
+          'técnica oficial vem da matriz Severidade × Probabilidade (Baixo/Moderado/Alto).',
+      });
+    }
+    // (7. Medidas existentes e 10. Devolutiva: blocos opcionais OCULTADOS — a
+    // captura desses dados pela empresa entra na próxima fase; nada é inventado.)
+
+    // 8. Plano de ação aprovado — snapshot do ciclo.
+    sections.push({
+      heading: '8. Plano de ação aprovado — snapshot do ciclo',
+      body:
+        (plan
+          ? plan.validatedAt
+            ? `Plano "${plan.title}" validado por ${plan.validatedBy ?? '—'} em ${fmt(plan.validatedAt)}. `
+            : `Plano "${plan.title}" ainda não validado. `
+          : 'Nenhum plano registrado. ') +
+        'Este bloco NÃO cria nem edita ações — apenas reproduz o estado aprovado do Plano de Evolução no momento da emissão.',
+      table: {
+        columns: ['ID', 'Ação aprovada', 'Responsável', 'Prazo', 'Indicador', 'Evidência esperada', 'Status'],
+        data: items.length
+          ? items.map((i, n) => [
+              `A-${String(n + 1).padStart(3, '0')}`,
+              i.action,
+              i.responsible ?? '—',
+              i.dueDate ? fmt(i.dueDate) : '—',
+              '—',
+              i.expectedEvidence ?? '—',
+              ACTION_LABEL[i.status] ?? i.status,
+            ])
+          : [['—', '—', '—', '—', '—', '—', '—']],
+      },
+    });
+
+    // 9. Evidências (só APROVADA compõe; demais são declaradas como excluídas).
+    const allEvid = items.flatMap((i) => i.evidences);
+    const approved = allEvid.filter((e) => e.status === 'APROVADA');
+    sections.push({
+      heading: '9. Evidências',
+      body:
+        approved.length === allEvid.length
+          ? 'Somente evidência aprovada compõe a documentação técnica.'
+          : `Somente evidência aprovada compõe a documentação técnica. ${allEvid.length - approved.length} evidência(s) não incluída(s) por não estarem validadas.`,
+      table: {
+        columns: ['Evidência', 'Tipo', 'Vínculo/Referência', 'Status', 'Validada em'],
+        data: approved.length
+          ? approved.map((e) => [e.title, e.kind, e.url ?? '—', 'Aprovada', e.reviewedAt ? fmt(e.reviewedAt) : '—'])
+          : [['—', '—', '—', '—', '—']],
+      },
+    });
+
+    // 11. Anexo técnico para inventário — SÓ quando a saída integra AEP+GRO/PGR.
+    if (output === 'AEP_PGR') {
+      sections.push({
+        heading: '11. Anexo técnico para integração ao inventário',
+        body:
+          'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
+          'pelo responsável técnico, após validação da empresa.',
+        table: {
+          columns: ['ID risco', 'Processo', 'Atividade/Função', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Risco', 'Ação'],
+          data: items.length
+            ? items.map((i, n) => [
+                `R-${String(n + 1).padStart(3, '0')}`,
+                '—',
+                '—',
+                i.point,
+                i.origin ?? '—',
+                i.exposedGroup ?? '—',
+                factorRisk(i).label,
+                i.action,
+              ])
+            : [['—', '—', '—', '—', '—', '—', '—', '—']],
+        },
+      });
+    }
+
+    // 12. Indicação de integração documental (tabela fixa do pacote).
+    sections.push({
+      heading: '12. Indicação de integração documental',
+      table: {
+        columns: ['Elemento do dossiê', 'Destino recomendado'],
+        data: [
+          ['Matriz de fatores', 'Registro da AEP e base para inventário de riscos ocupacionais.'],
+          ['Anexo técnico', 'Inventário de riscos ocupacionais, após validação da empresa/responsável.'],
+          ['Plano de ação aprovado', 'Plano de ação do PGR/GRO ou plano preventivo vinculado à AEP.'],
+          ['Evidências', 'Registros de implementação e acompanhamento.'],
+        ],
+      },
+    });
+
+    // Base Técnica da Recomendação (Motor CNAE/NR-1) — complementa o dossiê.
+    sections.push(buildBaseTecnicaSection(ctx.cnaeDecision));
+
+    // 13. Conclusão e validação — assinatura FORA do sistema (decisão 27/07).
+    sections.push(
+      signatureSection(
+        'A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e ' +
+          'às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do ' +
+          'responsável técnico/designado. A empresa baixa o documento, assina fora do sistema e o ' +
+          'integra ao seu AEP/GRO/PGR.',
+      ),
+    );
+
+    // 14. Controle documental.
+    sections.push(docControlSection());
+
+    return {
+      type: 'dossie_tecnico',
+      title: DOCUMENT_TYPE_LABEL['dossie_tecnico'],
+      subtitle: 'Template-base final · TPL-002 · Documento técnico controlado',
+      company: ctx.company,
+      generatedAt: new Date().toISOString(),
+      meta,
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
+
+  // ── TPL-004 · Extrato do Plano de Ação Preventivo (layout oficial) ─────────
+  private generateExtratoPlano(ctx: {
+    company: string;
+    org: { taxId: string | null } | null;
+    plans: {
+      title: string;
+      source: string | null;
+      validatedAt: Date | null;
+      validatedBy: string | null;
+      updatedAt: Date;
+      items: FactorItem[];
+    }[];
+  }): GeneratedDocument {
+    const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+    const items = plan?.items ?? [];
+
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Empresa', value: ctx.company },
+      { label: 'Origem', value: plan?.source ?? '—' },
+      { label: 'Ciclo', value: '—' },
+      // Data derivada do DADO (última alteração do plano), não do relógio —
+      // usar new Date() aqui mudava o hash todo dia e quebrava a idempotência.
+      { label: 'Data de referência', value: plan?.updatedAt ? fmt(plan.updatedAt) : '—' },
+      { label: 'Status do plano', value: plan?.validatedAt ? 'Validado' : 'Minuta' },
+    ];
+
+    const sections: DocumentSection[] = [
+      {
+        heading: 'Documento operacional controlado',
+        body:
+          'Este documento é uma exportação do Plano de Evolução. Não existe cadastro paralelo de ' +
+          'ações no Motor de Relatórios.',
+      },
+      {
+        heading: '1. Ações aprovadas',
+        table: {
+          columns: ['ID', 'Fator/Risco', 'Ação aprovada', 'Responsável', 'Prazo', 'Indicador', 'Evidência esperada', 'Status'],
+          data: items.length
+            ? items.map((i, n) => [
+                `A-${String(n + 1).padStart(3, '0')}`,
+                `${i.point} (${factorRisk(i).label})`,
+                i.action,
+                i.responsible ?? '—',
+                i.dueDate ? fmt(i.dueDate) : '—',
+                '—',
+                i.expectedEvidence ?? '—',
+                ACTION_LABEL[i.status] ?? i.status,
+              ])
+            : [['—', '—', '—', '—', '—', '—', '—', '—']],
+        },
+      },
+      {
+        heading: '2. Histórico e validação',
+        body:
+          'Validação registrada no nível do plano. O histórico de alteração por ação individual ' +
+          'entra na próxima fase do Plano de Evolução.',
+        table: {
+          columns: ['Ação', 'Última alteração', 'Alterado por', 'Validado por', 'Data'],
+          data: [
+            [
+              plan ? `Plano "${plan.title}" (todas as ações)` : '—',
+              '—',
+              '—',
+              plan?.validatedBy ?? '—',
+              plan?.validatedAt ? fmt(plan.validatedAt) : '—',
+            ],
+          ],
+        },
+      },
+      docControlSection(),
+    ];
+
+    return {
+      type: 'plano_acao',
+      title: DOCUMENT_TYPE_LABEL['plano_acao'],
+      subtitle: 'Exportação opcional do Plano de Evolução · TPL-004',
+      company: ctx.company,
+      generatedAt: new Date().toISOString(),
+      meta,
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
+
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
   async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
-    const { contract, method, company, plans, cycles, cnaeDecision } = await this.context(tenantId);
+    const { contract, method, org, company, plans, cnaeDecision } = await this.context(tenantId);
     const isTemplate = type.startsWith('tpl:');
     if (!isTemplate && !DOCUMENT_TYPE_LABEL[type]) {
       throw new BadRequestException('Tipo de documento inválido');
@@ -515,6 +1188,17 @@ export class DocumentsService {
       throw new BadRequestException(
         'Título incompatível com a saída técnica: o Dossiê Técnico exige saída AEP ou AEP + GRO/PGR no contrato.',
       );
+    }
+
+    // ── Templates-base do Pacote Final: builders no layout oficial ───────────
+    if (type === 'relatorio_executivo') {
+      return this.generateMapaExecutivo(tenantId, { company, org, cnaeDecision });
+    }
+    if (type === 'plano_acao') {
+      return this.generateExtratoPlano({ company, org, plans });
+    }
+    if (type === 'dossie_tecnico') {
+      return this.generateDossieTecnico(tenantId, { company, org, contract, method, plans, cnaeDecision });
     }
 
     const meta: GeneratedDocument['meta'] = [
@@ -646,109 +1330,8 @@ export class DocumentsService {
           'CRIVO Diagnóstico™ completo nem caracteriza, por si só, a AEP ou o PGR.',
       });
     }
-    if (type === 'relatorio_executivo') {
-      sections.unshift({
-        heading: 'Síntese executiva',
-        body: 'Síntese para diretoria/RH: prioridades, riscos e decisões a partir do diagnóstico e do plano de ação.',
-      });
-    }
-    if (type === 'relatorio_evolucao') {
-      const rows = cycles
-        .filter((c) => c.companyResult)
-        .map((c) => {
-          const r = c.companyResult!;
-          return [
-            `${c.year} · Q${c.quarter}`,
-            r.suppressed ? 'Suprimido (<5)' : String(r.score ?? '—'),
-            String(r.eligibleLeaders),
-            new Date(r.computedAt).toLocaleDateString('pt-BR'),
-          ];
-        });
-      sections.unshift({
-        heading: 'Evolução do ICD (ciclos trimestrais)',
-        body:
-          'Trajetória do Índice de Coerência Decisória da liderança ao longo dos ciclos. ' +
-          'Recortes com menos de 5 líderes elegíveis são suprimidos por confidencialidade (§11). ' +
-          'O ICD é ferramenta de desenvolvimento e sustentação da liderança — não de avaliação individual.',
-        table: {
-          columns: ['Ciclo', 'ICD (0–100)', 'Líderes elegíveis', 'Consolidado em'],
-          data: rows.length ? rows : [['—', '—', '—', '—']],
-        },
-      });
-    }
-
-    // ── Dossiê Técnico (TPL-002) — template ÚNICO com blocos condicionais ──────
-    // Pacote §3: o sistema exibe/oculta blocos conforme os metadados do contrato
-    // (método e saída técnica). O motor NÃO calcula nada aqui — só decide o que
-    // mostrar a partir do que os outros motores já produziram.
-    if (type === 'dossie_tecnico') {
-      // Bloco por SAÍDA TÉCNICA — Anexo técnico p/ inventário quando AEP+GRO/PGR.
-      if (output === 'AEP_PGR') {
-        const invItems = validatedPlan?.items ?? [];
-        sections.push({
-          heading: 'Anexo técnico para inventário (integração ao GRO/PGR)',
-          body:
-            'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
-            'pelo responsável técnico. A integração formal ao PGR é responsabilidade da empresa/RT.',
-          table: {
-            columns: ['Fator / ponto', 'Origem', 'Grupos expostos', 'Medida de controle', 'Risco', 'Responsável'],
-            data: invItems.length
-              ? invItems.map((i) => [
-                  i.point,
-                  i.origin ?? '—',
-                  i.exposedGroup ?? '—',
-                  i.action,
-                  factorRisk(i).label,
-                  i.responsible ?? '—',
-                ])
-              : [['—', '—', '—', '—', '—', '—']],
-          },
-        });
-      }
-
-      // Bloco por MÉTODO — recortes elegíveis só no Organizacional; consolidado
-      // no Essencial. Fica logo abaixo da Declaração de escopo (unshift em ordem).
-      if (method === 'ORGANIZACIONAL') {
-        // Bloqueio §5: recorte com volume < mínimo NÃO exibe o número (suprimido).
-        const adh = await this.sectorAdhesion(tenantId);
-        sections.unshift({
-          heading: 'Recortes elegíveis — adesão por área / setor / turno',
-          body:
-            `Adesão por recorte. Recortes com menos de ${adh.minRespondents} respondentes são ` +
-            'SUPRIMIDOS por confidencialidade (§11) — o número não é exibido para não permitir ' +
-            'identificação individual.',
-          table: {
-            columns: ['Área / setor / turno', 'Respondentes', 'Situação'],
-            data: adh.sectors.length
-              ? adh.sectors.map((s) => [
-                  s.sector,
-                  s.suppressed ? '—' : String(s.respondents),
-                  s.suppressed ? `Suprimido (< ${adh.minRespondents})` : 'Elegível',
-                ])
-              : [['—', '—', 'Sem respostas registradas']],
-          },
-        });
-      } else {
-        sections.unshift({
-          heading: 'Resultados consolidados',
-          body:
-            'Leitura consolidada dos fatores de risco psicossociais da organização. No método ' +
-            'Essencial, os recortes por área/setor/turno não se aplicam — o resultado é apresentado ' +
-            'de forma agregada.',
-        });
-      }
-
-      // Declaração de escopo por SAÍDA TÉCNICA — fica no topo.
-      sections.unshift({
-        heading: output === 'AEP_PGR' ? 'Declaração de escopo — Integração à AEP + GRO/PGR' : 'Declaração de subsídio à AEP',
-        body:
-          'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
-          'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
-          'Preliminar (AEP)' +
-          (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
-          '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
-      });
-    }
+    // (relatorio_executivo, plano_acao e dossie_tecnico saem pelos builders
+    //  oficiais acima e nunca chegam a este fluxo comum.)
 
     // #13 — Declaração de escopo dos dossiês LEGADOS (emissões antigas só).
     if (type === 'dossie_aep' || type === 'dossie_aep_pgr') {
@@ -782,6 +1365,8 @@ export class DocumentsService {
       },
     });
 
+    sections.push(docControlSection());
+
     return {
       type,
       title: DOCUMENT_TYPE_LABEL[type],
@@ -801,14 +1386,33 @@ export class DocumentsService {
    * O preview (GET) continua dinâmico; a emissão nunca é reprocessada.
    */
   async emit(tenantId: string, type: string, actorEmail?: string) {
+    // Snapshot do contexto no momento da emissão — método EFETIVO (solução
+    // contratada primeiro), o mesmo que aparece no documento e no portal.
+    const { contract, method, org } = await this.context(tenantId);
+
+    // EMISSÃO FINAL (decisão do cliente 27/07): o rascunho/pré-visualização é
+    // livre, mas os documentos TÉCNICOS só são emitidos com a identificação
+    // completa da organização — o PGR reúne inventário e plano sob
+    // responsabilidade do empregador, então o vínculo precisa ser inequívoco.
+    if (type === 'dossie_tecnico' || type === 'relatorio_evolucao') {
+      const missing: string[] = [];
+      if (!org?.legalName?.trim()) missing.push('razão social');
+      if (!org?.taxId?.trim()) missing.push('CNPJ/identificador legal');
+      if (!method) missing.push('método aplicado');
+      if (!contract?.responsible?.trim()) missing.push('responsável da empresa');
+      if (missing.length) {
+        throw new BadRequestException(
+          `Emissão final bloqueada — complete no cadastro/contrato: ${missing.join(', ')}. ` +
+            'A pré-visualização (rascunho) continua disponível.',
+        );
+      }
+    }
+
     const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
     // Hash de integridade sobre o CONTEÚDO estável — generatedAt muda a cada
     // geração e não pode participar, senão a idempotência nunca dispara.
     const { generatedAt: _volatile, ...stable } = doc;
     const contentHash = createHash('sha256').update(JSON.stringify(stable)).digest('hex');
-    // Snapshot do contexto no momento da emissão — método EFETIVO (solução
-    // contratada primeiro), o mesmo que aparece no documento e no portal.
-    const { contract, method } = await this.context(tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const last = await tx.reportEmission.findFirst({
         where: { type },
@@ -823,15 +1427,40 @@ export class DocumentsService {
         });
         return { emission: existing!, reused: true as const };
       }
+      const emissionNumber = (last?.emissionNumber ?? 0) + 1;
+      // Carimbo do CONTROLE DOCUMENTAL no conteúdo congelado: status "Documento
+      // emitido" + versão + data + hash reais. Feito APÓS o cálculo do hash — a
+      // idempotência compara o conteúdo SEM o carimbo (determinístico). Só a
+      // ÚLTIMA seção com esse título é substituída (os geradores sempre a põem
+      // por último) — uma seção de texto livre homônima criada no Super Admin
+      // em um modelo do Motor 4 não é tocada.
+      const controlIdx = doc.sections.map((s) => s.heading).lastIndexOf('Controle documental');
+      const emittedDoc: GeneratedDocument = {
+        ...doc,
+        sections: doc.sections.map((s, i) =>
+          i === controlIdx
+            ? {
+                heading: 'Controle documental',
+                rows: [
+                  { label: 'Status do documento', value: 'Documento emitido' },
+                  { label: 'Versão do documento', value: `v${emissionNumber}` },
+                  { label: 'Data de emissão', value: fmt(new Date()) },
+                  { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
+                  { label: 'Hash/Identificador', value: contentHash.slice(0, 16) },
+                ],
+              }
+            : s,
+        ),
+      };
       const emission = await tx.reportEmission.create({
         data: {
           tenantId,
           type,
           title: doc.title,
-          emissionNumber: (last?.emissionNumber ?? 0) + 1,
+          emissionNumber,
           method,
           technicalOutput: contract?.technicalOutput ?? null,
-          content: doc as unknown as object,
+          content: emittedDoc as unknown as object,
           contentHash,
           generatedBy: actorEmail ?? null,
         },
