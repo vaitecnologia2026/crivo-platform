@@ -25,6 +25,46 @@ type FormState = {
   active: boolean;
 };
 
+// Templates-base do Pacote Final (Motor de Relatórios e Dossiês). São os
+// documentos NATIVOS do sistema — gerados no Portal do Cliente conforme o
+// método/saída do contrato. Aqui ficam como referência (não editáveis).
+const BASE_TEMPLATES: {
+  id: string;
+  name: string;
+  origin: string;
+  event: string;
+  condition: string;
+}[] = [
+  {
+    id: "TPL-001",
+    name: "Relatório Executivo do MAPA CRIVO™",
+    origin: "MAPA Executivo CRIVO™",
+    event: "MAPA concluído e leitura aprovada",
+    condition: "Sempre; não é documento técnico NR-1",
+  },
+  {
+    id: "TPL-002",
+    name: "Dossiê Técnico de Fatores de Riscos Psicossociais",
+    origin: "Diagnóstico Essencial ou Organizacional",
+    event: "Plano aprovado + validações concluídas",
+    condition: "Template único; blocos por método (Essencial/Organizacional) e saída (AEP / AEP+GRO/PGR)",
+  },
+  {
+    id: "TPL-003",
+    name: "Relatório de Evolução e Efetividade",
+    origin: "Novo ciclo Essencial ou Organizacional",
+    event: "Segundo ciclo comparável e validação concluída",
+    condition: "Somente quando existir comparação válida (2+ ciclos)",
+  },
+  {
+    id: "TPL-004",
+    name: "Extrato do Plano de Ação Preventivo",
+    origin: "Plano de Evolução",
+    event: "Exportação solicitada pelo cliente",
+    condition: "Opcional; mesmo plano, sem cadastro duplicado",
+  },
+];
+
 const EMPTY: FormState = {
   id: null,
   name: "",
@@ -138,6 +178,40 @@ export function ReportTemplatesPanel() {
 
   return (
     <>
+      <div className="crm-panel" style={{ marginBottom: 20 }}>
+        <span className="crm-panel__title">Templates-base do sistema (Pacote Final)</span>
+        <p className="prod-note" style={{ margin: "4px 0 12px" }}>
+          Documentos nativos do Motor de Relatórios. São gerados no Portal do Cliente conforme o
+          método e a saída técnica do contrato — o motor não calcula nada, só aplica as condições
+          abaixo e renderiza o PDF. Não são editáveis.
+        </p>
+        <div className="addx-wrap">
+          <table className="addx-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Template</th>
+                <th>Origem</th>
+                <th>Evento de geração</th>
+                <th>Condição</th>
+              </tr>
+            </thead>
+            <tbody>
+              {BASE_TEMPLATES.map((t) => (
+                <tr key={t.id}>
+                  <td className="cell-code"><code>{t.id}</code></td>
+                  <td className="addx-name"><strong>{t.name}</strong></td>
+                  <td>{t.origin}</td>
+                  <td>{t.event}</td>
+                  <td>{t.condition}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Relatórios adicionais por diagnóstico</h3>
       <div className="adm-callout">
         Cada modelo é <strong>vinculado a um diagnóstico</strong> do Motor de Diagnósticos. Ao ativar,
         o relatório aparece no Portal do Cliente das empresas que aplicaram aquele diagnóstico — e o

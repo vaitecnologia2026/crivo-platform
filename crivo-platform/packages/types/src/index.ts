@@ -1612,13 +1612,16 @@ export const RESPONSIBILITY_NOTE =
 
 export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   relatorio_preliminar: 'Relatório preliminar',
+  // Templates-base do Pacote Final (Motor de Relatórios e Dossiês):
+  relatorio_executivo: 'Relatório Executivo do MAPA CRIVO™', // TPL-001
+  dossie_tecnico: 'Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho', // TPL-002
+  relatorio_evolucao: 'Relatório de Evolução e Efetividade', // TPL-003
+  plano_acao: 'Extrato do Plano de Ação Preventivo', // TPL-004
+  // Tipos legados (mantidos para reimprimir emissões antigas já congeladas):
   dossie_aep: 'Dossiê de apoio à AEP',
   dossie_aep_pgr: 'Dossiê de apoio à AEP + PGR',
   inventario_pgr: 'Inventário / anexo para PGR',
   relatorio_tecnico: 'Relatório técnico',
-  relatorio_executivo: 'Relatório executivo',
-  relatorio_evolucao: 'Relatório de evolução',
-  plano_acao: 'Plano de Ação',
   parecer_consultivo: 'Parecer Consultivo CRIVO',
 };
 

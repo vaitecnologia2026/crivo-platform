@@ -213,27 +213,31 @@ export class DocumentsService {
       : blockers.length
         ? blockers.join(' ')
         : undefined;
-    const hasCycleHistory = cycles.some((c) => c.companyResult);
+    // TPL-003 só sai com COMPARAÇÃO VÁLIDA (Pacote §2): ao menos DOIS ciclos
+    // consolidados. Um só não gera "evolução e efetividade".
+    const consolidatedCycles = cycles.filter((c) => c.companyResult).length;
+    const hasComparison = consolidatedCycles >= 2;
 
     const docs: DocumentDescriptor[] = [];
     const add = (type: string, available: boolean, reason?: string) =>
       docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason });
 
     if (method === 'INICIAL' || !contract) add('relatorio_preliminar', true);
-    if (hasPlan) add('plano_acao', true);
-    if (output === 'AEP' || output === 'AEP_PGR')
-      add('dossie_aep', dossieOk, dossieReason);
-    if (output === 'AEP_PGR') {
-      add('dossie_aep_pgr', dossieOk, dossieReason);
-      add('inventario_pgr', dossieOk, dossieReason);
-    }
-    if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
+    // TPL-001 — Relatório Executivo do MAPA CRIVO™: sempre (não é doc técnico NR-1).
     add('relatorio_executivo', true);
-    // Relatório de evolução (§15): trajetória do ICD ao longo dos ciclos.
+    // TPL-004 — Extrato do Plano de Ação Preventivo: quando há plano.
+    if (hasPlan) add('plano_acao', true);
+    // TPL-002 — Dossiê Técnico (template ÚNICO, Pacote §3): sai com saída técnica
+    // AEP ou AEP+PGR; os blocos por método/saída são resolvidos na geração.
+    if (output === 'AEP' || output === 'AEP_PGR') add('dossie_tecnico', dossieOk, dossieReason);
+    if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
+    // TPL-003 — Relatório de Evolução e Efetividade: só com comparação válida.
     add(
       'relatorio_evolucao',
-      hasCycleHistory,
-      hasCycleHistory ? undefined : 'Requer ao menos um ciclo trimestral de ICD consolidado',
+      hasComparison,
+      hasComparison
+        ? undefined
+        : `Requer comparação válida: ao menos 2 ciclos consolidados (hoje: ${consolidatedCycles})`,
     );
 
     // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
@@ -637,7 +641,79 @@ export class DocumentsService {
       });
     }
 
-    // #13 — Declaração de escopo: abertura formal dos dossiês AEP / AEP+PGR.
+    // ── Dossiê Técnico (TPL-002) — template ÚNICO com blocos condicionais ──────
+    // Pacote §3: o sistema exibe/oculta blocos conforme os metadados do contrato
+    // (método e saída técnica). O motor NÃO calcula nada aqui — só decide o que
+    // mostrar a partir do que os outros motores já produziram.
+    if (type === 'dossie_tecnico') {
+      // Bloco por SAÍDA TÉCNICA — Anexo técnico p/ inventário quando AEP+GRO/PGR.
+      if (output === 'AEP_PGR') {
+        const invItems = validatedPlan?.items ?? [];
+        sections.push({
+          heading: 'Anexo técnico para inventário (integração ao GRO/PGR)',
+          body:
+            'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
+            'pelo responsável técnico. A integração formal ao PGR é responsabilidade da empresa/RT.',
+          table: {
+            columns: ['Fator / ponto', 'Origem', 'Grupos expostos', 'Medida de controle', 'Risco', 'Responsável'],
+            data: invItems.length
+              ? invItems.map((i) => [
+                  i.point,
+                  i.origin ?? '—',
+                  i.exposedGroup ?? '—',
+                  i.action,
+                  factorRisk(i).label,
+                  i.responsible ?? '—',
+                ])
+              : [['—', '—', '—', '—', '—', '—']],
+          },
+        });
+      }
+
+      // Bloco por MÉTODO — recortes elegíveis só no Organizacional; consolidado
+      // no Essencial. Fica logo abaixo da Declaração de escopo (unshift em ordem).
+      if (method === 'ORGANIZACIONAL') {
+        const its = (validatedPlan?.items ?? []) as FactorItem[];
+        const bySector = new Map<string, number>();
+        for (const i of its) {
+          const k = i.exposedGroup?.trim() || 'Não especificado';
+          bySector.set(k, (bySector.get(k) ?? 0) + 1);
+        }
+        sections.unshift({
+          heading: 'Recortes por área / setor / turno',
+          body:
+            'Distribuição dos fatores por grupo exposto (área, setor ou turno). Recortes com menos ' +
+            'respondentes que o mínimo de anonimato são suprimidos por confidencialidade (§11).',
+          table: {
+            columns: ['Grupo exposto', 'Fatores identificados'],
+            data: bySector.size
+              ? [...bySector.entries()].map(([g, n]) => [g, String(n)])
+              : [['—', '—']],
+          },
+        });
+      } else {
+        sections.unshift({
+          heading: 'Resultados consolidados',
+          body:
+            'Leitura consolidada dos fatores de risco psicossociais da organização. No método ' +
+            'Essencial, os recortes por área/setor/turno não se aplicam — o resultado é apresentado ' +
+            'de forma agregada.',
+        });
+      }
+
+      // Declaração de escopo por SAÍDA TÉCNICA — fica no topo.
+      sections.unshift({
+        heading: output === 'AEP_PGR' ? 'Declaração de escopo — Integração à AEP + GRO/PGR' : 'Declaração de subsídio à AEP',
+        body:
+          'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
+          'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
+          'Preliminar (AEP)' +
+          (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
+          '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
+      });
+    }
+
+    // #13 — Declaração de escopo dos dossiês LEGADOS (emissões antigas só).
     if (type === 'dossie_aep' || type === 'dossie_aep_pgr') {
       sections.unshift({
         heading: 'Declaração de escopo',
