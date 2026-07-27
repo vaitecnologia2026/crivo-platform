@@ -87,3 +87,29 @@ describe('dossierBlockers — bloqueios de emissão (§9)', () => {
     expect(b).toHaveLength(2);
   });
 });
+
+// Mapeamento das 6 regras do Pacote Final §5 (BLOQUEIOS) ao código.
+// 1 e 2 são função pura (testadas acima e aqui pelos nomes do pacote); 3–6 são
+// gates de integração (available/generate/emit) provados no E2E de produção.
+describe('Pacote §5 — Bloqueios de emissão do Dossiê', () => {
+  const alto: FactorItem = {
+    point: 'Sobrecarga', origin: 'Metas', action: 'Redistribuir', responsible: 'RH',
+    dueDate: new Date('2026-08-01'), status: 'APROVADA', expectedEvidence: 'Ata',
+    exposedGroup: 'Comercial', severity: 'Alta', probability: 'Alta', riskLevel: null,
+  };
+
+  it('§5.1 — não emitir com ação Sugerida ou Em revisão', () => {
+    expect(dossierBlockers([{ ...alto, status: 'SUGERIDA' }])).toHaveLength(1);
+    expect(dossierBlockers([{ ...alto, status: 'EM_REVISAO' }])).toHaveLength(1);
+  });
+
+  it('§5.2 — não emitir com fator Alto sem responsável, prazo e evidência', () => {
+    expect(dossierBlockers([{ ...alto, responsible: null }])).toHaveLength(1);
+    expect(dossierBlockers([{ ...alto, dueDate: null }])).toHaveLength(1);
+    expect(dossierBlockers([{ ...alto, expectedEvidence: null }])).toHaveLength(1);
+  });
+
+  it('§5 — plano completo e aprovado não gera bloqueio', () => {
+    expect(dossierBlockers([alto])).toEqual([]);
+  });
+});

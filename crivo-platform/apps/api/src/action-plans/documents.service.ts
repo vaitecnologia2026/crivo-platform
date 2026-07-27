@@ -393,6 +393,32 @@ export class DocumentsService {
     };
   }
 
+  /**
+   * Adesão por setor/área/turno com SUPRESSÃO por volume mínimo (Bloqueio §5:
+   * "não exibir recorte com volume inferior ao mínimo de confidencialidade").
+   * Volume = número de respondentes do recorte; recortes abaixo do mínimo têm o
+   * número ocultado. Fonte: respostas psicossociais (o dossiê é psicossocial).
+   */
+  private async sectorAdhesion(tenantId: string) {
+    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.psychosocialResponse.findMany({ select: { sector: true } });
+      const bySector = new Map<string, number>();
+      for (const r of rows) {
+        const k = r.sector?.trim() || 'Não informado';
+        bySector.set(k, (bySector.get(k) ?? 0) + 1);
+      }
+      const sectors = [...bySector.entries()]
+        .map(([sector, respondents]) => ({
+          sector,
+          respondents,
+          suppressed: respondents < minRespondents,
+        }))
+        .sort((a, b) => b.respondents - a.respondents);
+      return { minRespondents, total: rows.length, sectors };
+    });
+  }
+
   /** Modelos ATIVOS do catálogo (control-plane). */
   private async reportTemplates() {
     // rls-allow: report_templates é control-plane (catálogo global, owner-only).
@@ -481,6 +507,16 @@ export class DocumentsService {
     }
 
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
+
+    // Bloqueio §3: não emitir com título incompatível com a saída técnica.
+    // O Dossiê Técnico exige saída AEP ou AEP+GRO/PGR — sem isso, o título do
+    // documento não corresponderia ao que ele pode declarar.
+    if (type === 'dossie_tecnico' && output !== 'AEP' && output !== 'AEP_PGR') {
+      throw new BadRequestException(
+        'Título incompatível com a saída técnica: o Dossiê Técnico exige saída AEP ou AEP + GRO/PGR no contrato.',
+      );
+    }
+
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: company },
       { label: 'Método', value: method ? METHOD_LABEL[method] : '—' },
@@ -673,22 +709,23 @@ export class DocumentsService {
       // Bloco por MÉTODO — recortes elegíveis só no Organizacional; consolidado
       // no Essencial. Fica logo abaixo da Declaração de escopo (unshift em ordem).
       if (method === 'ORGANIZACIONAL') {
-        const its = (validatedPlan?.items ?? []) as FactorItem[];
-        const bySector = new Map<string, number>();
-        for (const i of its) {
-          const k = i.exposedGroup?.trim() || 'Não especificado';
-          bySector.set(k, (bySector.get(k) ?? 0) + 1);
-        }
+        // Bloqueio §5: recorte com volume < mínimo NÃO exibe o número (suprimido).
+        const adh = await this.sectorAdhesion(tenantId);
         sections.unshift({
-          heading: 'Recortes por área / setor / turno',
+          heading: 'Recortes elegíveis — adesão por área / setor / turno',
           body:
-            'Distribuição dos fatores por grupo exposto (área, setor ou turno). Recortes com menos ' +
-            'respondentes que o mínimo de anonimato são suprimidos por confidencialidade (§11).',
+            `Adesão por recorte. Recortes com menos de ${adh.minRespondents} respondentes são ` +
+            'SUPRIMIDOS por confidencialidade (§11) — o número não é exibido para não permitir ' +
+            'identificação individual.',
           table: {
-            columns: ['Grupo exposto', 'Fatores identificados'],
-            data: bySector.size
-              ? [...bySector.entries()].map(([g, n]) => [g, String(n)])
-              : [['—', '—']],
+            columns: ['Área / setor / turno', 'Respondentes', 'Situação'],
+            data: adh.sectors.length
+              ? adh.sectors.map((s) => [
+                  s.sector,
+                  s.suppressed ? '—' : String(s.respondents),
+                  s.suppressed ? `Suprimido (< ${adh.minRespondents})` : 'Elegível',
+                ])
+              : [['—', '—', 'Sem respostas registradas']],
           },
         });
       } else {
