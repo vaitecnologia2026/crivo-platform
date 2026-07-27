@@ -11,6 +11,7 @@ import {
   type RiskLevel3,
   type ActionPlanData,
   type ActionStatus,
+  type DevolutivaData,
 } from "@crivo/types";
 import {
   addActionItem,
@@ -26,6 +27,8 @@ import {
   updateActionItem,
   validateActionPlan,
   type ActionTemplateLite,
+  listDevolutivas,
+  createDevolutiva,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
@@ -67,7 +70,133 @@ export function PlanoAcaoScreen() {
       {status === "ok" && plans?.map((plan) => (
         <PlanCard key={plan.id} plan={plan} onChanged={refresh} />
       ))}
+
+      {status === "ok" && <DevolutivaCard />}
     </>
+  );
+}
+
+/**
+ * F2 — Registro de comunicação e devolutiva (TPL-002 §10): a empresa registra
+ * quando/como comunicou resultados e medidas aos trabalhadores. Os registros
+ * entram automaticamente na seção 10 do Dossiê Técnico.
+ */
+function DevolutivaCard() {
+  const [rows, setRows] = useState<DevolutivaData[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ date: "", format: "", audience: "", topics: "", confirmedPoints: "", communicatedMeasures: "" });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  async function refresh() {
+    setLoadError(false);
+    try { setRows(await listDevolutivas()); } catch { setRows(null); setLoadError(true); }
+  }
+  useEffect(() => { void refresh(); }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await createDevolutiva({
+        date: f.date,
+        format: f.format,
+        audience: f.audience || undefined,
+        topics: f.topics || undefined,
+        confirmedPoints: f.confirmedPoints || undefined,
+        communicatedMeasures: f.communicatedMeasures || undefined,
+      });
+      setF({ date: "", format: "", audience: "", topics: "", confirmedPoints: "", communicatedMeasures: "" });
+      setOpen(false);
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao registrar a devolutiva.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div className="card__head">
+        <div>
+          <h3>Comunicação e devolutiva</h3>
+          <span className="card__sub">
+            Registro de quando e como os resultados e medidas foram comunicados aos trabalhadores —
+            entra na seção 10 do Dossiê Técnico.
+          </span>
+        </div>
+        <button className="btn btn--outline-dark btn--sm" onClick={() => setOpen((o) => !o)}>
+          {open ? "Fechar" : "+ Registrar devolutiva"}
+        </button>
+      </div>
+
+      {open && (
+        <form onSubmit={submit} style={{ padding: 14, background: "var(--line-soft)", borderRadius: 8, marginBottom: 12 }}>
+          <div className="prod-form__grid">
+            <label className="prod-field"><span>Data</span>
+              <input type="date" value={f.date} onChange={(e) => set("date")(e.target.value)} required />
+            </label>
+            <label className="prod-field"><span>Formato</span>
+              <select value={f.format} onChange={(e) => set("format")(e.target.value)} required>
+                <option value="">— selecione —</option>
+                <option>Reunião</option>
+                <option>Comunicado</option>
+                <option>Treinamento</option>
+                <option>Outro</option>
+              </select>
+            </label>
+            <label className="prod-field"><span>Público envolvido</span>
+              <input value={f.audience} onChange={(e) => set("audience")(e.target.value)} placeholder="Ex.: todos os setores" />
+            </label>
+            <label className="prod-field"><span>Temas comunicados</span>
+              <input value={f.topics} onChange={(e) => set("topics")(e.target.value)} placeholder="Ex.: resultados do diagnóstico" />
+            </label>
+            <label className="prod-field prod-field--full"><span>Pontos confirmados</span>
+              <input value={f.confirmedPoints} onChange={(e) => set("confirmedPoints")(e.target.value)} />
+            </label>
+            <label className="prod-field prod-field--full"><span>Medidas comunicadas</span>
+              <input value={f.communicatedMeasures} onChange={(e) => set("communicatedMeasures")(e.target.value)} />
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !f.date || !f.format}>
+              {saving ? "Registrando…" : "Registrar"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loadError && (
+        <p className="dash-state dash-state--error">
+          Não foi possível carregar os registros.{" "}
+          <button className="btn btn--ghost btn--sm" onClick={() => void refresh()}>Tentar de novo</button>
+        </p>
+      )}
+      {rows === null && !loadError && <p className="card__sub">Carregando registros…</p>}
+      {rows !== null && rows.length === 0 && (
+        <p className="card__sub">Nenhuma devolutiva registrada ainda.</p>
+      )}
+      {rows !== null && rows.length > 0 && (
+        <table className="data-table">
+          <thead>
+            <tr><th>Data</th><th>Formato</th><th>Público</th><th>Temas</th><th>Registrado por</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td style={{ whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
+                <td>{r.format}</td>
+                <td>{r.audience ?? "—"}</td>
+                <td>{r.topics ?? "—"}</td>
+                <td>{r.createdBy ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
@@ -215,10 +344,12 @@ function RiskCell({ item }: { item: ActionPlanData["items"][number] }) {
 
 function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; onChanged: () => void }) {
   const [evOpen, setEvOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   async function setStatus(s: ActionStatus) {
     try { await updateActionItem(item.id, { status: s }); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
   }
+  const hasDetails = !!(item.areaProcess || item.existingMeasure || item.indicator);
   return (
     <>
       <tr>
@@ -232,20 +363,104 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
             {ACTION_STATUSES.map((s) => (<option key={s} value={s}>{ACTION_STATUS_LABEL[s]}</option>))}
           </select>
         </td>
-        <td>
+        <td style={{ whiteSpace: "nowrap" }}>
           <button className="btn btn--ghost btn--sm" onClick={() => setEvOpen((v) => !v)}>
             {item.evidences.length} · anexar
           </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => setDetailsOpen((v) => !v)}
+            title="Área/processo, medida existente e indicador (entram no Dossiê)"
+          >
+            {hasDetails ? "detalhes ✓" : "detalhes"}
+          </button>
         </td>
       </tr>
+      {detailsOpen && (
+        <tr>
+          <td colSpan={7} style={{ background: "var(--line-soft)" }}>
+            <ItemDetailsForm item={item} onChanged={onChanged} onClose={() => setDetailsOpen(false)} />
+          </td>
+        </tr>
+      )}
       {evOpen && (
         <tr>
-          <td colSpan={6} style={{ background: "var(--line-soft)" }}>
+          <td colSpan={7} style={{ background: "var(--line-soft)" }}>
             <EvidenceBlock item={item} onChanged={onChanged} />
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * F2 — Detalhes técnicos da ação (área/processo, medida existente, indicador).
+ * Editável em item EXISTENTE — inclusive os importados do catálogo/sugestões,
+ * que nascem sem esses campos. Entram na matriz e no plano do Dossiê.
+ */
+function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["items"][number]; onChanged: () => void; onClose: () => void }) {
+  const initialMode = item.existingMeasure === "Nenhuma medida existente" ? "none" : item.existingMeasure ? "other" : "";
+  const [f, setF] = useState({
+    areaProcess: item.areaProcess ?? "",
+    existingMeasure: item.existingMeasure && item.existingMeasure !== "Nenhuma medida existente" ? item.existingMeasure : "",
+    indicator: item.indicator ?? "",
+  });
+  const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    setSaving(true);
+    try {
+      await updateActionItem(item.id, {
+        areaProcess: f.areaProcess || undefined,
+        existingMeasure:
+          measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
+        indicator: f.indicator || undefined,
+      });
+      onChanged();
+      onClose();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao salvar os detalhes.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div style={{ padding: 12 }}>
+      <div className="prod-form__grid">
+        <label className="prod-field"><span>Área/Processo</span>
+          <input value={f.areaProcess} onChange={(e) => setF((s) => ({ ...s, areaProcess: e.target.value }))} placeholder="Ex.: Comercial / atendimento" />
+        </label>
+        <label className="prod-field"><span>Indicador de acompanhamento</span>
+          <input value={f.indicator} onChange={(e) => setF((s) => ({ ...s, indicator: e.target.value }))} placeholder="Ex.: % de adesão ao novo fluxo" />
+        </label>
+        <label className="prod-field"><span>Medida que já existe</span>
+          <select
+            value={measureMode}
+            onChange={(e) => {
+              const v = e.target.value as "" | "none" | "other";
+              setMeasureMode(v);
+              if (v !== "other") setF((s) => ({ ...s, existingMeasure: "" }));
+            }}
+          >
+            <option value="">— selecione —</option>
+            <option value="none">Nenhuma medida existente</option>
+            <option value="other">Outra medida (descrever)</option>
+          </select>
+        </label>
+        {measureMode === "other" && (
+          <label className="prod-field"><span>Descreva a medida existente</span>
+            <input value={f.existingMeasure} onChange={(e) => setF((s) => ({ ...s, existingMeasure: e.target.value }))} placeholder="Ex.: rodízio de escala já implantado" />
+          </label>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+        <button className="btn btn--outline-dark btn--sm" onClick={onClose} disabled={saving}>Fechar</button>
+        <button className="btn btn--terra btn--sm" onClick={() => void save()} disabled={saving}>
+          {saving ? "Salvando…" : "Salvar detalhes"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -319,7 +534,8 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "" });
+  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "" });
+  const [measureMode, setMeasureMode] = useState<"" | "none" | "other">("");
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
@@ -356,6 +572,10 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         exposedGroup: f.exposedGroup || undefined,
         severity: f.severity || undefined, probability: f.probability || undefined,
         riskLevel: f.riskLevel || undefined,
+        areaProcess: f.areaProcess || undefined,
+        existingMeasure:
+          measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
+        indicator: f.indicator || undefined,
       });
       onAdded();
     } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
@@ -472,6 +692,32 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         <label className="prod-field"><span>Grupos expostos (inventário/PGR)</span>
           <input value={f.exposedGroup} onChange={(e) => set("exposedGroup")(e.target.value)} placeholder="Ex.: turno B, líderes intermediários…" />
         </label>
+        <label className="prod-field"><span>Área/Processo</span>
+          <input value={f.areaProcess} onChange={(e) => set("areaProcess")(e.target.value)} placeholder="Ex.: Comercial / atendimento" />
+        </label>
+        <label className="prod-field"><span>Indicador de acompanhamento</span>
+          <input value={f.indicator} onChange={(e) => set("indicator")(e.target.value)} placeholder="Ex.: % de adesão ao novo fluxo" />
+        </label>
+        {/* Medida existente: a EMPRESA informa — o sistema nunca inventa (decisão 27/07). */}
+        <label className="prod-field"><span>Medida que já existe para este fator</span>
+          <select
+            value={measureMode}
+            onChange={(e) => {
+              const v = e.target.value as "" | "none" | "other";
+              setMeasureMode(v);
+              if (v !== "other") set("existingMeasure")("");
+            }}
+          >
+            <option value="">— selecione —</option>
+            <option value="none">Nenhuma medida existente</option>
+            <option value="other">Outra medida (descrever)</option>
+          </select>
+        </label>
+        {measureMode === "other" && (
+          <label className="prod-field"><span>Descreva a medida existente</span>
+            <input value={f.existingMeasure} onChange={(e) => set("existingMeasure")(e.target.value)} placeholder="Ex.: rodízio de escala já implantado" />
+          </label>
+        )}
         {/* Matriz do dossiê (doc 09 §6): severidade e probabilidade são as ENTRADAS;
             o risco técnico é DERIVADO delas — o consultor não digita o risco. */}
         <label className="prod-field"><span>Severidade</span>

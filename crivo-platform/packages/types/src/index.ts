@@ -122,6 +122,10 @@ export interface OrganizationData {
   website: string | null;
   phone: string | null;
   plan: string;
+  /** F2 (Pacote de Templates): cabeçalho do Dossiê Técnico. */
+  establishment: string | null;
+  employeesCount: string | null;
+  workModel: string | null;
 }
 export interface UpdateOrganizationRequest {
   name?: string;
@@ -129,6 +133,9 @@ export interface UpdateOrganizationRequest {
   taxId?: string | null;
   website?: string | null;
   phone?: string | null;
+  establishment?: string | null;
+  employeesCount?: string | null;
+  workModel?: string | null;
 }
 
 export interface CreateUserResult {
@@ -1449,6 +1456,10 @@ export interface ActionItemData {
   probability: string | null;
   /** Classificação manual legada — só vale quando faltam os dois eixos acima. */
   riskLevel: string | null;
+  /** F2: matriz/plano oficiais — a EMPRESA informa (nunca inventado). */
+  areaProcess: string | null;
+  existingMeasure: string | null;
+  indicator: string | null;
   createdAt: string;
   evidences: EvidenceData[];
 }
@@ -1478,6 +1489,9 @@ export interface CreateActionItemRequest {
   severity?: string;
   probability?: string;
   riskLevel?: string;
+  areaProcess?: string;
+  existingMeasure?: string;
+  indicator?: string;
 }
 export interface UpdateActionItemRequest {
   point?: string;
@@ -1492,6 +1506,30 @@ export interface UpdateActionItemRequest {
   severity?: string;
   probability?: string;
   riskLevel?: string;
+  areaProcess?: string;
+  existingMeasure?: string;
+  indicator?: string;
+}
+
+/** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
+export interface DevolutivaData {
+  id: string;
+  date: string;
+  format: string;
+  audience: string | null;
+  topics: string | null;
+  confirmedPoints: string | null;
+  communicatedMeasures: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+export interface CreateDevolutivaRequest {
+  date: string; // ISO
+  format: string;
+  audience?: string;
+  topics?: string;
+  confirmedPoints?: string;
+  communicatedMeasures?: string;
 }
 export interface CreateEvidenceRequest {
   kind: string;

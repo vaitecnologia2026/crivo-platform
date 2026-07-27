@@ -447,6 +447,9 @@ export class MeController {
         website: o?.website ?? null,
         phone: o?.phone ?? null,
         plan: o?.plan ?? 'BASE',
+        establishment: o?.establishment ?? null,
+        employeesCount: o?.employeesCount ?? null,
+        workModel: o?.workModel ?? null,
       };
     });
   }
@@ -471,6 +474,9 @@ export class MeController {
           ...(dto.taxId !== undefined ? { taxId: dto.taxId?.trim() || null } : {}),
           ...(dto.website !== undefined ? { website: dto.website?.trim() || null } : {}),
           ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
+          ...(dto.establishment !== undefined ? { establishment: dto.establishment?.trim() || null } : {}),
+          ...(dto.employeesCount !== undefined ? { employeesCount: dto.employeesCount?.trim() || null } : {}),
+          ...(dto.workModel !== undefined ? { workModel: dto.workModel?.trim() || null } : {}),
         },
       });
       return {
@@ -480,6 +486,9 @@ export class MeController {
         website: o.website,
         phone: o.phone,
         plan: o.plan,
+        establishment: o.establishment,
+        employeesCount: o.employeesCount,
+        workModel: o.workModel,
       };
     });
   }

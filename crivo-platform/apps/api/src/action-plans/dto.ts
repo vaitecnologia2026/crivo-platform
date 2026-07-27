@@ -40,6 +40,15 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsIn(INVENTORY_RISK_LEVELS as unknown as string[])
   riskLevel?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  areaProcess?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  existingMeasure?: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  indicator?: string;
 }
 
 export class UpdateActionItemDto {
@@ -78,6 +87,36 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsIn(INVENTORY_RISK_LEVELS as unknown as string[])
   riskLevel?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  areaProcess?: string;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  existingMeasure?: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  indicator?: string;
+}
+
+/** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
+export class CreateDevolutivaDto {
+  @IsString()
+  date!: string; // ISO
+
+  @IsString() @MaxLength(60)
+  format!: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  audience?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  topics?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  confirmedPoints?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  communicatedMeasures?: string;
 }
 
 export class CreateEvidenceDto {

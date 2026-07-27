@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MIN_LEADERS_FOR_DISCLOSURE,
   TENSION_TO_TEMPLATE_CATEGORIES,
@@ -64,6 +64,7 @@ export class ActionPlansService {
     tenantId: string,
     planId: string,
     dto: CreateActionItemRequest,
+    actor?: string,
   ): Promise<ActionItemData> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
@@ -82,8 +83,15 @@ export class ActionPlansService {
           severity: dto.severity ?? null,
           probability: dto.probability ?? null,
           riskLevel: dto.riskLevel ?? null,
+          areaProcess: dto.areaProcess ?? null,
+          existingMeasure: dto.existingMeasure ?? null,
+          indicator: dto.indicator ?? null,
         },
         include: { evidences: true },
+      });
+      // F2 — trilha por ação (TPL-004 §2): registra a criação.
+      await tx.actionItemHistory.create({
+        data: { tenantId, actionItemId: item.id, change: 'Ação criada', changedBy: actor ?? null },
       });
       return this.toItem(item);
     });
@@ -95,6 +103,7 @@ export class ActionPlansService {
     tenantId: string,
     planId: string,
     templateId: string,
+    actor?: string,
   ): Promise<ActionItemData> {
     // rls-allow: actionTemplate é catálogo GLOBAL (control-plane, sem RLS).
     const template = await this.prisma.admin.actionTemplate.findUnique({
@@ -124,6 +133,14 @@ export class ActionPlansService {
         },
         include: { evidences: true },
       });
+      await tx.actionItemHistory.create({
+        data: {
+          tenantId,
+          actionItemId: item.id,
+          change: 'Ação criada (importada do catálogo)',
+          changedBy: actor ?? null,
+        },
+      });
       return this.toItem(item);
     });
   }
@@ -132,6 +149,7 @@ export class ActionPlansService {
     tenantId: string,
     itemId: string,
     dto: UpdateActionItemRequest,
+    actor?: string,
   ): Promise<ActionItemData> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
@@ -152,10 +170,109 @@ export class ActionPlansService {
           severity: dto.severity === undefined ? existing.severity : dto.severity,
           probability: dto.probability === undefined ? existing.probability : dto.probability,
           riskLevel: dto.riskLevel === undefined ? existing.riskLevel : dto.riskLevel,
+          areaProcess: dto.areaProcess === undefined ? existing.areaProcess : dto.areaProcess,
+          existingMeasure:
+            dto.existingMeasure === undefined ? existing.existingMeasure : dto.existingMeasure,
+          indicator: dto.indicator === undefined ? existing.indicator : dto.indicator,
         },
         include: { evidences: { orderBy: { createdAt: 'desc' } } },
       });
+      // F2 — trilha por ação: resumo legível dos campos que mudaram.
+      const changed: string[] = [];
+      const track = (label: string, before: unknown, after: unknown) => {
+        if (after !== undefined && String(after ?? '') !== String(before ?? '')) changed.push(label);
+      };
+      // Campos gravados com `??` mantêm o valor quando o cliente manda null —
+      // então null também NÃO é mudança para a trilha (dto.x ?? undefined).
+      track('ponto', existing.point, dto.point ?? undefined);
+      track('ação', existing.action, dto.action ?? undefined);
+      track('responsável', existing.responsible, dto.responsible);
+      // Prazo: comparar DATA normalizada com DATA normalizada — o cliente manda
+      // 'AAAA-MM-DD' e o banco guarda ISO completo; comparar cru gerava
+      // "Alterado: prazo" falso na trilha oficial.
+      track(
+        'prazo',
+        existing.dueDate?.toISOString() ?? '',
+        dto.dueDate === undefined ? undefined : (parseDate(dto.dueDate)?.toISOString() ?? ''),
+      );
+      track('status', existing.status, dto.status ?? undefined);
+      track('evidência esperada', existing.expectedEvidence, dto.expectedEvidence);
+      track('severidade', existing.severity, dto.severity);
+      track('probabilidade', existing.probability, dto.probability);
+      track('área/processo', existing.areaProcess, dto.areaProcess);
+      track('medida existente', existing.existingMeasure, dto.existingMeasure);
+      track('indicador', existing.indicator, dto.indicator);
+      if (changed.length) {
+        await tx.actionItemHistory.create({
+          data: {
+            tenantId,
+            actionItemId: itemId,
+            change: `Alterado: ${changed.join(', ')}`,
+            changedBy: actor ?? null,
+          },
+        });
+      }
       return this.toItem(item);
+    });
+  }
+
+  /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
+  async listDevolutivas(tenantId: string) {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.devolutivaRecord.findMany({ orderBy: { date: 'desc' } });
+      return rows.map((r) => ({
+        id: r.id,
+        date: r.date.toISOString(),
+        format: r.format,
+        audience: r.audience,
+        topics: r.topics,
+        confirmedPoints: r.confirmedPoints,
+        communicatedMeasures: r.communicatedMeasures,
+        createdBy: r.createdBy,
+        createdAt: r.createdAt.toISOString(),
+      }));
+    });
+  }
+
+  async createDevolutiva(
+    tenantId: string,
+    dto: {
+      date: string;
+      format: string;
+      audience?: string;
+      topics?: string;
+      confirmedPoints?: string;
+      communicatedMeasures?: string;
+    },
+    actor?: string,
+  ) {
+    const date = parseDate(dto.date);
+    if (!date) throw new BadRequestException('Data da devolutiva inválida.');
+    if (!dto.format?.trim()) throw new BadRequestException('Informe o formato da comunicação.');
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const r = await tx.devolutivaRecord.create({
+        data: {
+          tenantId,
+          date,
+          format: dto.format.trim(),
+          audience: dto.audience?.trim() || null,
+          topics: dto.topics?.trim() || null,
+          confirmedPoints: dto.confirmedPoints?.trim() || null,
+          communicatedMeasures: dto.communicatedMeasures?.trim() || null,
+          createdBy: actor ?? null,
+        },
+      });
+      return {
+        id: r.id,
+        date: r.date.toISOString(),
+        format: r.format,
+        audience: r.audience,
+        topics: r.topics,
+        confirmedPoints: r.confirmedPoints,
+        communicatedMeasures: r.communicatedMeasures,
+        createdBy: r.createdBy,
+        createdAt: r.createdAt.toISOString(),
+      };
     });
   }
 
@@ -324,6 +441,7 @@ export class ActionPlansService {
     responsible: string | null; dueDate: Date | null; status: string; expectedEvidence: string | null;
     reviewDate: Date | null; exposedGroup?: string | null;
     severity?: string | null; probability?: string | null; riskLevel?: string | null;
+    areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
   }): ActionItemData {
     return {
@@ -340,6 +458,9 @@ export class ActionPlansService {
       severity: i.severity ?? null,
       probability: i.probability ?? null,
       riskLevel: i.riskLevel ?? null,
+      areaProcess: i.areaProcess ?? null,
+      existingMeasure: i.existingMeasure ?? null,
+      indicator: i.indicator ?? null,
       reviewDate: i.reviewDate?.toISOString() ?? null,
       createdAt: i.createdAt.toISOString(),
       evidences: (i.evidences ?? []).map((e) => this.toEvidence(e)),

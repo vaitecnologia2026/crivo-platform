@@ -1040,6 +1040,11 @@ model Organization {
   // Dados cadastrais (autoatendimento na tela "Organização" do portal).
   legalName String? // razão social
   taxId     String? // CNPJ
+  // F2 (Pacote de Templates): cabeçalho do Dossiê Técnico — preenchidos pela
+  // própria empresa na tela "Minha Organização" (decisão do cliente 27/07).
+  establishment  String? // unidade/estabelecimento avaliado
+  employeesCount String? @map("employees_count") // nº de empregados (número ou faixa)
+  workModel      String? @map("work_model") // presencial | híbrido | remoto | misto
   website   String?
   phone     String?
   // Slug público do Questionário Psicossocial (Briefing §6): link anônimo sem
@@ -1087,6 +1092,8 @@ model Organization {
 
   @@map("organizations")
   reportEmissions ReportEmission[]
+  actionItemHistory ActionItemHistory[]
+  devolutivas DevolutivaRecord[]
 }
 
 model Company {
@@ -1374,14 +1381,57 @@ model ActionItem {
   severity         String? // Baixa | Moderada | Alta
   probability      String? // Baixa | Moderada | Alta
   riskLevel        String?
+  // F2 (Pacote de Templates): campos da matriz/plano oficiais. A EMPRESA informa
+  // (decisão 27/07): área/processo do fator, medida que JÁ existe (nunca
+  // inventada pelo sistema) e o indicador de acompanhamento da ação.
+  areaProcess     String? @map("area_process")
+  existingMeasure String? @map("existing_measure")
+  indicator       String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   evidences Evidence[]
+  history   ActionItemHistory[]
 
   @@index([tenantId])
   @@index([planId])
   @@map("action_items")
+}
+
+/// F2 — Trilha de alteração POR AÇÃO (TPL-004 §2 "Histórico e validação").
+/// Gravada pelo próprio serviço a cada criação/alteração de item. Data-plane.
+model ActionItemHistory {
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @db.Uuid
+  org          Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actionItemId String       @db.Uuid @map("action_item_id")
+  item         ActionItem   @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+  change       String // resumo legível do que mudou
+  changedBy    String? @map("changed_by")
+  at           DateTime     @default(now())
+
+  @@index([tenantId])
+  @@index([actionItemId])
+  @@map("action_item_history")
+}
+
+/// F2 — Registro de comunicação e devolutiva (TPL-002 §10). A empresa registra
+/// quando/como comunicou os resultados e medidas aos trabalhadores. Data-plane.
+model DevolutivaRecord {
+  id                   String       @id @default(uuid()) @db.Uuid
+  tenantId             String       @db.Uuid
+  org                  Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  date                 DateTime
+  format               String // reunião | comunicado | treinamento | outro
+  audience             String? // público envolvido
+  topics               String? // temas comunicados
+  confirmedPoints      String? @map("confirmed_points")
+  communicatedMeasures String? @map("communicated_measures")
+  createdBy            String? @map("created_by")
+  createdAt            DateTime     @default(now())
+
+  @@index([tenantId])
+  @@map("devolutiva_records")
 }
 
 // Governança de evidências (mockup do cliente 14/07): a CRIVO aprova/rejeita/

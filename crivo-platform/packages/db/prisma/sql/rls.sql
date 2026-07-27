@@ -49,7 +49,9 @@ DECLARE
                          -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant.
                          'invisible_cost_estimates',
                          -- People Analytics (Fase 4) — indicadores de RH por tenant.
-                         'people_analytics_data'];
+                         'people_analytics_data',
+                         -- F2 Pacote de Templates: trilha por ação + devolutiva.
+                         'action_item_history','devolutiva_records'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

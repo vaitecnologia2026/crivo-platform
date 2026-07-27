@@ -30,6 +30,7 @@ import {
   CreateActionPlanDto,
   CreateEvidenceDto,
   UpdateActionItemDto,
+  CreateDevolutivaDto,
 } from './dto';
 
 /**
@@ -91,13 +92,24 @@ export class ActionPlansController {
     return this.plans.createPlan(user.tenantId, dto);
   }
 
+  /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
+  @Get('devolutivas')
+  listDevolutivas(@CurrentUser() user: SessionUser) {
+    return this.plans.listDevolutivas(user.tenantId);
+  }
+
+  @Post('devolutivas')
+  createDevolutiva(@CurrentUser() user: SessionUser, @Body() dto: CreateDevolutivaDto) {
+    return this.plans.createDevolutiva(user.tenantId, dto, user.name ?? user.email);
+  }
+
   @Post(':planId/items')
   addItem(
     @CurrentUser() user: SessionUser,
     @Param('planId', ParseUUIDPipe) planId: string,
     @Body() dto: CreateActionItemDto,
   ) {
-    return this.plans.addItem(user.tenantId, planId, dto);
+    return this.plans.addItem(user.tenantId, planId, dto, user.name ?? user.email);
   }
 
   /** #61 — Importa um ActionTemplate (Biblioteca de Ações global) como item. */
@@ -107,7 +119,7 @@ export class ActionPlansController {
     @Param('planId', ParseUUIDPipe) planId: string,
     @Param('templateId', ParseUUIDPipe) templateId: string,
   ) {
-    return this.plans.addItemFromTemplate(user.tenantId, planId, templateId);
+    return this.plans.addItemFromTemplate(user.tenantId, planId, templateId, user.name ?? user.email);
   }
 
   @Post(':planId/validate')
@@ -121,7 +133,7 @@ export class ActionPlansController {
     @Param('itemId', ParseUUIDPipe) itemId: string,
     @Body() dto: UpdateActionItemDto,
   ) {
-    return this.plans.updateItem(user.tenantId, itemId, dto);
+    return this.plans.updateItem(user.tenantId, itemId, dto, user.name ?? user.email);
   }
 
   @Delete('items/:itemId')

@@ -91,6 +91,9 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
     taxId: org.taxId ?? "",
     website: org.website ?? "",
     phone: org.phone ?? "",
+    establishment: org.establishment ?? "",
+    employeesCount: org.employeesCount ?? "",
+    workModel: org.workModel ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -111,6 +114,9 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
         taxId: f.taxId.trim() || null,
         website: f.website.trim() || null,
         phone: f.phone.trim() || null,
+        establishment: f.establishment.trim() || null,
+        employeesCount: f.employeesCount.trim() || null,
+        workModel: f.workModel.trim() || null,
       });
       onSaved(o);
       setDone(true);
@@ -130,7 +136,23 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
         <Field label="CNPJ" value={f.taxId} onChange={set("taxId")} />
         <Field label="Telefone" value={f.phone} onChange={set("phone")} />
         <Field label="Site" value={f.website} onChange={set("website")} full />
+        <Field label="Unidade/Estabelecimento avaliado" value={f.establishment} onChange={set("establishment")} full />
+        <Field label="Nº de empregados" value={f.employeesCount} onChange={set("employeesCount")} />
+        <label className="prod-field">
+          <span>Modelo de trabalho</span>
+          <select value={f.workModel} onChange={(e) => set("workModel")(e.target.value)}>
+            <option value="">— selecione —</option>
+            <option value="Presencial">Presencial</option>
+            <option value="Híbrido">Híbrido</option>
+            <option value="Remoto">Remoto</option>
+            <option value="Misto">Misto</option>
+          </select>
+        </label>
       </div>
+      <p className="prod-note" style={{ margin: "8px 0 0" }}>
+        Estes dados entram no cabeçalho do Dossiê Técnico. Sem razão social e CNPJ, a emissão
+        oficial do dossiê fica bloqueada (a pré-visualização continua livre).
+      </p>
       {err && <p className="dash-state--error" style={{ marginTop: 8 }}>{err}</p>}
       <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10 }}>
         <button className="btn btn--gold btn--sm" onClick={save} disabled={saving}>

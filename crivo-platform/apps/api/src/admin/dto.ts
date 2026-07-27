@@ -148,4 +148,13 @@ export class UpdateOrganizationDto {
 
   @IsOptional() @IsString() @MaxLength(40)
   phone?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  establishment?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  employeesCount?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  workModel?: string | null;
 }

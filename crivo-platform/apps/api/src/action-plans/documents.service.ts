@@ -44,6 +44,8 @@ export type FactorItem = {
   dueDate: Date | null; status: string; expectedEvidence: string | null;
   exposedGroup: string | null; severity: string | null; probability: string | null;
   riskLevel: string | null;
+  // F2 — informados pela EMPRESA no Plano de Evolução (nunca inventados).
+  areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
 };
 
 /**
@@ -141,6 +143,21 @@ const ME_CODE: Record<string, string> = {
   governanca_plano: 'ME5',
   'dim-1': 'ME6', // Futuro do Trabalho e IA
 };
+
+/**
+ * "Respostas válidas/adesão" do cabeçalho do Dossiê: "N de M (x%)". O campo de
+ * empregados é texto livre ("1.200", "50 a 100") — só calculamos adesão quando
+ * ele é UM número inequívoco (separador de milhar aceito) e coerente com o
+ * volume de respostas; senão, mostramos só a contagem (nunca um % absurdo).
+ */
+function adhesionLabel(responses: number, employeesCount?: string | null): string {
+  const raw = (employeesCount ?? '').trim().replace(/[.\s]/g, '');
+  if (!/^\d+$/.test(raw)) return String(responses);
+  const total = Number(raw);
+  if (!total || total < responses) return String(responses);
+  const pct = Math.round((responses / total) * 100);
+  return `${responses} de ${total} (${pct}%)`;
+}
 
 type BandLike = { label: string; min: number; max: number };
 /**
@@ -785,7 +802,13 @@ export class DocumentsService {
     tenantId: string,
     ctx: {
       company: string;
-      org: { legalName: string | null; taxId: string | null } | null;
+      org: {
+        legalName: string | null;
+        taxId: string | null;
+        establishment?: string | null;
+        employeesCount?: string | null;
+        workModel?: string | null;
+      } | null;
       contract: { technicalOutput?: string | null; responsible?: string | null } | null;
       method: DiagnosticMethodLike;
       plans: {
@@ -807,11 +830,12 @@ export class DocumentsService {
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: ctx.org?.legalName ?? ctx.company },
       { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
-      { label: 'Unidade/Estabelecimento', value: '—' },
+      { label: 'Unidade/Estabelecimento', value: ctx.org?.establishment ?? '—' },
       { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
       { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
       { label: 'Período avaliado', value: psy.period },
-      { label: 'Respostas válidas', value: String(psy.totalRespondents) },
+      { label: 'Público elegível', value: ctx.org?.employeesCount ?? '—' },
+      { label: 'Respostas válidas/adesão', value: adhesionLabel(psy.totalRespondents, ctx.org?.employeesCount) },
       { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
     ];
 
@@ -846,9 +870,9 @@ export class DocumentsService {
     sections.push({
       heading: '2. Escopo e fontes da avaliação',
       rows: [
-        { label: 'Número de empregados', value: '—' },
+        { label: 'Número de empregados', value: ctx.org?.employeesCount ?? '—' },
         { label: 'Áreas/Setores considerados', value: (psy.suppressed ? [] : psy.sectorsList).join(', ') || '—' },
-        { label: 'Modelo de trabalho', value: '—' },
+        { label: 'Modelo de trabalho', value: ctx.org?.workModel ?? '—' },
         {
           label: 'Fontes utilizadas',
           value: 'Questionário psicossocial CRIVO; Matriz técnica do diagnóstico; Plano de Evolução; Motor de Evidências',
@@ -932,7 +956,7 @@ export class DocumentsService {
         data: items.length
           ? items.map((i, n) => [
               `FP-${String(n + 1).padStart(3, '0')}`,
-              '—',
+              i.areaProcess ?? '—',
               i.exposedGroup ?? '—',
               i.point,
               i.origin ?? '—',
@@ -953,8 +977,19 @@ export class DocumentsService {
           'técnica oficial vem da matriz Severidade × Probabilidade (Baixo/Moderado/Alto).',
       });
     }
-    // (7. Medidas existentes e 10. Devolutiva: blocos opcionais OCULTADOS — a
-    // captura desses dados pela empresa entra na próxima fase; nada é inventado.)
+    // 7. Medidas existentes — SÓ quando a empresa informou (bloco opcional do
+    // dicionário: sem dado, oculta; nunca inventado pelo sistema).
+    const withMeasure = items.filter((i) => i.existingMeasure?.trim());
+    if (withMeasure.length) {
+      sections.push({
+        heading: '7. Medidas existentes',
+        body: 'Medidas informadas pela própria empresa para os fatores identificados.',
+        table: {
+          columns: ['Fator', 'Medida existente', 'Avaliação/Observação'],
+          data: withMeasure.map((i) => [i.point, i.existingMeasure ?? '—', '—']),
+        },
+      });
+    }
 
     // 8. Plano de ação aprovado — snapshot do ciclo.
     sections.push({
@@ -974,7 +1009,7 @@ export class DocumentsService {
               i.action,
               i.responsible ?? '—',
               i.dueDate ? fmt(i.dueDate) : '—',
-              '—',
+              i.indicator ?? '—',
               i.expectedEvidence ?? '—',
               ACTION_LABEL[i.status] ?? i.status,
             ])
@@ -999,6 +1034,28 @@ export class DocumentsService {
       },
     });
 
+    // 10. Registro de comunicação e devolutiva — SÓ quando a empresa registrou.
+    const devolutivas = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.devolutivaRecord.findMany({ orderBy: [{ date: 'desc' }, { id: 'desc' }], take: 10 }),
+    );
+    if (devolutivas.length) {
+      sections.push({
+        heading: '10. Registro de comunicação e devolutiva',
+        body: 'Comunicações dos resultados e medidas aos trabalhadores, registradas pela empresa.',
+        table: {
+          columns: ['Data', 'Formato', 'Público envolvido', 'Temas comunicados', 'Pontos confirmados', 'Medidas comunicadas'],
+          data: devolutivas.map((r) => [
+            fmt(r.date),
+            r.format,
+            r.audience ?? '—',
+            r.topics ?? '—',
+            r.confirmedPoints ?? '—',
+            r.communicatedMeasures ?? '—',
+          ]),
+        },
+      });
+    }
+
     // 11. Anexo técnico para inventário — SÓ quando a saída integra AEP+GRO/PGR.
     if (output === 'AEP_PGR') {
       sections.push({
@@ -1007,15 +1064,15 @@ export class DocumentsService {
           'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
           'pelo responsável técnico, após validação da empresa.',
         table: {
-          columns: ['ID risco', 'Processo', 'Atividade/Função', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Risco', 'Ação'],
+          columns: ['ID risco', 'Processo', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Medida existente', 'Risco', 'Ação'],
           data: items.length
             ? items.map((i, n) => [
                 `R-${String(n + 1).padStart(3, '0')}`,
-                '—',
-                '—',
+                i.areaProcess ?? '—',
                 i.point,
                 i.origin ?? '—',
                 i.exposedGroup ?? '—',
+                i.existingMeasure ?? '—',
                 factorRisk(i).label,
                 i.action,
               ])
@@ -1067,20 +1124,50 @@ export class DocumentsService {
   }
 
   // ── TPL-004 · Extrato do Plano de Ação Preventivo (layout oficial) ─────────
-  private generateExtratoPlano(ctx: {
-    company: string;
-    org: { taxId: string | null } | null;
-    plans: {
-      title: string;
-      source: string | null;
-      validatedAt: Date | null;
-      validatedBy: string | null;
-      updatedAt: Date;
-      items: FactorItem[];
-    }[];
-  }): GeneratedDocument {
+  private async generateExtratoPlano(
+    tenantId: string,
+    ctx: {
+      company: string;
+      org: { taxId: string | null } | null;
+      plans: {
+        title: string;
+        source: string | null;
+        validatedAt: Date | null;
+        validatedBy: string | null;
+        updatedAt: Date;
+        items: (FactorItem & { id: string })[];
+      }[];
+    },
+  ): Promise<GeneratedDocument> {
     const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
     const items = plan?.items ?? [];
+
+    // F2 — última alteração registrada de cada ação (action_item_history).
+    const historyRows: string[][] = [];
+    if (items.length) {
+      const ids = items.map((i) => i.id);
+      const hist = await this.prisma.forTenant(tenantId, (tx) =>
+        tx.actionItemHistory.findMany({
+          where: { actionItemId: { in: ids } },
+          // Tiebreak por id: duas linhas no mesmo milissegundo não podem tornar
+          // a "última alteração" (e o hash da emissão) não determinísticos.
+          orderBy: [{ at: 'desc' }, { id: 'desc' }],
+        }),
+      );
+      const lastByItem = new Map<string, (typeof hist)[number]>();
+      for (const h of hist) if (!lastByItem.has(h.actionItemId)) lastByItem.set(h.actionItemId, h);
+      for (const i of items) {
+        const h = lastByItem.get(i.id);
+        if (!h) continue;
+        historyRows.push([
+          i.action,
+          h.change,
+          h.changedBy ?? '—',
+          plan?.validatedBy ?? '—',
+          fmt(h.at),
+        ]);
+      }
+    }
 
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: ctx.company },
@@ -1110,7 +1197,7 @@ export class DocumentsService {
                 i.action,
                 i.responsible ?? '—',
                 i.dueDate ? fmt(i.dueDate) : '—',
-                '—',
+                i.indicator ?? '—',
                 i.expectedEvidence ?? '—',
                 ACTION_LABEL[i.status] ?? i.status,
               ])
@@ -1120,19 +1207,21 @@ export class DocumentsService {
       {
         heading: '2. Histórico e validação',
         body:
-          'Validação registrada no nível do plano. O histórico de alteração por ação individual ' +
-          'entra na próxima fase do Plano de Evolução.',
+          'Última alteração registrada por ação (trilha do Plano de Evolução). A validação do ' +
+          'plano é registrada no nível do documento.',
         table: {
           columns: ['Ação', 'Última alteração', 'Alterado por', 'Validado por', 'Data'],
-          data: [
-            [
-              plan ? `Plano "${plan.title}" (todas as ações)` : '—',
-              '—',
-              '—',
-              plan?.validatedBy ?? '—',
-              plan?.validatedAt ? fmt(plan.validatedAt) : '—',
-            ],
-          ],
+          data: historyRows.length
+            ? historyRows
+            : [
+                [
+                  plan ? `Plano "${plan.title}" (todas as ações)` : '—',
+                  '—',
+                  '—',
+                  plan?.validatedBy ?? '—',
+                  plan?.validatedAt ? fmt(plan.validatedAt) : '—',
+                ],
+              ],
         },
       },
       docControlSection(),
@@ -1195,7 +1284,7 @@ export class DocumentsService {
       return this.generateMapaExecutivo(tenantId, { company, org, cnaeDecision });
     }
     if (type === 'plano_acao') {
-      return this.generateExtratoPlano({ company, org, plans });
+      return this.generateExtratoPlano(tenantId, { company, org, plans });
     }
     if (type === 'dossie_tecnico') {
       return this.generateDossieTecnico(tenantId, { company, org, contract, method, plans, cnaeDecision });
