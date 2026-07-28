@@ -89,11 +89,18 @@ export class InstrumentsService {
   async remove(slug: string, actor: Actor) {
     const existing = await this.prisma.admin.diagnosticInstrument.findUnique({
       where: { slug },
-      include: { _count: { select: { versions: true } } },
+      include: { _count: { select: { versions: true, sourcePlans: true, sourceItems: true } } },
     });
     if (!existing) throw new NotFoundException('Diagnóstico não encontrado.');
     if (existing.builtIn) throw new BadRequestException('Instrumento nativo não pode ser removido.');
-    if (existing._count.versions > 0) {
+    // A4: com PROVENIÊNCIA apontando para o instrumento (planos/fatores de
+    // clientes), o hard-delete apagaria a origem silenciosamente (FK SET
+    // NULL) — desativar preserva o histórico auditável, como nas versões.
+    const referenced =
+      existing._count.versions > 0 ||
+      existing._count.sourcePlans > 0 ||
+      existing._count.sourceItems > 0;
+    if (referenced) {
       await this.prisma.admin.diagnosticInstrument.update({ where: { slug }, data: { active: false } });
       await this.audit.record({ action: 'instrument.deactivate', actor, target: slug });
       return { ok: true as const, deactivated: true };

@@ -47,6 +47,7 @@ export function EvolutionSection() {
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [originFilter, setOriginFilter] = useState("");
   const [withoutEv, setWithoutEv] = useState(false);
 
   async function load() {
@@ -60,9 +61,20 @@ export function EvolutionSection() {
   }
   useEffect(() => { void load(); }, []);
 
+  // A4 — rótulo de origem EFETIVO: proveniência estruturada primeiro (nome do
+  // diagnóstico do Motor), texto livre legado como fallback.
+  const effectiveOrigin = (x: EngineActionRow) =>
+    x.sourceInstrumentName ?? originLabel(x.origin, x.planSource);
+
+  const originOptions = useMemo(() => {
+    const set = new Set((data?.rows ?? []).map((x) => effectiveOrigin(x)));
+    return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [data]);
+
   const rows = useMemo(() => {
     let r = data?.rows ?? [];
     if (statusFilter) r = r.filter((x) => x.status === statusFilter);
+    if (originFilter) r = r.filter((x) => effectiveOrigin(x) === originFilter);
     if (withoutEv) r = r.filter((x) => x.evidenceCount === 0);
     if (q.trim()) {
       const s = q.toLowerCase();
@@ -74,7 +86,7 @@ export function EvolutionSection() {
       );
     }
     return r;
-  }, [data, q, statusFilter, withoutEv]);
+  }, [data, q, statusFilter, originFilter, withoutEv]);
 
   return (
     <>
@@ -117,6 +129,12 @@ export function EvolutionSection() {
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
+            <select className="mod-select" value={originFilter} onChange={(e) => setOriginFilter(e.target.value)}>
+              <option value="">Origem: Todas</option>
+              {originOptions.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
             <button
               type="button"
               className={`btn btn--sm ${withoutEv ? "sol-newbtn" : "btn--ghost"}`}
@@ -147,7 +165,7 @@ export function EvolutionSection() {
                       {r.point && <p>{r.point}</p>}
                     </td>
                     <td>{r.tenantName}</td>
-                    <td><span className="sol-chip">{originLabel(r.origin, r.planSource)}</span></td>
+                    <td><span className="sol-chip">{effectiveOrigin(r)}</span></td>
                     <td>{r.responsible || "—"}</td>
                     <td style={{ whiteSpace: "nowrap", color: r.overdue ? "#c0392b" : undefined }}>
                       {r.dueDate ? new Date(r.dueDate).toLocaleDateString("pt-BR") : "—"}

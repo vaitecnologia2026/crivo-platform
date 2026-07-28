@@ -80,6 +80,8 @@ export class MeController {
     method: string | null;
     technicalOutputs: string[];
     productName: string | null;
+    /** A4 — instrumentos do Motor relevantes p/ o tenant (proveniência do plano). */
+    instruments: { slug: string; name: string }[];
   }> {
     const tenant = await this.prisma.admin.tenant.findFirst({
       where: { organizationId: user.tenantId },
@@ -112,7 +114,28 @@ export class MeController {
       : Array.isArray(product?.supportedOutputs)
         ? (product!.supportedOutputs as string[])
         : [];
-    return { method, technicalOutputs, productName: product?.name ?? null };
+
+    // A4 — instrumentos p/ o select "Diagnóstico de origem" do Plano de
+    // Evolução: os 2 built-in ativos + os que a empresa tem link de aplicação.
+    // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
+    const [builtIns, links] = await Promise.all([
+      this.prisma.admin.diagnosticInstrument.findMany({
+        where: { active: true, builtIn: true },
+        select: { slug: true, name: true },
+      }),
+      this.prisma.forTenant(user.tenantId, (tx) =>
+        tx.diagnosticLink.findMany({ select: { instrument: { select: { slug: true, name: true, active: true } } } }),
+      ),
+    ]);
+    const seen = new Set<string>();
+    const instruments: { slug: string; name: string }[] = [];
+    for (const i of [...builtIns, ...links.map((l) => l.instrument).filter((i) => i.active)]) {
+      if (seen.has(i.slug)) continue;
+      seen.add(i.slug);
+      instruments.push({ slug: i.slug, name: i.name });
+    }
+
+    return { method, technicalOutputs, productName: product?.name ?? null, instruments };
   }
 
   /** Telas liberadas para o usuário (null = sem restrição) — filtra o menu por usuário. */

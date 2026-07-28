@@ -484,7 +484,11 @@ function AiLogsPanel() {
       <div className="evo-filters" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <select className="mod-select" value={useCase} onChange={(e) => setUseCase(e.target.value)}>
           <option value="">Caso de uso: Todos</option>
-          {USE_CASES.map((u) => (<option key={u.useCase} value={u.useCase}>{u.useCase}</option>))}
+          {/* A5: a lista vem da Central de Prompts (inclui os casos DINÂMICOS
+              diagnostic_<slug>) — a constante fixa não conhecia os dinâmicos. */}
+          {(prompts && prompts.length > 0 ? prompts.map((p) => p.useCase) : USE_CASES.map((u) => u.useCase)).map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
         </select>
         <label className="prod-check" style={{ margin: 0 }}>
           <input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} />
@@ -610,7 +614,10 @@ function AiPromptsManager() {
             {items.map((it) => (
               <div key={it.useCase} style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                  <strong style={{ fontSize: 14 }}>{it.label}</strong>
+                  <strong style={{ fontSize: 14 }}>
+                    {it.label}
+                    {it.dynamic && <span className="sol-chip" style={{ marginLeft: 8 }}>diagnóstico (dinâmico)</span>}
+                  </strong>
                   <span className="prod-note" style={{ margin: 0, fontSize: 11 }}>
                     <code style={{ fontSize: 10.5 }}>{it.useCase}</code>
                     {" · "}

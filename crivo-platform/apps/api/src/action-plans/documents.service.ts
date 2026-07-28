@@ -46,6 +46,10 @@ export type FactorItem = {
   riskLevel: string | null;
   // F2 — informados pela EMPRESA no Plano de Evolução (nunca inventados).
   areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
+  // A4 — proveniência estruturada do fator (diagnóstico do Motor).
+  sourceInstrumentSlug?: string | null;
+  // A3 — evidências anexadas (status decide o bloqueio de dossiê p/ fator Alto).
+  evidences?: { status: string }[];
 };
 
 /**
@@ -85,6 +89,20 @@ export function dossierBlockers(items: FactorItem[]): string[] {
   if (altosIncompletos.length) {
     out.push(
       `${altosIncompletos.length} fator(es) de risco Alto sem responsável, prazo ou evidência esperada.`,
+    );
+  }
+  // A3 (residual): fator Alto exige evidência REAL e APROVADA no Motor de
+  // Evidências — só o TEXTO "evidência esperada" não sustenta um dossiê final
+  // (regra do pacote v3.1: somente evidência aprovada compõe a documentação).
+  const altosSemEvidenciaAprovada = items.filter((i) => {
+    if (!factorRisk(i).isHigh) return false;
+    return !(i.evidences ?? []).some((e) => e.status === 'APROVADA');
+  });
+  if (altosSemEvidenciaAprovada.length) {
+    // Mensagem ACIONÁVEL pelo cliente: anexar é dele; aprovar é da CRIVO.
+    out.push(
+      `${altosSemEvidenciaAprovada.length} fator(es) de risco Alto sem evidência aprovada — anexe a ` +
+        'evidência na ação e aguarde a validação da equipe CRIVO (o status aparece em cada evidência).',
     );
   }
   return out;
@@ -745,7 +763,7 @@ export class DocumentsService {
   async cycleSnapshot(tenantId: string, from: Date, to: Date) {
     const { method, plans } = await this.context(tenantId);
     const plan = plans.find((p) => p.validatedAt) ?? plans[0];
-    const items = (plan?.items ?? []) as (FactorItem & {
+    const items = (plan?.items ?? []) as (Omit<FactorItem, 'evidences'> & {
       evidences: { title: string; status: string }[];
     })[];
     const factors = items.map((i) => {
@@ -758,6 +776,9 @@ export class DocumentsService {
         status: i.status,
         areaProcess: i.areaProcess ?? null,
         indicator: i.indicator ?? null,
+        // A4 — proveniência congelada junto com o fator (auditoria/TPL-003).
+        origin: i.origin ?? null,
+        sourceInstrumentSlug: i.sourceInstrumentSlug ?? null,
         evidences: i.evidences.map((e) => ({ title: e.title, status: e.status })),
       };
     });

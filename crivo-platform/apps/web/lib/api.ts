@@ -204,6 +204,8 @@ export interface DiagnosticContext {
   method: string | null;
   technicalOutputs: string[];
   productName: string | null;
+  /** A4 — instrumentos do Motor p/ o select "Diagnóstico de origem". */
+  instruments: { slug: string; name: string }[];
 }
 export function getDiagnosticContext(): Promise<DiagnosticContext> {
   return apiFetch<DiagnosticContext>('/me/diagnostic-context');

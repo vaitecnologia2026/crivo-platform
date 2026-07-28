@@ -1420,6 +1420,9 @@ export interface EvidenceData {
   title: string;
   url: string | null;
   note: string | null;
+  /** A3 — status da governança CRIVO (ENVIADA | APROVADA | REJEITADA | SUBSTITUIDA).
+   *  Visível no portal: fator Alto só libera dossiê com evidência APROVADA. */
+  status: string;
   /** Metadados do arquivo enviado (quando a evidência é um upload, não um link).
    *  Os bytes não trafegam aqui — baixados sob demanda em /evidences/:id/file. */
   fileName: string | null;
@@ -1460,6 +1463,9 @@ export interface ActionItemData {
   areaProcess: string | null;
   existingMeasure: string | null;
   indicator: string | null;
+  /** A4 — proveniência estruturada: diagnóstico do Motor que originou o fator. */
+  sourceInstrumentSlug: string | null;
+  sourceInstrumentName: string | null;
   createdAt: string;
   evidences: EvidenceData[];
 }
@@ -1468,6 +1474,9 @@ export interface ActionPlanData {
   id: string;
   title: string;
   source: string | null;
+  /** A4 — proveniência estruturada: diagnóstico do Motor que originou o plano. */
+  sourceInstrumentSlug: string | null;
+  sourceInstrumentName: string | null;
   validatedAt: string | null;
   validatedBy: string | null;
   createdAt: string;
@@ -1477,10 +1486,12 @@ export interface ActionPlanData {
 export interface CreateActionPlanRequest {
   title: string;
   source?: string;
+  sourceInstrumentSlug?: string;
 }
 export interface CreateActionItemRequest {
   point: string;
   origin?: string;
+  sourceInstrumentSlug?: string;
   action: string;
   responsible?: string;
   dueDate?: string | null;
@@ -1496,6 +1507,7 @@ export interface CreateActionItemRequest {
 export interface UpdateActionItemRequest {
   point?: string;
   origin?: string;
+  sourceInstrumentSlug?: string | null;
   action?: string;
   responsible?: string;
   dueDate?: string | null;

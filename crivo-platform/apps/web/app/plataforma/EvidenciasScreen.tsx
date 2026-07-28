@@ -76,12 +76,22 @@ export function EvidenciasScreen() {
             ) : (
               <table className="data-table">
                 <thead>
-                  <tr><th>Evidência</th><th>Tipo</th><th>Vínculo (ação)</th><th>Plano</th><th>Data</th><th>Acesso</th></tr>
+                  <tr><th>Evidência</th><th>Status</th><th>Tipo</th><th>Vínculo (ação)</th><th>Plano</th><th>Data</th><th>Acesso</th></tr>
                 </thead>
                 <tbody>
                   {filtered.map(({ ev, acao, plano }) => (
                     <tr key={ev.id}>
                       <td><strong>{ev.title}</strong>{ev.note && <span className="card__sub"> · {ev.note}</span>}</td>
+                      {/* A3 — status da validação CRIVO: só evidência APROVADA
+                          compõe a documentação técnica (dossiê c/ fator Alto). */}
+                      <td>
+                        <span
+                          className="pattern-tag"
+                          style={{ color: ev.status === "APROVADA" ? "var(--success)" : ev.status === "REJEITADA" ? "var(--danger, #b4432f)" : "var(--gold-deep)" }}
+                        >
+                          {ev.status === "APROVADA" ? "Aprovada" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando CRIVO"}
+                        </span>
+                      </td>
                       <td>{ev.kind}</td>
                       <td>{acao}</td>
                       <td className="cell-mute">{plano}</td>

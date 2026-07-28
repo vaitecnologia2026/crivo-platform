@@ -202,3 +202,48 @@ export function isAiPromptUseCase(v: string): v is AiPromptUseCase {
 export function defaultPrompt(useCase: AiPromptUseCase): string {
   return BY_USE_CASE.get(useCase)?.content ?? '';
 }
+
+// ── A5 · Casos de uso DINÂMICOS por diagnóstico do Motor (diagnostic_<slug>) ──
+// AiPrompt.useCase é String no banco — casos dinâmicos não exigem migração.
+// O catálogo (diagnostic_instruments) é a fonte de verdade de quais existem.
+
+export const DIAGNOSTIC_PREFIX = 'diagnostic_';
+// Mesmo regex de slug do catálogo (instruments.service) + os 2 built-in
+// históricos (PRE_DIAGNOSTIC/PSYCHOSOCIAL, maiúsculos com underscore).
+const DIAGNOSTIC_SLUG_RE = /^([a-z0-9][a-z0-9-]{2,39}|PRE_DIAGNOSTIC|PSYCHOSOCIAL)$/;
+
+export function diagnosticUseCase(slug: string): string {
+  return `${DIAGNOSTIC_PREFIX}${slug}`;
+}
+
+/** Slug do instrumento se `useCase` for um caso dinâmico VÁLIDO; senão null. */
+export function slugFromUseCase(useCase: string): string | null {
+  if (!useCase.startsWith(DIAGNOSTIC_PREFIX)) return null;
+  const slug = useCase.slice(DIAGNOSTIC_PREFIX.length);
+  return DIAGNOSTIC_SLUG_RE.test(slug) ? slug : null;
+}
+
+/** Default GERADO do instrumento — vale até a equipe customizar na central. */
+export function diagnosticPromptDefault(inst: {
+  slug: string;
+  name: string;
+  description?: string | null;
+}): AiPromptDefault {
+  const content = [
+    `Você é o analista CRIVO do diagnóstico "${inst.name}".`,
+    inst.description?.trim() ? `Sobre este diagnóstico: ${inst.description.trim()}` : null,
+    'Interprete APENAS os resultados agregados fornecidos (score, dimensões, faixas) — nunca respostas individuais.',
+    'REGRAS: não faça diagnóstico clínico nem avalie pessoas individualmente; não invente números ou fatos além dos fornecidos; não prometa conformidade legal automática (NR-1/PGR/AEP).',
+    'Responda em português do Brasil, em tom técnico-executivo, frases curtas, voz ativa. Sem emojis, sem exclamações.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    useCase: diagnosticUseCase(inst.slug) as AiPromptUseCase,
+    label: `Diagnóstico: ${inst.name}`,
+    description:
+      `Prompt do analista de IA do diagnóstico "${inst.name}" (caso DINÂMICO do Motor de Diagnósticos — ` +
+      'nasce e morre com o instrumento no catálogo).',
+    content,
+  };
+}

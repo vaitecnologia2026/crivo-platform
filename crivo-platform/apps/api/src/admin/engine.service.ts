@@ -125,6 +125,8 @@ export class EngineService {
         org: { select: { name: true } },
         plan: { select: { title: true, source: true, validatedAt: true } },
         evidences: { select: { id: true, status: true } },
+        // A4 — proveniência estruturada (nome do diagnóstico do Motor).
+        sourceInstrument: { select: { slug: true, name: true } },
       },
       take: 500,
     });
@@ -140,6 +142,8 @@ export class EngineService {
         tenantName: i.org.name,
         origin: i.origin,
         planSource: i.plan?.source ?? null,
+        sourceInstrumentSlug: i.sourceInstrument?.slug ?? null,
+        sourceInstrumentName: i.sourceInstrument?.name ?? null,
         responsible: i.responsible,
         dueDate: i.dueDate ? i.dueDate.toISOString() : null,
         status: i.status,

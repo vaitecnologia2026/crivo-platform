@@ -1404,6 +1404,10 @@ model ActionPlan {
   org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   source      String? // autoavaliação | escuta | questionário | observação | parecer
+  /// A4 — PROVENIÊNCIA estruturada: qual diagnóstico do Motor originou o plano
+  /// (FK no catálogo; `source` texto livre preservado como legado/complemento).
+  sourceInstrumentSlug String?               @map("source_instrument_slug")
+  sourceInstrument     DiagnosticInstrument? @relation("plan_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
   validatedAt DateTime? // sem validação = minuta; com validação = documento final
   validatedBy String?
   createdAt   DateTime     @default(now())
@@ -1446,6 +1450,9 @@ model ActionItem {
   areaProcess     String? @map("area_process")
   existingMeasure String? @map("existing_measure")
   indicator       String?
+  /// A4 — proveniência estruturada do fator (mesma semântica do plano).
+  sourceInstrumentSlug String?               @map("source_instrument_slug")
+  sourceInstrument     DiagnosticInstrument? @relation("item_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -2074,6 +2081,8 @@ model DiagnosticInstrument {
   links     DiagnosticLink[]
   responses DiagnosticResponse[]
   reportTemplates ReportTemplate[]
+  sourcePlans ActionPlan[] @relation("plan_source_instrument")
+  sourceItems ActionItem[] @relation("item_source_instrument")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

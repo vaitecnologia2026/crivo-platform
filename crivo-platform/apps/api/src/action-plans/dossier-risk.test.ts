@@ -18,6 +18,8 @@ const base: FactorItem = {
   severity: 'Alta',
   probability: 'Alta',
   riskLevel: null,
+  // A3: fator Alto exige evidência REAL e aprovada no Motor de Evidências.
+  evidences: [{ status: 'APROVADA' }],
 };
 
 describe('factorRisk — risco derivado da matriz', () => {
@@ -78,8 +80,24 @@ describe('dossierBlockers — bloqueios de emissão (§9)', () => {
   });
 
   it('NÃO bloqueia fator de risco baixo incompleto (a exigência é só para Alto)', () => {
-    const baixo = { ...base, severity: 'Baixa', probability: 'Baixa', responsible: null, dueDate: null, expectedEvidence: null };
+    const baixo = { ...base, severity: 'Baixa', probability: 'Baixa', responsible: null, dueDate: null, expectedEvidence: null, evidences: [] };
     expect(dossierBlockers([baixo as FactorItem])).toEqual([]);
+  });
+
+  // A3 (residual do plano do Motor): o TEXTO "evidência esperada" não basta —
+  // dossiê final com fator Alto exige evidência REAL aprovada pela CRIVO.
+  it('bloqueia fator Alto sem evidência APROVADA no Motor de Evidências', () => {
+    const b = dossierBlockers([{ ...base, evidences: [] }]);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toMatch(/evidência APROVADA/i);
+  });
+
+  it('evidência pendente/rejeitada NÃO conta como aprovada', () => {
+    expect(dossierBlockers([{ ...base, evidences: [{ status: 'PENDENTE' }, { status: 'REJEITADA' }] }])).toHaveLength(1);
+  });
+
+  it('fator Alto com evidência aprovada libera normalmente', () => {
+    expect(dossierBlockers([{ ...base, evidences: [{ status: 'REJEITADA' }, { status: 'APROVADA' }] }])).toEqual([]);
   });
 
   it('acumula os dois bloqueios quando ambos ocorrem', () => {
@@ -96,6 +114,7 @@ describe('Pacote §5 — Bloqueios de emissão do Dossiê', () => {
     point: 'Sobrecarga', origin: 'Metas', action: 'Redistribuir', responsible: 'RH',
     dueDate: new Date('2026-08-01'), status: 'APROVADA', expectedEvidence: 'Ata',
     exposedGroup: 'Comercial', severity: 'Alta', probability: 'Alta', riskLevel: null,
+    evidences: [{ status: 'APROVADA' }],
   };
 
   it('§5.1 — não emitir com ação Sugerida ou Em revisão', () => {

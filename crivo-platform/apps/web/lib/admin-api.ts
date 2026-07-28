@@ -542,6 +542,8 @@ export interface AiPromptItem {
   version: number;
   updatedBy: string | null;
   updatedAt: string | null;
+  /** A5 — caso gerado do catálogo de diagnósticos (diagnostic_<slug>). */
+  dynamic?: boolean;
 }
 
 export function getAiPrompts(): Promise<AiPromptItem[]> {
@@ -1099,6 +1101,9 @@ export interface EngineActionRow {
   tenantName: string;
   origin: string | null;
   planSource: string | null;
+  /** A4 — proveniência estruturada (diagnóstico do Motor). */
+  sourceInstrumentSlug: string | null;
+  sourceInstrumentName: string | null;
   responsible: string | null;
   dueDate: string | null;
   status: string;

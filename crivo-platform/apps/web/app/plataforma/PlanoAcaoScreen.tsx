@@ -33,6 +33,7 @@ import {
   listCycles,
   openCycle,
   closeCycle,
+  getDiagnosticContext,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
@@ -351,11 +352,24 @@ function DerivedRisk({ severity, probability }: { severity: string; probability:
 function NewPlanForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [title, setTitle] = useState("");
   const [source, setSource] = useState("");
+  const [instrumentSlug, setInstrumentSlug] = useState("");
+  const [instruments, setInstruments] = useState<{ slug: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    // A4 — diagnósticos do Motor p/ a proveniência estruturada (opcional).
+    getDiagnosticContext().then((c) => setInstruments(c.instruments ?? [])).catch(() => setInstruments([]));
+  }, []);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    try { await createActionPlan({ title: title.trim(), source: source || undefined }); onCreated(); }
+    try {
+      await createActionPlan({
+        title: title.trim(),
+        source: source || undefined,
+        sourceInstrumentSlug: instrumentSlug || undefined,
+      });
+      onCreated();
+    }
     catch (err) { alert(err instanceof Error ? err.message : "Falha ao criar"); } finally { setSaving(false); }
   }
   return (
@@ -376,6 +390,17 @@ function NewPlanForm({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <option>parecer</option>
           </select>
         </label>
+        {instruments.length > 0 && (
+          <label className="prod-field">
+            <span>Diagnóstico de origem (opcional)</span>
+            <select value={instrumentSlug} onChange={(e) => setInstrumentSlug(e.target.value)}>
+              <option value="">—</option>
+              {instruments.map((i) => (
+                <option key={i.slug} value={i.slug}>{i.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
         <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
@@ -405,7 +430,11 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
         <div>
           <h3>{plan.title}</h3>
           <span className="card__sub">
-            {plan.source ? `Origem: ${plan.source} · ` : ""}
+            {plan.sourceInstrumentName
+              ? `Origem: Diagnóstico ${plan.sourceInstrumentName} · `
+              : plan.source
+                ? `Origem: ${plan.source} · `
+                : ""}
             {validated ? `Validado por ${plan.validatedBy ?? "—"}` : "Minuta — aguardando validação"}
           </span>
         </div>
@@ -476,7 +505,15 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   return (
     <>
       <tr>
-        <td><strong>{item.point}</strong>{item.origin && <span className="card__sub"> · {item.origin}</span>}</td>
+        <td>
+          <strong>{item.point}</strong>
+          {(item.sourceInstrumentName || item.origin) && (
+            <span className="card__sub">
+              {" · "}
+              {item.sourceInstrumentName ? `Diagnóstico ${item.sourceInstrumentName}` : item.origin}
+            </span>
+          )}
+        </td>
         <td>{item.action}</td>
         <td><RiskCell item={item} /></td>
         <td>{item.responsible ?? "—"}</td>
@@ -625,6 +662,18 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
             <span className="lib-ic">{ev.fileName ? <IconPaperclip size={14} /> : <IconGrid size={14} />}</span>
             <div>
               <strong>{ev.title}</strong>
+              {/* A3 — status da governança CRIVO: fator de risco Alto só
+                  libera o dossiê com evidência APROVADA. */}
+              <span
+                className="pattern-tag"
+                style={{
+                  marginLeft: 8,
+                  fontSize: 10.5,
+                  color: ev.status === "APROVADA" ? "var(--success)" : ev.status === "REJEITADA" ? "var(--danger, #b4432f)" : "var(--gold-deep)",
+                }}
+              >
+                {ev.status === "APROVADA" ? "Aprovada pela CRIVO" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando validação CRIVO"}
+              </span>
               <span>
                 {ev.kind}
                 {ev.fileName && <> · <button type="button" className="lib-act" onClick={() => baixar(ev)}>baixar {ev.fileName} ({fmtSize(ev.fileSize)})</button></>}

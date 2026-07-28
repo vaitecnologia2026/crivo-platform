@@ -42,19 +42,52 @@ export class ActionPlansService {
         include: {
           items: {
             orderBy: { createdAt: 'asc' },
-            include: { evidences: { orderBy: { createdAt: 'desc' } } },
+            include: { evidences: { orderBy: { createdAt: 'desc' } }, sourceInstrument: { select: { name: true } } },
           },
+          sourceInstrument: { select: { name: true } },
         },
       });
       return plans.map((p) => this.toPlan(p));
     });
   }
 
+  /**
+   * A4 — valida a PROVENIÊNCIA estruturada: o slug precisa existir e estar
+   * ativo no catálogo do Motor E ser RELEVANTE para o tenant (built-in ou
+   * diagnóstico que a empresa tem link de aplicação) — mesma regra do select
+   * do portal (/me/diagnostic-context). Sem isso, qualquer empresa carimbaria
+   * como origem um diagnóstico que nunca aplicou.
+   */
+  private async assertInstrumentSlug(slug: string, tenantId: string): Promise<void> {
+    // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
+    const inst = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug } });
+    if (!inst || !inst.active) {
+      throw new NotFoundException('Diagnóstico de origem não encontrado no catálogo do Motor.');
+    }
+    if (inst.builtIn) return;
+    const link = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.diagnosticLink.findFirst({ where: { instrumentSlug: slug }, select: { id: true } }),
+    );
+    if (!link) {
+      throw new NotFoundException(
+        'Este diagnóstico não está vinculado à sua empresa — a origem precisa ser um diagnóstico aplicado por vocês.',
+      );
+    }
+  }
+
   async createPlan(tenantId: string, dto: CreateActionPlanRequest): Promise<ActionPlanData> {
+    // '' vira null (senão fura o guard e estoura a FK como 500).
+    const planSlug = dto.sourceInstrumentSlug?.trim() || null;
+    if (planSlug) await this.assertInstrumentSlug(planSlug, tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const p = await tx.actionPlan.create({
-        data: { tenantId, title: dto.title.trim(), source: dto.source ?? null },
-        include: { items: { include: { evidences: true } } },
+        data: {
+          tenantId,
+          title: dto.title.trim(),
+          source: dto.source ?? null,
+          sourceInstrumentSlug: planSlug,
+        },
+        include: { items: { include: { evidences: true } }, sourceInstrument: { select: { name: true } } },
       });
       return this.toPlan(p);
     });
@@ -66,6 +99,8 @@ export class ActionPlansService {
     dto: CreateActionItemRequest,
     actor?: string,
   ): Promise<ActionItemData> {
+    const itemSlug = dto.sourceInstrumentSlug?.trim() || null;
+    if (itemSlug) await this.assertInstrumentSlug(itemSlug, tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException('Plano não encontrado');
@@ -76,6 +111,7 @@ export class ActionPlansService {
           point: dto.point.trim(),
           action: dto.action.trim(),
           origin: dto.origin ?? null,
+          sourceInstrumentSlug: itemSlug,
           responsible: dto.responsible ?? null,
           dueDate: parseDate(dto.dueDate),
           expectedEvidence: dto.expectedEvidence ?? null,
@@ -87,7 +123,7 @@ export class ActionPlansService {
           existingMeasure: dto.existingMeasure ?? null,
           indicator: dto.indicator ?? null,
         },
-        include: { evidences: true },
+        include: { evidences: true, sourceInstrument: { select: { name: true } } },
       });
       // F2 — trilha por ação (TPL-004 §2): registra a criação.
       await tx.actionItemHistory.create({
@@ -131,7 +167,7 @@ export class ActionPlansService {
           dueDate,
           expectedEvidence: template.expectedEvidence,
         },
-        include: { evidences: true },
+        include: { evidences: true, sourceInstrument: { select: { name: true } } },
       });
       await tx.actionItemHistory.create({
         data: {
@@ -151,6 +187,10 @@ export class ActionPlansService {
     dto: UpdateActionItemRequest,
     actor?: string,
   ): Promise<ActionItemData> {
+    // undefined preserva; ''/null limpam o vínculo; valor válido é validado.
+    const updSlug =
+      dto.sourceInstrumentSlug === undefined ? undefined : dto.sourceInstrumentSlug?.trim() || null;
+    if (updSlug) await this.assertInstrumentSlug(updSlug, tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!existing) throw new NotFoundException('Ação não encontrada');
@@ -160,6 +200,7 @@ export class ActionPlansService {
           point: dto.point ?? existing.point,
           action: dto.action ?? existing.action,
           origin: dto.origin === undefined ? existing.origin : dto.origin,
+          sourceInstrumentSlug: updSlug === undefined ? existing.sourceInstrumentSlug : updSlug,
           responsible: dto.responsible === undefined ? existing.responsible : dto.responsible,
           dueDate: dto.dueDate === undefined ? existing.dueDate : parseDate(dto.dueDate),
           status: (dto.status ?? existing.status) as ActionStatus,
@@ -175,7 +216,7 @@ export class ActionPlansService {
             dto.existingMeasure === undefined ? existing.existingMeasure : dto.existingMeasure,
           indicator: dto.indicator === undefined ? existing.indicator : dto.indicator,
         },
-        include: { evidences: { orderBy: { createdAt: 'desc' } } },
+        include: { evidences: { orderBy: { createdAt: 'desc' } }, sourceInstrument: { select: { name: true } } },
       });
       // F2 — trilha por ação: resumo legível dos campos que mudaram.
       const changed: string[] = [];
@@ -202,6 +243,7 @@ export class ActionPlansService {
       track('área/processo', existing.areaProcess, dto.areaProcess);
       track('medida existente', existing.existingMeasure, dto.existingMeasure);
       track('indicador', existing.indicator, dto.indicator);
+      track('diagnóstico de origem', existing.sourceInstrumentSlug, updSlug);
       if (changed.length) {
         await tx.actionItemHistory.create({
           data: {
@@ -296,7 +338,7 @@ export class ActionPlansService {
       });
       const full = await tx.actionPlan.findUnique({
         where: { id: planId },
-        include: { items: { include: { evidences: true } } },
+        include: { items: { include: { evidences: true, sourceInstrument: { select: { name: true } } } }, sourceInstrument: { select: { name: true } } },
       });
       return this.toPlan(full!);
     });
@@ -424,11 +466,14 @@ export class ActionPlansService {
   private toPlan(p: {
     id: string; title: string; source: string | null; validatedAt: Date | null;
     validatedBy: string | null; createdAt: Date; items: Parameters<ActionPlansService['toItem']>[0][];
+    sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
   }): ActionPlanData {
     return {
       id: p.id,
       title: p.title,
       source: p.source,
+      sourceInstrumentSlug: p.sourceInstrumentSlug ?? null,
+      sourceInstrumentName: p.sourceInstrument?.name ?? null,
       validatedAt: p.validatedAt?.toISOString() ?? null,
       validatedBy: p.validatedBy,
       createdAt: p.createdAt.toISOString(),
@@ -442,6 +487,7 @@ export class ActionPlansService {
     reviewDate: Date | null; exposedGroup?: string | null;
     severity?: string | null; probability?: string | null; riskLevel?: string | null;
     areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
+    sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
   }): ActionItemData {
     return {
@@ -449,6 +495,8 @@ export class ActionPlansService {
       planId: i.planId,
       point: i.point,
       origin: i.origin,
+      sourceInstrumentSlug: i.sourceInstrumentSlug ?? null,
+      sourceInstrumentName: i.sourceInstrument?.name ?? null,
       action: i.action,
       responsible: i.responsible,
       dueDate: i.dueDate?.toISOString() ?? null,
@@ -469,7 +517,7 @@ export class ActionPlansService {
 
   private toEvidence(e: {
     id: string; itemId: string | null; kind: string; title: string; url: string | null;
-    note: string | null; fileName?: string | null; fileMime?: string | null;
+    note: string | null; status?: string | null; fileName?: string | null; fileMime?: string | null;
     fileSize?: number | null; createdAt: Date;
   }): EvidenceData {
     return {
@@ -479,6 +527,7 @@ export class ActionPlansService {
       title: e.title,
       url: e.url,
       note: e.note,
+      status: e.status ?? 'ENVIADA',
       fileName: e.fileName ?? null,
       fileMime: e.fileMime ?? null,
       fileSize: e.fileSize ?? null,

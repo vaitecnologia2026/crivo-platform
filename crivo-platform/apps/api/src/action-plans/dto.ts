@@ -8,6 +8,10 @@ export class CreateActionPlanDto {
 
   @IsOptional() @IsString() @MaxLength(60)
   source?: string;
+
+  /** A4 — proveniência estruturada (slug do catálogo do Motor). */
+  @IsOptional() @IsString() @MaxLength(40)
+  sourceInstrumentSlug?: string;
 }
 
 export class CreateActionItemDto {
@@ -19,6 +23,10 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(60)
   origin?: string;
+
+  /** A4 — proveniência estruturada (slug do catálogo do Motor). */
+  @IsOptional() @IsString() @MaxLength(40)
+  sourceInstrumentSlug?: string;
 
   @IsOptional() @IsString() @MaxLength(160)
   responsible?: string;
@@ -60,6 +68,10 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(60)
   origin?: string;
+
+  /** A4 — proveniência estruturada; null limpa o vínculo. */
+  @IsOptional() @IsString() @MaxLength(40)
+  sourceInstrumentSlug?: string;
 
   @IsOptional() @IsString() @MaxLength(160)
   responsible?: string;
