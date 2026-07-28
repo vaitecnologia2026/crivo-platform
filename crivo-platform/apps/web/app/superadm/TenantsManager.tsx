@@ -152,13 +152,15 @@ export function TenantsManager({
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {/* C2 (call 14/07): o caminho preferido cria a empresa pelos dados
-                REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard. */}
-            <Button variant="terra" size="sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
+                REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard.
+                Botões do admin.css: a variante terra do @crivo/ui não aplica o
+                fundo neste shell (texto off-white sumia no fundo creme). */}
+            <button className="btn btn--terra btn--sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
               {showCnpj ? "Fechar" : "Nova empresa (via CNPJ)"}
-            </Button>
-            <Button variant="outlineDark" size="sm" onClick={() => { setShowForm((v) => !v); setShowCnpj(false); }}>
+            </button>
+            <button className="btn btn--outline-dark btn--sm" onClick={() => { setShowForm((v) => !v); setShowCnpj(false); }}>
               {showForm ? "Fechar" : "Nova empresa (manual)"}
-            </Button>
+            </button>
           </div>
         </div>
 
