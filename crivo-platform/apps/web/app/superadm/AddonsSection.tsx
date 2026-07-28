@@ -48,9 +48,10 @@ export function AddonsSection() {
   }
   useEffect(() => { void refresh(); }, []);
 
-  // A tabela do catálogo mostra só os adicionais CONFIGURADOS; os módulos do
-  // catálogo fixo sem preço continuam no painel de preços de Contratos e Liberações.
-  const rows = (addons ?? []).filter((a) => a.configured);
+  // C5: esta tela é a FONTE ÚNICA do catálogo (o painel legado de preços em
+  // Contratos e Liberações foi removido). Módulos ainda sem preço aparecem
+  // como placeholders "não configurado" — porta de entrada da precificação.
+  const rows = addons ?? [];
 
   async function remove(a: AddonSummary) {
     if (!confirm(`Excluir o adicional "${a.label}" do catálogo?`)) return;
@@ -102,6 +103,7 @@ export function AddonsSection() {
                   <tr key={a.moduleCode}>
                     <td className="addx-name">
                       <strong>{a.label}</strong>
+                      {!a.configured && <span className="sol-chip" style={{ marginLeft: 6 }}>não configurado</span>}
                       {a.description && <p>{a.description}</p>}
                     </td>
                     <td>{a.category || "—"}</td>
@@ -125,13 +127,24 @@ export function AddonsSection() {
                     <td>{a.dependenciesNote || "—"}</td>
                     <td>{a.releaseRule || "—"}</td>
                     <td>
-                      <span className={`addx-status addx-status--${a.statusEx}`}>
-                        {ADDON_STATUS_LABEL[a.statusEx]}
-                      </span>
+                      {/* Placeholder sem registro não está "Ativo" em lugar nenhum
+                          (não aparece no contrato) — status só quando configurado. */}
+                      {a.configured ? (
+                        <span className={`addx-status addx-status--${a.statusEx}`}>
+                          {ADDON_STATUS_LABEL[a.statusEx]}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="addx-actions">
-                      <button type="button" onClick={() => setEditing(a)}>Editar</button>
-                      <button type="button" className="is-danger" onClick={() => remove(a)}>Excluir</button>
+                      <button type="button" onClick={() => setEditing(a)}>
+                        {a.configured ? "Editar" : "Configurar"}
+                      </button>
+                      {/* Placeholder não tem registro no banco — não há o que excluir. */}
+                      {a.configured && (
+                        <button type="button" className="is-danger" onClick={() => remove(a)}>Excluir</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -230,7 +243,7 @@ function AddonForm({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
-          <h2>{initial ? `Editar — ${initial.label}` : "Novo adicional"}</h2>
+          <h2>{initial ? (initial.configured ? `Editar — ${initial.label}` : `Configurar — ${initial.label}`) : "Novo adicional"}</h2>
           <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
         </header>
 
@@ -303,7 +316,7 @@ function AddonForm({
               Cancelar
             </button>
             <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !label.trim()}>
-              {saving ? "Salvando…" : initial ? "Salvar alterações" : "Criar adicional"}
+              {saving ? "Salvando…" : initial ? (initial.configured ? "Salvar alterações" : "Configurar adicional") : "Criar adicional"}
             </button>
           </div>
         </form>

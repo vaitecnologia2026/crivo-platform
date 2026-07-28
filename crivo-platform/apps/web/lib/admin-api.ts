@@ -105,8 +105,14 @@ async function adminFetch<T>(
     throw new Error("Sessão expirada");
   }
   if (!res.ok) {
+    // 413 vem do NGINX com corpo HTML (res.json() falha) e statusText vazio em
+    // HTTP/2 — sem este mapa o erro aparecia como string VAZIA na tela.
+    if (res.status === 413) {
+      throw new Error("Arquivo muito grande para o servidor (máx. 8 MB).");
+    }
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? "Erro na requisição");
+    const msg = typeof err.message === "string" && err.message.trim() ? err.message : `Erro na requisição (HTTP ${res.status})`;
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }

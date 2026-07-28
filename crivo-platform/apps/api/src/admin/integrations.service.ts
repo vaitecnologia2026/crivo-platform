@@ -161,6 +161,10 @@ export class IntegrationsService {
 
   async uploadTemplate(dto: { name: string; fileName: string; mimeType: string; data: string }) {
     if (!dto.data) throw new BadRequestException('Arquivo vazio.');
+    // Cap SERVER-side (o limite de 8 MB do front é contornável): 11.184.812
+    // chars = base64 de 8 MiB. Sem isto um payload gigante viraria linha
+    // permanente no Postgres.
+    if (dto.data.length > 11_184_812) throw new BadRequestException('Arquivo excede 8 MB.');
     const t = await this.prisma.admin.contractTemplate.create({
       data: { name: dto.name, fileName: dto.fileName, mimeType: dto.mimeType, data: dto.data },
       select: { id: true, name: true, fileName: true, mimeType: true, createdAt: true },

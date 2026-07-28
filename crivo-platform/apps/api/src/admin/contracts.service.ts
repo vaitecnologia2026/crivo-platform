@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Contract } from '@crivo/db';
-import type {
-  ContractData,
-  ContractModel,
-  ContractStatus,
-  DiagnosticMethod,
-  TechnicalOutput,
-  UpsertContractRequest,
+import {
+  MODULES,
+  type ContractData,
+  type ContractModel,
+  type ContractStatus,
+  type DiagnosticMethod,
+  type TechnicalOutput,
+  type UpsertContractRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
@@ -197,7 +198,25 @@ export class ContractsService {
     solutionIds: string[],
     optionalModules: string[],
   ): Promise<void> {
-    const codes = new Set<string>(optionalModules);
+    // C4: opcionais do contrato agora podem ser ADICIONAIS do catálogo com slug
+    // próprio (ex.: crivo-plus). O que liga módulo é addon.activatedModules —
+    // o slug em si NÃO vira tenant_module (seria linha órfã que nenhum guard
+    // conhece). Códigos que já são módulos reais continuam entrando direto.
+    const moduleCodes = new Set<string>(MODULES.map((m) => m.code));
+    const codes = new Set<string>();
+    if (optionalModules.length) {
+      const addonRows = await this.prisma.admin.addon.findMany({
+        where: { moduleCode: { in: optionalModules } },
+        select: { moduleCode: true, activatedModules: true },
+      });
+      const byCode = new Map(addonRows.map((a) => [a.moduleCode, a]));
+      for (const code of optionalModules) {
+        if (moduleCodes.has(code)) codes.add(code);
+        for (const c of byCode.get(code)?.activatedModules ?? []) {
+          if (moduleCodes.has(c)) codes.add(c);
+        }
+      }
+    }
     if (solutionIds.length) {
       const prods = await this.prisma.admin.product.findMany({
         where: { id: { in: solutionIds } },

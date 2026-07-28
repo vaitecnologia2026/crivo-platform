@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CONTRACT_STATUS_LABEL, type AddonSummary, type ContractStatus, type TenantSummary } from "@crivo/types";
+import { CONTRACT_STATUS_LABEL, type ContractStatus, type TenantSummary } from "@crivo/types";
 import {
   deleteContractTemplate,
-  listAddons,
   listAllContracts,
   listContractTemplates,
   listTenants,
-  upsertAddon,
   uploadContractTemplate,
   type ContractListItem,
   type ContractTemplateSummary,
@@ -182,78 +180,9 @@ function ContractsTable() {
   );
 }
 
-/** Painel de preços dos adicionais (Tela 05 · modelo Adicional c/ preço+recorrência). */
-function AddonPricesPanel() {
-  const [addons, setAddons] = useState<AddonSummary[] | null>(null);
-  useEffect(() => {
-    listAddons().then(setAddons).catch(() => setAddons([]));
-  }, []);
-  return (
-    <div className="cnae-card" style={{ marginBottom: 18 }}>
-      <h3 style={{ marginTop: 0 }}>Preços de adicionais</h3>
-      <p className="cnae-muted" style={{ marginTop: 0 }}>
-        Preço e recorrência de cada adicional. Entram no contrato (soluções + adicionais) e no
-        faturamento/MRR quando o contrato está <strong>Ativo</strong>.
-      </p>
-      {!addons ? (
-        <p className="cnae-muted">Carregando…</p>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table className="data-table">
-            <thead>
-              <tr><th>Adicional</th><th>Mensal (R$)</th><th>Implantação (R$)</th><th>Recorrente</th><th></th></tr>
-            </thead>
-            <tbody>
-              {addons.map((a) => (
-                <AddonRow
-                  key={a.moduleCode}
-                  addon={a}
-                  onSaved={(u) => setAddons((prev) => prev?.map((x) => (x.moduleCode === u.moduleCode ? u : x)) ?? prev)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AddonRow({ addon, onSaved }: { addon: AddonSummary; onSaved: (a: AddonSummary) => void }) {
-  const [monthly, setMonthly] = useState(String(addon.monthlyPriceCents / 100));
-  const [setup, setSetup] = useState(String(addon.setupPriceCents / 100));
-  const [recurring, setRecurring] = useState(addon.recurring);
-  const [saving, setSaving] = useState(false);
-  const numStyle = { width: 90, font: "inherit", fontSize: 13, padding: "4px 6px", borderRadius: 6, border: "1px solid var(--line, #E3DDD3)" };
-  async function save() {
-    setSaving(true);
-    try {
-      const u = await upsertAddon(addon.moduleCode, {
-        monthlyPriceCents: Math.round((Number(monthly) || 0) * 100),
-        setupPriceCents: Math.round((Number(setup) || 0) * 100),
-        recurring,
-        active: true,
-      });
-      onSaved(u);
-    } catch {
-      /* mantém */
-    } finally {
-      setSaving(false);
-    }
-  }
-  return (
-    <tr>
-      <td>
-        <strong>{addon.label}</strong>
-        <div className="cnae-muted" style={{ fontSize: 11 }}>{addon.moduleCode}{addon.configured ? "" : " · não precificado"}</div>
-      </td>
-      <td><input type="number" min={0} step="0.01" value={monthly} onChange={(e) => setMonthly(e.target.value)} style={numStyle} /></td>
-      <td><input type="number" min={0} step="0.01" value={setup} onChange={(e) => setSetup(e.target.value)} style={numStyle} /></td>
-      <td><input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} /></td>
-      <td><button className="btn btn--terra btn--sm" disabled={saving} onClick={save}>{saving ? "…" : "Salvar"}</button></td>
-    </tr>
-  );
-}
+// C5: o painel legado de preços saiu daqui — precificação de adicionais vive
+// SÓ na tela Adicionais (fonte única; lá os não precificados aparecem como
+// placeholders editáveis).
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -331,8 +260,6 @@ export function ContractsSection() {
   return (
     <div>
       <ContractsTable />
-
-      <AddonPricesPanel />
 
       <h3 style={{ margin: "0 0 6px" }}>Modelo de contrato</h3>
       <p className="cnae-muted" style={{ marginTop: 0 }}>

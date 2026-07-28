@@ -6,14 +6,13 @@ import {
   CONTRACT_MODEL_LABEL,
   CONTRACT_STATUSES,
   CONTRACT_STATUS_LABEL,
-  DIAGNOSTIC_METHODS,
   DIAGNOSTIC_METHOD_LABEL,
   MODULES,
   TECHNICAL_OUTPUTS,
   TECHNICAL_OUTPUT_LABEL,
+  type AddonSummary,
   type ContractModel,
   type ContractStatus,
-  type DiagnosticMethod,
   type ProductSummary,
   type TechnicalOutput,
   type TenantSummary,
@@ -22,6 +21,7 @@ import {
 import {
   getContract,
   getGroupContract,
+  listAddons,
   listProducts,
   upsertContract,
   upsertGroupContract,
@@ -44,6 +44,9 @@ export function ContractModal({
 
   const [form, setForm] = useState<UpsertContractRequest>({});
   const [products, setProducts] = useState<ProductSummary[]>([]);
+  // null = catálogo de Adicionais INDISPONÍVEL (falha de rede) — diferente de
+  // catálogo carregado porém vazio (nenhum adicional precificado/ativo).
+  const [addons, setAddons] = useState<AddonSummary[] | null>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -52,12 +55,16 @@ export function ContractModal({
     let alive = true;
     (async () => {
       try {
-        const [c, prods] = await Promise.all([
+        const [c, prods, adds] = await Promise.all([
           isGroup ? getGroupContract(targetId) : getContract(targetId),
           listProducts(),
+          // C4: opcionais vêm do catálogo de Adicionais — mesmos nomes da tela
+          // Adicionais. Falha aqui não derruba o modal: cai na lista fixa.
+          listAddons().catch(() => null),
         ]);
         if (!alive) return;
         setProducts(prods.filter((p) => !p.isLeadCapture));
+        setAddons(adds);
         setForm(
           c
             ? {
@@ -97,25 +104,21 @@ export function ContractModal({
 
   function toggleSolution(id: string) {
     const cur = form.solutionIds ?? [];
-    const next = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id];
-    // A solução PRINCIPAL (1ª) define o método. Ao trocá-la, o override do
-    // contrato acompanha — antes ele ficava preso no método da solução anterior
-    // (contrato virava Organizacional e o portal seguia mostrando Essencial).
-    const previousPrimary = cur[0];
-    const nextPrimary = next[0];
-    if (nextPrimary !== previousPrimary) {
-      const solutionMethod = products.find((p) => p.id === nextPrimary)?.method ?? null;
-      setForm((f) => ({ ...f, solutionIds: next, method: solutionMethod }));
-      return;
-    }
-    set("solutionIds", next);
+    set("solutionIds", cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id]);
   }
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await (isGroup ? upsertGroupContract(targetId, form) : upsertContract(targetId, form));
+      // C3 (decisão da call 14/07): o MÉTODO vem da SOLUÇÃO — o contrato não o
+      // define mais. O override legado só é limpo quando a solução principal
+      // DEFINE método (aí a limpeza é inócua); sem solução ou com solução sem
+      // método, o valor legado do contrato é o ÚNICO método efetivo — apagá-lo
+      // deixaria portal e documentos sem contexto, silenciosamente.
+      const primary = products.find((p) => p.id === (form.solutionIds ?? [])[0]);
+      const payload = primary?.method ? { ...form, method: null } : form;
+      await (isGroup ? upsertGroupContract(targetId, payload) : upsertContract(targetId, payload));
       setSaved(true);
       setTimeout(onClose, 900);
     } catch (err) {
@@ -181,23 +184,32 @@ export function ContractModal({
               <legend>Método × Saída técnica</legend>
               <div className="prod-form__grid">
                 <label className="prod-field">
-                  <span>Método CRIVO</span>
-                  <select value={form.method ?? ""} onChange={(e) => set("method", (e.target.value || null) as DiagnosticMethod | null)}>
-                    <option value="">— herdar da solução —</option>
-                    {DIAGNOSTIC_METHODS.map((m) => (<option key={m} value={m}>{DIAGNOSTIC_METHOD_LABEL[m]}</option>))}
-                  </select>
-                  <span className="prod-note" style={{ margin: "6px 0 0" }}>
-                    {(() => {
-                      const primary = products.find((p) => p.id === (form.solutionIds ?? [])[0]);
-                      if (!primary) return "Escolha a solução principal acima — é ela que define o método.";
-                      if (primary.method) {
-                        return form.method && form.method !== primary.method
-                          ? `Atenção: “${primary.name}” aplica ${DIAGNOSTIC_METHOD_LABEL[primary.method]}. Este contrato está sobrescrevendo para ${DIAGNOSTIC_METHOD_LABEL[form.method]}.`
-                          : `Herdado de “${primary.name}”: ${DIAGNOSTIC_METHOD_LABEL[primary.method]}.`;
-                      }
-                      return `“${primary.name}” ainda não define método (cadastre em Soluções CRIVO). Enquanto isso, vale o escolhido aqui.`;
-                    })()}
-                  </span>
+                  <span>Método CRIVO (herdado da solução)</span>
+                  {/* C3: o método NÃO é editável no contrato — quem o define é a
+                      solução contratada (Soluções CRIVO). Sem solução com método,
+                      o valor LEGADO do contrato segue valendo e aparece aqui. */}
+                  {(() => {
+                    const primary = products.find((p) => p.id === (form.solutionIds ?? [])[0]);
+                    const legacy = !primary?.method && form.method ? form.method : null;
+                    const value = primary?.method
+                      ? DIAGNOSTIC_METHOD_LABEL[primary.method]
+                      : legacy
+                        ? `${DIAGNOSTIC_METHOD_LABEL[legacy]} (legado, do contrato)`
+                        : "—";
+                    const text = primary?.method
+                      ? `Herdado de “${primary.name}”.`
+                      : legacy
+                        ? `Este contrato ainda usa o método definido no próprio contrato — cadastre o método na solução (Soluções CRIVO) para padronizar.`
+                        : primary
+                          ? `“${primary.name}” ainda não define método — cadastre na tela Soluções CRIVO.`
+                          : "Escolha a solução principal acima — é ela que define o método.";
+                    return (
+                      <>
+                        <input value={value} readOnly disabled />
+                        <span className="prod-note" style={{ margin: "6px 0 0" }}>{text}</span>
+                      </>
+                    );
+                  })()}
                 </label>
                 <label className="prod-field">
                   <span>Saída técnica (documentos)</span>
@@ -245,15 +257,55 @@ export function ContractModal({
             </fieldset>
 
             <fieldset className="prod-fs">
-              <legend>Módulos opcionais (além do CORE da solução)</legend>
-              <div className="prod-modules">
-                {MODULES.map((m) => (
-                  <label key={m.code} className="prod-check">
-                    <input type="checkbox" checked={(form.optionalModules ?? []).includes(m.code)} onChange={() => toggleModule(m.code)} />
-                    {m.name}
-                  </label>
-                ))}
-              </div>
+              <legend>Adicionais do contrato (catálogo de Adicionais)</legend>
+              {(() => {
+                // C4: a lista vem do CATÁLOGO (só configurados e ativos) — os
+                // mesmos nomes da tela Adicionais. addons === null significa
+                // FALHA ao carregar (aí a lista fixa evita travar o contrato);
+                // catálogo carregado porém vazio NÃO cai na lista fixa — senão
+                // precificar o 1º adicional "sumiria" com todos os outros.
+                const failed = addons === null;
+                const catalog = (addons ?? []).filter((a) => a.configured && a.active);
+                const options = failed
+                  ? MODULES.map((m) => ({ code: m.code, name: m.name }))
+                  : catalog.map((a) => ({ code: a.moduleCode, name: a.label }));
+                // Retrocompatibilidade: códigos JÁ selecionados fora das opções
+                // continuam visíveis (com o nome do catálogo, quando existir).
+                const known = new Set(options.map((o) => o.code));
+                const legacy = (form.optionalModules ?? []).filter((c) => !known.has(c));
+                const all = [
+                  ...options,
+                  ...legacy.map((code) => {
+                    const row = (addons ?? []).find((a) => a.moduleCode === code);
+                    return { code, name: row ? `${row.label} (indisponível p/ novos contratos)` : `${code} (fora do catálogo)` };
+                  }),
+                ];
+                return (
+                  <>
+                    {all.length > 0 ? (
+                      <div className="prod-modules">
+                        {all.map((m) => (
+                          <label key={m.code} className="prod-check">
+                            <input
+                              type="checkbox"
+                              checked={(form.optionalModules ?? []).includes(m.code)}
+                              onChange={() => toggleModule(m.code)}
+                            />
+                            {m.name}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="prod-note">Nenhum adicional ativo e precificado no catálogo ainda.</p>
+                    )}
+                    <p className="prod-note" style={{ margin: "6px 0 0" }}>
+                      {failed
+                        ? "Catálogo de Adicionais indisponível agora — exibindo a lista padrão de módulos."
+                        : "Os nomes e preços vivem na tela Adicionais — adicionais sem preço configurado não aparecem aqui até serem precificados."}
+                    </p>
+                  </>
+                );
+              })()}
             </fieldset>
 
             <fieldset className="prod-fs">

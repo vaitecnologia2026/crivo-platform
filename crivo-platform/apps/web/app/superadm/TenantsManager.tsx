@@ -20,6 +20,7 @@ function formatCnpj(cnpj: string): string {
   if (d.length !== 14) return cnpj;
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }
+import { CnpjLookupCard } from "./CnpjLookupCard";
 import { GroupOverviewModal } from "./GroupOverviewModal";
 import { useTenants } from "./useTenants";
 import { ModulesModal } from "./ModulesModal";
@@ -45,6 +46,7 @@ export function TenantsManager({
 }) {
   const { tenants, status, refresh, provision, setStatusOf, applyTenant } = useTenants();
   const [showForm, setShowForm] = useState(false);
+  const [showCnpj, setShowCnpj] = useState(false);
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [groups, setGroups] = useState<BusinessGroupSummary[] | null>(null);
@@ -148,10 +150,29 @@ export function TenantsManager({
                 : "Carregando empresas-cliente…"}
             </p>
           </div>
-          <Button variant="terra" size="sm" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Fechar" : "Nova empresa"}
-          </Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* C2 (call 14/07): o caminho preferido cria a empresa pelos dados
+                REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard. */}
+            <Button variant="terra" size="sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
+              {showCnpj ? "Fechar" : "Nova empresa (via CNPJ)"}
+            </Button>
+            <Button variant="outlineDark" size="sm" onClick={() => { setShowForm((v) => !v); setShowCnpj(false); }}>
+              {showForm ? "Fechar" : "Nova empresa (manual)"}
+            </Button>
+          </div>
         </div>
+
+        {showCnpj && (
+          <div style={{ marginBottom: 20 }}>
+            <CnpjLookupCard
+              groups={groups ?? []}
+              onProvisioned={() => {
+                void refresh();
+                void refreshGroups();
+              }}
+            />
+          </div>
+        )}
 
         {status === "ok" && tenants.length > 0 && (
           <div className="kpi-grid" style={{ marginBottom: 20 }}>

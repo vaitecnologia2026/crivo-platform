@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductSummary } from "@crivo/types";
+import type { BusinessGroupSummary, ProductSummary } from "@crivo/types";
 import {
   createLeadFromCnpj,
   evaluateFromCnpj,
   listProducts,
+  setTenantGroup,
   type CnaeDecisionResult,
   type CnaeRiskLevel,
   type CnpjCompanyData,
@@ -34,9 +35,17 @@ const inputStyle: React.CSSProperties = {
 
 type ProvResult = Awaited<ReturnType<typeof createLeadFromCnpj>>;
 
-/** Ferramenta do Dashboard: digita o CNPJ → dados da empresa + enquadramento NR-1,
- * e ações "Salvar como lead" / "Converter em cliente" usando a API vinculada. */
-export function CnpjLookupCard() {
+/** Ferramenta do Dashboard e de Grupos e Empresas (C2): digita o CNPJ → dados
+ * da empresa + enquadramento NR-1, e ações "Salvar como lead" / "Converter em
+ * cliente". Com `groups`, a conversão permite vincular a um grupo empresarial;
+ * `onProvisioned` avisa a tela-mãe para recarregar a lista de empresas. */
+export function CnpjLookupCard({
+  groups,
+  onProvisioned,
+}: {
+  groups?: BusinessGroupSummary[];
+  onProvisioned?: () => void;
+} = {}) {
   const [cnpj, setCnpj] = useState("");
   const [hc, setHc] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,6 +59,8 @@ export function CnpjLookupCard() {
   const [products, setProducts] = useState<ProductSummary[] | null>(null);
   const [productId, setProductId] = useState("");
   const [email, setEmail] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [linkedGroup, setLinkedGroup] = useState<string | null>(null);
   const [actBusy, setActBusy] = useState<"save" | "convert" | null>(null);
   const [actErr, setActErr] = useState<string | null>(null);
 
@@ -58,6 +69,8 @@ export function CnpjLookupCard() {
     setConverting(false);
     setProductId("");
     setEmail("");
+    setGroupId("");
+    setLinkedGroup(null);
     setActErr(null);
   }
 
@@ -113,14 +126,24 @@ export function CnpjLookupCard() {
     setActBusy("convert");
     setActErr(null);
     try {
-      setProv(
-        await createLeadFromCnpj({
-          cnpj,
-          numeroColaboradores: hc ? Number(hc) : undefined,
-          email: email.trim() || undefined,
-          productId,
-        }),
-      );
+      const r = await createLeadFromCnpj({
+        cnpj,
+        numeroColaboradores: hc ? Number(hc) : undefined,
+        email: email.trim() || undefined,
+        productId,
+      });
+      // C2: vínculo opcional ao grupo empresarial logo após provisionar.
+      if (r.tenant && groupId) {
+        const g = (groups ?? []).find((x) => x.id === groupId);
+        try {
+          await setTenantGroup(r.tenant.id, groupId);
+          setLinkedGroup(g?.name ?? null);
+        } catch {
+          setActErr(`Empresa criada, mas o vínculo ao grupo "${g?.name ?? ""}" falhou — vincule pela lista de empresas.`);
+        }
+      }
+      setProv(r);
+      if (r.tenant) onProvisioned?.();
     } catch (e) {
       setActErr(e instanceof Error ? e.message : "Falha ao converter em cliente.");
     } finally {
@@ -247,6 +270,7 @@ export function CnpjLookupCard() {
                 <h4>Empresa-cliente criada ✓</h4>
                 <p>
                   <strong>{prov.lead.company ?? prov.lead.name}</strong> provisionada.
+                  {linkedGroup && <> Vinculada ao grupo <strong>{linkedGroup}</strong>.</>}
                 </p>
                 <p style={{ fontSize: 12.5 }}>
                   Login: <strong>{prov.adminEmail}</strong> · Senha temporária:{" "}
@@ -288,6 +312,18 @@ export function CnpjLookupCard() {
                       placeholder="e-mail do cliente (acesso admin)"
                       style={{ ...inputStyle, flex: 1, minWidth: 200 }}
                     />
+                    {(groups?.length ?? 0) > 0 && (
+                      <select
+                        value={groupId}
+                        onChange={(e) => setGroupId(e.target.value)}
+                        style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+                      >
+                        <option value="">Vincular ao grupo (opcional)</option>
+                        {groups!.map((g) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    )}
                     <button
                       className="btn btn--primary"
                       onClick={converter}
