@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { AI_PROMPT_DEFAULTS, defaultPrompt, isAiPromptUseCase } from './ai-prompt-defaults';
 
-const EXPECTED = ['copiloto', 'preliminary_report', 'pocket_summary', 'people_analytics'];
+const EXPECTED = ['copiloto', 'preliminary_report', 'pocket_summary', 'people_analytics', 'document_texts'];
 
 describe('AI_PROMPT_DEFAULTS (central de prompts)', () => {
-  it('tem exatamente os 4 casos de uso esperados, sem duplicatas', () => {
+  it('tem exatamente os 5 casos de uso esperados, sem duplicatas', () => {
     const useCases = AI_PROMPT_DEFAULTS.map((p) => p.useCase);
     expect(new Set(useCases).size).toBe(useCases.length);
     expect(useCases.sort()).toEqual([...EXPECTED].sort());
@@ -29,6 +29,7 @@ describe('AI_PROMPT_DEFAULTS (central de prompts)', () => {
     expect(defaultPrompt('preliminary_report')).toContain('Relator Preliminar CRIVO');
     expect(defaultPrompt('pocket_summary')).toContain('Mentoria IA do CRIVO Pocket');
     expect(defaultPrompt('people_analytics')).toContain('People Analytics');
+    expect(defaultPrompt('document_texts')).toContain('REVISADO E APROVADO pela equipe CRIVO');
     // @ts-expect-error — caso inválido
     expect(defaultPrompt('nope')).toBe('');
   });

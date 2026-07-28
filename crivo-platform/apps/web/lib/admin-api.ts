@@ -1492,6 +1492,57 @@ export interface UpsertReportTemplateRequest {
   includePlan?: boolean;
   active?: boolean;
 }
+// ── F3 · Textos aprovados dos documentos (IA gera, equipe CRIVO aprova) ──
+
+export interface ApprovedTextRow {
+  docType: string;
+  docLabel: string;
+  field: string;
+  label: string;
+  required: boolean;
+  draft: string | null;
+  draftModel: string | null;
+  draftAt: string | null;
+  approvedContent: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  status: "APROVADO" | "RASCUNHO" | "PENDENTE";
+}
+export function listApprovedTexts(tenantId: string): Promise<ApprovedTextRow[]> {
+  return adminFetch<ApprovedTextRow[]>(`/admin/reports/texts/${tenantId}`);
+}
+export function generateApprovedTextDraft(
+  tenantId: string,
+  docType: string,
+  field: string,
+): Promise<{ draft: string | null; draftModel: string | null }> {
+  // Geração via IA leva mais que o timeout padrão (15s) — o servidor espera o
+  // provedor por até 30s; sem folga aqui o browser aborta, o operador vê erro
+  // falso e o rascunho "fantasma" fica gravado mesmo assim.
+  return adminFetch(`/admin/reports/texts/${tenantId}/${docType}/${field}/draft`, {
+    method: "POST",
+    signal: AbortSignal.timeout(60000),
+  });
+}
+export function saveApprovedText(
+  tenantId: string,
+  docType: string,
+  field: string,
+  dto: { content: string; approve?: boolean },
+): Promise<{ approvedContent: string | null }> {
+  return adminFetch(`/admin/reports/texts/${tenantId}/${docType}/${field}`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}
+export function revokeApprovedText(
+  tenantId: string,
+  docType: string,
+  field: string,
+): Promise<{ approvedContent: string | null }> {
+  return adminFetch(`/admin/reports/texts/${tenantId}/${docType}/${field}`, { method: "DELETE" });
+}
+
 export function listReportTemplates(): Promise<ReportTemplateRow[]> {
   return adminFetch<ReportTemplateRow[]>("/admin/reports/templates");
 }

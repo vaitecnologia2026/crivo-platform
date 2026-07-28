@@ -591,6 +591,34 @@ model AiCallLog {
   @@map("ai_call_logs")
 }
 
+/// F3 Pacote de Templates — TEXTOS APROVADOS dos documentos (decisão 1-A do
+/// cliente): a IA gera um rascunho, a equipe CRIVO edita e APROVA no Super
+/// Admin, e só o texto aprovado entra nos documentos emitidos. 1 linha por
+/// (empresa, documento, campo). Tem tenantId mas é gerida pelo control plane
+/// (fila de aprovação cross-tenant) → owner-only, como mentorias/ai_call_logs.
+model ApprovedText {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  docType  String @map("doc_type") // relatorio_executivo | dossie_tecnico | relatorio_evolucao
+  field    String // sintese_executiva | sinais_leitura | proximo_passo_justificativa | finalidade_limites | conclusao_tecnica | ...
+
+  draft      String?   @db.Text // último rascunho (da IA ou salvo pela equipe)
+  draftModel String?   @map("draft_model") // modelo de IA que gerou (null = manual)
+  draftAt    DateTime? @map("draft_at")
+
+  approvedContent String?   @db.Text @map("approved_content") // texto congelado que entra no documento
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  status          String    @default("RASCUNHO") // RASCUNHO | APROVADO
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, docType, field])
+  @@index([tenantId])
+  @@map("approved_texts")
+}
+
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   tenantId   String?  @db.Uuid // null = ação de super admin (global)

@@ -102,7 +102,14 @@ export function printDocument(doc: GeneratedDocument) {
   const sections = doc.sections
     .map((s) => {
       let inner = "";
-      if (s.body) inner += `<p>${esc(s.body)}</p>`;
+      // Corpos com quebras de linha (textos aprovados F3, complementos) saem
+      // como parágrafos reais — sem isto o HTML colapsa tudo em um bloco só.
+      if (s.body) {
+        inner += s.body
+          .split(/\n{2,}/)
+          .map((p) => `<p>${esc(p).replace(/\n/g, "<br/>")}</p>`)
+          .join("");
+      }
       if (s.rows) inner += `<table class="kv">${s.rows.map((r) => `<tr><th>${esc(r.label)}</th><td>${esc(r.value)}</td></tr>`).join("")}</table>`;
       if (s.table) {
         const head = s.table.columns.map((c) => `<th>${esc(c)}</th>`).join("");

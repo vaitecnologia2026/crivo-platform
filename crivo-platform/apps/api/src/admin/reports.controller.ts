@@ -54,6 +54,44 @@ export class ReportsAdminController {
     return this.svc.removeTemplate(id, { id: admin.id, email: admin.email });
   }
 
+  // ── F3 · Textos aprovados dos documentos (IA gera, equipe CRIVO aprova) ───
+
+  @Get('texts/:tenantId')
+  listTexts(@Param('tenantId') tenantId: string, @CurrentAdmin() admin: PlatformAdmin) {
+    return this.svc.listTexts(tenantId, { id: admin.id, email: admin.email });
+  }
+
+  @Post('texts/:tenantId/:docType/:field/draft')
+  generateTextDraft(
+    @Param('tenantId') tenantId: string,
+    @Param('docType') docType: string,
+    @Param('field') field: string,
+    @CurrentAdmin() admin: PlatformAdmin,
+  ) {
+    return this.svc.generateDraft(tenantId, docType, field, { id: admin.id, email: admin.email });
+  }
+
+  @Put('texts/:tenantId/:docType/:field')
+  saveText(
+    @Param('tenantId') tenantId: string,
+    @Param('docType') docType: string,
+    @Param('field') field: string,
+    @Body() dto: { content?: string; approve?: boolean },
+    @CurrentAdmin() admin: PlatformAdmin,
+  ) {
+    return this.svc.saveText(tenantId, docType, field, dto, { id: admin.id, email: admin.email });
+  }
+
+  @Delete('texts/:tenantId/:docType/:field')
+  revokeText(
+    @Param('tenantId') tenantId: string,
+    @Param('docType') docType: string,
+    @Param('field') field: string,
+    @CurrentAdmin() admin: PlatformAdmin,
+  ) {
+    return this.svc.revokeText(tenantId, docType, field, { id: admin.id, email: admin.email });
+  }
+
   @Get('emissions/:id')
   get(@Param('id') id: string, @CurrentAdmin() admin: PlatformAdmin) {
     return this.svc.get(id, { id: admin.id, email: admin.email });

@@ -135,7 +135,7 @@ function buildBaseTecnicaSection(decision: CnaeDecisionRow | null): DocumentSect
 // ── Pacote Final de Templates (layouts oficiais) ─────────────────────────────
 
 /** Códigos oficiais das dimensões do MAPA (ME1–ME6, confirmados pelo cliente). */
-const ME_CODE: Record<string, string> = {
+export const ME_CODE: Record<string, string> = {
   pressao_rotina: 'ME1',
   lideranca_sustentacao: 'ME2',
   cultura_comunicacao: 'ME3',
@@ -172,6 +172,31 @@ function bandLabelOf(value: number, bands: BandLike[]): string {
   if (exact) return exact.label;
   const floor = [...bands].sort((a, b) => b.min - a.min).find((b) => value >= b.min);
   return floor?.label ?? bands[0]?.label ?? '—';
+}
+
+/**
+ * F3 — quebra o texto aprovado de "Leitura dos principais sinais" em leituras
+ * por código (linhas no formato "ME1 — leitura."). Linhas que NÃO casam com um
+ * código listado (prosa livre, ou código fora de forças/atenções vigentes)
+ * voltam como `prose` e entram no corpo da seção — NENHUMA linha aprovada se
+ * perde, mesmo em casamento parcial.
+ */
+function signalReadings(
+  text: string | undefined,
+  codes: string[],
+): { byCode: Record<string, string>; prose: string | null } {
+  if (!text) return { byCode: {}, prose: null };
+  const byCode: Record<string, string> = {};
+  const leftovers: string[] = [];
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(/^([A-Za-z]{2}\d+)\s*[—:·–-]\s*(.+)$/);
+    const code = m?.[1].toUpperCase();
+    if (m && code && codes.includes(code) && !byCode[code]) byCode[code] = m[2].trim();
+    else leftovers.push(trimmed);
+  }
+  return { byCode, prose: leftovers.length ? leftovers.join('\n') : null };
 }
 
 /**
@@ -662,6 +687,25 @@ export class DocumentsService {
     });
   }
 
+  /**
+   * F3 — TEXTOS APROVADOS do documento (decisão 1-A): a IA rascunha, a equipe
+   * CRIVO aprova no Super Admin, e SÓ o texto aprovado entra aqui. Retorna o
+   * mapa campo → texto aprovado (campos sem aprovação ficam de fora).
+   */
+  private async approvedTextsOf(tenantId: string, docType: string): Promise<Record<string, string>> {
+    // rls-allow: approved_texts é control-plane (fila de aprovação, owner-only).
+    const rows = await this.prisma.admin.approvedText.findMany({
+      where: { tenantId, docType },
+      select: { field: true, approvedContent: true },
+    });
+    const out: Record<string, string> = {};
+    for (const r of rows) {
+      const text = r.approvedContent?.trim();
+      if (text) out[r.field] = text;
+    }
+    return out;
+  }
+
   /** Número da versão metodológica ATIVA de um instrumento (rótulo "v N"). */
   private async activeVersionLabel(instrument: string): Promise<string> {
     // rls-allow: methodology_versions é control-plane (catálogo global).
@@ -679,6 +723,7 @@ export class DocumentsService {
   ): Promise<GeneratedDocument> {
     const mapa = await this.mapaSource(tenantId);
     if (!mapa) throw new BadRequestException('Requer o MAPA Executivo CRIVO™ concluído.');
+    const approved = await this.approvedTextsOf(tenantId, 'relatorio_executivo');
 
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: ctx.company },
@@ -720,6 +765,12 @@ export class DocumentsService {
     const forces = sorted.slice(0, 2);
     const attentions = sorted.slice(2).slice(-2).reverse();
 
+    // F3 — leitura dos sinais aprovada, quebrada por código oficial (ME1–ME6).
+    const sinais = signalReadings(
+      approved['sinais_leitura'],
+      [...forces, ...attentions].map((d) => d.code),
+    );
+
     const sections: DocumentSection[] = [
       {
         heading: 'Documento executivo preliminar',
@@ -730,8 +781,9 @@ export class DocumentsService {
       {
         heading: '1. Síntese executiva',
         body:
-          'Síntese narrativa gerada pela IA da Plataforma e aprovada pela equipe CRIVO antes da ' +
-          'emissão. Disponível quando a etapa de aprovação de textos estiver ativa (em implantação).',
+          approved['sintese_executiva'] ??
+          'Síntese executiva pendente de aprovação pela equipe CRIVO (a IA da Plataforma rascunha, ' +
+            'a equipe revisa e aprova no Super Admin). A emissão oficial inclui a síntese aprovada.',
       },
       {
         heading: '2. Resultado geral',
@@ -755,13 +807,14 @@ export class DocumentsService {
       {
         heading: '4. Principais sinais',
         body:
-          'Forças = dimensões com maior resultado; Atenções = menor resultado. A leitura narrativa ' +
-          'de cada sinal é aprovada pela equipe CRIVO (etapa de aprovação de textos em implantação).',
+          'Forças = dimensões com maior resultado; Atenções = menor resultado. Cada leitura ' +
+          'narrativa é aprovada pela equipe CRIVO antes de entrar no documento.' +
+          (sinais.prose ? `\n\n${sinais.prose}` : ''),
         table: {
           columns: ['Tipo', 'Dimensão/Fator', 'Leitura aprovada'],
           data: [
-            ...forces.map((d) => ['Força', `${d.code} · ${d.name} (${d.value})`, '—']),
-            ...attentions.map((d) => ['Atenção', `${d.code} · ${d.name} (${d.value})`, '—']),
+            ...forces.map((d) => ['Força', `${d.code} · ${d.name} (${d.value})`, sinais.byCode[d.code] ?? '—']),
+            ...attentions.map((d) => ['Atenção', `${d.code} · ${d.name} (${d.value})`, sinais.byCode[d.code] ?? '—']),
           ],
         },
       },
@@ -776,9 +829,11 @@ export class DocumentsService {
           },
           {
             label: 'Justificativa',
-            value: ctx.cnaeDecision
-              ? 'Recomendação técnica derivada do enquadramento CNAE/NR-1 registrado para a empresa.'
-              : '—',
+            value:
+              approved['proximo_passo_justificativa'] ??
+              (ctx.cnaeDecision
+                ? 'Recomendação técnica derivada do enquadramento CNAE/NR-1 registrado para a empresa.'
+                : '—'),
           },
         ],
       },
@@ -822,6 +877,7 @@ export class DocumentsService {
   ): Promise<GeneratedDocument> {
     const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const psy = await this.psychosocialSummary(tenantId);
+    const approvedTexts = await this.approvedTextsOf(tenantId, 'dossie_tecnico');
     const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
     const items = (plan?.items ?? []) as (FactorItem & {
       evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[];
@@ -855,7 +911,8 @@ export class DocumentsService {
         '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
     });
 
-    // 1. Finalidade e limites — texto obrigatório do pacote.
+    // 1. Finalidade e limites — texto obrigatório do pacote + complemento
+    // APROVADO pela equipe CRIVO (F3), quando existir.
     sections.push({
       heading: '1. Finalidade e limites',
       body:
@@ -863,7 +920,8 @@ export class DocumentsService {
         'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
         'relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses ' +
         'documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da ' +
-        'empresa contratante e/ou do responsável técnico/designado.',
+        'empresa contratante e/ou do responsável técnico/designado.' +
+        (approvedTexts['finalidade_limites'] ? `\n\n${approvedTexts['finalidade_limites']}` : ''),
     });
 
     // 2. Escopo e fontes da avaliação.
@@ -1099,9 +1157,12 @@ export class DocumentsService {
     sections.push(buildBaseTecnicaSection(ctx.cnaeDecision));
 
     // 13. Conclusão e validação — assinatura FORA do sistema (decisão 27/07).
+    // F3: a CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO abre a seção; o texto
+    // fixo de responsabilidade do pacote permanece em seguida.
     sections.push(
       signatureSection(
-        'A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e ' +
+        (approvedTexts['conclusao_tecnica'] ? `${approvedTexts['conclusao_tecnica']}\n\n` : '') +
+          'A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e ' +
           'às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do ' +
           'responsável técnico/designado. A empresa baixa o documento, assina fora do sistema e o ' +
           'integra ao seu AEP/GRO/PGR.',
@@ -1497,7 +1558,35 @@ export class DocumentsService {
       }
     }
 
+    // F3 (dicionário do pacote: variável OBRIGATÓRIA ausente = bloqueia a
+    // emissão): os textos obrigatórios precisam estar APROVADOS pela equipe
+    // CRIVO (decisão 1-A). O rascunho/pré-visualização continua livre.
+    const requiredText: Record<string, { field: string; label: string }> = {
+      relatorio_executivo: { field: 'sintese_executiva', label: 'Síntese executiva' },
+      dossie_tecnico: { field: 'conclusao_tecnica', label: 'Conclusão técnica' },
+    };
+    // Mensagem em tom de CLIENTE — quem emite é o portal do tenant, e a
+    // aprovação é uma etapa da equipe CRIVO (o cliente não tem essa tela).
+    const req = requiredText[type];
+    const requiredTextError = (label: string) =>
+      new BadRequestException(
+        `Emissão aguardando aprovação da equipe CRIVO — o texto obrigatório "${label}" está em ` +
+          'elaboração/revisão. A pré-visualização (rascunho) continua disponível; a emissão oficial ' +
+          'é liberada assim que a equipe CRIVO aprovar o texto.',
+      );
+    if (req) {
+      const approved = await this.approvedTextsOf(tenantId, type);
+      if (!approved[req.field]) throw requiredTextError(req.label);
+    }
+
     const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
+    // Re-checagem PÓS-geração (TOCTOU): se a aprovação for revogada entre o
+    // gate acima e a leitura feita pelo gerador, o documento sairia com o
+    // placeholder "pendente de aprovação" congelado numa emissão oficial.
+    if (req) {
+      const stillApproved = await this.approvedTextsOf(tenantId, type);
+      if (!stillApproved[req.field]) throw requiredTextError(req.label);
+    }
     // Hash de integridade sobre o CONTEÚDO estável — generatedAt muda a cada
     // geração e não pode participar, senão a idempotência nunca dispara.
     const { generatedAt: _volatile, ...stable } = doc;

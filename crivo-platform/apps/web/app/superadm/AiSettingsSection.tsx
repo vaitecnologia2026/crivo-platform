@@ -29,6 +29,9 @@ const USE_CASES: { useCase: string; where: string; gateModules: string[] }[] = [
   { useCase: "preliminary_report", where: "LP / CRM · Relatório Preliminar do lead (e-mail)", gateModules: ["relatorios"] },
   { useCase: "pocket_summary", where: "Portal do Cliente · síntese da Mentoria IA Pocket", gateModules: ["pocket"] },
   { useCase: "people_analytics", where: "Portal do Cliente · People Analytics (análise de RH)", gateModules: ["analytics"] },
+  // Interno da CRIVO (sem gate por módulo do cliente): rascunhos dos textos
+  // aprovados dos documentos — Relatórios e Dossiês · Textos aprovados.
+  { useCase: "document_texts", where: "Super Admin · Textos aprovados dos documentos (Motor de Relatórios)", gateModules: [] },
 ];
 
 type Tab = "provedores" | "casos" | "prompts" | "contextos" | "consumo" | "logs";
@@ -245,18 +248,20 @@ export function AiSettingsSection() {
                 {USE_CASES.map((u) => {
                   // Mesmo gate do backend: sem token configurado, nenhum caso roda
                   // (copiloto/pocket/relatórios checam `!enabled || !hasKey`).
+                  // gateModules vazio = caso INTERNO da CRIVO (sem gate por
+                  // módulo do cliente) — nunca bloqueia por módulo.
                   const blockedBy = !enabled
                     ? "IA desativada no sistema"
                     : !data.hasKey
                       ? "Sem token configurado"
-                      : mods.length > 0 && !u.gateModules.some((g) => mods.includes(g))
+                      : u.gateModules.length > 0 && mods.length > 0 && !u.gateModules.some((g) => mods.includes(g))
                         ? "Módulo não liberado acima"
                         : null;
                   return (
                     <tr key={u.useCase}>
                       <td className="cell-code"><code>{u.useCase}</code></td>
                       <td>{u.where}</td>
-                      <td>{u.gateModules.join(" ou ")}</td>
+                      <td>{u.gateModules.length ? u.gateModules.join(" ou ") : "— (interno CRIVO)"}</td>
                       <td>
                         <span className={`addx-status ${blockedBy ? "addx-status--AGUARDANDO_DADOS" : "addx-status--ATIVO"}`}>
                           {blockedBy ? "Bloqueado" : "Liberado"}

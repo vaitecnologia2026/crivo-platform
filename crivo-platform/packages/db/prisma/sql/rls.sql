@@ -116,7 +116,10 @@ DECLARE
                               -- motor central via owner → owner-only, como audit_log.
                               'ai_call_logs',
                               -- Catálogo de modelos de relatório (Motor 4): global, owner-only.
-                              'report_templates'];
+                              'report_templates',
+                              -- F3: textos aprovados dos documentos — fila de aprovação
+                              -- cross-tenant do super admin; leitura no gerador via owner.
+                              'approved_texts'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
