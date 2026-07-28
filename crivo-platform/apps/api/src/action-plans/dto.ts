@@ -132,3 +132,9 @@ export class CreateEvidenceDto {
   @IsOptional() @IsString() @MaxLength(1000)
   note?: string;
 }
+
+/** F4 — abertura de ciclo formal de diagnóstico. */
+export class OpenCycleDto {
+  @IsOptional() @IsString() @MaxLength(120)
+  label?: string;
+}

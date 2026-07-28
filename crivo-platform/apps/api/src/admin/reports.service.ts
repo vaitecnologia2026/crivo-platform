@@ -66,6 +66,26 @@ export const APPROVED_TEXT_FIELDS = [
       'plano de ação e evidências, conforme o contexto) e o que segue sob responsabilidade da empresa ' +
       'e/ou do responsável técnico. 2 parágrafos.',
   },
+  {
+    docType: 'relatorio_evolucao',
+    field: 'sintese_evolucao',
+    label: 'Síntese da evolução (TPL-003 §2)',
+    required: true,
+    instruction:
+      'Escreva a síntese da evolução entre os dois ciclos comparados no contexto: o que melhorou, o ' +
+      'que permaneceu estável e o que se agravou (use APENAS os fatores e riscos listados), em ' +
+      'linguagem executiva, sem repetir a tabela.',
+  },
+  {
+    docType: 'relatorio_evolucao',
+    field: 'conclusao_evolucao',
+    label: 'Conclusão (TPL-003 §7)',
+    required: true,
+    instruction:
+      'Escreva a conclusão do Relatório de Evolução: leitura de efetividade do período comparado ' +
+      '(fatores reduzidos/persistentes conforme o contexto) e o que segue sob responsabilidade da ' +
+      'empresa e/ou do responsável técnico. 2 parágrafos.',
+  },
 ] as const;
 
 export type ApprovedTextFieldDef = (typeof APPROVED_TEXT_FIELDS)[number];
@@ -75,6 +95,7 @@ export type ApprovedTextFieldDef = (typeof APPROVED_TEXT_FIELDS)[number];
 const APPROVED_DOC_LABEL: Record<string, string> = {
   relatorio_executivo: DOCUMENT_TYPE_LABEL['relatorio_executivo'],
   dossie_tecnico: DOCUMENT_TYPE_LABEL['dossie_tecnico'],
+  relatorio_evolucao: DOCUMENT_TYPE_LABEL['relatorio_evolucao'],
 };
 
 /** Teto do texto aprovado — coerente com as seções de modelo (8k). */
@@ -513,6 +534,45 @@ export class ReportsAdminService {
       }
       const devolutivas = await this.prisma.admin.devolutivaRecord.count({ where: { tenantId } });
       if (devolutivas) lines.push(`Devolutivas aos trabalhadores registradas: ${devolutivas}`);
+    }
+
+    if (docType === 'relatorio_evolucao') {
+      // Mesma base do documento: os DOIS últimos ciclos ENCERRADOS com fatores.
+      const closed = await this.prisma.admin.diagnosticCycle.findMany({
+        where: { tenantId, status: 'ENCERRADO' },
+        orderBy: [{ closedAt: 'desc' }, { id: 'desc' }],
+      });
+      type SnapFactor = { point: string; risk: string; status: string; action: string };
+      const withFactors = closed.filter(
+        (c) => (((c.snapshot as { factors?: SnapFactor[] } | null)?.factors) ?? []).length > 0,
+      );
+      if (withFactors.length < 2) {
+        throw new BadRequestException(
+          'Requer dois ciclos formais encerrados com fatores para gerar o rascunho da evolução — ' +
+            `hoje: ${withFactors.length}. A empresa abre/encerra ciclos no Plano de Evolução.`,
+        );
+      }
+      const [cur, prev] = withFactors;
+      const factorsOf = (c: typeof cur) =>
+        ((c.snapshot as { factors?: SnapFactor[] } | null)?.factors ?? []);
+      const norm = (s: string) => s.trim().toLowerCase();
+      const prevBy = new Map(factorsOf(prev).map((f) => [norm(f.point), f]));
+      const fmtBr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
+      lines.push(`\n# Comparação entre ciclos formais`);
+      lines.push(`Ciclo anterior: ${prev.label} (${fmtBr(prev.openedAt)} a ${fmtBr(prev.closedAt)})`);
+      lines.push(`Ciclo atual: ${cur.label} (${fmtBr(cur.openedAt)} a ${fmtBr(cur.closedAt)})`);
+      if (prev.methodologyVersion || cur.methodologyVersion) {
+        lines.push(`Versões metodológicas: ${prev.methodologyVersion ?? '—'} → ${cur.methodologyVersion ?? '—'}`);
+      }
+      lines.push('Fatores (risco anterior → risco atual | status da ação):');
+      for (const f of factorsOf(cur).slice(0, 20)) {
+        const before = prevBy.get(norm(f.point));
+        lines.push(`- ${f.point}: ${before ? before.risk : 'novo'} → ${f.risk} | ${f.status} | Ação: ${f.action}`);
+      }
+      for (const f of factorsOf(prev).slice(0, 20)) {
+        if (factorsOf(cur).some((c) => norm(c.point) === norm(f.point))) continue;
+        lines.push(`- ${f.point}: ${f.risk} → fora do plano no ciclo atual`);
+      }
     }
 
     return lines.join('\n').slice(0, 9000);

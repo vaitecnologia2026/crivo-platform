@@ -1538,6 +1538,42 @@ export interface CreateEvidenceRequest {
   note?: string;
 }
 
+// ── F4 Pacote de Templates — ciclos formais de diagnóstico (TPL-003) ──
+
+/** Fator congelado no snapshot do ciclo (encerramento). */
+export interface CycleFactorSnapshot {
+  point: string;
+  action: string;
+  risk: string; // Baixo | Moderado | Alto (ou legado)
+  riskDerived: boolean;
+  status: string; // status da ação no momento do encerramento
+  areaProcess: string | null;
+  indicator: string | null;
+  evidences: { title: string; status: string }[];
+}
+export interface CycleSnapshot {
+  planTitle: string | null;
+  planValidatedAt: string | null;
+  factors: CycleFactorSnapshot[];
+  psychosocial: { totalRespondents: number; suppressed: boolean; score: number | null; levelLabel: string | null };
+}
+export interface DiagnosticCycleData {
+  id: string;
+  label: string;
+  status: "ABERTO" | "ENCERRADO";
+  openedAt: string;
+  openedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  method: string | null;
+  methodologyVersion: string | null;
+  /** Presente só em ciclos ENCERRADOS. */
+  factorsCount: number | null;
+}
+export interface OpenCycleRequest {
+  label?: string;
+}
+
 // ── Sugestão automática de ações (Briefing §8) ──
 // A partir da tensão dominante (4 Rs) do diagnóstico, sugere ações do catálogo
 // (ActionTemplate) das categorias afins. Heurística por categoria — fallback no

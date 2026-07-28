@@ -619,6 +619,36 @@ model ApprovedText {
   @@map("approved_texts")
 }
 
+/// F4 Pacote de Templates — CICLO FORMAL de diagnóstico (decisão do cliente:
+/// "ciclo = aplicação formal aberta e encerrada"). No encerramento o ciclo
+/// congela um SNAPSHOT imutável (fatores do plano com risco derivado +
+/// evidências + contexto psicossocial do período) que alimenta o TPL-003 —
+/// a comparação entre ciclos usa sempre o dado congelado, nunca recalcula.
+/// Data-plane: RLS FORCE + policy por tenant (na migração + rls.sql).
+/// Nota: a migração cria também um ÍNDICE ÚNICO PARCIAL (tenantId WHERE
+/// status='ABERTO') — invariante "1 ciclo aberto por vez" garantido no banco
+/// (o Prisma não modela índice parcial; vive só no SQL da migração).
+model DiagnosticCycle {
+  id       String       @id @default(uuid()) @db.Uuid
+  tenantId String       @db.Uuid
+  org      Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label    String
+  status   String       @default("ABERTO") // ABERTO | ENCERRADO
+
+  openedAt DateTime  @default(now()) @map("opened_at")
+  openedBy String?   @map("opened_by")
+  closedAt DateTime? @map("closed_at")
+  closedBy String?   @map("closed_by")
+
+  method             String?
+  methodologyVersion String? @map("methodology_version")
+  /// Congelado no encerramento: { factors[], planTitle, planValidatedAt, psychosocial }
+  snapshot           Json?
+
+  @@index([tenantId])
+  @@map("diagnostic_cycles")
+}
+
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   tenantId   String?  @db.Uuid // null = ação de super admin (global)
@@ -1122,6 +1152,7 @@ model Organization {
   reportEmissions ReportEmission[]
   actionItemHistory ActionItemHistory[]
   devolutivas DevolutivaRecord[]
+  diagnosticCycles DiagnosticCycle[]
 }
 
 model Company {

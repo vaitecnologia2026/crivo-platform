@@ -51,7 +51,9 @@ DECLARE
                          -- People Analytics (Fase 4) — indicadores de RH por tenant.
                          'people_analytics_data',
                          -- F2 Pacote de Templates: trilha por ação + devolutiva.
-                         'action_item_history','devolutiva_records'];
+                         'action_item_history','devolutiva_records',
+                         -- F4: ciclos formais de diagnóstico (snapshot p/ TPL-003).
+                         'diagnostic_cycles'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

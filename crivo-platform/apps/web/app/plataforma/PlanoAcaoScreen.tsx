@@ -12,6 +12,7 @@ import {
   type ActionPlanData,
   type ActionStatus,
   type DevolutivaData,
+  type DiagnosticCycleData,
 } from "@crivo/types";
 import {
   addActionItem,
@@ -29,6 +30,9 @@ import {
   type ActionTemplateLite,
   listDevolutivas,
   createDevolutiva,
+  listCycles,
+  openCycle,
+  closeCycle,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
@@ -71,8 +75,127 @@ export function PlanoAcaoScreen() {
         <PlanCard key={plan.id} plan={plan} onChanged={refresh} />
       ))}
 
+      {status === "ok" && <CyclesCard />}
       {status === "ok" && <DevolutivaCard />}
     </>
+  );
+}
+
+/**
+ * F4 — Ciclos formais de diagnóstico (definição acordada: ciclo = aplicação
+ * formal aberta e encerrada). O encerramento CONGELA os fatores/risco do plano;
+ * com dois ciclos encerrados, o Relatório de Evolução (TPL-003) compara os dois
+ * em Relatórios e Dossiês.
+ */
+function CyclesCard() {
+  const [rows, setRows] = useState<DiagnosticCycleData[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function refresh() {
+    setLoadError(false);
+    try { setRows(await listCycles()); } catch { setRows(null); setLoadError(true); }
+  }
+  useEffect(() => { void refresh(); }, []);
+
+  const openRow = rows?.find((c) => c.status === "ABERTO") ?? null;
+  const closedCount = rows?.filter((c) => c.status === "ENCERRADO").length ?? 0;
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    try {
+      await fn();
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha na operação do ciclo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 18 }}>
+      <div className="card__head">
+        <div>
+          <h3>Ciclos de diagnóstico</h3>
+          <span className="card__sub">
+            Ciclo formal = aplicação aberta e encerrada. Encerrar congela os fatores e riscos do
+            momento; com dois ciclos encerrados, o Relatório de Evolução compara os dois.
+          </span>
+        </div>
+        {!openRow && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={`Ciclo ${(rows?.length ?? 0) + 1}`}
+              maxLength={120}
+              style={{ maxWidth: 180 }}
+            />
+            <button
+              className="btn btn--terra btn--sm"
+              disabled={busy || rows === null}
+              onClick={() => void run(async () => { await openCycle({ label: label.trim() || undefined }); setLabel(""); })}
+            >
+              Abrir ciclo
+            </button>
+          </div>
+        )}
+        {openRow && (
+          <button
+            className="btn btn--outline-dark btn--sm"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(`Encerrar o ciclo "${openRow.label}"? O encerramento congela os fatores e riscos do plano — é irreversível.`)) return;
+              void run(() => closeCycle(openRow.id));
+            }}
+          >
+            Encerrar ciclo aberto
+          </button>
+        )}
+      </div>
+
+      {loadError && (
+        <p className="dash-state dash-state--error">
+          Não foi possível carregar os ciclos.{" "}
+          <button className="btn btn--ghost btn--sm" onClick={() => void refresh()}>Tentar de novo</button>
+        </p>
+      )}
+      {rows === null && !loadError && <p className="card__sub">Carregando ciclos…</p>}
+      {rows !== null && rows.length === 0 && (
+        <p className="card__sub">Nenhum ciclo ainda. Abra o primeiro para formalizar a aplicação do diagnóstico.</p>
+      )}
+      {rows !== null && rows.length > 0 && (
+        <>
+          {closedCount === 1 && (
+            <p className="card__sub" style={{ marginBottom: 8 }}>
+              1 ciclo encerrado — o Relatório de Evolução é liberado quando houver dois.
+            </p>
+          )}
+          <table className="data-table">
+            <thead>
+              <tr><th>Ciclo</th><th>Período</th><th>Status</th><th>Fatores congelados</th><th>Encerrado por</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => (
+                <tr key={c.id}>
+                  <td>{c.label}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {new Date(c.openedAt).toLocaleDateString("pt-BR")}
+                    {" a "}
+                    {c.closedAt ? new Date(c.closedAt).toLocaleDateString("pt-BR") : "em aberto"}
+                  </td>
+                  <td>{c.status === "ABERTO" ? "Aberto" : "Encerrado"}</td>
+                  <td>{c.factorsCount ?? "—"}</td>
+                  <td>{c.closedBy ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }
 

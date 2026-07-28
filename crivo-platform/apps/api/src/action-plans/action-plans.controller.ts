@@ -19,11 +19,14 @@ import type { Response } from 'express';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
+import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
+import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ActionPlansService } from './action-plans.service';
+import { CyclesService } from './cycles.service';
 import { DocumentsService } from './documents.service';
 import {
   CreateActionItemDto,
@@ -31,6 +34,7 @@ import {
   CreateEvidenceDto,
   UpdateActionItemDto,
   CreateDevolutivaDto,
+  OpenCycleDto,
 } from './dto';
 
 /**
@@ -45,6 +49,7 @@ export class ActionPlansController {
   constructor(
     private readonly plans: ActionPlansService,
     private readonly documents: DocumentsService,
+    private readonly cycles: CyclesService,
   ) {}
 
   // ── Documentos gerados (Briefing §15) ──
@@ -90,6 +95,28 @@ export class ActionPlansController {
   @Post()
   createPlan(@CurrentUser() user: SessionUser, @Body() dto: CreateActionPlanDto) {
     return this.plans.createPlan(user.tenantId, dto);
+  }
+
+  // ── F4 — Ciclos formais de diagnóstico (snapshot p/ TPL-003) ──
+
+  @Get('cycles')
+  listCycles(@CurrentUser() user: SessionUser) {
+    return this.cycles.list(user.tenantId);
+  }
+
+  /** Abrir/encerrar ciclo é ato FORMAL (encerramento é irreversível) — papéis de gestão. */
+  @Post('cycles')
+  @UseGuards(RolesGuard)
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  openCycle(@CurrentUser() user: SessionUser, @Body() dto: OpenCycleDto) {
+    return this.cycles.open(user.tenantId, dto?.label, user.name ?? user.email);
+  }
+
+  @Post('cycles/:id/close')
+  @UseGuards(RolesGuard)
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  closeCycle(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.cycles.close(user.tenantId, id, user.name ?? user.email);
   }
 
   /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */

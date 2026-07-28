@@ -175,6 +175,33 @@ function bandLabelOf(value: number, bands: BandLike[]): string {
 }
 
 /**
+ * F4 — ordem de severidade do risco técnico p/ comparar ciclos no TPL-003.
+ * Cobre a matriz oficial (Baixo/Moderado/Alto) e rótulos legados; null =
+ * rótulo desconhecido (a comparação vira "indisponível", nunca chuta).
+ */
+function riskRank(label: string | null | undefined): number | null {
+  const l = (label ?? '').toLowerCase();
+  if (!l || l === '—') return null;
+  if (l.includes('baixo')) return 0;
+  if (l.includes('moderado') || l.includes('médio') || l.includes('medio')) return 1;
+  if (l.includes('crítico') || l.includes('critico')) return 3;
+  if (l.includes('alto')) return 2;
+  return null;
+}
+
+/** F4 — RESULTADO do comparativo fator a fator (TPL-003 §3), derivado dos ranks. */
+function evolutionResult(prev: string | null, cur: string | null): string {
+  if (prev == null && cur != null) return 'Novo neste ciclo';
+  if (prev != null && cur == null) return 'Fora do plano no ciclo atual';
+  const a = riskRank(prev);
+  const b = riskRank(cur);
+  if (a == null || b == null) return 'Comparação indisponível';
+  if (b < a) return 'Risco reduzido';
+  if (b > a) return 'Risco agravado';
+  return 'Estável';
+}
+
+/**
  * F3 — quebra o texto aprovado de "Leitura dos principais sinais" em leituras
  * por código (linhas no formato "ME1 — leitura."). Linhas que NÃO casam com um
  * código listado (prosa livre, ou código fora de forças/atenções vigentes)
@@ -399,16 +426,15 @@ export class DocumentsService {
     // AEP ou AEP+PGR; os blocos por método/saída são resolvidos na geração.
     if (output === 'AEP' || output === 'AEP_PGR') add('dossie_tecnico', dossieOk, dossieReason);
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
-    // TPL-003 — Relatório de Evolução e Efetividade: compara DOIS CICLOS FORMAIS
-    // do diagnóstico (definição do cliente 27/07: aplicação aberta e encerrada,
-    // com período/escopo/versão próprios — atualizar ação/prazo NÃO cria ciclo).
-    // O controle de ciclos formais está em implantação; sem ele não há comparação
-    // válida — bloqueado com motivo honesto (não usamos mais a trajetória do ICD,
-    // que não é o comparativo fator a fator que o template oficial exige).
+    // TPL-003 — Relatório de Evolução e Efetividade: compara os DOIS últimos
+    // CICLOS FORMAIS encerrados (definição do cliente 27/07: ciclo = aplicação
+    // aberta e encerrada; atualizar ação/prazo NÃO cria ciclo). A comparação é
+    // fator a fator sobre os SNAPSHOTS congelados no encerramento (F4).
+    const comparable = await this.comparableCycles(tenantId);
     add(
       'relatorio_evolucao',
-      false,
-      'Requer dois ciclos formais de diagnóstico encerrados e comparáveis — controle de ciclos em implantação',
+      comparable.ok,
+      comparable.ok ? undefined : comparable.reason,
     );
 
     // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
@@ -647,13 +673,16 @@ export class DocumentsService {
    * instrumentos dinâmicos): score/dimensões pela metodologia ATIVA, período
    * (1ª e última resposta) e supressão pelo mínimo de confidencialidade.
    */
-  private async psychosocialSummary(tenantId: string) {
+  private async psychosocialSummary(tenantId: string, range?: { from: Date; to: Date }) {
     const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
     const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = (active?.config.bands ?? []) as BandLike[];
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
+        // F4: com `range`, só as respostas DA JANELA DO CICLO entram no
+        // snapshot congelado — a aplicação formal é o período aberto/encerrado.
+        where: range ? { submittedAt: { gte: range.from, lte: range.to } } : undefined,
         select: { sector: true, score: true, byDimension: true, submittedAt: true },
       });
       const total = rows.length;
@@ -704,6 +733,76 @@ export class DocumentsService {
       if (text) out[r.field] = text;
     }
     return out;
+  }
+
+  // ── F4 · Ciclos formais de diagnóstico (snapshot p/ TPL-003) ───────────────
+
+  /**
+   * SNAPSHOT congelado no ENCERRAMENTO do ciclo: fatores do plano com risco
+   * derivado + evidências + agregado psicossocial DA JANELA do ciclo. É a fonte
+   * imutável do comparativo do TPL-003 — nunca recalculada depois.
+   */
+  async cycleSnapshot(tenantId: string, from: Date, to: Date) {
+    const { method, plans } = await this.context(tenantId);
+    const plan = plans.find((p) => p.validatedAt) ?? plans[0];
+    const items = (plan?.items ?? []) as (FactorItem & {
+      evidences: { title: string; status: string }[];
+    })[];
+    const factors = items.map((i) => {
+      const risk = factorRisk(i);
+      return {
+        point: i.point,
+        action: i.action,
+        risk: risk.label,
+        riskDerived: risk.derived,
+        status: i.status,
+        areaProcess: i.areaProcess ?? null,
+        indicator: i.indicator ?? null,
+        evidences: i.evidences.map((e) => ({ title: e.title, status: e.status })),
+      };
+    });
+    const psy = await this.psychosocialSummary(tenantId, { from, to });
+    return {
+      method: method ?? null,
+      methodologyVersion: await this.activeVersionLabel('PSYCHOSOCIAL'),
+      snapshot: {
+        planTitle: plan?.title ?? null,
+        planValidatedAt: plan?.validatedAt ? new Date(plan.validatedAt).toISOString() : null,
+        factors,
+        psychosocial: {
+          totalRespondents: psy.totalRespondents,
+          suppressed: psy.suppressed,
+          score: psy.suppressed ? null : psy.score,
+          levelLabel: psy.suppressed ? null : psy.levelLabel,
+        },
+      },
+    };
+  }
+
+  /** Os DOIS últimos ciclos ENCERRADOS com fatores congelados (base do TPL-003). */
+  private async comparableCycles(tenantId: string) {
+    const closed = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.diagnosticCycle.findMany({
+        where: { status: 'ENCERRADO' },
+        orderBy: [{ closedAt: 'desc' }, { id: 'desc' }],
+        // Snapshots são JSONB inteiros — limitar a janela recente basta (o
+        // comparativo usa só os 2 últimos com fatores) e evita carregar anos.
+        take: 24,
+      }),
+    );
+    type Snap = { factors?: unknown[] };
+    const withFactors = closed.filter((c) => ((c.snapshot as Snap | null)?.factors ?? []).length > 0);
+    if (withFactors.length < 2) {
+      const semFatores = closed.length - withFactors.length;
+      return {
+        ok: false as const,
+        reason:
+          `Requer dois ciclos formais de diagnóstico encerrados com fatores registrados — hoje: ` +
+          `${closed.length} encerrado(s)${semFatores > 0 ? ` (${semFatores} sem fatores no plano)` : ''}. ` +
+          'Abra e encerre ciclos em Plano de Evolução · Ciclos de diagnóstico.',
+      };
+    }
+    return { ok: true as const, current: withFactors[0], previous: withFactors[1] };
   }
 
   /** Número da versão metodológica ATIVA de um instrumento (rótulo "v N"). */
@@ -1184,6 +1283,227 @@ export class DocumentsService {
     };
   }
 
+  // ── TPL-003 · Relatório de Evolução e Efetividade (layout oficial) ─────────
+  /**
+   * Compara os DOIS últimos ciclos formais ENCERRADOS, fator a fator, usando os
+   * snapshots congelados no encerramento. Colunas derivadas (RESULTADO,
+   * AVALIAÇÃO) vêm exclusivamente da matriz de risco e do status REGISTRADOS —
+   * a leitura final é da empresa/responsável técnico (nota no §4).
+   */
+  private async generateRelatorioEvolucao(
+    tenantId: string,
+    ctx: {
+      company: string;
+      org: { legalName: string | null; taxId: string | null } | null;
+      contract: { responsible?: string | null } | null;
+      method: DiagnosticMethodLike;
+    },
+  ): Promise<GeneratedDocument> {
+    const comparable = await this.comparableCycles(tenantId);
+    if (!comparable.ok) throw new BadRequestException(comparable.reason);
+    const { previous, current } = comparable;
+    const approvedTexts = await this.approvedTextsOf(tenantId, 'relatorio_evolucao');
+
+    type SnapFactor = {
+      point: string; action: string; risk: string; riskDerived: boolean; status: string;
+      areaProcess: string | null; indicator: string | null;
+      evidences: { title: string; status: string }[];
+    };
+    const factorsOf = (c: typeof current): SnapFactor[] =>
+      ((c.snapshot as { factors?: SnapFactor[] } | null)?.factors ?? []);
+    const prevFactors = factorsOf(previous);
+    const curFactors = factorsOf(current);
+    const norm = (s: string) => s.trim().toLowerCase();
+    const prevByPoint = new Map(prevFactors.map((f) => [norm(f.point), f]));
+    const curPoints = new Set(curFactors.map((f) => norm(f.point)));
+
+    const cycleRange = (c: typeof current) =>
+      `${fmt(c.openedAt)} a ${c.closedAt ? fmt(c.closedAt) : '—'}`;
+    const methodLabel = (m: string | null) => (m ? METHOD_LABEL[m] ?? m : null);
+    const vPrev = previous.methodologyVersion ?? '—';
+    const vCur = current.methodologyVersion ?? '—';
+    // '—' não é versão comparável: sem registro em um dos ciclos, a
+    // compatibilidade é DESCONHECIDA (nunca afirmada como "mesma versão").
+    const compat =
+      vPrev === '—' || vCur === '—'
+        ? 'Versão metodológica não registrada em um dos ciclos — comparação com ressalva'
+        : vPrev === vCur
+          ? `Mesma versão metodológica (${vCur})`
+          : `Versões metodológicas diferentes (${vPrev} → ${vCur}) — comparação com ressalva`;
+
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Empresa', value: ctx.org?.legalName ?? ctx.company },
+      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
+      { label: 'Ciclo anterior', value: `${previous.label} (${cycleRange(previous)})` },
+      { label: 'Ciclo atual', value: `${current.label} (${cycleRange(current)})` },
+      {
+        label: 'Método',
+        value: methodLabel(current.method) ?? (ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—'),
+      },
+      { label: 'Compatibilidade metodológica', value: compat },
+      { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
+    ];
+
+    const sections: DocumentSection[] = [];
+
+    // 1. FINALIDADE — texto do template oficial.
+    sections.push({
+      heading: '1. Finalidade',
+      body:
+        'Comparar a evolução dos fatores de riscos psicossociais, o status das ações, as evidências ' +
+        'e a efetividade das medidas entre ciclos formais de diagnóstico.',
+    });
+
+    // 2. SÍNTESE DA EVOLUÇÃO — texto APROVADO pela equipe CRIVO (F3).
+    sections.push({
+      heading: '2. Síntese da evolução',
+      body:
+        approvedTexts['sintese_evolucao'] ??
+        'Síntese da evolução pendente de aprovação pela equipe CRIVO (a IA da Plataforma rascunha, ' +
+          'a equipe revisa e aprova no Super Admin). A emissão oficial inclui a síntese aprovada.',
+    });
+
+    // 3. COMPARATIVO DOS FATORES — união dos fatores dos dois snapshots.
+    const evidCell = (f: SnapFactor) => {
+      const ok = f.evidences.filter((e) => e.status === 'APROVADA').length;
+      return ok > 0 ? `${ok} aprovada(s)` : '—';
+    };
+    const compRows: string[][] = curFactors.map((f) => {
+      const before = prevByPoint.get(norm(f.point));
+      return [
+        f.point,
+        before ? before.risk : '— (novo)',
+        f.risk,
+        f.action,
+        evidCell(f),
+        evolutionResult(before?.risk ?? null, f.risk),
+      ];
+    });
+    for (const f of prevFactors) {
+      if (curPoints.has(norm(f.point))) continue;
+      compRows.push([f.point, f.risk, '— (fora do plano)', f.action, evidCell(f), evolutionResult(f.risk, null)]);
+    }
+    sections.push({
+      heading: '3. Comparativo dos fatores',
+      body:
+        'Risco anterior e atual congelados no encerramento de cada ciclo (matriz Severidade × ' +
+        'Probabilidade). O resultado é derivado da variação do risco registrado.',
+      table: {
+        columns: ['Fator', 'Risco anterior', 'Risco atual', 'Ação', 'Evidência', 'Resultado'],
+        data: compRows,
+      },
+    });
+
+    // 4. EFETIVIDADE DAS AÇÕES — derivação mecânica de risco/status registrados.
+    const NEXT_DECISION: Record<string, string> = {
+      CONCLUIDA: 'Manter e monitorar',
+      EM_ANDAMENTO: 'Continuar execução',
+      APROVADA: 'Executar conforme plano',
+      REAVALIADA: 'Reavaliar no próximo ciclo',
+      SUGERIDA: 'Aprovar/revisar a ação',
+      EM_REVISAO: 'Aprovar/revisar a ação',
+    };
+    sections.push({
+      heading: '4. Efetividade das ações',
+      body:
+        'Avaliação DERIVADA da variação do risco e do status registrados — não substitui a leitura ' +
+        'da empresa e/ou do responsável técnico, que valida este documento na conclusão.',
+      table: {
+        columns: ['Ação', 'Status', 'Avaliação de efetividade', 'Próxima decisão'],
+        data: curFactors.map((f) => {
+          const before = prevByPoint.get(norm(f.point));
+          const res = before ? evolutionResult(before.risk, f.risk) : null;
+          // Cada resultado tem leitura EXPLÍCITA — "Comparação indisponível"
+          // nunca vira "estável" (seria conclusão fabricada em doc oficial).
+          const aval = !before
+            ? 'Fator novo neste ciclo — sem base de comparação'
+            : res === 'Risco reduzido'
+              ? `Risco reduzido (${before.risk} → ${f.risk})`
+              : res === 'Risco agravado'
+                ? `Risco agravado (${before.risk} → ${f.risk})`
+                : res === 'Estável'
+                  ? `Risco estável (${f.risk})`
+                  : 'Comparação indisponível — risco não classificado em um dos ciclos';
+          return [f.action, ACTION_LABEL[f.status] ?? f.status, aval, NEXT_DECISION[f.status] ?? '—'];
+        }),
+      },
+    });
+
+    // 5. FATORES PERSISTENTES E NOVAS AÇÕES — presentes nos DOIS ciclos sem redução.
+    const persistent = curFactors.filter((f) => {
+      const before = prevByPoint.get(norm(f.point));
+      if (!before) return false;
+      const a = riskRank(before.risk);
+      const b = riskRank(f.risk);
+      return a != null && b != null && b >= a;
+    });
+    // Fatores comuns cuja comparação de risco é INDISPONÍVEL não podem ser
+    // afirmados nem como persistentes nem como reduzidos — contados à parte.
+    const unavailableCount = curFactors.filter((f) => {
+      const before = prevByPoint.get(norm(f.point));
+      if (!before) return false;
+      return riskRank(before.risk) == null || riskRank(f.risk) == null;
+    }).length;
+    sections.push({
+      heading: '5. Fatores persistentes e novas ações',
+      body: persistent.length
+        ? 'Fatores presentes nos dois ciclos sem redução de risco. A justificativa é registro da empresa.' +
+          (unavailableCount ? ` ${unavailableCount} fator(es) comum(ns) com comparação indisponível não entram nesta leitura.` : '')
+        : unavailableCount
+          ? `Nenhum fator persistente CLASSIFICÁVEL entre os ciclos — ${unavailableCount} fator(es) comum(ns) com comparação de risco indisponível (risco não classificado em um dos ciclos).`
+          : 'Nenhum fator persistente entre os ciclos comparados — todos os fatores comuns tiveram redução de risco ou saíram do plano.',
+      table: persistent.length
+        ? {
+            columns: ['Fator', 'Justificativa', 'Nova decisão/ação'],
+            data: persistent.map((f) => [f.point, '— (registro da empresa)', f.action]),
+          }
+        : undefined,
+    });
+
+    // 6. EVIDÊNCIAS DO CICLO — só evidência APROVADA (regra do pacote v3.1).
+    const evidRows: string[][] = [];
+    for (const f of curFactors) {
+      for (const e of f.evidences) {
+        if (e.status !== 'APROVADA') continue;
+        evidRows.push([`EV-${String(evidRows.length + 1).padStart(3, '0')}`, e.title, f.point, 'Aprovada']);
+      }
+    }
+    sections.push({
+      heading: '6. Evidências do ciclo',
+      body: evidRows.length
+        ? 'Somente evidência aprovada compõe a documentação técnica.'
+        : 'Nenhuma evidência aprovada registrada no ciclo atual.',
+      table: evidRows.length
+        ? { columns: ['ID', 'Evidência', 'Vínculo', 'Status'], data: evidRows }
+        : undefined,
+    });
+
+    // 7. CONCLUSÃO E VALIDAÇÃO — conclusão aprovada (F3) + assinatura fora do sistema.
+    sections.push(
+      signatureSection(
+        (approvedTexts['conclusao_evolucao'] ? `${approvedTexts['conclusao_evolucao']}\n\n` : '') +
+          'A revisão, validação, assinatura e integração formal deste documento às obrigações ' +
+          'aplicáveis são de responsabilidade da empresa contratante e/ou do responsável ' +
+          'técnico/designado. A empresa baixa o documento, assina fora do sistema e o integra à ' +
+          'sua documentação.',
+      ),
+    );
+
+    // 8. CONTROLE DOCUMENTAL.
+    sections.push(docControlSection());
+
+    return {
+      type: 'relatorio_evolucao',
+      title: DOCUMENT_TYPE_LABEL['relatorio_evolucao'],
+      subtitle: 'Template final · TPL-003 · Documento técnico controlado',
+      company: ctx.company,
+      generatedAt: new Date().toISOString(),
+      meta,
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
+
   // ── TPL-004 · Extrato do Plano de Ação Preventivo (layout oficial) ─────────
   private async generateExtratoPlano(
     tenantId: string,
@@ -1349,6 +1669,9 @@ export class DocumentsService {
     }
     if (type === 'dossie_tecnico') {
       return this.generateDossieTecnico(tenantId, { company, org, contract, method, plans, cnaeDecision });
+    }
+    if (type === 'relatorio_evolucao') {
+      return this.generateRelatorioEvolucao(tenantId, { company, org, contract, method });
     }
 
     const meta: GeneratedDocument['meta'] = [
@@ -1558,34 +1881,67 @@ export class DocumentsService {
       }
     }
 
-    // F3 (dicionário do pacote: variável OBRIGATÓRIA ausente = bloqueia a
+    // F3/F4 (dicionário do pacote: variável OBRIGATÓRIA ausente = bloqueia a
     // emissão): os textos obrigatórios precisam estar APROVADOS pela equipe
     // CRIVO (decisão 1-A). O rascunho/pré-visualização continua livre.
-    const requiredText: Record<string, { field: string; label: string }> = {
-      relatorio_executivo: { field: 'sintese_executiva', label: 'Síntese executiva' },
-      dossie_tecnico: { field: 'conclusao_tecnica', label: 'Conclusão técnica' },
+    const requiredText: Record<string, { field: string; label: string }[]> = {
+      relatorio_executivo: [{ field: 'sintese_executiva', label: 'Síntese executiva' }],
+      dossie_tecnico: [{ field: 'conclusao_tecnica', label: 'Conclusão técnica' }],
+      relatorio_evolucao: [
+        { field: 'sintese_evolucao', label: 'Síntese da evolução' },
+        { field: 'conclusao_evolucao', label: 'Conclusão' },
+      ],
     };
     // Mensagem em tom de CLIENTE — quem emite é o portal do tenant, e a
     // aprovação é uma etapa da equipe CRIVO (o cliente não tem essa tela).
-    const req = requiredText[type];
-    const requiredTextError = (label: string) =>
+    const reqs = requiredText[type] ?? [];
+    const requiredTextError = (labels: string[]) =>
       new BadRequestException(
-        `Emissão aguardando aprovação da equipe CRIVO — o texto obrigatório "${label}" está em ` +
-          'elaboração/revisão. A pré-visualização (rascunho) continua disponível; a emissão oficial ' +
-          'é liberada assim que a equipe CRIVO aprovar o texto.',
+        `Emissão aguardando aprovação da equipe CRIVO — texto(s) obrigatório(s) em elaboração/revisão: ` +
+          `${labels.join(', ')}. A pré-visualização (rascunho) continua disponível; a emissão oficial ` +
+          'é liberada assim que a equipe CRIVO aprovar.',
       );
-    if (req) {
+    if (reqs.length) {
       const approved = await this.approvedTextsOf(tenantId, type);
-      if (!approved[req.field]) throw requiredTextError(req.label);
+      const missing = reqs.filter((r) => !approved[r.field]).map((r) => r.label);
+      if (missing.length) throw requiredTextError(missing);
+    }
+
+    // F4: os textos do Relatório de Evolução são aprovados SOBRE um comparativo
+    // específico. Se um ciclo foi encerrado DEPOIS da aprovação, o par comparado
+    // mudou — o texto antigo descreveria outra comparação. Exige reaprovação.
+    if (type === 'relatorio_evolucao') {
+      const comparable = await this.comparableCycles(tenantId);
+      if (comparable.ok && comparable.current.closedAt) {
+        // rls-allow: approved_texts é control-plane (owner) — leitura de metadado.
+        const rows = await this.prisma.admin.approvedText.findMany({
+          where: { tenantId, docType: type, field: { in: reqs.map((r) => r.field) } },
+          select: { field: true, approvedAt: true },
+        });
+        const cutoff = comparable.current.closedAt.getTime();
+        const stale = reqs
+          .filter((r) => {
+            const at = rows.find((x) => x.field === r.field)?.approvedAt;
+            return !at || at.getTime() < cutoff;
+          })
+          .map((r) => r.label);
+        if (stale.length) {
+          throw new BadRequestException(
+            `Emissão aguardando reaprovação da equipe CRIVO — o ciclo atual foi encerrado depois da ` +
+              `aprovação de: ${stale.join(', ')}. O texto precisa ser reaprovado sobre o comparativo novo.`,
+          );
+        }
+      }
     }
 
     const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
     // Re-checagem PÓS-geração (TOCTOU): se a aprovação for revogada entre o
     // gate acima e a leitura feita pelo gerador, o documento sairia com o
     // placeholder "pendente de aprovação" congelado numa emissão oficial.
-    if (req) {
+    if (reqs.length) {
       const stillApproved = await this.approvedTextsOf(tenantId, type);
-      if (!stillApproved[req.field]) throw requiredTextError(req.label);
+      const missing = reqs.filter((r) => !stillApproved[r.field]).map((r) => r.label);
+      if (missing.length) throw requiredTextError(missing);
     }
     // Hash de integridade sobre o CONTEÚDO estável — generatedAt muda a cada
     // geração e não pode participar, senão a idempotência nunca dispara.

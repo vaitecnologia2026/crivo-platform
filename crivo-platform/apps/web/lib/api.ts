@@ -53,6 +53,8 @@ import type {
   GroupOverview,
   DevolutivaData,
   CreateDevolutivaRequest,
+  DiagnosticCycleData,
+  OpenCycleRequest,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -841,4 +843,18 @@ export function createDevolutiva(dto: CreateDevolutivaRequest): Promise<Devoluti
     method: 'POST',
     body: JSON.stringify(dto),
   });
+}
+
+// F4 — ciclos formais de diagnóstico (snapshot p/ o Relatório de Evolução).
+export function listCycles(): Promise<DiagnosticCycleData[]> {
+  return apiFetch<DiagnosticCycleData[]>('/action-plans/cycles');
+}
+export function openCycle(dto: OpenCycleRequest): Promise<DiagnosticCycleData> {
+  return apiFetch<DiagnosticCycleData>('/action-plans/cycles', {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  });
+}
+export function closeCycle(id: string): Promise<DiagnosticCycleData> {
+  return apiFetch<DiagnosticCycleData>(`/action-plans/cycles/${id}/close`, { method: 'POST' });
 }
