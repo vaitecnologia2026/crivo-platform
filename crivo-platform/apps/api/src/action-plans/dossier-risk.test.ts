@@ -56,6 +56,16 @@ describe('dossierBlockers — bloqueios de emissão (§9)', () => {
     expect(dossierBlockers([base])).toEqual([]);
   });
 
+  // Ponto cego CONHECIDO desta função, documentado aqui para não ser "corrigido"
+  // por engano: os três filtros rodam SOBRE a lista de ações, então lista vazia
+  // não dispara nenhum e o resultado é []. Um plano validado e sem nenhuma ação
+  // passaria batido pelo §9 — por isso o bloqueio de plano vazio vive em emit()
+  // (documents.service.ts), e não aqui. Se este teste quebrar, o gate mudou de
+  // lugar e emit() precisa ser revisto junto.
+  it('NÃO barra plano vazio — por desenho; quem barra é o gate de emit()', () => {
+    expect(dossierBlockers([])).toEqual([]);
+  });
+
   it('bloqueia com ação SUGERIDA', () => {
     const b = dossierBlockers([{ ...base, status: 'SUGERIDA' }]);
     expect(b).toHaveLength(1);

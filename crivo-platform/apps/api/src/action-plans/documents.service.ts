@@ -1031,6 +1031,25 @@ export class DocumentsService {
         '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
     });
 
+    // RESSALVA de rascunho sem ações. Vem logo depois da declaração de escopo,
+    // antes de qualquer número: as seções 6, 8, 9 e 11 são tabelas alimentadas
+    // por `items` e, com a lista vazia, saem só com travessões — enquanto os
+    // CORPOS delas afirmam "plano aprovado" e "somente evidência aprovada
+    // compõe a documentação". Sem esta ressalva o leitor recebe declaração de
+    // conformidade sem lastro. A emissão OFICIAL neste estado é barrada em
+    // emit(); aqui tratamos a pré-visualização, que segue livre de propósito.
+    if (!items.length) {
+      sections.push({
+        heading: 'Ressalva — rascunho sem plano de ação registrado',
+        body:
+          'Este documento é uma PRÉ-VISUALIZAÇÃO. O plano de ação vinculado não possui nenhuma ação ' +
+          'registrada, portanto as tabelas de fatores de risco, plano aprovado, evidências e anexo de ' +
+          'inventário saem sem conteúdo. Nada aqui atesta conformidade, ausência de risco ou ' +
+          'inexistência de fatores — atesta apenas que o plano ainda não foi preenchido. ' +
+          'A emissão oficial permanece bloqueada até que as ações sejam registradas em Plano de Evolução.',
+      });
+    }
+
     // 1. Finalidade e limites — texto obrigatório do pacote + complemento
     // APROVADO pela equipe CRIVO (F3), quando existir.
     sections.push({
@@ -1200,8 +1219,13 @@ export class DocumentsService {
     const approved = allEvid.filter((e) => e.status === 'APROVADA');
     sections.push({
       heading: '9. Evidências',
-      body:
-        approved.length === allEvid.length
+      // Sem NENHUMA evidência anexada, `approved.length === allEvid.length` é
+      // 0 === 0 e a frase positiva saía sozinha — lida como "conferimos e está
+      // tudo aprovado" quando o correto é "não há nada para conferir".
+      body: !allEvid.length
+        ? 'Nenhuma evidência anexada até o momento. A regra permanece: somente evidência aprovada ' +
+          'compõe a documentação técnica — esta seção fica vazia até que haja evidência anexada e validada.'
+        : approved.length === allEvid.length
           ? 'Somente evidência aprovada compõe a documentação técnica.'
           : `Somente evidência aprovada compõe a documentação técnica. ${allEvid.length - approved.length} evidência(s) não incluída(s) por não estarem validadas.`,
       table: {
@@ -1882,7 +1906,25 @@ export class DocumentsService {
   async emit(tenantId: string, type: string, actorEmail?: string) {
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
-    const { contract, method, org } = await this.context(tenantId);
+    const { contract, method, org, plans } = await this.context(tenantId);
+
+    // EMISSÃO FINAL — plano validado mas SEM ações não sustenta documento técnico.
+    // dossierBlockers() não pega este caso: seus três filtros rodam SOBRE a lista
+    // de ações, então com a lista vazia nenhum dispara e o gate liberava um
+    // dossiê cujo corpo afirma "plano aprovado" (§8) e "somente evidência
+    // aprovada compõe a documentação" (§9) — com zero de cada, e sem ressalva.
+    // Mesma decisão dos demais gates de emissão: o rascunho segue livre.
+    if (type === 'dossie_tecnico' || type === 'plano_acao') {
+      const base = plans.find((p) => p.validatedAt) ?? plans[0];
+      if (!base?.items.length) {
+        throw new BadRequestException(
+          'Emissão final bloqueada — o plano de ação não tem nenhuma ação registrada. ' +
+            'Um documento técnico emitido neste estado afirmaria plano aprovado e evidência ' +
+            'aprovada sem ter nenhum dos dois. Registre as ações em Plano de Evolução; ' +
+            'a pré-visualização (rascunho) continua disponível.',
+        );
+      }
+    }
 
     // EMISSÃO FINAL (decisão do cliente 27/07): o rascunho/pré-visualização é
     // livre, mas os documentos TÉCNICOS só são emitidos com a identificação
