@@ -2373,3 +2373,23 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 .heatmap .hm--alto { background: #fdeada; color: #a8531f; }
 .heatmap .hm--critico { background: #fbe3e3; color: #a12f2f; }
 .heatmap .hm--na { color: var(--text-mute); }
+
+/* =========================================================
+   MOBILE — correções de transbordo horizontal (auditoria 05/08)
+   Duas telas empurravam a página para os lados em 375px:
+   Relatórios e Dossiês (.lib-row: grid de 3 colunas com botão
+   na coluna "auto") e Área do Líder (.hero__ctas: sugestões do
+   Copiloto com texto longo e sem limite de largura).
+   ========================================================= */
+@media (max-width: 560px) {
+  /* A linha de item vira duas faixas: ícone+texto em cima, ação embaixo. */
+  .lib-row { grid-template-columns: 36px 1fr; row-gap: 8px; }
+  .lib-row > :last-child { grid-column: 1 / -1; justify-self: stretch; }
+  .lib-row > :last-child .btn { width: 100%; }
+  .lib-row strong, .lib-row span { overflow-wrap: anywhere; }
+
+  /* Sugestões do Copiloto: quebram linha em vez de esticar a página. */
+  .hero__ctas { flex-wrap: wrap; }
+  .hero__ctas .btn { max-width: 100%; white-space: normal; text-align: left;
+    overflow-wrap: anywhere; line-height: 1.35; }
+}
