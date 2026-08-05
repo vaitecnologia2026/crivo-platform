@@ -33,19 +33,18 @@ export function SiteFooter() {
           <ul>
             <li><Link href="/plataforma#portal">Portal Executivo</Link></li>
             <li><Link href="/plataforma#portal">Dashboard Executivo</Link></li>
-            <li><Link href="/plataforma#app">App CRIVO</Link></li>
-            <li><Link href="/plataforma#app">Pocket CRIVO</Link></li>
-            <li><Link href="/plataforma#ecossistema">Academia CRIVO</Link></li>
+            <li><Link href="/plataforma#area-do-lider">App CRIVO</Link></li>
+            <li><Link href="/plataforma#area-do-lider">Pocket CRIVO</Link></li>
+            <li><Link href="/conteudos">Academia CRIVO</Link></li>
             <li><a href={PLATAFORMA_URL}>Área logada</a></li>
           </ul>
         </div>
         <div>
           <h5>Conteúdos</h5>
           <ul>
-            <li><Link href="/lp#diagnostico">E-book</Link></li>
-            <li><Link href="/plataforma#ecossistema">Materiais gratuitos</Link></li>
-            <li><Link href="/lp#faq">FAQ</Link></li>
-            <li><Link href="/plataforma#ecossistema">Artigos e eventos</Link></li>
+            <li><Link href="/conteudos">E-book</Link></li>
+            <li><Link href="/conteudos">Materiais gratuitos</Link></li>
+            <li><Link href="/conteudos">Artigos e eventos</Link></li>
           </ul>
         </div>
         <div>
@@ -55,7 +54,7 @@ export function SiteFooter() {
             <li><Link href="/sobre#como-nasceu">Como nasceu a CRIVO</Link></li>
             <li><Link href="/sobre#fundadores">Fundadores</Link></li>
             <li><Link href="/sobre#mvv">Missão, visão e valores</Link></li>
-            <li><Link href="/lp#riscos-ia">Governança de IA e Pessoas</Link></li>
+            <li><Link href="/lp#ia-vantagem-humana">Governança de IA e Pessoas</Link></li>
           </ul>
         </div>
         <div>

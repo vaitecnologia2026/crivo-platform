@@ -99,7 +99,7 @@ export default function SobrePage() {
         </div>
 
         {/* Faixa Missão · Visão · Valores (base da tela 19) */}
-        <div className="container">
+        <div className="container" id="mvv" style={{ scrollMarginTop: 96 }}>
           <div className="mvv">
             <div className="mvv__col">
               <span className="mvv__ic">{IC.bussola}</span>
@@ -190,7 +190,7 @@ export default function SobrePage() {
           </div>
         </div>
 
-        <div className="container">
+        <div className="container" id="fundadores" style={{ scrollMarginTop: 96 }}>
           {/* Os Fundadores */}
           <span className="eyebrow eyebrow--terra" style={{ marginTop: 56 }}>
             Os Fundadores
