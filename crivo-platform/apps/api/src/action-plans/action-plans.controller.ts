@@ -42,9 +42,17 @@ import {
  * "relatorios" (Relatórios, Evidências & Comunicações) já existente no catálogo.
  */
 @Controller('action-plans')
-@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard)
+// RolesGuard no nível da CLASSE: antes vinha só numa rota isolada, então
+// qualquer @Roles nas demais seria ignorado silenciosamente. Rota sem @Roles
+// continua liberada pelo guard — o decorator é que define a exigência.
+@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard, RolesGuard)
 @RequireModule('relatorios')
 @RequireScreen('relatorios')
+// AUTORIZAÇÃO: sem @Roles o RolesGuard libera, e ScreenAccessGuard só barra
+// quem tem lista de telas explícita (nula por padrão). Resultado: COLABORADOR
+// baixava o Dossiê Técnico inteiro — mesmo dado que /psychosocial/results já
+// negava a ele. Cada rota de leitura de documento/plano agora declara os
+// papéis de gestão. As de escrita já eram cobertas ou seguem o mesmo critério.
 export class ActionPlansController {
   constructor(
     private readonly plans: ActionPlansService,
@@ -55,38 +63,45 @@ export class ActionPlansController {
   // ── Documentos gerados (Briefing §15) ──
 
   /** Documentos disponíveis conforme método + saída técnica do contrato. */
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('documents')
   availableDocuments(@CurrentUser() user: SessionUser) {
     return this.documents.available(user.tenantId);
   }
 
   /** Conteúdo estruturado de um documento (montado dos dados reais). */
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('documents/emissions')
   listEmissions(@CurrentUser() user: SessionUser) {
     return this.documents.listEmissions(user.tenantId);
   }
 
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('documents/emissions/:id')
   getEmission(@CurrentUser() user: SessionUser, @Param('id') id: string) {
     return this.documents.getEmission(user.tenantId, id);
   }
 
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Post('documents/:type/emit')
   emitDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
     return this.documents.emit(user.tenantId, type, user.email);
   }
 
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('documents/:type')
   generateDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
     return this.documents.generate(user.tenantId, type);
   }
 
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get()
   list(@CurrentUser() user: SessionUser) {
     return this.plans.list(user.tenantId);
   }
 
   /** §8 — Ações sugeridas automaticamente a partir do diagnóstico (tensão dominante). */
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('suggested-actions')
   suggestedActions(@CurrentUser() user: SessionUser) {
     return this.plans.suggestedActions(user.tenantId);
@@ -99,6 +114,7 @@ export class ActionPlansController {
 
   // ── F4 — Ciclos formais de diagnóstico (snapshot p/ TPL-003) ──
 
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get('cycles')
   listCycles(@CurrentUser() user: SessionUser) {
     return this.cycles.list(user.tenantId);
