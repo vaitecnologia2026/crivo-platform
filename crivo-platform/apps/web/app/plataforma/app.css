@@ -2382,6 +2382,15 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
    Copiloto com texto longo e sem limite de largura).
    ========================================================= */
 @media (max-width: 560px) {
+  /* RAIZ COMUM DOS TRANSBORDOS: item de flex/grid nasce com `min-width: auto`
+     e se recusa a encolher abaixo do conteúdo. Bastava um <select> com opção
+     longa, ou uma tabela larga dentro de um card, para esticar a página.
+     Cards e campos passam a poder encolher; a tabela rola dentro do card. */
+  .grid > *, [class*="grid--"] > *, .card { min-width: 0; }
+  .data-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .prod-field { min-width: 0; }
+  .prod-field input, .prod-field select, .prod-field textarea { max-width: 100%; }
+
   /* A linha de item vira duas faixas: ícone+texto em cima, ação embaixo. */
   .lib-row { grid-template-columns: 36px 1fr; row-gap: 8px; }
   .lib-row > :last-child { grid-column: 1 / -1; justify-self: stretch; }
