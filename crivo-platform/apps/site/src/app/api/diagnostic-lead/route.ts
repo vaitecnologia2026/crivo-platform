@@ -361,7 +361,7 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
       (score ? `• Índice preliminar: *${score}*\n` : "") +
       `• Nível de maturidade: *${nivel}*\n` +
       (atencao.length ? `• Pontos de atenção: ${atencao.join(", ")}\n` : "") +
-      `\n📘 Seu e-book complementar: ${EBOOK_URL}\n\n` +
+      `\nSeu e-book complementar: ${EBOOK_URL}\n\n` +
       `_Leitura preliminar com base nas respostas — a equipe CRIVO entra em contato para os próximos passos._`;
 
     const sent = await vaiFetch(

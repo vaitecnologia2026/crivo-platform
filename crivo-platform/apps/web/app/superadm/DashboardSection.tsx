@@ -44,7 +44,8 @@ function fmtDuration(min: number | null): string {
 
 const SEV_COLOR: Record<string, string> = { CRITICO: "#C0392B", ATENCAO: "#8A6D1F", OK: "#2E7D4F" };
 const SEV_BG: Record<string, string> = { CRITICO: "#F9E9E1", ATENCAO: "#FAF3DC", OK: "#EAF4EE" };
-const SEV_LABEL: Record<string, string> = { CRITICO: "🔴 Crítico", ATENCAO: "🟠 Atenção", OK: "🟢 Em dia" };
+// Sem emoji de sistema: a cor já vem de SEV_COLOR/SEV_BG no próprio selo.
+const SEV_LABEL: Record<string, string> = { CRITICO: "Crítico", ATENCAO: "Atenção", OK: "Em dia" };
 
 const SELECT_STYLE: CSSProperties = {
   font: "inherit",
@@ -395,7 +396,7 @@ export function DashboardSection({ onNavigate }: { onNavigate: (section: string)
           <div style={SEC_HEAD}>Central de pendências</div>
           <div className="card">
             {d.pendencias.length === 0 ? (
-              <p className="dash-state" style={{ margin: 0 }}>🟢 Nada pendente por aqui — tudo em dia.</p>
+              <p className="dash-state" style={{ margin: 0 }}>Nada pendente por aqui — tudo em dia.</p>
             ) : (
               <table className="data-table">
                 <thead><tr><th>Prioridade</th><th>Empresa</th><th>Tipo</th><th>Prazo</th></tr></thead>

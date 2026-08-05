@@ -145,7 +145,17 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
           (NR-1). São 12 afirmações — responda de 1 (discordo totalmente) a 5 (concordo totalmente).
         </p>
         <p className={s.note}>
-          🔒 <strong>Anônimo.</strong> Não pedimos seu nome e não guardamos nada que te identifique.
+          {/* Ícone de traço, não emoji de sistema: esta tela é vista por todo
+              funcionário de todo cliente e carrega a identidade da CRIVO. */}
+          <svg
+            width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+            style={{ verticalAlign: "-2px", marginRight: 6 }}
+          >
+            <rect x="4" y="10" width="16" height="11" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+          <strong>Anônimo.</strong> Não pedimos seu nome e não guardamos nada que te identifique.
           Os resultados são vistos pela empresa apenas de forma <strong>agregada</strong>.
         </p>
 

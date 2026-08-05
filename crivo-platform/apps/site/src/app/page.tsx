@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { createLogger } from "@crivo/ui/logger";
 import styles from "./gate.module.css";
 
-// 🔒 O token é validado no SERVIDOR (POST /api/gate), que devolve um cookie
+// O token é validado no SERVIDOR (POST /api/gate), que devolve um cookie
 //    httpOnly assinado. O middleware (src/middleware.ts) protege /lp e
 //    /design-system. Nada de token no bundle nem validação client-side.
 const DESTINO = "/lp";
