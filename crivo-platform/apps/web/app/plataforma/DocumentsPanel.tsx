@@ -149,8 +149,22 @@ export function printDocument(doc: GeneratedDocument) {
   <button onclick="window.print()" style="margin-top:24px;padding:10px 18px;background:#a8693d;color:#fff;border:0;border-radius:4px;cursor:pointer;font-family:sans-serif">Imprimir / Salvar PDF</button>
 </body></html>`;
 
-  const w = window.open("", "_blank");
-  if (!w) { alert("Permita pop-ups para gerar o documento."); return; }
-  w.document.write(html);
-  w.document.close();
+  // O documento precisa SEMPRE sair. Bloqueio de pop-up é o padrão de muitos
+  // navegadores: quando window.open volta null, em vez de só avisar, baixamos o
+  // arquivo — o operador fica com o documento em mãos de qualquer jeito.
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const nome = `${doc.title} — ${doc.company}`.replace(/[^\p{L}\p{N} .·—-]/gu, "").slice(0, 120) + ".html";
+
+  const w = window.open(url, "_blank");
+  if (!w) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  // Revoga depois da janela/download consumir o blob.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
