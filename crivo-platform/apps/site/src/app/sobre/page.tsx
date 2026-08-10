@@ -91,7 +91,7 @@ export default function SobrePage() {
                 <span className="qs-callout__ic">{IC.alvo}</span>
                 <div>
                   <strong>Resultados</strong>
-                  <p>Execução, impacto e evolução sustentável</p>
+                  <p>Execução, impacto e evolução sustentada</p>
                 </div>
               </div>
             </aside>

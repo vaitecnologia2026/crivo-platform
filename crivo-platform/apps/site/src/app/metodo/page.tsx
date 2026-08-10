@@ -168,10 +168,10 @@ export default function MetodoPage() {
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA →
+                Gerar MAPA Executivo →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-light">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
           </div>
@@ -312,10 +312,10 @@ export default function MetodoPage() {
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA →
+                Gerar MAPA Executivo →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-light">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
           </div>

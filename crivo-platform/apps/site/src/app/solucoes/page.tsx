@@ -128,7 +128,7 @@ export default function SolucoesPage() {
                       Gerar MAPA Executivo →
                     </a>
                     <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                      Agendar conversa estratégica →
+                      Falar com a CRIVO →
                     </a>
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export default function SolucoesPage() {
                     Solicitar diagnóstico →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export default function SolucoesPage() {
                     Organizar execução →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function SolucoesPage() {
                     Desenvolver lideranças →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>
@@ -403,7 +403,7 @@ export default function SolucoesPage() {
                     Acompanhar evolução →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>
@@ -473,7 +473,7 @@ export default function SolucoesPage() {
                     Estruturar transformação →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>
@@ -543,7 +543,7 @@ export default function SolucoesPage() {
                     Solicitar advisory estratégico →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                    Agendar conversa estratégica →
+                    Falar com a CRIVO →
                   </a>
                 </div>
               </div>

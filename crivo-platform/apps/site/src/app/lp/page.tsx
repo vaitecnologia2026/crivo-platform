@@ -45,10 +45,10 @@ export default function LandingPage() {
             </p>
             <div className="hero__ctas">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA Executivo CRIVO™ →
+                Gerar MAPA Executivo →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
             <Seals dark items={["Sem custo", "Confidencial", "Leitura executiva inicial"]} />
@@ -110,7 +110,7 @@ export default function LandingPage() {
                 Conhecer Soluções CRIVO →
               </Link>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost-terra">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function LandingPage() {
               <strong>Mapa Executivo</strong>
               <span className="tag">Clareza inicial</span>
               <p>Entenda o momento da empresa e identifique prioridades.</p>
-              <a href="#diagnostico">Gerar Mapa →</a>
+              <a href="#diagnostico">Gerar MAPA Executivo →</a>
             </div>
             <div className="journey-card">
               <span className="journey-card__num">2</span>
@@ -495,7 +495,7 @@ export default function LandingPage() {
                 <span className="qs-callout__ic">{IC.alvo}</span>
                 <div>
                   <strong>Resultados</strong>
-                  <p>Execução, impacto e evolução sustentável</p>
+                  <p>Execução, impacto e evolução sustentada</p>
                 </div>
               </div>
             </aside>

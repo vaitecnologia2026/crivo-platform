@@ -161,18 +161,27 @@ export default function ConteudosPage() {
                 Acompanhe conteúdos, vídeos e reflexões sobre liderança, cultura, tomada de decisão e inteligência
                 organizacional.
               </p>
+              {/* Os tres icones apontavam para href="#" — clicavam e nao iam a lugar
+                  nenhum. YouTube sai da lista enquanto nao houver canal oficial
+                  (ajustes finais §10); volta quando o canal existir. */}
               <div className="cc-social">
-                <a href="#" aria-label="CRIVO no LinkedIn">
+                <a
+                  href="https://www.linkedin.com/company/crivolegacy/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="CRIVO no LinkedIn"
+                >
                   <span className="cc-social__ic">{SOCIAL.linkedin}</span>
                   <span>LinkedIn</span>
                 </a>
-                <a href="#" aria-label="CRIVO no Instagram">
+                <a
+                  href="https://www.instagram.com/crivolegacy/"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="CRIVO no Instagram"
+                >
                   <span className="cc-social__ic">{SOCIAL.instagram}</span>
                   <span>Instagram</span>
-                </a>
-                <a href="#" aria-label="CRIVO no YouTube">
-                  <span className="cc-social__ic">{SOCIAL.youtube}</span>
-                  <span>YouTube</span>
                 </a>
               </div>
             </div>

@@ -1,5 +1,5 @@
 /* =========================================================
-   CRIVO™ — Decision Intelligence System · Landing Page
+   CRIVO™ — Decision Intelligence · Landing Page
    Identidade oficial · Brand Identity System V3.0
    Azuis estruturais · Terra (acento) · Off-white
    Lora (serif) + Poppins (sans) + Cormorant (wordmark)
@@ -8,7 +8,7 @@
 :root {
   /* Azuis estruturais — telas finais aprovadas (CRIVO_TELAS_FINAIS 07/2026):
      navy mais profundo, quase-preto no hero. */
-  --azul-profundo: #0D1B2E;
+  --azul-profundo: #0D1F3C; /* §1 do docx — era #0D1B2E, fora da marca */
   --azul-noite: #0A1420; /* fundo do hero escuro das telas finais */
   --azul-medio: #1B3A6B;
   --azul-slate: #2E4D7A;
@@ -21,15 +21,15 @@
   --cinza-escuro: #3A3A38;
   --prata: #B8C4D0;
   --cinza-quente: #D6D2CC;
-  --off-white: #F7F4EF;
+  --off-white: #F2F0EC; /* §1 do docx — era #F7F4EF */
   --creme-card: #F5F1E8; /* cards claros das telas finais */
 
   /* Laranja queimado — acento/ação das telas finais aprovadas (NUNCA fundo
      dominante). Substitui o terra sóbrio anterior mantendo os nomes dos tokens. */
-  --terra-escura: #A0521A;
-  --terra: #C4671D;
-  --terra-dourado: #C4671D;
-  --terra-claro: #E8611C; /* highlight/CTAs mais vivos (telas 17/18) */
+  --terra-escura: #7B4F2E;
+  --terra: #A8693D; /* §1 do docx — era #C4671D (laranja queimado) */
+  --terra-dourado: #C4894A;
+  --terra-claro: #C4894A; /* highlight/CTAs mais vivos (telas 17/18) */
 
   /* Semantic */
   --bg-light: var(--off-white);
@@ -59,7 +59,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; /* §2 — header fixo ~66px: sem isto o titulo da ancora para embaixo da barra */ }
 body {
   font-family: var(--font-body);
   font-weight: 300;
@@ -76,6 +76,11 @@ img, svg { display: block; max-width: 100%; }
 
 .container { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
 .container--narrow { max-width: var(--maxw-narrow); }
+
+/* §15 — o site nao pode rolar na horizontal em nenhum tamanho. `clip` (e nao
+   `hidden`) porque nao cria contexto de rolagem e nao quebra position:sticky
+   do header. Rede de seguranca: sangria mal calculada deixa de virar barra. */
+html, body { overflow-x: clip; }
 
 /* ===================== BRAND / VÉRTICE ===================== */
 .brand { display: flex; align-items: center; gap: 12px; }
@@ -116,7 +121,11 @@ img, svg { display: block; max-width: 100%; }
 .nav .brand__sub { color: var(--azul-claro); }
 .nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .nav__actions { display: flex; align-items: center; gap: 10px; }
-@media (max-width: 760px) { .nav__actions .btn--ghost { display: none; } }
+/* §2 — "Acessar Portal" faz parte do menu aprovado. Antes ele sumia por
+   completo abaixo de 760px (nem no hamburguer aparecia). Fica compacto. */
+@media (max-width: 760px) {
+  .nav__actions .btn--ghost { padding: 8px 12px; font-size: 12.5px; }
+}
 .nav__links { display: flex; gap: 4px; align-items: center; }
 .nav__links > a, .nav__top {
   font-size: 13px; font-weight: 400; letter-spacing: 0.03em;
@@ -2804,9 +2813,21 @@ button:focus-visible,
 .arch-hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: center; margin-bottom: 44px; }
 .arch-photo {
   /* Tela 03: a foto SANGRA até a borda direita da janela e sobe até o início
-     da seção (sem card arredondado, sem sombra). */
+     da seção (sem card arredondado, sem sombra).
+
+     A sangria era `calc(50% - 50vw)`. Não funciona AQUI: dentro de um grid a
+     porcentagem resolve contra a TRACK da coluna, não contra o container — a
+     foto saía ~345px para fora da janela e criava barra de rolagem horizontal
+     (a "foto correndo pra direita" do §5). A distância certa entre a borda do
+     container e a borda da janela é (100vw - largura do container) / 2, que não
+     depende da track. O max() trava em 0 quando a janela é menor que o
+     container (aí não há o que sangrar). */
   min-height: 540px; border-radius: 0;
-  margin: -120px calc(50% - 50vw) 0 0;
+  /* Margem NEGATIVA (sangria). A distância da borda do container até a borda
+     da janela é (100vw - --maxw)/2 + o padding lateral do container (28px).
+     O max() zera quando a janela é menor que o container: aí não há o que
+     sangrar e a foto simplesmente termina na track. */
+  margin: -120px calc(-1 * max(0px, (100vw - var(--maxw)) / 2 + 28px)) 0 0;
   background-size: cover; background-position: center;
 }
 @media (max-width: 900px) {

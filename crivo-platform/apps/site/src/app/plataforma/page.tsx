@@ -227,10 +227,10 @@ export default function PlataformaPage() {
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA →
+                Gerar MAPA Executivo →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-light">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
           </div>
@@ -273,10 +273,10 @@ export default function PlataformaPage() {
 
               <div className="hero__ctas">
                 <a href="#diagnostico" className="btn btn--terra">
-                  Gerar MAPA →
+                  Gerar MAPA Executivo →
                 </a>
                 <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">
-                  Agendar conversa estratégica →
+                  Falar com a CRIVO →
                 </a>
               </div>
             </div>
@@ -384,10 +384,10 @@ export default function PlataformaPage() {
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA →
+                Gerar MAPA Executivo →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-light">
-                Agendar conversa estratégica →
+                Falar com a CRIVO →
               </a>
             </div>
           </div>

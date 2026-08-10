@@ -44,7 +44,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CRIVO™ — Decision Intelligence System",
+  title: "CRIVO™ — Decision Intelligence",
   description: "A infraestrutura inteligente da liderança moderna.",
   icons: { icon: "/favicon.svg" },
 };

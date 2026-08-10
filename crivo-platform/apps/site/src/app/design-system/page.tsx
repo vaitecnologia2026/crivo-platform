@@ -4,9 +4,9 @@ import { DsEffects } from "./DsEffects";
 import "./ds.css";
 
 export const metadata: Metadata = {
-  title: "CRIVO™ · Design System — Decision Intelligence System",
+  title: "CRIVO™ · Design System — Decision Intelligence",
   description:
-    "Design System oficial da CRIVO™ — tokens, identidade da marca O Vértice, tipografia, componentes e diretrizes de voz do Decision Intelligence System.",
+    "Design System oficial da CRIVO™ — tokens, identidade da marca O Vértice, tipografia, componentes e diretrizes de voz do Decision Intelligence.",
 };
 
 // Plataforma React (apps/web). Configurável por NEXT_PUBLIC_PLATAFORMA_URL
@@ -80,7 +80,7 @@ export default function DesignSystemPage() {
           <a href="#voz">Voz &amp; Tom</a>
         </nav>
         <div className="ds-nav__foot">
-          <span>v1.0 · Brand System V3.0</span>
+          <span>v1.0 · Brand V3.0</span>
           <span>O2 Legacy &amp; Consulting</span>
         </div>
       </aside>
@@ -90,7 +90,7 @@ export default function DesignSystemPage() {
         <header className="ds-hero">
           <div className="ds-hero__bg"></div>
           <div className="ds-hero__inner">
-            <span className="ds-eyebrow ds-eyebrow--terra">Decision Intelligence System</span>
+            <span className="ds-eyebrow ds-eyebrow--terra">Decision Intelligence</span>
             <h1 className="ds-display">Design System</h1>
             <p className="ds-hero__sub">
               A linguagem visual da CRIVO™ — princípios, identidade e componentes que sustentam autoridade, rigor e
@@ -427,7 +427,7 @@ export default function DesignSystemPage() {
           <div className="ds-grid ds-grid--2">
             <div className="ds-comp">
               <span className="ds-comp__tag">Eyebrow</span>
-              <span className="dsx-eyebrow">Decision Intelligence System</span>
+              <span className="dsx-eyebrow">Decision Intelligence</span>
             </div>
             <div className="ds-comp">
               <span className="ds-comp__tag">Pills / Tags</span>
@@ -565,7 +565,7 @@ export default function DesignSystemPage() {
             <VerticeMark className="vertice" />
             <span className="ds-footer__word">CRIVO</span>
           </div>
-          <p>Design System v1.0 · Decision Intelligence System · O2 Legacy &amp; Consulting</p>
+          <p>Design System v1.0 · Decision Intelligence · O2 Legacy &amp; Consulting</p>
           <p className="ds-footer__links">
             <a href="/lp">Landing Page →</a> &nbsp; <a href={PLATAFORMA_URL}>Plataforma →</a>
           </p>

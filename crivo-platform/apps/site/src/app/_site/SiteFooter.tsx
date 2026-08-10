@@ -78,7 +78,7 @@ export function SiteFooter() {
       </div>
       <div className="footer__legal">
         <div className="container">
-          © 2026 CRIVO™ — Decision Intelligence System · O2 Legacy &amp; Consulting · Confidencial · LGPD
+          © 2026 CRIVO™ · Decision Intelligence · O2 Legacy &amp; Consulting.
         </div>
       </div>
     </footer>
