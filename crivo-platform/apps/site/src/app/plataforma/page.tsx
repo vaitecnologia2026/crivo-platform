@@ -77,8 +77,10 @@ export default function PlataformaPage() {
           </div>
 
           <div className="hero__visual">
-            <div
-              className="laptop"
+            {/* §6/§15 — quadro rolavel: no mobile o mockup mantem moldura e proporcao. */}
+            <div className="pf-laptop-scroll">
+              <div
+                className="laptop"
               role="img"
               aria-label="Portal Executivo CRIVO: Visão Geral com desempenho geral 72/100, tendência +14 pontos, 8 iniciativas em andamento e 81% de execução do plano"
             >
@@ -158,6 +160,7 @@ export default function PlataformaPage() {
                 </div>
               </div>
               <div className="laptop__base" aria-hidden="true" />
+              </div>
             </div>
           </div>
         </div>

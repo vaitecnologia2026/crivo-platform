@@ -226,16 +226,50 @@
 .pf-strip__ic svg { width: 15px; height: 15px; }
 .cta-band__big-ic { color: var(--terra); flex-shrink: 0; display: flex; }
 .cta-band__big-ic svg { width: 54px; height: 54px; }
-@media (max-width: 760px) { .pf-strip__item { border-left: none; padding: 6px 0; } }
+@media (max-width: 760px) {
+  .pf-strip__item { border-left: none; padding: 6px 0; }
+  /* `flex: 0 0 auto` trava o encolhimento — por isso `min-width: 0` sozinho
+     nao resolvia: o item mantinha a largura do conteudo (359px em 375). */
+  .pf-strip__label { min-width: 0; flex: 1 1 auto; }
+}
 
-/* Tela 06: título nas 4 linhas do mockup (coluna mais larga + corpo menor). */
-#portal .hero__inner { grid-template-columns: 1fr 1fr; }
-#portal .hero__copy { max-width: 600px; }
+/* Ajustes das telas 06 e 07 do mockup — DESKTOP APENAS.
+   Estavam sem media query e depois das regras mobile, entao venciam em
+   qualquer largura: a 375px o hero voltava a 2 colunas e a .pf-leader a 3,
+   empurrando 112 elementos para fora da tela (§15 — nada pode ficar fora).
+   O `overflow-x: clip` global impedia a barra de rolagem, mas o conteudo
+   simplesmente sumia, que e pior. */
+@media (min-width: 981px) {
+  /* Tela 06: título nas 4 linhas do mockup (coluna mais larga + corpo menor). */
+  #portal .hero__inner { grid-template-columns: 1fr 1fr; }
+  #portal .hero__copy { max-width: 600px; }
+
+  /* Tela 07: coluna de texto mais larga p/ botões lado a lado como no mockup. */
+  .pf-leader { grid-template-columns: 1.18fr 0.78fr 0.92fr; }
+}
+
+/* Tipografia responde por clamp() — vale em qualquer largura. */
 #portal .display { font-size: clamp(26px, 2.75vw, 38px); line-height: 1.22; }
-
 /* Tela 07: título nas 3 linhas do mockup. */
 #area-do-lider .display { font-size: clamp(24px, 2.45vw, 34px); line-height: 1.24; }
-
-/* Tela 07: coluna de texto mais larga p/ botões lado a lado como no mockup. */
-.pf-leader { grid-template-columns: 1.18fr 0.78fr 0.92fr; }
 #area-do-lider .hero__ctas .btn { padding: 12px 18px; font-size: 13px; }
+
+/* MOCKUP DO NOTEBOOK NO MOBILE (§6 + §15).
+   O §6 e explicito: "Nao redesenhar o dashboard" — entao reflowar as colunas
+   internas esta fora. E o dashboard tem largura minima propria (colunas, KPIs),
+   que a 375px empurra a arte ~85px para fora da tela.
+   Solucao que preserva a moldura, a base e a proporcao horizontal pedidas:
+   a arte inteira rola DENTRO do proprio quadro. A pagina nao rola na
+   horizontal; quem quiser ver o dashboard completo arrasta o mockup. */
+@media (max-width: 760px) {
+  .laptop__base { width: 100%; transform: none; }
+  .pf-laptop-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Sem barra visivel: a arte e decorativa, o arrasto e o gesto natural. */
+    scrollbar-width: none;
+  }
+  .pf-laptop-scroll::-webkit-scrollbar { display: none; }
+  /* Largura de projeto do mockup: abaixo disso o dashboard se deforma. */
+  .pf-laptop-scroll > .laptop { min-width: 620px; }
+}

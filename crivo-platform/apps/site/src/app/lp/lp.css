@@ -77,6 +77,17 @@ img, svg { display: block; max-width: 100%; }
 .container { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
 .container--narrow { max-width: var(--maxw-narrow); }
 
+/* RAIZ COMUM DOS ESTOUROS EM TELA PEQUENA: item de grid/flex nasce com
+   `min-width: auto` e se recusa a encolher abaixo do proprio conteudo — uma
+   palavra longa, um botao ou uma imagem ja empurram a coluna para fora. Um
+   `max-width` nao resolve, porque nao mexe no minimo. Deixar os filhos de grid
+   poderem encolher e a correcao de raiz (§15: nada pode ficar fora da tela). */
+.hero__inner > *, .hero__copy, .hero__visual { min-width: 0; }
+@media (max-width: 760px) {
+  /* Palavra comprida (URL, termo tecnico) nao pode definir a largura da coluna. */
+  .hero__copy, .hero__copy p, .hero__copy h1, .hero__copy .display { overflow-wrap: anywhere; }
+}
+
 /* §15 — o site nao pode rolar na horizontal em nenhum tamanho. `clip` (e nao
    `hidden`) porque nao cria contexto de rolagem e nao quebra position:sticky
    do header. Rede de seguranca: sangria mal calculada deixa de virar barra. */
@@ -121,10 +132,16 @@ html, body { overflow-x: clip; }
 .nav .brand__sub { color: var(--azul-claro); }
 .nav__inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .nav__actions { display: flex; align-items: center; gap: 10px; }
-/* §2 — "Acessar Portal" faz parte do menu aprovado. Antes ele sumia por
-   completo abaixo de 760px (nem no hamburguer aparecia). Fica compacto. */
+/* §2 — "Acessar Portal" faz parte do menu aprovado, mas na barra do mobile
+   nao cabe (marca 147 + MAPA 121 + Portal 134 + burger 42 = 444px em 375).
+   Sai da barra e entra como ultimo item DENTRO do hamburguer (.nav__portal),
+   que e o unico jeito de atender o §2 sem estourar a largura. */
 @media (max-width: 760px) {
-  .nav__actions .btn--ghost { padding: 8px 12px; font-size: 12.5px; }
+  .nav__actions .btn--ghost { display: none; }
+}
+.nav__portal { display: none; }
+@media (max-width: 760px) {
+  .nav__portal { display: block; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
 }
 .nav__links { display: flex; gap: 4px; align-items: center; }
 .nav__links > a, .nav__top {

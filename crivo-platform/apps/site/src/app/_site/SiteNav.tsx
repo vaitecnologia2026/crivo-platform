@@ -119,6 +119,11 @@ export function SiteNav() {
               </NavLink>
             );
           })}
+          {/* §2 — o botão "Acessar Portal" não cabe na barra do mobile; aqui ele
+              continua acessível pelo menu, como o documento exige. */}
+          <a href={PLATAFORMA_URL} className="nav__top nav__portal">
+            Acessar Portal
+          </a>
         </nav>
 
         <div className="nav__actions">
