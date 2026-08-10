@@ -1171,6 +1171,14 @@ export function ensureDiagnosticLink(tenantId: string, instrumentSlug: string): 
 export function listDiagnosticLinks(instrumentSlug: string): Promise<DiagnosticLinkSummary[]> {
   return adminFetch<DiagnosticLinkSummary[]>(`/admin/diagnostics/links?instrument=${encodeURIComponent(instrumentSlug)}`);
 }
+
+/** Revoga (ou reativa) um link de aplicação. Link inativo deixa de abrir /d/<slug>. */
+export async function setDiagnosticLinkActive(id: string, active: boolean) {
+  return adminFetch<{ id: string; active: boolean }>(`/admin/diagnostics/links/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ active }),
+  });
+}
 export function getDiagnosticResults(tenantId: string, instrumentSlug: string): Promise<{
   minRespondents: number;
   totalRespondents: number;

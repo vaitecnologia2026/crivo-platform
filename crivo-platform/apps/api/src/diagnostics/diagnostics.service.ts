@@ -78,6 +78,21 @@ export class DiagnosticsService {
   }
 
   /** Links de um instrumento (visão do super admin, com nome da empresa). */
+  /**
+   * Revoga (ou reativa) um link de aplicação. Desativar em vez de apagar: as
+   * respostas já coletadas ficam presas ao par tenant+instrumento, então um
+   * hard-delete sumiria com o link do painel enquanto os dados continuam na
+   * tabela — pior para auditoria. getPublicBySlug já recusa link inativo, então
+   * desligar a flag mata o /d/<slug> na hora.
+   */
+  async setLinkActive(id: string, active: boolean) {
+    // rls-allow: escrita de CONTROL PLANE (super admin owner-only), por id do link.
+    const link = await this.prisma.admin.diagnosticLink.findUnique({ where: { id } });
+    if (!link) throw new NotFoundException('Link não encontrado.');
+    await this.prisma.admin.diagnosticLink.update({ where: { id }, data: { active } });
+    return { id, active };
+  }
+
   async listLinks(instrumentSlug: string) {
     // rls-allow: leitura do CONTROL PLANE (super admin) — só metadados do link + nome da empresa.
     const links = await this.prisma.admin.diagnosticLink.findMany({

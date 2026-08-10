@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import type { PlatformAdmin } from '@crivo/types';
 import { DiagnosticsService } from './diagnostics.service';
 import { EnsureDiagnosticLinkDto } from './dto';
@@ -21,6 +21,12 @@ export class AdminDiagnosticsController {
   @Get('links')
   listLinks(@Query('instrument') instrument: string) {
     return this.diagnostics.listLinks(instrument ?? '');
+  }
+
+  /** Revoga/reativa um link de aplicação já gerado. */
+  @Patch('links/:id')
+  setLinkActive(@Param('id') id: string, @Body() body: { active?: boolean }) {
+    return this.diagnostics.setLinkActive(id, body?.active === true);
   }
 
   /** Agregado (com supressão) de uma empresa em um instrumento. */

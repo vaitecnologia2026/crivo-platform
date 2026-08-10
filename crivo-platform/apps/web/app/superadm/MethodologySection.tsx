@@ -16,6 +16,7 @@ import {
   listTenants,
   publishMethodology,
   updateMethodologyDraft,
+  setDiagnosticLinkActive,
   type DiagnosticLinkSummary,
   type InstrumentSummary,
   type MethodologyInstrument,
@@ -193,8 +194,12 @@ export function MethodologySection() {
         desenvolvimento. Edita-se um <strong>rascunho</strong> e publica-se: vira a versão ativa, a anterior é arquivada.
       </p>
 
-      <div className="cnae-tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
-        {catalog.filter((i) => i.active).map((i) => (
+      {/* Catálogo oficial e diagnósticos criados à mão ficavam na MESMA faixa, com
+          a mesma aparência — e o backend ainda ordena builtIn primeiro, então um
+          rascunho de teste aparecia colado nos oficiais e passava por metodologia
+          CRIVO. A flag builtIn já vinha no payload e não era usada aqui. */}
+      <div className="cnae-tabs" style={{ marginBottom: 8, flexWrap: "wrap" }}>
+        {catalog.filter((i) => i.active && i.builtIn).map((i) => (
           <button
             key={i.slug}
             className={`cnae-tab${instrument === i.slug ? " is-active" : ""}`}
@@ -203,6 +208,24 @@ export function MethodologySection() {
             {i.name}
           </button>
         ))}
+      </div>
+      {catalog.some((i) => i.active && !i.builtIn) && (
+        <div className="cnae-tabs" style={{ marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="cnae-muted" style={{ fontSize: 12, marginRight: 4 }}>
+            Personalizados (não fazem parte da metodologia CRIVO):
+          </span>
+          {catalog.filter((i) => i.active && !i.builtIn).map((i) => (
+            <button
+              key={i.slug}
+              className={`cnae-tab${instrument === i.slug ? " is-active" : ""}`}
+              onClick={() => setInstrument(i.slug)}
+            >
+              {i.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="cnae-tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className="cnae-tab meth-newtab" onClick={() => setNewOpen(true)}>
           + Novo diagnóstico
         </button>
@@ -786,6 +809,7 @@ function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
                 <strong>{l.tenantName}</strong>
                 <div className="ct-item__meta" style={{ wordBreak: "break-all" }}>
                   /d/{l.slug} · {l.respondents} resposta(s)
+                  {!l.active && <strong style={{ color: "#8A6D1F" }}> · revogado</strong>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
@@ -810,6 +834,22 @@ function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
                   }}
                 >
                   Ver agregado
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  title={l.active
+                    ? "Desativa o link: /d/<slug> deixa de abrir. As respostas já coletadas permanecem."
+                    : "Reativa o link público."}
+                  onClick={async () => {
+                    if (l.active && !confirm(`Revogar o link de ${l.tenantName}? Quem tiver a URL deixa de conseguir responder. As respostas já coletadas permanecem.`)) return;
+                    try {
+                      await setDiagnosticLinkActive(l.id, !l.active);
+                      setLinks((ls) => ls.map((x) => (x.id === l.id ? { ...x, active: !l.active } : x)));
+                    } catch { setError("Não foi possível alterar o link."); }
+                  }}
+                >
+                  {l.active ? "Revogar" : "Reativar"}
                 </button>
               </div>
             </li>

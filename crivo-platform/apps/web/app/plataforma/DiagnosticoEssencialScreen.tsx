@@ -12,9 +12,12 @@ import {
   type EssentialRecordKind,
   type SelfAssessmentData,
 } from "@crivo/types";
+import { publicOrigin } from "@/lib/share-url";
 import {
   createEssentialRecord,
+  ensurePsychosocialLink,
   getDiagnosticContext,
+  getPsychosocialLink,
   getSelfAssessment,
   listEssentialRecords,
   submitSelfAssessment,
@@ -75,6 +78,13 @@ export function DiagnosticoEssencialScreen() {
             </div>
             {assessment ? <AssessmentResult a={assessment} onRedo={() => setAssessment(null)} /> : <AssessmentForm onDone={refresh} />}
           </div>
+
+          {/* A jornada promete "autoavaliação + escuta dos empregados" (subtítulo
+              acima), mas a escuta não tinha nenhum mecanismo nesta tela: o cliente
+              chegava aqui, não achava como enviar nada ao time e trocava o método
+              do contrato só para conseguir disparar. O link é o MESMO /q/<slug> da
+              empresa — mesma tabela, mesmo agregado, sem caminho paralelo. */}
+          <EscutaDosEmpregados />
 
           <RecordsBlock records={records} onChanged={refresh} />
 
@@ -160,6 +170,95 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
       <button className="btn btn--terra btn--sm" disabled={!done || saving} onClick={submit}>
         {saving ? "Salvando…" : done ? "Concluir autoavaliação" : `Responda todas (${Object.keys(answers).length}/${total})`}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Passo 2 da jornada — escuta dos empregados. Usa o MESMO link público da
+ * empresa (/q/<slug>) que a tela do Organizacional já usa: as respostas caem em
+ * psychosocial_responses e alimentam o mesmo agregado. Um link próprio daqui
+ * criaria uma segunda base que o Dashboard não lê.
+ */
+function EscutaDosEmpregados() {
+  const [slug, setSlug] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [gerando, setGerando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    getPsychosocialLink()
+      .then((r) => setSlug(r.slug))
+      .catch(() => setSlug(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const url = slug ? `${publicOrigin()}/q/${slug}` : "";
+
+  async function gerar() {
+    setGerando(true);
+    try {
+      setSlug((await ensurePsychosocialLink()).slug);
+    } finally {
+      setGerando(false);
+    }
+  }
+  function copiar() {
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1800);
+    });
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card__head">
+        <div>
+          <h3>2. Escuta dos empregados</h3>
+          <span className="card__sub">
+            Link anônimo para o time responder sem login. As respostas entram no agregado da
+            empresa (visível a partir de 5 respostas) e viram pontos de atenção no Plano de Ação.
+          </span>
+        </div>
+      </div>
+      {loading ? (
+        <p className="card__sub">Carregando…</p>
+      ) : slug ? (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              flex: 1,
+              minWidth: 240,
+              padding: "10px 12px",
+              border: "1px solid var(--line)",
+              borderRadius: 10,
+              fontSize: 13,
+              background: "var(--surface,#fff)",
+            }}
+          />
+          <button className="btn btn--gold btn--sm" onClick={copiar}>
+            {copiado ? "Copiado" : "Copiar"}
+          </button>
+          <a className="btn btn--ghost btn--sm" href={url} target="_blank" rel="noreferrer">
+            Abrir
+          </a>
+        </div>
+      ) : (
+        <button className="btn btn--gold btn--sm" onClick={gerar} disabled={gerando}>
+          {gerando ? "Gerando…" : "Gerar link público"}
+        </button>
+      )}
+      <p className="card__sub" style={{ marginTop: 12 }}>
+        Precisa de prazo, lembrete ou recorte por setor?{" "}
+        <a href="#" data-route-link="campanhas" style={{ fontWeight: 600 }}>
+          Criar uma campanha de diagnóstico
+        </a>
+        .
+      </p>
     </div>
   );
 }
