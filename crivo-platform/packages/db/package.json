@@ -11,10 +11,13 @@
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "rls": "psql \"${DATABASE_URL%%\\?*}\" -f prisma/sql/rls.sql",
-    "seed": "tsx prisma/seed.ts",
-    "setup:prod": "prisma generate && prisma migrate deploy && pnpm run rls && pnpm run seed",
+    "seed": "tsx prisma/seed-bootstrap.ts",
+    "setup:prod": "prisma generate && pnpm run pre-migrate && prisma migrate deploy && pnpm run rls && pnpm run seed:bootstrap",
     "test:isolation": "tsx prisma/test-isolation.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:bootstrap": "tsx prisma/seed-bootstrap.ts",
+    "seed:demo": "tsx prisma/seed.ts",
+    "pre-migrate": "psql \"${DATABASE_URL%%\\?*}\" -v ON_ERROR_STOP=1 -f prisma/sql/pre-migrate.sql"
   },
   "dependencies": {
     "@crivo/types": "workspace:*",
@@ -30,6 +33,6 @@
     "typescript": "^5.6.0"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed-bootstrap.ts"
   }
 }

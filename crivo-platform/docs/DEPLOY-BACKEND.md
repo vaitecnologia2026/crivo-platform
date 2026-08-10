@@ -37,22 +37,56 @@ cd crivo-platform
 export DATABASE_URL="postgresql://postgres:SENHA@HOST.proxy.rlwy.net:PORTA/railway"
 
 pnpm install
-pnpm --filter @crivo/db setup:prod       # faz tudo: generate + migrate + rls + seed
+pnpm --filter @crivo/db setup:prod       # generate + migrate + rls + seed:bootstrap
 ```
 
-> `setup:prod` roda, em ordem: `generate` (client) → `migrate:deploy` (cria as
-> tabelas) → `rls` (usuário crivo_app + políticas RLS) → `seed` (super admin +
-> produtos + dados demo). Se preferir passo a passo, rode os 4 separadamente
-> (`generate`, `migrate:deploy`, `rls`, `seed`). O `rls` precisa de `psql` instalado.
+> `setup:prod` roda, em ordem: `generate` (client) → **`pre-migrate`** →
+> `migrate:deploy` (cria as tabelas) → `rls` (usuário crivo_app + políticas RLS)
+> → `seed:bootstrap` (super admin + catálogo RBAC + módulos + produtos). Se
+> preferir passo a passo, rode os 5 separadamente, **nessa ordem**. `pre-migrate`
+> e `rls` precisam de `psql` instalado.
+>
+> O `pre-migrate` cria só a função `current_tenant()`. Ele existe porque várias
+> migrations criam policies de RLS inline e referenciam essa função, que só
+> nasceria no passo `rls` — depois. Sem ele, em banco vazio a cadeia trava na 39ª
+> migration (`function current_tenant() does not exist`) e as 48 seguintes não
+> são aplicadas. Verificado em 08/2026: com o `pre-migrate`, as 87 migrations
+> sobem do zero.
 
-O `seed` cria, entre outros, o produto obrigatório **PRÉ-DIAGNÓSTICO CRIVO** + CRIVO
-Lite/Professional/Enterprise e leads de CRM demo.
+### ⛔ Não rode o seed de demonstração em produção
 
-**Logins gerados pelo seed:**
+Existem **dois** seeds, e só um deles pode encostar em produção:
+
+| Comando | O que faz | Pode rodar em produção? |
+|---|---|---|
+| `seed:bootstrap` | super admin, RBAC, módulos e produtos — tudo `upsert`, **nenhum delete** | **Sim.** É idempotente: rodar de novo não muda nada. |
+| `seed:demo` | **APAGA a base inteira** (≈40 `deleteMany` sem escopo de tenant) e repovoa com dados fictícios | **Não.** Só em base descartável. |
+
+O `seed:demo` exige opt-in explícito e **recusa** rodar sem ele:
+
+```bash
+CRIVO_SEED_DEMO=1 pnpm --filter @crivo/db seed:demo   # zera tudo — só em dev
+```
+
+Até 08/2026 estes dois viviam no mesmo arquivo e o `setup:prod` chamava o
+conjunto — seguir este manual contra o banco do cliente apagaria os dados.
+
+O `seed:bootstrap` cria o produto obrigatório **PRÉ-DIAGNÓSTICO CRIVO** + CRIVO
+Lite/Professional/Enterprise. Leads de CRM e tenant demo só saem no `seed:demo`.
+
+**Login gerado pelo bootstrap:**
 - Super Admin: `super@crivo.platform` / `crivo-super-123` → tela `/superadm`
-- CEO (tenant demo): `ceo@crivo.demo` / `crivo123`
+- (o tenant demo `ceo@crivo.demo` / `crivo123` só existe se você rodar o `seed:demo`)
+
+Para não nascer com senha de fábrica, defina antes de rodar:
+
+```bash
+export CRIVO_SUPERADMIN_EMAIL="voce@crivolegacy.com.br"
+export CRIVO_SUPERADMIN_PASSWORD="uma-senha-forte"
+```
 
 > 🔐 **Troque essas senhas após o 1º login.** Veja "Segurança" no fim.
+> O bootstrap **nunca sobrescreve** a senha de um super admin já existente.
 
 Depois do `rls`, existe o usuário **`crivo_app`** (senha padrão `crivo_app`). A conexão
 de aplicação (`DATABASE_URL_APP`) usa esse usuário — **mesmo host/porta/banco**, só muda

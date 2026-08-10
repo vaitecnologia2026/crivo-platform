@@ -315,8 +315,20 @@ export class DocumentsService {
     const org = await this.prisma.admin.organization.findUnique({ where: { id: tenantId } });
     const plans = await this.prisma.forTenant(tenantId, (tx) =>
       tx.actionPlan.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: { items: { include: { evidences: true } } },
+        // Desempate por id: sem ele, dois planos criados no mesmo milissegundo
+        // podem sair em ordem diferente a cada leitura — e `plans[0]` é quem
+        // alimenta o documento. Mesmo critério já usado no histórico de alterações.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: {
+          items: {
+            // Os IDs do dossiê (FP-001, A-001, R-001) são POSICIONAIS neste
+            // array e entram no contentHash da emissão. Sem ordenação fixa, o
+            // MESMO dado geraria numeração e hash diferentes a cada emissão,
+            // quebrando a idempotência ("o conteúdo não mudou desde a v1").
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            include: { evidences: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+          },
+        },
       }),
     );
     // Base Técnica da Recomendação: última decisão CNAE/NR-1 vinculada à empresa.
@@ -407,9 +419,19 @@ export class DocumentsService {
     return null;
   }
 
-  /** Documentos disponíveis conforme método + saída técnica do contrato. */
-  async available(tenantId: string): Promise<DocumentDescriptor[]> {
-    const { contract, method, plans } = await this.context(tenantId);
+  /**
+   * Documentos disponíveis conforme método + saída técnica do contrato.
+   *
+   * `ctx` opcional: quem já leu o contexto passa a MESMA leitura. Sem isso,
+   * generate() lia o banco duas vezes (uma para montar o conteúdo, outra aqui
+   * para o portão) — e o documento podia ser montado de um retrato enquanto o
+   * portão aprovava outro. Chamada sem ctx (rota /documents) segue lendo.
+   */
+  async available(
+    tenantId: string,
+    ctx?: Awaited<ReturnType<DocumentsService['context']>>,
+  ): Promise<DocumentDescriptor[]> {
+    const { contract, method, plans } = ctx ?? (await this.context(tenantId));
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
@@ -1666,8 +1688,15 @@ export class DocumentsService {
   }
 
   /** Monta o conteúdo estruturado do documento a partir dos dados reais. */
-  async generate(tenantId: string, type: string): Promise<GeneratedDocument> {
-    const { contract, method, org, company, plans, cnaeDecision } = await this.context(tenantId);
+  async generate(
+    tenantId: string,
+    type: string,
+    ctxIn?: Awaited<ReturnType<DocumentsService['context']>>,
+  ): Promise<GeneratedDocument> {
+    // emit() passa o contexto que ele já leu — a emissão oficial congela UM
+    // retrato do banco do começo ao fim (gate, conteúdo e hash).
+    const ctx = ctxIn ?? (await this.context(tenantId));
+    const { contract, method, org, company, plans, cnaeDecision } = ctx;
     const isTemplate = type.startsWith('tpl:');
     if (!isTemplate && !DOCUMENT_TYPE_LABEL[type]) {
       throw new BadRequestException('Tipo de documento inválido');
@@ -1676,7 +1705,9 @@ export class DocumentsService {
     // GATE server-side: repetir a elegibilidade de available(). Sem isto, bastava
     // chamar generate() com um tipo válido para emitir documento que o contrato
     // não libera (ou sem plano validado) — brecha de autorização de saída.
-    const eligible = await this.available(tenantId);
+    // Mesmo retrato do banco que monta o conteúdo abaixo: portão e documento
+    // não podem discordar sobre qual plano está valendo.
+    const eligible = await this.available(tenantId, ctx);
     const desc = eligible.find((d) => d.type === type);
     if (!desc || !desc.available) {
       throw new BadRequestException(
@@ -1906,7 +1937,8 @@ export class DocumentsService {
   async emit(tenantId: string, type: string, actorEmail?: string) {
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
-    const { contract, method, org, plans } = await this.context(tenantId);
+    const ctxEmissao = await this.context(tenantId);
+    const { contract, method, org, plans } = ctxEmissao;
 
     // EMISSÃO FINAL — plano validado mas SEM ações não sustenta documento técnico.
     // dossierBlockers() não pega este caso: seus três filtros rodam SOBRE a lista
@@ -1997,7 +2029,7 @@ export class DocumentsService {
       }
     }
 
-    const doc = await this.generate(tenantId, type); // reaplica elegibilidade + bloqueios
+    const doc = await this.generate(tenantId, type, ctxEmissao); // reaplica elegibilidade + bloqueios
     // Re-checagem PÓS-geração (TOCTOU): se a aprovação for revogada entre o
     // gate acima e a leitura feita pelo gerador, o documento sairia com o
     // placeholder "pendente de aprovação" congelado numa emissão oficial.
