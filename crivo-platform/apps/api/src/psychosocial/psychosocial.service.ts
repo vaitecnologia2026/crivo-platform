@@ -139,6 +139,18 @@ export class PsychosocialService {
     });
   }
 
+  /**
+   * Perguntas do Diagnóstico Organizacional pela metodologia ATIVA (fallback ao
+   * padrão embutido). Público e sem tenant: é a mesma lista para /q/<slug> e para
+   * a campanha /p/c/<slug> — uma fonte só, para os dois links não divergirem.
+   */
+  async publicQuestions() {
+    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    return cfg
+      ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
+      : PSYCHOSOCIAL_QUESTIONS;
+  }
+
   /** Resolve um slug público → nome da empresa + perguntas (sem auth, sem dados internos). */
   async getPublicBySlug(slug: string) {
     // rls-allow: endpoint público anônimo (/q/<slug>), sem tenant no contexto; resolve slug→nome (select mínimo).
@@ -147,11 +159,7 @@ export class PsychosocialService {
       select: { name: true },
     });
     if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
-    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
-    const questions = cfg
-      ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
-      : PSYCHOSOCIAL_QUESTIONS;
-    return { tenantName: org.name, questions };
+    return { tenantName: org.name, questions: await this.publicQuestions() };
   }
 
   /** Submissão pública anônima via slug. Resolve o tenant e grava sob a RLS dele. */

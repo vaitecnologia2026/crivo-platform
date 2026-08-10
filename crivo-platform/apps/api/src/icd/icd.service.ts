@@ -5,6 +5,8 @@ import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import type { SubmitIcdDto } from './dto';
+import { PsychosocialService } from '../psychosocial/psychosocial.service';
+import type { SubmitPsychosocialDto } from '../psychosocial/dto';
 import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
 @Injectable()
@@ -13,6 +15,9 @@ export class IcdService {
     private readonly prisma: PrismaService,
     private readonly texts: EditableTextsService,
     private readonly notifications: NotificationSettingsService,
+    // A campanha aplica o Diagnóstico Organizacional: perguntas e gravação são
+    // do psicossocial. Reusar o serviço mantém UM caminho de coleta.
+    private readonly psychosocial: PsychosocialService,
   ) {}
 
   /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
@@ -320,14 +325,35 @@ export class IcdService {
     return { sent, pending: prep.pendentes.length, provider };
   }
 
-  /** Info pública por slug — SEM auth. Não vaza score/respondentes individuais. */
-  async getPublicBySlug(slug: string) {
+  /**
+   * A campanha só aceita resposta com o link público ligado, status OPEN e
+   * dentro da janela. Centralizado aqui porque GET e POST precisam da MESMA
+   * regra: se a leitura mostra o formulário, a escrita tem que aceitar.
+   */
+  private async resolveOpenCampaign(slug: string) {
     // rls-allow: endpoint público (sem tenantId no contexto); resolve campanha por slug, sem score individual.
     const cycle = await this.prisma.admin.assessmentCycle.findUnique({
       where: { publicSlug: slug },
       include: { org: { select: { name: true } } },
     });
     if (!cycle) throw new BadRequestException('Campanha não encontrada ou link inválido.');
+    const agora = new Date();
+    const foraDaJanela =
+      (cycle.startsAt && agora < cycle.startsAt) || (cycle.endsAt && agora > cycle.endsAt);
+    return { cycle, aberta: cycle.status === 'OPEN' && !foraDaJanela };
+  }
+
+  /**
+   * Info pública por slug — SEM auth. Não vaza score/respondentes individuais.
+   * Devolve TAMBÉM as perguntas quando a campanha está aberta: sem elas a página
+   * pública não tinha o que renderizar e virava um cartão sem saída, mandando o
+   * respondente "acessar com o seu login" — o oposto do que o link promete.
+   */
+  async getPublicBySlug(slug: string) {
+    const { cycle, aberta } = await this.resolveOpenCampaign(slug);
+    // A campanha aplica o Diagnóstico Organizacional (NR-1): as perguntas saem da
+    // metodologia ATIVA, nunca fixadas aqui — mesma fonte do link /q/<slug>.
+    const questions = aberta ? await this.psychosocial.publicQuestions() : [];
     return {
       name: cycle.name,
       description: cycle.description,
@@ -336,7 +362,26 @@ export class IcdService {
       startsAt: cycle.startsAt ? cycle.startsAt.toISOString() : null,
       endsAt: cycle.endsAt ? cycle.endsAt.toISOString() : null,
       tenantName: cycle.org.name,
+      open: aberta,
+      questions,
     };
+  }
+
+  /**
+   * Submissão ANÔNIMA pela campanha. Grava em psychosocial_responses — a MESMA
+   * tabela que o portal agrega em /psychosocial/results. Um caminho de coleta
+   * próprio criaria resposta órfã: o time responderia e nada apareceria no
+   * Dashboard. O setor vem da campanha (o respondente não escolhe).
+   */
+  async submitPublicByCampaignSlug(slug: string, dto: SubmitPsychosocialDto) {
+    const { cycle, aberta } = await this.resolveOpenCampaign(slug);
+    if (!aberta) {
+      throw new BadRequestException('Esta campanha não está aberta para respostas no momento.');
+    }
+    return this.psychosocial.submit(cycle.tenantId, {
+      ...dto,
+      sector: cycle.sector ?? dto.sector,
+    });
   }
 
   /**

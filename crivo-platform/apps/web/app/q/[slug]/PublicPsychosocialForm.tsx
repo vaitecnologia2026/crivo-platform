@@ -42,7 +42,32 @@ function Brand() {
   );
 }
 
-export function PublicPsychosocialForm({ slug }: { slug: string }) {
+/**
+ * Formulário público do Diagnóstico Organizacional. Serve DOIS links:
+ *  · /q/<slug>   — link aberto da empresa (padrão, sem props extras)
+ *  · /p/c/<slug> — campanha, que injeta seu próprio par carregar/enviar
+ * Uma implementação só para os dois não divergirem em pergunta, escala ou texto.
+ */
+export function PublicPsychosocialForm({
+  slug,
+  carregar = getPublicPsychosocial,
+  enviar = submitPublicPsychosocial,
+  // Quando a campanha já define o setor, o respondente não escolhe: some o campo
+  // e o agregado por setor sai correto sem depender de quem digitou o quê.
+  setorFixo = null,
+  rotulo = "Questionário Psicossocial",
+  contexto = null,
+}: {
+  slug: string;
+  carregar?: (slug: string) => Promise<{ tenantName: string; questions: PsychosocialQuestion[] }>;
+  enviar?: (
+    slug: string,
+    body: { sector?: string; answers: { questionId: number; value: number }[] },
+  ) => Promise<{ result: PsychosocialResult }>;
+  setorFixo?: string | null;
+  rotulo?: string;
+  contexto?: string | null;
+}) {
   const [tenantName, setTenantName] = useState("");
   const [questions, setQuestions] = useState<PsychosocialQuestion[]>([]);
   const [status, setStatus] = useState<"loading" | "invalid" | "ok">("loading");
@@ -52,14 +77,14 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
   const [result, setResult] = useState<PsychosocialResult | null>(null);
 
   useEffect(() => {
-    getPublicPsychosocial(slug)
+    carregar(slug)
       .then((d) => {
         setTenantName(d.tenantName);
         setQuestions(d.questions);
         setStatus("ok");
       })
       .catch(() => setStatus("invalid"));
-  }, [slug]);
+  }, [slug, carregar]);
 
   const answered = questions.filter((q) => answers[q.id]).length;
   const allAnswered = questions.length > 0 && answered === questions.length;
@@ -68,8 +93,8 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
     if (!allAnswered) return;
     setSubmitState("submitting");
     try {
-      const res = await submitPublicPsychosocial(slug, {
-        sector: sector.trim() || undefined,
+      const res = await enviar(slug, {
+        sector: setorFixo ?? (sector.trim() || undefined),
         answers: questions.map((q) => ({ questionId: q.id, value: answers[q.id] })),
       });
       setResult(res.result);
@@ -138,8 +163,9 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
     <div className={s.wrap}>
       <div className={s.card}>
         <Brand />
-        <span className={s.pill}>Questionário Psicossocial</span>
+        <span className={s.pill}>{rotulo}</span>
         <h1 className={s.title}>{tenantName}</h1>
+        {contexto && <p className={s.sub} style={{ marginTop: -4, fontWeight: 600 }}>{contexto}</p>}
         <p className={s.sub}>
           Sua percepção sobre o ambiente de trabalho ajuda a empresa a cuidar de riscos psicossociais
           (NR-1). São 12 afirmações — responda de 1 (discordo totalmente) a 5 (concordo totalmente).
@@ -159,6 +185,7 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
           Os resultados são vistos pela empresa apenas de forma <strong>agregada</strong>.
         </p>
 
+        {!setorFixo && (
         <div className={s.field}>
           <label htmlFor="setor">Setor / Área (opcional)</label>
           <input
@@ -170,6 +197,7 @@ export function PublicPsychosocialForm({ slug }: { slug: string }) {
             maxLength={120}
           />
         </div>
+        )}
 
         <ScaleHelpBox
           scale={[

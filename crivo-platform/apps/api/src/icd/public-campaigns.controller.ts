@@ -1,6 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IcdService } from './icd.service';
+import { SubmitPsychosocialDto } from '../psychosocial/dto';
 
 /**
  * Endpoint PÚBLICO (Portal §7) — sem AuthGuard. Resolve um slug de campanha
@@ -16,5 +17,16 @@ export class PublicCampaignsController {
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   getBySlug(@Param('slug') slug: string) {
     return this.icd.getPublicBySlug(slug);
+  }
+
+  /**
+   * Submissão ANÔNIMA pela campanha — a peça que faltava para o link público
+   * cumprir o que a caixa "respondentes acessam sem login" promete. Mesmo limite
+   * de taxa do /q/<slug>: leitura é barata, escrita não.
+   */
+  @Post(':slug')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  submit(@Param('slug') slug: string, @Body() dto: SubmitPsychosocialDto) {
+    return this.icd.submitPublicByCampaignSlug(slug, dto);
   }
 }

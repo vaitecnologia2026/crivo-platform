@@ -712,6 +712,12 @@ export async function getPublicCampaign(slug: string): Promise<{
   startsAt: string | null;
   endsAt: string | null;
   tenantName: string;
+  // `open` já considera status E janela de datas — a página não recalcula isso,
+  // senão leitura e escrita poderiam discordar sobre a campanha estar aberta.
+  open: boolean;
+  // Mesmo shape de getPublicPsychosocial: as duas rotas servem a MESMA lista
+  // (publicQuestions no backend), então o tipo tem de ser um só.
+  questions: PsychosocialQuestion[];
 }> {
   const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
     signal: AbortSignal.timeout(15000),
@@ -719,6 +725,24 @@ export async function getPublicCampaign(slug: string): Promise<{
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message ?? 'Link inválido');
+  }
+  return res.json();
+}
+
+/** Submissão anônima pela campanha (/p/c/<slug>). O setor vem da campanha. */
+export async function submitPublicCampaign(
+  slug: string,
+  dto: { sector?: string; answers: { questionId: number; value: number }[] },
+): Promise<{ ok: true; result: PsychosocialResult }> {
+  const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'Falha ao enviar');
   }
   return res.json();
 }

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { getPublicCampaign } from "@/lib/api";
+import { getPublicCampaign, submitPublicCampaign } from "@/lib/api";
+import type { PsychosocialQuestion } from "@crivo/types";
+import { PublicPsychosocialForm } from "../../../q/[slug]/PublicPsychosocialForm";
 
 type Campaign = {
   name: string;
@@ -12,6 +14,8 @@ type Campaign = {
   startsAt: string | null;
   endsAt: string | null;
   tenantName: string;
+  open: boolean;
+  questions: PsychosocialQuestion[];
 };
 
 // Lê o slug do pathname no cliente (/p/c/<slug>). Compatível com export estático
@@ -120,7 +124,26 @@ export function PublicCampaignShell() {
     );
   }
 
-  const open = data.status === "OPEN";
+  // Campanha ABERTA = questionário na hora, sem login. A caixa "respondentes
+  // acessam sem login" gerou este link; mandar o respondente "acessar o portal"
+  // aqui seria negar a própria promessa. O cartão informativo abaixo fica só
+  // para campanha encerrada/fora da janela, que é quando não há o que responder.
+  if (data.open) {
+    return (
+      <PublicPsychosocialForm
+        slug={slug!}
+        carregar={getPublicCampaign}
+        enviar={submitPublicCampaign}
+        // O setor é o da campanha: quem responde não escolhe, e o agregado por
+        // setor sai certo sem depender do que cada um digitou.
+        setorFixo={data.sector}
+        rotulo="Campanha de Diagnóstico"
+        contexto={data.sector ? `${data.name} · ${data.sector}` : data.name}
+      />
+    );
+  }
+
+  const open = false;
   return (
     <div style={WRAP}>
       <div style={CARD}>
