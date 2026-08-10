@@ -108,6 +108,8 @@ export function CookieConsent() {
       // Navegador com armazenamento bloqueado: o aviso reaparece na próxima
       // visita, mas nada opcional é ativado — o padrão continua sendo não.
     }
+    // Avisa o resto do app: o Analytics (§15) so carrega o GA4 depois disto.
+    window.dispatchEvent(new CustomEvent("crivo:consentimento"));
     setVisivel(false);
     setDetalhado(false);
   }

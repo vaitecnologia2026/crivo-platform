@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EVENTOS, capturarAtribuicao, evento } from "@/lib/analytics";
 import {
   computePreDiagnostic,
   scoreWithMethodology,
@@ -177,6 +178,9 @@ export function DiagnosticoInicialQuiz() {
   }
 
   function startQuiz() {
+    // §15 — "quem iniciou o MAPA". Marca a 1a pergunta, nao a abertura da tela:
+    // quem so passou o olho na orientacao nao conta como inicio.
+    evento(EVENTOS.mapaIniciado, capturarAtribuicao());
     setIdx(0);
     setStep("quiz");
   }
@@ -228,11 +232,17 @@ export function DiagnosticoInicialQuiz() {
     setResult(r);
     setStep("result");
     setSent("sending");
+    // §15 — "quem concluiu o MAPA", com a origem junto para o relatorio do GA4
+    // conseguir ligar conversao -> campanha.
+    const atribuicao = capturarAtribuicao();
+    evento(EVENTOS.mapaConcluido, { ...atribuicao, score: r.score, nivel: r.levelLabel });
     try {
       const res = await fetch("/api/diagnostic-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // §11/§15 — a campanha que gerou o lead viaja junto ate o CRM.
+          atribuicao,
           name: contact.name,
           cnpj: contact.cnpj,
           role: contact.role,
