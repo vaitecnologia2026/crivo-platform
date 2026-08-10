@@ -938,6 +938,12 @@ th.compare__crivo { color: var(--terra) !important; }
 .footer ul li a:hover { color: var(--terra-dourado); }
 .footer__legal { padding: 24px 0; font-size: 12px; font-weight: 300; letter-spacing: 0.04em; color: var(--cinza-escuro); }
 .footer__legal .container { color: var(--prata); opacity: 0.6; }
+/* §13 — faixa de links legais acima do copyright. */
+.footer__legal-links { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
+.footer__legal-links a, .footer__legal-links button { color: inherit; text-decoration: underline; }
+.footer__legal-links a:hover, .footer__legal-links button:hover { color: var(--terra); }
+.footer__copy { opacity: .85; }
+
 
 /* ===================== GRID HELPERS ===================== */
 .grid { display: grid; gap: 22px; }

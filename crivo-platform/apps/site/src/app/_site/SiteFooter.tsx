@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GerenciarCookiesLink } from "./CookieConsent";
 import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
 
@@ -78,7 +79,17 @@ export function SiteFooter() {
       </div>
       <div className="footer__legal">
         <div className="container">
-          © 2026 CRIVO™ · Decision Intelligence · O2 Legacy &amp; Consulting.
+          {/* §13 — Política de Privacidade, Política de Cookies, Termos de Uso
+              e Gerenciar Cookies, acessíveis de qualquer página. */}
+          <nav className="footer__legal-links" aria-label="Links legais">
+            <Link href="/politica-de-privacidade">Política de Privacidade</Link>
+            <Link href="/politica-de-cookies">Política de Cookies</Link>
+            <Link href="/termos">Termos de Uso</Link>
+            <GerenciarCookiesLink />
+          </nav>
+          <div className="footer__copy">
+            © 2026 CRIVO™ · Decision Intelligence · O2 Legacy &amp; Consulting.
+          </div>
         </div>
       </div>
     </footer>

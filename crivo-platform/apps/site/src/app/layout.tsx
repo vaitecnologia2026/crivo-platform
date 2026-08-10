@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CookieConsent } from "./_site/CookieConsent";
 import { Lora, Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -59,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable}`}
     >
-      <body>{children}</body>
+      <body>{children}{/* §13 — aviso de cookies em todas as rotas. */}<CookieConsent /></body>
     </html>
   );
 }

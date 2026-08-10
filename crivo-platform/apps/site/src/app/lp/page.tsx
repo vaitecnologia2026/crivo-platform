@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LpEffects } from "./LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
+import { FaqSection } from "./FaqSection";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC, Seals } from "../_site/icons";
 import "./lp.css";
@@ -555,6 +556,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* §13 — FAQ imediatamente antes do rodapé. */}
+      <FaqSection />
 
       <SiteFooter />
     </>
