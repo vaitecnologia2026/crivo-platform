@@ -197,6 +197,15 @@ export class PlatformLeadsService {
       segment: dto.segment?.trim() || null,
       employeesCount: dto.employeesCount?.trim() || null,
       origin: dto.origin?.trim() || 'lp-diagnostico',
+      // §11/§15 — qual campanha gerou este lead. Vem da 1a visita da sessao no
+      // site; visita direta simplesmente nao traz nada e as colunas ficam nulas.
+      utmSource: dto.atribuicao?.utm_source ?? null,
+      utmMedium: dto.atribuicao?.utm_medium ?? null,
+      utmCampaign: dto.atribuicao?.utm_campaign ?? null,
+      utmContent: dto.atribuicao?.utm_content ?? null,
+      utmTerm: dto.atribuicao?.utm_term ?? null,
+      referrer: dto.atribuicao?.referrer ?? null,
+      landingPage: dto.atribuicao?.landing ?? null,
       notes,
       cnpj: cnpjLimpo,
       cnpjData: (cnpjData as object) ?? undefined,

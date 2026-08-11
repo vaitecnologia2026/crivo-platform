@@ -1307,7 +1307,23 @@ export interface CreateDiagnosticLeadRequest {
   challenges?: string[];
   challengeOther?: string;
   origin?: string;
+  /**
+   * §11/§15 — de onde o visitante veio e QUAL CAMPANHA gerou este lead.
+   * Capturado na 1a visita da sessao no site; visita direta vem vazio.
+   */
+  atribuicao?: LeadAtribuicao;
   answers: IcdAnswer[];
+}
+
+/** Atribuicao de origem do lead (UTMs + referrer + pagina de entrada). */
+export interface LeadAtribuicao {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  referrer?: string;
+  landing?: string;
 }
 
 export interface CreateDiagnosticLeadResponse {

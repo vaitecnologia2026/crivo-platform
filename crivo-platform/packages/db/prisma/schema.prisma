@@ -357,26 +357,26 @@ model SuperAdmin {
 // Liga ao Organization por organizationId SEM relation Prisma, para manter o
 // control plane desacoplado do modelo RLS — relação 1:1 lógica.
 model Tenant {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @unique @db.Uuid // → organizations.id (data plane)
-  slug           String       @unique // subdomínio: <slug>.crivolegacy.com.br
-  name           String
-  plan           Plan         @default(BASE)
-  status         TenantStatus @default(ACTIVE)
-  productId      String?      @db.Uuid // → products.id: produto que originou a empresa (FASE 3)
-  groupId        String?      @db.Uuid // → business_groups.id: Grupo Empresarial (Caderno Tela 06; F1)
+  id                  String       @id @default(uuid()) @db.Uuid
+  organizationId      String       @unique @db.Uuid // → organizations.id (data plane)
+  slug                String       @unique // subdomínio: <slug>.crivolegacy.com.br
+  name                String
+  plan                Plan         @default(BASE)
+  status              TenantStatus @default(ACTIVE)
+  productId           String?      @db.Uuid // → products.id: produto que originou a empresa (FASE 3)
+  groupId             String?      @db.Uuid // → business_groups.id: Grupo Empresarial (Caderno Tela 06; F1)
   // Cadastro do CNPJ (Caderno Tela 06 · Incluir).
   cnpj                String? // CNPJ da empresa (só dígitos)
   headquarterType     String? // MATRIZ | FILIAL
   internalResponsible String? // responsável interno pela conta
   // Autorizações de uso na Base CRIVO / prova social (Tela 09 · opt-in por empresa).
-  consentAnonymized  Boolean @default(false) // uso de dados anonimizados
-  consentBenchmark   Boolean @default(false) // participar do benchmark agregado
-  consentCase        Boolean @default(false) // virar case (autorizado)
-  consentLogo        Boolean @default(false) // uso do logo em vitrine
-  consentTestimonial Boolean @default(false) // depoimento público
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  consentAnonymized   Boolean      @default(false) // uso de dados anonimizados
+  consentBenchmark    Boolean      @default(false) // participar do benchmark agregado
+  consentCase         Boolean      @default(false) // virar case (autorizado)
+  consentLogo         Boolean      @default(false) // uso do logo em vitrine
+  consentTestimonial  Boolean      @default(false) // depoimento público
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([groupId])
   @@map("tenants")
@@ -550,19 +550,19 @@ model GlobalAcademyContent {
 /// aquele diagnóstico — o conteúdo é montado com o resultado real do motor.
 /// Control-plane (catálogo global), owner-only como products.
 model ReportTemplate {
-  id             String               @id @default(uuid()) @db.Uuid
-  key            String               @unique // usado como tipo do documento (kebab-case)
-  name           String
-  description    String?              @db.Text
-  instrumentSlug String               @map("instrument_slug")
-  instrument     DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  id                String               @id @default(uuid()) @db.Uuid
+  key               String               @unique // usado como tipo do documento (kebab-case)
+  name              String
+  description       String?              @db.Text
+  instrumentSlug    String               @map("instrument_slug")
+  instrument        DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
   /// Seções fixas de texto: [{ heading, body }] — contexto/metodologia/limites.
-  sections          Json    @default("[]")
+  sections          Json                 @default("[]")
   /// O que o motor injeta automaticamente no documento.
-  includeResults    Boolean @default(true) @map("include_results") // score + faixa
-  includeDimensions Boolean @default(true) @map("include_dimensions") // tabela por dimensão
-  includePlan       Boolean @default(false) @map("include_plan") // ações do Plano de Evolução
-  active            Boolean @default(true)
+  includeResults    Boolean              @default(true) @map("include_results") // score + faixa
+  includeDimensions Boolean              @default(true) @map("include_dimensions") // tabela por dimensão
+  includePlan       Boolean              @default(false) @map("include_plan") // ações do Plano de Evolução
+  active            Boolean              @default(true)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -606,7 +606,7 @@ model ApprovedText {
   draftModel String?   @map("draft_model") // modelo de IA que gerou (null = manual)
   draftAt    DateTime? @map("draft_at")
 
-  approvedContent String?   @db.Text @map("approved_content") // texto congelado que entra no documento
+  approvedContent String?   @map("approved_content") @db.Text // texto congelado que entra no documento
   approvedBy      String?   @map("approved_by")
   approvedAt      DateTime? @map("approved_at")
   status          String    @default("RASCUNHO") // RASCUNHO | APROVADO
@@ -751,6 +751,19 @@ model PlatformLead {
   origin         String? // lp-diagnostico | qrcode | indicacao | anuncio…
   productId      String? @db.Uuid // produto de origem (ex.: pré-diagnóstico)
 
+  // ATRIBUIÇÃO (§11/§15 dos Ajustes Finais do Site): de onde o visitante veio e
+  // QUAL CAMPANHA gerou este lead. Colunas nomeadas — e não um JSON — porque o
+  // comercial precisa AGRUPAR ("quantos leads vieram da campanha X"), e JSON não
+  // se agrupa bem. Capturados na PRIMEIRA visita da sessão no site, então quem
+  // navega antes de converter não perde a origem.
+  utmSource   String? @map("utm_source")
+  utmMedium   String? @map("utm_medium")
+  utmCampaign String? @map("utm_campaign")
+  utmContent  String? @map("utm_content")
+  utmTerm     String? @map("utm_term")
+  referrer    String? // origem externa quando não há UTM (busca, indicação)
+  landingPage String? @map("landing_page") // 1ª página da sessão
+
   // Enriquecimento por CNPJ (BrasilAPI) — base do grau de risco (NR-1).
   cnpj      String? // só dígitos
   cnpjData  Json? // razão social, CNAE, porte, situação, endereço, sócios…
@@ -760,25 +773,26 @@ model PlatformLead {
   diagnosticScore  Int? // 0–100 (score geral)
   diagnosticResult Json? // { score, level, byDimension, topConcern, recommendation }
 
-  stage             PlatformLeadStage @default(NOVO)
-  notes             String?
-  lostReason        String? // motivo de perda estruturado (só quando stage=PERDIDO)
-  archivedAt        DateTime? @map("archived_at") // saiu do kanban (jornada concluída) — call 14/07
-  firstContactedAt  DateTime? // 1º contato registrado — mede o tempo de resposta
-  interestProductId String?           @db.Uuid // solução de interesse (pré-venda; ≠ productId de origem)
-  nextActionAt      DateTime? // follow-up: data da próxima ação combinada
-  nextActionNote    String? // follow-up: o que fazer na próxima ação
-  commercialOwner   String? // responsável comercial (CRIVO) pelo lead
+  stage              PlatformLeadStage @default(NOVO)
+  notes              String?
+  lostReason         String? // motivo de perda estruturado (só quando stage=PERDIDO)
+  archivedAt         DateTime?         @map("archived_at") // saiu do kanban (jornada concluída) — call 14/07
+  firstContactedAt   DateTime? // 1º contato registrado — mede o tempo de resposta
+  interestProductId  String?           @db.Uuid // solução de interesse (pré-venda; ≠ productId de origem)
+  nextActionAt       DateTime? // follow-up: data da próxima ação combinada
+  nextActionNote     String? // follow-up: o que fazer na próxima ação
+  commercialOwner    String? // responsável comercial (CRIVO) pelo lead
   proposedValueCents Int? // valor proposto (centavos)
-  proposalSentAt    DateTime? // quando a proposta comercial foi enviada
-  potentialAddons   String[]          @default([]) // adicionais/módulos potenciais (pré-venda)
-  convertedTenantId String?           @db.Uuid // tenant criado na conversão (FASE 3)
+  proposalSentAt     DateTime? // quando a proposta comercial foi enviada
+  potentialAddons    String[]          @default([]) // adicionais/módulos potenciais (pré-venda)
+  convertedTenantId  String?           @db.Uuid // tenant criado na conversão (FASE 3)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([stage])
   @@index([createdAt])
+  @@index([utmCampaign]) // relatório "leads por campanha"
   @@map("platform_leads")
 }
 
@@ -837,16 +851,16 @@ model Addon {
   active            Boolean @default(true)
 
   // Catálogo de upsells no padrão do cliente (mockup 14/07).
-  description      String? // subtítulo do adicional na tabela
-  category         String? // ex.: "Pacote transversal", "Governança IA", "Serviço"
-  recurrence       AddonRecurrence @default(MENSAL) // mantém `recurring` em sincronia
-  priceLabel       String? // rótulo livre (ex.: "R$ 900 / dossiê")
-  compatibleSolutions String[] @default([]) // chips de soluções compatíveis
-  activatedModules    String[] @default([]) // códigos exibidos (mod-ia, mod-people…)
-  limitsNote       String? // coluna "Limites"
-  dependenciesNote String? // coluna "Dependências"
-  releaseRule      String? // coluna "Regra de liberação"
-  statusEx         AddonStatus @default(ATIVO) // mantém `active` em sincronia
+  description         String? // subtítulo do adicional na tabela
+  category            String? // ex.: "Pacote transversal", "Governança IA", "Serviço"
+  recurrence          AddonRecurrence @default(MENSAL) // mantém `recurring` em sincronia
+  priceLabel          String? // rótulo livre (ex.: "R$ 900 / dossiê")
+  compatibleSolutions String[]        @default([]) // chips de soluções compatíveis
+  activatedModules    String[]        @default([]) // códigos exibidos (mod-ia, mod-people…)
+  limitsNote          String? // coluna "Limites"
+  dependenciesNote    String? // coluna "Dependências"
+  releaseRule         String? // coluna "Regra de liberação"
+  statusEx            AddonStatus     @default(ATIVO) // mantém `active` em sincronia
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -881,17 +895,17 @@ enum AddonStatus {
 /// limiar de anonimato, modo de cálculo padrão, régua padrão e escala padrão dos
 /// novos diagnósticos. Não é um portal de atalhos — é onde se DEFINE o motor.
 model EngineConfig {
-  id                String              @id @default(uuid()) @db.Uuid
-  scope             String              @unique @default("global")
+  id                               String              @id @default(uuid()) @db.Uuid
+  scope                            String              @unique @default("global")
   // Mínimo de respondentes para revelar qualquer agregado (proteção de anonimato).
-  minRespondents    Int                 @default(5) @map("min_respondents")
+  minRespondents                   Int                 @default(5) @map("min_respondents")
   // Padrões aplicados ao criar um novo diagnóstico.
-  defaultAggregation ScoreAggregation   @default(MEDIA_PONDERADA) @map("default_aggregation")
-  defaultBandKind   MethodologyBandKind @default(MATURITY) @map("default_band_kind")
-  defaultScaleLabels String[]           @default([]) @map("default_scale_labels")
+  defaultAggregation               ScoreAggregation    @default(MEDIA_PONDERADA) @map("default_aggregation")
+  defaultBandKind                  MethodologyBandKind @default(MATURITY) @map("default_band_kind")
+  defaultScaleLabels               String[]            @default([]) @map("default_scale_labels")
   // Padrões do motor v3.1 aplicados a todo diagnóstico novo (Anexo D/E).
-  defaultRounding    Int                @default(1) @map("default_rounding")
-  defaultMinValidCompletionPercent Int  @default(70) @map("default_min_valid_completion_percent")
+  defaultRounding                  Int                 @default(1) @map("default_rounding")
+  defaultMinValidCompletionPercent Int                 @default(70) @map("default_min_valid_completion_percent")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1092,46 +1106,46 @@ model TenantModule {
 // =====================================================================
 
 model Organization {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  plan      Plan     @default(BASE)
+  id                  String               @id @default(uuid()) @db.Uuid
+  name                String
+  plan                Plan                 @default(BASE)
   // Dados cadastrais (autoatendimento na tela "Organização" do portal).
-  legalName String? // razão social
-  taxId     String? // CNPJ
+  legalName           String? // razão social
+  taxId               String? // CNPJ
   // F2 (Pacote de Templates): cabeçalho do Dossiê Técnico — preenchidos pela
   // própria empresa na tela "Minha Organização" (decisão do cliente 27/07).
-  establishment  String? // unidade/estabelecimento avaliado
-  employeesCount String? @map("employees_count") // nº de empregados (número ou faixa)
-  workModel      String? @map("work_model") // presencial | híbrido | remoto | misto
-  website   String?
-  phone     String?
+  establishment       String? // unidade/estabelecimento avaliado
+  employeesCount      String?              @map("employees_count") // nº de empregados (número ou faixa)
+  workModel           String?              @map("work_model") // presencial | híbrido | remoto | misto
+  website             String?
+  phone               String?
   // Slug público do Questionário Psicossocial (Briefing §6): link anônimo sem
   // login (/q/<slug>), opcionalmente por setor via query. Único entre empresas.
-  psychosocialSlug String? @unique
+  psychosocialSlug    String?              @unique
   diagnosticLinks     DiagnosticLink[]
   diagnosticResponses DiagnosticResponse[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
-  companies        Company[]
-  units            Unit[]
-  teams            Team[]
-  users            User[]
-  cycles           AssessmentCycle[]
-  assessments      Assessment[]
-  responses        Response[]
-  icdScores        IcdScore[]
-  leads            Lead[]
-  modules          TenantModule[]
-  usage            UsageCounter[]
-  branding         TenantBranding?
-  library          LibraryItem[]
-  actionPlans      ActionPlan[]
-  actionItems      ActionItem[]
-  evidences        Evidence[]
-  selfAssessments  SelfAssessment[]
-  essentialRecords EssentialRecord[]
-  pareceres        Parecer[]
+  companies             Company[]
+  units                 Unit[]
+  teams                 Team[]
+  users                 User[]
+  cycles                AssessmentCycle[]
+  assessments           Assessment[]
+  responses             Response[]
+  icdScores             IcdScore[]
+  leads                 Lead[]
+  modules               TenantModule[]
+  usage                 UsageCounter[]
+  branding              TenantBranding?
+  library               LibraryItem[]
+  actionPlans           ActionPlan[]
+  actionItems           ActionItem[]
+  evidences             Evidence[]
+  selfAssessments       SelfAssessment[]
+  essentialRecords      EssentialRecord[]
+  pareceres             Parecer[]
   psychosocialResponses PsychosocialResponse[]
 
   // Anexo ICD do Líder v1 — Registro de Decisão (task #45).
@@ -1147,12 +1161,12 @@ model Organization {
   PocketReflection    PocketReflection[]
   PocketAiSummary     PocketAiSummary[]
   TenantRole          TenantRole[]
+  reportEmissions     ReportEmission[]
+  actionItemHistory   ActionItemHistory[]
+  devolutivas         DevolutivaRecord[]
+  diagnosticCycles    DiagnosticCycle[]
 
   @@map("organizations")
-  reportEmissions ReportEmission[]
-  actionItemHistory ActionItemHistory[]
-  devolutivas DevolutivaRecord[]
-  diagnosticCycles DiagnosticCycle[]
 }
 
 model Company {
@@ -1263,27 +1277,27 @@ model TeamMember {
 // =====================================================================
 
 model AssessmentCycle {
-  id             String       @id @default(uuid()) @db.Uuid
-  tenantId       String       @db.Uuid
-  org            Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name           String
-  description    String? // contexto/instrução opcional da campanha
-  sector         String? // setor/área alvo (RH, Comercial, Operações…); null = toda a empresa
+  id                   String       @id @default(uuid()) @db.Uuid
+  tenantId             String       @db.Uuid
+  org                  Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                 String
+  description          String? // contexto/instrução opcional da campanha
+  sector               String? // setor/área alvo (RH, Comercial, Operações…); null = toda a empresa
   // Slug público para link de convite (Anexo Portal §7): respondentes acessam
   // /p/c/<slug> sem login. Único por tenant para evitar colisão de leituras.
-  publicSlug     String?      @unique
-  startsAt       DateTime? // janela opcional
-  endsAt         DateTime?
-  reminderAt     DateTime? // quando o sistema deve enviar lembrete (job futuro)
-  reminderSentAt DateTime? // idempotência: marca quando enviou
-  status         CycleStatus  @default(OPEN)
-  closedAt       DateTime?
+  publicSlug           String?      @unique
+  startsAt             DateTime? // janela opcional
+  endsAt               DateTime?
+  reminderAt           DateTime? // quando o sistema deve enviar lembrete (job futuro)
+  reminderSentAt       DateTime? // idempotência: marca quando enviou
+  status               CycleStatus  @default(OPEN)
+  closedAt             DateTime?
   // Tela 08 [3]: versão de metodologia PSYCHOSOCIAL aplicada quando o ciclo foi
   // aberto — garante rastreabilidade/comparabilidade do score mesmo se a
   // metodologia for republicada depois.
-  methodologyVersionId String? @db.Uuid
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  methodologyVersionId String?      @db.Uuid
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   assessments Assessment[]
 
@@ -1329,20 +1343,20 @@ model Response {
 // Guarda só tenant + setor + respostas + score agregável. Confidencialidade é
 // garantida na agregação (supressão < 5 respondentes por recorte).
 model PsychosocialResponse {
-  id          String       @id @default(uuid()) @db.Uuid
-  tenantId    String       @db.Uuid
-  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sector      String? // setor/área (RH, Comercial…); null = não informado
-  answers     Json // [{ questionId, value }] — 12 itens, escala 1–5
-  score       Int // 0–100 (proteção geral; maior = menor risco)
-  level       String // BAIXO | MODERADO | ALTO | CRITICO
-  byDimension Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
+  id                   String       @id @default(uuid()) @db.Uuid
+  tenantId             String       @db.Uuid
+  org                  Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sector               String? // setor/área (RH, Comercial…); null = não informado
+  answers              Json // [{ questionId, value }] — 12 itens, escala 1–5
+  score                Int // 0–100 (proteção geral; maior = menor risco)
+  level                String // BAIXO | MODERADO | ALTO | CRITICO
+  byDimension          Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
   // MET1 — versão de metodologia PSYCHOSOCIAL que EFETIVAMENTE pontuou esta
   // resposta (pin no momento do score). Trilha de rastreabilidade: republicar a
   // metodologia não altera respostas já pontuadas. null = pontuada pelo padrão
   // embutido (sem metodologia ativa) ou resposta anterior a esta trava.
-  methodologyVersionId String? @db.Uuid
-  submittedAt DateTime     @default(now())
+  methodologyVersionId String?      @db.Uuid
+  submittedAt          DateTime     @default(now())
 
   @@index([tenantId])
   @@index([sector])
@@ -1399,19 +1413,19 @@ model IcdScore {
 // sugeridas (IA/biblioteca), mas a validação é humana.
 // =====================================================================
 model ActionPlan {
-  id          String       @id @default(uuid()) @db.Uuid
-  tenantId    String       @db.Uuid
-  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title       String
-  source      String? // autoavaliação | escuta | questionário | observação | parecer
+  id                   String                @id @default(uuid()) @db.Uuid
+  tenantId             String                @db.Uuid
+  org                  Organization          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title                String
+  source               String? // autoavaliação | escuta | questionário | observação | parecer
   /// A4 — PROVENIÊNCIA estruturada: qual diagnóstico do Motor originou o plano
   /// (FK no catálogo; `source` texto livre preservado como legado/complemento).
   sourceInstrumentSlug String?               @map("source_instrument_slug")
   sourceInstrument     DiagnosticInstrument? @relation("plan_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
-  validatedAt DateTime? // sem validação = minuta; com validação = documento final
-  validatedBy String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  validatedAt          DateTime? // sem validação = minuta; com validação = documento final
+  validatedBy          String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   items ActionItem[]
 
@@ -1420,41 +1434,41 @@ model ActionPlan {
 }
 
 model ActionItem {
-  id               String       @id @default(uuid()) @db.Uuid
-  tenantId         String       @db.Uuid
-  org              Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  planId           String       @db.Uuid
-  plan             ActionPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
-  point            String // ponto identificado (= fator psicossocial, para o inventário §6/§15)
-  origin           String? // origem do ponto (autoavaliação/escuta/questionário/observação/parecer)
-  action           String // ação proposta (= medida de controle no inventário)
-  responsible      String? // responsável (empresa)
-  dueDate          DateTime?
-  status           ActionStatus @default(SUGERIDA)
-  expectedEvidence String? // evidência esperada
-  reviewDate       DateTime? // data de revisão de efetividade
+  id                   String                @id @default(uuid()) @db.Uuid
+  tenantId             String                @db.Uuid
+  org                  Organization          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId               String                @db.Uuid
+  plan                 ActionPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  point                String // ponto identificado (= fator psicossocial, para o inventário §6/§15)
+  origin               String? // origem do ponto (autoavaliação/escuta/questionário/observação/parecer)
+  action               String // ação proposta (= medida de controle no inventário)
+  responsible          String? // responsável (empresa)
+  dueDate              DateTime?
+  status               ActionStatus          @default(SUGERIDA)
+  expectedEvidence     String? // evidência esperada
+  reviewDate           DateTime? // data de revisão de efetividade
   // Inventário de fatores psicossociais (apoio ao PGR §6/§15): dimensões que
   // estruturam o ponto como fator de risco. exposedGroup = grupos expostos;
   // riskLevel = classificação (BAIXO|MEDIO|ALTO|CRITICO).
-  exposedGroup     String?
+  exposedGroup         String?
   // Matriz de risco do dossiê (doc 09 §6): severidade e probabilidade são as
   // ENTRADAS; o risco técnico (Baixo/Moderado/Alto) é DERIVADO delas pela matriz
   // 3x3 — nunca digitado. `riskLevel` fica como valor legado/manual dos registros
   // anteriores e é usado só quando não há severidade+probabilidade.
-  severity         String? // Baixa | Moderada | Alta
-  probability      String? // Baixa | Moderada | Alta
-  riskLevel        String?
+  severity             String? // Baixa | Moderada | Alta
+  probability          String? // Baixa | Moderada | Alta
+  riskLevel            String?
   // F2 (Pacote de Templates): campos da matriz/plano oficiais. A EMPRESA informa
   // (decisão 27/07): área/processo do fator, medida que JÁ existe (nunca
   // inventada pelo sistema) e o indicador de acompanhamento da ação.
-  areaProcess     String? @map("area_process")
-  existingMeasure String? @map("existing_measure")
-  indicator       String?
+  areaProcess          String?               @map("area_process")
+  existingMeasure      String?               @map("existing_measure")
+  indicator            String?
   /// A4 — proveniência estruturada do fator (mesma semântica do plano).
   sourceInstrumentSlug String?               @map("source_instrument_slug")
   sourceInstrument     DiagnosticInstrument? @relation("item_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   evidences Evidence[]
   history   ActionItemHistory[]
@@ -1470,10 +1484,10 @@ model ActionItemHistory {
   id           String       @id @default(uuid()) @db.Uuid
   tenantId     String       @db.Uuid
   org          Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  actionItemId String       @db.Uuid @map("action_item_id")
+  actionItemId String       @map("action_item_id") @db.Uuid
   item         ActionItem   @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
   change       String // resumo legível do que mudou
-  changedBy    String? @map("changed_by")
+  changedBy    String?      @map("changed_by")
   at           DateTime     @default(now())
 
   @@index([tenantId])
@@ -1491,9 +1505,9 @@ model DevolutivaRecord {
   format               String // reunião | comunicado | treinamento | outro
   audience             String? // público envolvido
   topics               String? // temas comunicados
-  confirmedPoints      String? @map("confirmed_points")
-  communicatedMeasures String? @map("communicated_measures")
-  createdBy            String? @map("created_by")
+  confirmedPoints      String?      @map("confirmed_points")
+  communicatedMeasures String?      @map("communicated_measures")
+  createdBy            String?      @map("created_by")
   createdAt            DateTime     @default(now())
 
   @@index([tenantId])
@@ -1524,12 +1538,12 @@ model ReportEmission {
   method          String? // método do contrato NO MOMENTO da emissão
   technicalOutput String?
   content         Json // GeneratedDocument completo (snapshot; nunca reprocessado)
-  contentHash     String @map("content_hash") // sha256 do JSON canônico
-  generatedBy     String? @map("generated_by") // e-mail de quem emitiu
-  status          String @default("EMITIDA") // EMITIDA | REVISADA
-  reviewedBy      String?   @map("reviewed_by")
-  reviewedAt      DateTime? @map("reviewed_at")
-  createdAt       DateTime  @default(now())
+  contentHash     String       @map("content_hash") // sha256 do JSON canônico
+  generatedBy     String?      @map("generated_by") // e-mail de quem emitiu
+  status          String       @default("EMITIDA") // EMITIDA | REVISADA
+  reviewedBy      String?      @map("reviewed_by")
+  reviewedAt      DateTime?    @map("reviewed_at")
+  createdAt       DateTime     @default(now())
 
   @@unique([tenantId, type, emissionNumber])
   @@index([tenantId])
@@ -1538,30 +1552,30 @@ model ReportEmission {
 }
 
 model Evidence {
-  id        String       @id @default(uuid()) @db.Uuid
-  tenantId  String       @db.Uuid
-  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  itemId    String?      @db.Uuid // vínculo opcional com a ação
-  item      ActionItem?  @relation(fields: [itemId], references: [id], onDelete: SetNull)
-  kind      String // ata | reuniao | print | foto | documento | comunicado | lista | treinamento | link
-  title     String
-  url       String? // link/referência (quando a evidência é um link)
-  note      String?
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @db.Uuid
+  org             Organization   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  itemId          String?        @db.Uuid // vínculo opcional com a ação
+  item            ActionItem?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  kind            String // ata | reuniao | print | foto | documento | comunicado | lista | treinamento | link
+  title           String
+  url             String? // link/referência (quando a evidência é um link)
+  note            String?
   // Metadados do upload (quando a evidência é um arquivo, não um link). Os BYTES
   // ficam em EvidenceFile (tabela separada), p/ a linha de evidência permanecer
   // leve em listagens. fileName preenchido ⇒ há arquivo.
-  fileName  String?
-  fileMime  String?
-  fileSize  Int? // tamanho em bytes
-  file      EvidenceFile?
+  fileName        String?
+  fileMime        String?
+  fileSize        Int? // tamanho em bytes
+  file            EvidenceFile?
   // Governança (mockup 14/07): status + trilha de revisão + autor + motivo.
   status          EvidenceStatus @default(ENVIADA)
   author          String? // quem enviou (empresa/consultor) — texto livre
   reviewedAt      DateTime?      @map("reviewed_at")
   reviewedBy      String?        @map("reviewed_by")
   rejectionReason String?        @map("rejection_reason")
-  supersededById  String?        @db.Uuid @map("superseded_by_id") // evidência que a substituiu
-  createdAt DateTime     @default(now())
+  supersededById  String?        @map("superseded_by_id") @db.Uuid // evidência que a substituiu
+  createdAt       DateTime       @default(now())
 
   @@index([tenantId])
   @@index([itemId])
@@ -2019,15 +2033,15 @@ model CnaeDecisionHistory {
 
 /// Credenciais de uma integração externa (cifradas). 1 linha por provedor.
 model PlatformIntegration {
-  id          String   @id @default(uuid()) @db.Uuid
-  provider    String   @unique // 'clicksign' | 'asaas' | 'mercadopago'
-  enabled     Boolean  @default(false)
-  credentialEnc  String? @map("credential_enc") // chave/token cifrado (secret-crypto)
-  credentialIv   String? @map("credential_iv")
-  credentialTag  String? @map("credential_tag")
-  credentialHint String? @map("credential_hint")
-  sandbox     Boolean  @default(false) // ambiente de teste (Asaas/MercadoPago)
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  provider       String   @unique // 'clicksign' | 'asaas' | 'mercadopago'
+  enabled        Boolean  @default(false)
+  credentialEnc  String?  @map("credential_enc") // chave/token cifrado (secret-crypto)
+  credentialIv   String?  @map("credential_iv")
+  credentialTag  String?  @map("credential_tag")
+  credentialHint String?  @map("credential_hint")
+  sandbox        Boolean  @default(false) // ambiente de teste (Asaas/MercadoPago)
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@map("platform_integrations")
 }
@@ -2077,12 +2091,12 @@ model DiagnosticInstrument {
   active      Boolean             @default(true)
   builtIn     Boolean             @default(false) @map("built_in") // imutável/indelével
 
-  versions  MethodologyVersion[]
-  links     DiagnosticLink[]
-  responses DiagnosticResponse[]
+  versions        MethodologyVersion[]
+  links           DiagnosticLink[]
+  responses       DiagnosticResponse[]
   reportTemplates ReportTemplate[]
-  sourcePlans ActionPlan[] @relation("plan_source_instrument")
-  sourceItems ActionItem[] @relation("item_source_instrument")
+  sourcePlans     ActionPlan[]         @relation("plan_source_instrument")
+  sourceItems     ActionItem[]         @relation("item_source_instrument")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -2143,25 +2157,25 @@ enum MethodologyBandKind {
 
 /// Uma versão de metodologia de um instrumento. Só UMA fica ACTIVE por instrumento.
 model MethodologyVersion {
-  id            String               @id @default(uuid()) @db.Uuid
-  instrument    String // slug do DiagnosticInstrument (era enum; TEXT desde a migração do catálogo)
-  instrumentRef DiagnosticInstrument @relation(fields: [instrument], references: [slug], onDelete: Restrict, onUpdate: Cascade)
-  version       Int
-  label       String
-  status      MethodologyStatus     @default(DRAFT)
-  notes       String?               @db.Text
+  id                        String               @id @default(uuid()) @db.Uuid
+  instrument                String // slug do DiagnosticInstrument (era enum; TEXT desde a migração do catálogo)
+  instrumentRef             DiagnosticInstrument @relation(fields: [instrument], references: [slug], onDelete: Restrict, onUpdate: Cascade)
+  version                   Int
+  label                     String
+  status                    MethodologyStatus    @default(DRAFT)
+  notes                     String?              @db.Text
   // Escala de resposta (aba "Escalas e regras" do mockup): rótulos dos 5 pontos
   // Likert, editáveis por versão. Vazio = padrão CRIVO. NÃO muda a pontuação
   // (segue normalizando 1–5 → 0–100); só o texto que o respondente vê.
-  scaleLabels String[]              @default([]) @map("scale_labels")
+  scaleLabels               String[]             @default([]) @map("scale_labels")
   // Motor v3.1 (Anexo D/E): casas decimais do resultado (`rounding`; 1 reproduz
   // 62,4 e 47,3 da homologação) e cobertura mínima de respostas válidas (%) para
   // liberar o RESULTADO OFICIAL (`minimum_valid_completion_percent`, típico 70).
-  rounding    Int?                  @map("rounding")
-  minValidCompletionPercent Int?    @map("min_valid_completion_percent")
-  createdBy   String?               @map("created_by")
-  createdAt   DateTime              @default(now()) @map("created_at")
-  publishedAt DateTime?             @map("published_at")
+  rounding                  Int?                 @map("rounding")
+  minValidCompletionPercent Int?                 @map("min_valid_completion_percent")
+  createdBy                 String?              @map("created_by")
+  createdAt                 DateTime             @default(now()) @map("created_at")
+  publishedAt               DateTime?            @map("published_at")
 
   dimensions MethodologyDimension[]
   questions  MethodologyQuestion[]
@@ -2173,17 +2187,17 @@ model MethodologyVersion {
 }
 
 model MethodologyDimension {
-  id        String             @id @default(uuid()) @db.Uuid
-  versionId String             @map("version_id") @db.Uuid
-  version   MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  slug      String
-  label     String
-  weight    Float              @default(1)
-  order     Int                @default(0)
+  id          String             @id @default(uuid()) @db.Uuid
+  versionId   String             @map("version_id") @db.Uuid
+  version     MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  slug        String
+  label       String
+  weight      Float              @default(1)
+  order       Int                @default(0)
   // Árvore Dimensão → Subdimensão (mockup do cliente 15/07). parentSlug null =
   // dimensão de topo; preenchido = subdimensão daquele pai. As perguntas se
   // ligam às FOLHAS (dimensão/subdimensão sem filhos).
-  parentSlug  String?           @map("parent_slug")
+  parentSlug  String?            @map("parent_slug")
   // Regra de cálculo do nó (só folhas e nós internos de MÉDIA). null = herda o
   // modo do instrumento. Espelha "média simples/ponderada" por subdimensão.
   aggregation ScoreAggregation?
@@ -2194,23 +2208,23 @@ model MethodologyDimension {
 }
 
 model MethodologyQuestion {
-  id            String             @id @default(uuid()) @db.Uuid
-  versionId     String             @map("version_id") @db.Uuid
-  version       MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  dimensionSlug String             @map("dimension_slug")
-  text          String             @db.Text
-  weight        Float              @default(1)
-  inverse       Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)
-  required      Boolean            @default(true) // obrigatória (mockup): opcional não trava o respondente
+  id                 String             @id @default(uuid()) @db.Uuid
+  versionId          String             @map("version_id") @db.Uuid
+  version            MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  dimensionSlug      String             @map("dimension_slug")
+  text               String             @db.Text
+  weight             Float              @default(1)
+  inverse            Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)
+  required           Boolean            @default(true) // obrigatória (mockup): opcional não trava o respondente
   // Item de CONTEXTO (Anexo D/E `scored:false`): coletado, fora do cálculo.
-  scored        Boolean            @default(true)
+  scored             Boolean            @default(true)
   // Exibição condicional (`show_when`): item só é aplicável quando a resposta da
   // pergunta `showWhenQuestionId` satisfaz `operador valor`. Não aplicável = fora
   // do cálculo E do denominador de cobertura.
-  showWhenQuestionId Int?          @map("show_when_question_id")
-  showWhenOperator   String?       @map("show_when_operator")
-  showWhenValue      Int?          @map("show_when_value")
-  order         Int                @default(0)
+  showWhenQuestionId Int?               @map("show_when_question_id")
+  showWhenOperator   String?            @map("show_when_operator")
+  showWhenValue      Int?               @map("show_when_value")
+  order              Int                @default(0)
 
   @@index([versionId])
   @@map("methodology_questions")

@@ -113,12 +113,11 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: bool
         challenges: data.challenges?.length ? data.challenges : undefined,
         challengeOther: data.challengeOther || undefined,
         origin: data.origin || "lp-diagnostico",
-        // ATENCAO: `atribuicao` NAO e repassada ao CRM de proposito. A API roda
-        // ValidationPipe com forbidNonWhitelisted, entao campo fora do DTO faz o
-        // POST voltar 400 — e o lead seria PERDIDO. Levar UTM ate o CRM (§11)
-        // exige campo no DTO + coluna no PlatformLead, ou seja, migration.
-        // Enquanto isso a atribuicao vive no GA4, que ja responde "de onde veio"
-        // e "qual campanha gerou o lead".
+        // §11/§15 — a campanha que gerou o lead vai junto ate o CRM. O campo
+        // existe no DTO (LeadAtribuicaoDto) e nas colunas utm_* do PlatformLead;
+        // sem isso o ValidationPipe (forbidNonWhitelisted) devolveria 400 e o
+        // lead se perderia.
+        atribuicao: data.atribuicao && Object.keys(data.atribuicao).length ? data.atribuicao : undefined,
         answers: data.answers ?? [],
       }),
       signal: AbortSignal.timeout(9000),

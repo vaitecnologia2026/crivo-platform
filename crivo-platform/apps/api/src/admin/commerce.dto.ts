@@ -302,6 +302,36 @@ export class CreateSimpleLeadDto {
   notes?: string;
 }
 
+/**
+ * Atribuição do lead (§11/§15 dos Ajustes Finais do Site): de onde o visitante
+ * veio e qual campanha o gerou. Todos opcionais — visita direta não tem UTM.
+ * Limites generosos, mas limitados: UTM vem da URL e não pode virar vetor de
+ * texto arbitrário no banco.
+ */
+export class LeadAtribuicaoDto {
+  @IsOptional() @IsString() @MaxLength(120)
+  utm_source?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utm_medium?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utm_campaign?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utm_content?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utm_term?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  referrer?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  landing?: string;
+}
+
+
 export class CreateDiagnosticLeadDto {
   @IsString() @MaxLength(160)
   name!: string;
@@ -335,6 +365,11 @@ export class CreateDiagnosticLeadDto {
 
   @IsOptional() @IsString() @MaxLength(200)
   challengeOther?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LeadAtribuicaoDto)
+  atribuicao?: LeadAtribuicaoDto;
 
   @IsArray()
   @ArrayMaxSize(50)
