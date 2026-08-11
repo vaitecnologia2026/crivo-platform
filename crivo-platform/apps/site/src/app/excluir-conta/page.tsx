@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import Link from "next/link";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Excluir conta · CRIVO",
-  description: "Como excluir sua conta inteira do CRIVO e os dados associados.",
-};
+export const metadata: Metadata = paginaSeo({
+  titulo: "Excluir conta · CRIVO",
+  descricao:
+    "Como excluir sua conta inteira do CRIVO e os dados associados.",
+  caminho: "/excluir-conta",
+});
 
 export default function ExcluirConta() {
   return (

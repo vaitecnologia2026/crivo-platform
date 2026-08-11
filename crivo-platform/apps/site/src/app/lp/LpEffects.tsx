@@ -46,6 +46,8 @@ export function LpEffects() {
       ".icd-radial",
       // Print Pág. 07: portfólio de soluções + diferenciais:
       ".sol-card", ".dif-col",
+      // Cards creme da seção Futuro do Trabalho/IA:
+      ".strip-card",
     ].join(",");
 
     if (!reduce) {
@@ -67,7 +69,7 @@ export function LpEffects() {
       });
       document
         .querySelectorAll(
-          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare, .eco-cards, .dash-kpis, .strategic-tags__list, .app-chips, .sol-grid, .dif-grid",
+          ".pain-grid, .metodo-grid, .product-grid, .icd-how, .icd-delivers, .ladder, .feature-grid, .mvv, .journey, .portal-features, .dash-grid, .app-features, .diag-compare, .eco-cards, .dash-kpis, .strategic-tags__list, .app-chips, .sol-grid, .dif-grid, .strip",
         )
         .forEach((grid) => {
           Array.from(grid.children).forEach((child, i) => {

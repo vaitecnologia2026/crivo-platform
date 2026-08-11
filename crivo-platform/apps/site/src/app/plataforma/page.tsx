@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
@@ -7,11 +8,12 @@ import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./plataforma.css";
 
-export const metadata: Metadata = {
-  title: "Plataforma CRIVO™ — Portal Executivo e Área do Líder",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Plataforma CRIVO™ — Portal Executivo e Área do Líder",
+  descricao:
     "Portal Executivo: indicadores, riscos, plano de ação, evidências e relatórios em um único ambiente. Área do Líder: ferramentas práticas para decidir, registrar decisões e sustentar a rotina.",
-};
+  caminho: "/plataforma",
+});
 
 // Ícones de traço adicionais (fora do conjunto padrão de _site/icons.tsx),
 // no mesmo estilo stroke ~1.6-1.8px — sem emoji.
@@ -162,6 +164,8 @@ export default function PlataformaPage() {
               <div className="laptop__base" aria-hidden="true" />
               </div>
             </div>
+            {/* §6 — os números da tela são de exemplo; o selo diz isso. */}
+            <span className="demo-seal">Ambiente demonstrativo · Dados fictícios</span>
           </div>
         </div>
 
@@ -341,6 +345,8 @@ export default function PlataformaPage() {
                   </div>
                 </div>
               </div>
+              {/* §6 — os números da tela são de exemplo; o selo diz isso. */}
+              <span className="demo-seal">Ambiente demonstrativo · Dados fictícios</span>
             </div>
 
             {/* Coluna direita: timeline vertical */}

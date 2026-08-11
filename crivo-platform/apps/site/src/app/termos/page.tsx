@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import Link from "next/link";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Termos de Uso · CRIVO",
-  description: "Termos e condições de uso da plataforma CRIVO.",
-};
+export const metadata: Metadata = paginaSeo({
+  titulo: "Termos de Uso · CRIVO",
+  descricao:
+    "Termos e condições de uso da plataforma CRIVO.",
+  caminho: "/termos",
+});
 
 export default function Termos() {
   return (

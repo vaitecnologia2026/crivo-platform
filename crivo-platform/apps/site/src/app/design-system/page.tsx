@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import type { CSSProperties } from "react";
 import { DsEffects } from "./DsEffects";
 import "./ds.css";
 
-export const metadata: Metadata = {
-  title: "CRIVO™ · Design System — Decision Intelligence",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "CRIVO™ · Design System — Decision Intelligence",
+  descricao:
     "Design System oficial da CRIVO™ — tokens, identidade da marca O Vértice, tipografia, componentes e diretrizes de voz do Decision Intelligence.",
-};
+  caminho: "/design-system",
+  indexavel: false,
+});
 
 // Plataforma React (apps/web). Configurável por NEXT_PUBLIC_PLATAFORMA_URL
 // (ex.: https://app.crivolegacy.com.br). Fallback: preview atual da Vercel.

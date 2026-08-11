@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
@@ -7,11 +8,12 @@ import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./metodo.css";
 
-export const metadata: Metadata = {
-  title: "Método CRIVO™ + ICD™ — Índice de Coerência Decisória",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Método CRIVO™ + ICD™ — Índice de Coerência Decisória",
+  descricao:
     "O Método CRIVO™ (Consciência, Responsabilidade, Integração, Valores, Organização) e o ICD™ — índice proprietário que avalia clareza, critério, alinhamento e sustentação nas decisões da liderança.",
-};
+  caminho: "/metodo",
+});
 
 // Ícone de traço fino para "Critério" (balança) — não existe em IC, mesmo
 // estilo dos demais ícones da biblioteca (stroke, viewBox 24, sem preenchimento).

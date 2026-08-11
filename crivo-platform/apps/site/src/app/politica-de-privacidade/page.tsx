@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import Link from "next/link";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 
-export const metadata: Metadata = {
-  title: "Política de Privacidade · CRIVO",
-  description: "Como o CRIVO coleta, usa e protege dados pessoais (LGPD).",
-};
+export const metadata: Metadata = paginaSeo({
+  titulo: "Política de Privacidade · CRIVO",
+  descricao:
+    "Como o CRIVO coleta, usa e protege dados pessoais (LGPD).",
+  caminho: "/politica-de-privacidade",
+});
 
 export default function PoliticaDePrivacidade() {
   return (

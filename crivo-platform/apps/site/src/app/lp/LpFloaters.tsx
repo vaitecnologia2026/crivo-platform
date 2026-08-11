@@ -19,18 +19,20 @@ export function LpFloaters() {
   const [visivel, setVisivel] = useState(false);
 
   useEffect(() => {
-    const hero = document.querySelector(".hero");
-    // Página sem Hero (legais, /design-system): o botão fica disponível direto.
-    if (!hero) {
-      setVisivel(true);
-      return;
-    }
-    const obs = new IntersectionObserver(
-      ([e]) => setVisivel(!e.isIntersecting),
-      { threshold: 0 },
-    );
-    obs.observe(hero);
-    return () => obs.disconnect();
+    // Limite = altura do Hero quando existe (Home, /metodo, /conteudos); nas
+    // páginas sem .hero, uma tela cheia. Medir pela rolagem em vez de observar
+    // a seção: em /solucoes a primeira <section> envolve as sete soluções e
+    // continuaria visível página adentro — o botão nunca apareceria.
+    const hero = document.querySelector<HTMLElement>(".hero");
+    const limite = () => (hero ? hero.offsetHeight : window.innerHeight) * 0.9;
+    const aoRolar = () => setVisivel(window.scrollY > limite());
+    aoRolar();
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    window.addEventListener("resize", aoRolar);
+    return () => {
+      window.removeEventListener("scroll", aoRolar);
+      window.removeEventListener("resize", aoRolar);
+    };
   }, []);
 
   if (!visivel) return null;

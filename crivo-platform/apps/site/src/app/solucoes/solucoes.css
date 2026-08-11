@@ -83,7 +83,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .solu-card__icon svg { width: 28px; height: 28px; }
-.solu-card__main h3 {
+.solu-card__main h2 {
   font-family: var(--font-serif); font-size: clamp(21px, 2.3vw, 27px);
   color: var(--azul-profundo); font-weight: 600; line-height: 1.2; margin-top: 4px;
 }
@@ -97,7 +97,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .solu-card__col-ic svg { width: 20px; height: 20px; }
-.solu-card__col h4 { font-family: var(--font-serif); font-size: 16.5px; color: var(--azul-profundo); font-weight: 600; }
+.solu-card__col h3 { font-family: var(--font-serif); font-size: 16.5px; color: var(--azul-profundo); font-weight: 600; }
 .solu-card__col .rule-terra { margin: 2px 0 4px; width: 34px; height: 2px; }
 
 /* Sub-card NR-1 (só na seção Diagnóstico) */
@@ -120,7 +120,7 @@
   border-radius: 18px; padding: 28px 26px; color: var(--off-white);
   box-shadow: 0 14px 30px rgba(6, 12, 24, 0.32);
 }
-.sol-side h4 { font-family: var(--font-serif); font-size: 19px; font-weight: 600; line-height: 1.35; }
+.sol-side h3 { font-family: var(--font-serif); font-size: 19px; font-weight: 600; line-height: 1.35; }
 .sol-side__lead { font-size: 12.5px; color: var(--prata); margin-top: 4px; }
 .sol-side .rule-terra { margin: 12px 0 18px; }
 .sol-side ul { list-style: none; display: flex; flex-direction: column; gap: 14px; }
@@ -152,7 +152,7 @@
   display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
 }
 .sol-plus__icon svg { width: 24px; height: 24px; }
-.sol-plus h3 { font-family: var(--font-serif); font-size: clamp(20px, 2.4vw, 25px); font-weight: 600; }
+.sol-plus h2 { font-family: var(--font-serif); font-size: clamp(20px, 2.4vw, 25px); font-weight: 600; }
 .sol-plus__sub { color: var(--terra-claro); font-weight: 600; font-size: 14.5px; margin: 4px 0 10px; line-height: 1.4; }
 .sol-plus p { font-size: 14px; color: var(--prata); line-height: 1.6; margin-bottom: 18px; }
 .sol-plus__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }

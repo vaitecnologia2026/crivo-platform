@@ -4,6 +4,8 @@ import { VerticeMark } from "./VerticeMark";
 import { PLATAFORMA_URL } from "./site.config";
 
 // Rodapé compartilhado (Soluções · Plataforma · Conteúdos · Sobre · Contato).
+// §14 — os títulos de coluna são <h2>: como <h5> eles pulavam do h2/h3 da
+// página direto para o nível 5, em todas as rotas.
 export function SiteFooter() {
   return (
     <footer className="footer">
@@ -19,7 +21,7 @@ export function SiteFooter() {
           <p className="footer__tag">Decisão com critério é infraestrutura de qualidade e resultado.</p>
         </div>
         <div>
-          <h5>Soluções</h5>
+          <h2 className="footer__col-title">Soluções</h2>
           <ul>
             <li><Link href="/lp#diagnostico">Diagnóstico Inicial</Link></li>
             <li><Link href="/solucoes">CRIVO Diagnóstico™</Link></li>
@@ -30,7 +32,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h5>Plataforma</h5>
+          <h2 className="footer__col-title">Plataforma</h2>
           <ul>
             <li><Link href="/plataforma#portal">Portal Executivo</Link></li>
             <li><Link href="/plataforma#portal">Dashboard Executivo</Link></li>
@@ -41,7 +43,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h5>Conteúdos</h5>
+          <h2 className="footer__col-title">Conteúdos</h2>
           <ul>
             <li><Link href="/conteudos">E-book</Link></li>
             <li><Link href="/conteudos">Materiais gratuitos</Link></li>
@@ -49,7 +51,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h5>Sobre</h5>
+          <h2 className="footer__col-title">Sobre</h2>
           <ul>
             <li><Link href="/sobre#quem-somos">Quem somos</Link></li>
             <li><Link href="/sobre#como-nasceu">Como nasceu a CRIVO</Link></li>
@@ -59,7 +61,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h5>Contato</h5>
+          <h2 className="footer__col-title">Contato</h2>
           <ul>
             <li>Rodrigo Oliveira · Cofundador</li>
             <li>Viviani Ostan · Cofundadora</li>
@@ -85,6 +87,8 @@ export function SiteFooter() {
             <Link href="/politica-de-privacidade">Política de Privacidade</Link>
             <Link href="/politica-de-cookies">Política de Cookies</Link>
             <Link href="/termos">Termos de Uso</Link>
+            <Link href="/excluir-conta">Excluir conta</Link>
+            <Link href="/excluir-dados">Excluir dados</Link>
             <GerenciarCookiesLink />
           </nav>
           <div className="footer__copy">

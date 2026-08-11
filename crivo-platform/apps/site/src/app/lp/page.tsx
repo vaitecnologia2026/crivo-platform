@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import Link from "next/link";
 import { LpEffects } from "./LpEffects";
 import { SiteNav } from "../_site/SiteNav";
@@ -10,11 +11,12 @@ import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
 import "./lp.css";
 
-export const metadata: Metadata = {
-  title: "CRIVO™ — Decision Intelligence",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "CRIVO™ — Decision Intelligence",
+  descricao:
     "Decidir com clareza. Liderar com coerência. Evoluir com sustentação. Para empresas que querem converter estratégia em execução, liderança em coerência e cultura em resultados, com Método CRIVO™, dados e evidências.",
-};
+  caminho: "/",
+});
 
 // Home — 6 seções na ordem das telas finais aprovadas (ORDEM_TELAS_FINAIS):
 // 01 Hero · 02 IA + Vantagem Humana · 03 Arquitetura · 08 Soluções ·

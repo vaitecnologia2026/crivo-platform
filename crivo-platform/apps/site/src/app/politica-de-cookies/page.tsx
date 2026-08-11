@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import Link from "next/link";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 import { GerenciarCookiesLink } from "../_site/CookieConsent";
 
-export const metadata: Metadata = {
-  title: "Política de Cookies · CRIVO",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Política de Cookies · CRIVO",
+  descricao:
     "Quais cookies o site da CRIVO usa, para quê, e como aceitar, recusar ou revisar sua escolha a qualquer momento.",
-};
+  caminho: "/politica-de-cookies",
+});
 
 export default function PoliticaDeCookies() {
   return (

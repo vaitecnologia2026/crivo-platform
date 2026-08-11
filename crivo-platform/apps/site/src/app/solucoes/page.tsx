@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
@@ -8,11 +9,12 @@ import { SolucoesTabs } from "./SolucoesTabs";
 import "../lp/lp.css";
 import "./solucoes.css";
 
-export const metadata: Metadata = {
-  title: "Soluções CRIVO™ — Mapa Executivo, Diagnóstico, Liderança e Advisory",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Soluções CRIVO™ — Mapa Executivo, Diagnóstico, Liderança e Advisory",
+  descricao:
     "Navegue pelas soluções CRIVO™ e entenda quando usar, o que entrega e qual o próximo passo para a sua empresa: Mapa Executivo, Diagnóstico, Gestão da Rotina, Liderança, Evolução, Enterprise e Advisory.",
-};
+  caminho: "/solucoes",
+});
 
 // Ícones de traço adicionais (mesmo estilo de ../_site/icons.tsx), específicos
 // desta página — não usados em outras rotas, por isso não foram para o IC global.
@@ -117,7 +119,7 @@ export default function SolucoesPage() {
               <div className="solu-card">
                 <div className="solu-card__main">
                   <span className="solu-card__icon">{IC.alvo}</span>
-                  <h3>Mapa Executivo CRIVO™</h3>
+                  <h2>Mapa Executivo CRIVO™</h2>
                   <span className="solu-card__sub">Clareza inicial para orientar o próximo passo.</span>
                   <p>
                     Uma leitura executiva preliminar para identificar prioridades, riscos invisíveis e oportunidades
@@ -134,7 +136,7 @@ export default function SolucoesPage() {
                 </div>
                 <div className="solu-card__col">
                   <span className="solu-card__col-ic">{ICX.calendario}</span>
-                  <h4>Quando usar</h4>
+                  <h3>Quando usar</h3>
                   <span className="rule-terra" aria-hidden="true" />
                   <ul className="checks">
                     <li>{IC.check} Primeiro contato com a CRIVO</li>
@@ -144,7 +146,7 @@ export default function SolucoesPage() {
                 </div>
                 <div className="solu-card__col">
                   <span className="solu-card__col-ic">{IC.prancheta}</span>
-                  <h4>O que entrega</h4>
+                  <h3>O que entrega</h3>
                   <span className="rule-terra" aria-hidden="true" />
                   <ul className="checks">
                     <li>{IC.check} Leitura preliminar</li>
@@ -154,7 +156,7 @@ export default function SolucoesPage() {
                 </div>
                 <div className="solu-card__col">
                   <span className="solu-card__col-ic">{IC.seta}</span>
-                  <h4>Próximo passo</h4>
+                  <h3>Próximo passo</h3>
                   <span className="rule-terra" aria-hidden="true" />
                   <ul className="checks">
                     <li>{IC.check} Gerar MAPA</li>
@@ -165,7 +167,7 @@ export default function SolucoesPage() {
               </div>
 
               <div className="sol-side">
-                <h4>Da leitura inicial à rota de avanço.</h4>
+                <h3>Da leitura inicial à rota de avanço.</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul>
                   <li><span className="sol-side__ic">{IC.lupa}</span>Contexto</li>
@@ -184,7 +186,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{IC.lupa}</span>
-                <h3>Diagnóstico CRIVO™</h3>
+                <h2>Diagnóstico CRIVO™</h2>
                 <span className="solu-card__sub">Leitura estruturada para riscos, cultura, liderança e rotina.</span>
                 <p>Base de dados, evidências e plano de ação para orientar decisões e prioridades.</p>
 
@@ -207,7 +209,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Riscos ou sinais recorrentes</li>
@@ -217,7 +219,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Diagnóstico estruturado</li>
@@ -227,7 +229,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Solicitar diagnóstico</li>
@@ -238,7 +240,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Diagnóstico para gestão contínua</h4>
+              <h3>Diagnóstico para gestão contínua</h3>
               <span className="sol-side__lead">Dados e evidências para decisões.</span>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
@@ -258,7 +260,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{IC.engrenagem}</span>
-                <h3>Gestão da Rotina CRIVO™</h3>
+                <h2>Gestão da Rotina CRIVO™</h2>
                 <span className="solu-card__sub">Execução com cadência, responsáveis, prazos e evidências.</span>
                 <p>
                   Um sistema de acompanhamento para transformar prioridades em rotina executiva, organizar decisões,
@@ -275,7 +277,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Muitas prioridades em aberto</li>
@@ -285,7 +287,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Rituais de gestão</li>
@@ -295,7 +297,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Organizar execução</li>
@@ -306,7 +308,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Da prioridade à execução acompanhada.</h4>
+              <h3>Da prioridade à execução acompanhada.</h3>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
                 <li><span className="sol-side__ic">{IC.alvo}</span>Prioridades</li>
@@ -325,7 +327,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{IC.pessoas}</span>
-                <h3>Liderança CRIVO™</h3>
+                <h2>Liderança CRIVO™</h2>
                 <span className="solu-card__sub">Desenvolvimento aplicado para decisões, conversas e execução.</span>
                 <p>
                   Trilhas e práticas para fortalecer líderes na tomada de decisão, comunicação, alinhamento, gestão
@@ -342,7 +344,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Lideranças sob pressão</li>
@@ -352,7 +354,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Trilhas aplicadas</li>
@@ -362,7 +364,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Desenvolver lideranças</li>
@@ -373,7 +375,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Da decisão individual à liderança sustentada.</h4>
+              <h3>Da decisão individual à liderança sustentada.</h3>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
                 <li><span className="sol-side__ic">{IC.alvo}</span>Decisões</li>
@@ -392,7 +394,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{IC.grafico}</span>
-                <h3>Evolução CRIVO™</h3>
+                <h2>Evolução CRIVO™</h2>
                 <span className="solu-card__sub">Plano vivo, ciclos, indicadores e evidências.</span>
                 <p>
                   Acompanhamento executivo para medir avanços, ajustar rotas, consolidar aprendizados e sustentar a
@@ -409,7 +411,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Transformação em andamento</li>
@@ -419,7 +421,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Ciclos de acompanhamento</li>
@@ -429,7 +431,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Acompanhar evolução</li>
@@ -440,7 +442,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Da execução ao aprendizado contínuo.</h4>
+              <h3>Da execução ao aprendizado contínuo.</h3>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
                 <li><span className="sol-side__ic">{ICX.ciclo}</span>Ciclos</li>
@@ -459,7 +461,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{ICX.predios}</span>
-                <h3>CRIVO Enterprise™</h3>
+                <h2>CRIVO Enterprise™</h2>
                 <span className="solu-card__sub">
                   Transformação em escala com método, dados, governança e execução acompanhada.
                 </span>
@@ -479,7 +481,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Empresas com múltiplas áreas ou unidades</li>
@@ -489,7 +491,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Arquitetura integrada da jornada</li>
@@ -499,7 +501,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Estruturar transformação</li>
@@ -510,7 +512,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Da complexidade à execução coordenada.</h4>
+              <h3>Da complexidade à execução coordenada.</h3>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
                 <li><span className="sol-side__ic">{IC.lupa}</span>Diagnóstico</li>
@@ -529,7 +531,7 @@ export default function SolucoesPage() {
             <div className="solu-card">
               <div className="solu-card__main">
                 <span className="solu-card__icon">{IC.bussola}</span>
-                <h3>CRIVO Advisory™</h3>
+                <h2>CRIVO Advisory™</h2>
                 <span className="solu-card__sub">
                   Aconselhamento executivo para decisões críticas de crescimento, sucessão, governança e
                   transformação.
@@ -549,7 +551,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{ICX.calendario}</span>
-                <h4>Quando usar</h4>
+                <h3>Quando usar</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Decisões críticas de alta gestão</li>
@@ -559,7 +561,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.prancheta}</span>
-                <h4>O que entrega</h4>
+                <h3>O que entrega</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Leitura estratégica do contexto</li>
@@ -569,7 +571,7 @@ export default function SolucoesPage() {
               </div>
               <div className="solu-card__col">
                 <span className="solu-card__col-ic">{IC.seta}</span>
-                <h4>Próximo passo</h4>
+                <h3>Próximo passo</h3>
                 <span className="rule-terra" aria-hidden="true" />
                 <ul className="checks">
                   <li>{IC.check} Solicitar advisory estratégico</li>
@@ -580,7 +582,7 @@ export default function SolucoesPage() {
             </div>
 
             <div className="sol-side">
-              <h4>Critério para decisões de alto impacto.</h4>
+              <h3>Critério para decisões de alto impacto.</h3>
               <span className="rule-terra" aria-hidden="true" />
               <ul>
                 <li><span className="sol-side__ic">{IC.lupa}</span>Contexto</li>
@@ -602,7 +604,7 @@ export default function SolucoesPage() {
           <div className="sol-plus">
             <div>
               <span className="sol-plus__icon">{ICX.diamante}</span>
-              <h3>CRIVO Plus™</h3>
+              <h2>CRIVO Plus™</h2>
               <span className="sol-plus__sub">
                 Projetos especiais para desafios complexos de gestão, cultura, dados e transformação.
               </span>

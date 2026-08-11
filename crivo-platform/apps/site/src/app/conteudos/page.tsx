@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
@@ -8,11 +9,12 @@ import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./conteudos.css";
 
-export const metadata: Metadata = {
-  title: "Conteúdos — Centro de Inteligência CRIVO™",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Conteúdos — Centro de Inteligência CRIVO™",
+  descricao:
     "Análises, ferramentas e materiais práticos para transformar informação em decisões mais inteligentes: Mapa Executivo CRIVO™, Newsletter, redes sociais e CRIVO Academy™.",
-};
+  caminho: "/conteudos",
+});
 
 const SOCIAL = {
   // Tela 18: logos nas cores oficiais das marcas (LinkedIn azul, Instagram
@@ -125,7 +127,7 @@ export default function ConteudosPage() {
                 </div>
               </div>
               <span className="strip-card__ic">{IC.livro}</span>
-              <strong>Mapa Executivo CRIVO™</strong>
+              <h2>Mapa Executivo CRIVO™</h2>
               <p>
                 Receba o Mapa Executivo CRIVO™ e descubra como transformar riscos invisíveis em clareza, prioridades
                 e ação.
@@ -139,7 +141,7 @@ export default function ConteudosPage() {
             {/* 2 — Newsletter CRIVO™ */}
             <div className="strip-card">
               <span className="strip-card__ic">{IC.envelope}</span>
-              <strong>Newsletter CRIVO™</strong>
+              <h2>Newsletter CRIVO™</h2>
               <p>
                 Análises exclusivas, tendências e insights sobre liderança, cultura, decisão e gestão de riscos
                 humanos.
@@ -156,7 +158,7 @@ export default function ConteudosPage() {
 
             {/* 3 — Siga a CRIVO nas redes */}
             <div className="strip-card">
-              <strong>Siga a CRIVO nas redes</strong>
+              <h2>Siga a CRIVO nas redes</h2>
               <p>
                 Acompanhe conteúdos, vídeos e reflexões sobre liderança, cultura, tomada de decisão e inteligência
                 organizacional.
@@ -190,7 +192,7 @@ export default function ConteudosPage() {
             <div className="strip-card">
               <span className="cc-badge">Em breve</span>
               <span className="strip-card__ic">{IC.capelo}</span>
-              <strong>CRIVO Academy™</strong>
+              <h2>CRIVO Academy™</h2>
               <p>
                 Trilhas práticas para líderes e empresas. Conteúdos que desenvolvem competências, ampliam repertório
                 e geram resultados.
@@ -212,7 +214,7 @@ export default function ConteudosPage() {
       <section id="em-desenvolvimento" className="section section--light">
         <div className="container">
           <div className="cc-dev-head">
-            <span className="cc-dev-head__tag">Em desenvolvimento</span>
+            <h2 className="cc-dev-head__tag">Em desenvolvimento</h2>
             <span className="cc-dev-head__rule" aria-hidden="true" />
             <p>Novos formatos e conteúdos estão sendo preparados para ampliar ainda mais a sua jornada de conhecimento.</p>
           </div>
@@ -220,25 +222,25 @@ export default function ConteudosPage() {
           <div className="cc-mini-grid">
             <div className="cc-mini-card">
               <span className="cc-mini-card__ic">{IC.apresentacao}</span>
-              <strong>Webinars CRIVO™</strong>
+              <h3>Webinars CRIVO™</h3>
               <p>Encontros online com especialistas sobre liderança, cultura, IA e o futuro do trabalho.</p>
               <span className="cc-mini-badge">Em breve</span>
             </div>
             <div className="cc-mini-card">
               <span className="cc-mini-card__ic">{IC.microfone}</span>
-              <strong>Podcast CRIVO™</strong>
+              <h3>Podcast CRIVO™</h3>
               <p>Conversas executivas sobre decisões, comportamento humano, gestão e transformação organizacional.</p>
               <span className="cc-mini-badge">Em breve</span>
             </div>
             <div className="cc-mini-card">
               <span className="cc-mini-card__ic">{IC.documento}</span>
-              <strong>Biblioteca CRIVO™</strong>
+              <h3>Biblioteca CRIVO™</h3>
               <p>Guias, templates, playbooks e materiais práticos para apoiar sua gestão no dia a dia.</p>
               <span className="cc-mini-badge">Em breve</span>
             </div>
             <div className="cc-mini-card">
               <span className="cc-mini-card__ic">{IC.grafico}</span>
-              <strong>Estudos e Pesquisas</strong>
+              <h3>Estudos e Pesquisas</h3>
               <p>Análises, benchmarks e relatórios especiais sobre tendências e desafios organizacionais.</p>
               <span className="cc-mini-badge">Em breve</span>
             </div>

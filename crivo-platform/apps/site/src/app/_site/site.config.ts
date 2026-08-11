@@ -5,5 +5,9 @@
 export const PLATAFORMA_URL =
   process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://app.crivolegacy.com.br/";
 
+// Endereço público do site — base de todas as URLs absolutas (canonical, Open
+// Graph, sitemap). Mesmo nome e mesmo fallback já usados em apps/web.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://crivolegacy.com.br";
+
 export const WHATSAPP_ESPECIALISTA =
   "https://wa.me/5511918531796?text=Quero%20falar%20com%20um%20especialista%20CRIVO";

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
@@ -6,11 +7,12 @@ import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./sobre.css";
 
-export const metadata: Metadata = {
-  title: "Sobre a CRIVO™ — quem somos e os fundadores",
-  description:
+export const metadata: Metadata = paginaSeo({
+  titulo: "Sobre a CRIVO™ — quem somos e os fundadores",
+  descricao:
     "A CRIVO™ é uma consultoria estratégica de inteligência aplicada à gestão. Conheça nossa missão, visão, valores e a trajetória de Rodrigo Oliveira e Viviani Ostan, fundadores da CRIVO™.",
-};
+  caminho: "/sobre",
+});
 
 // /sobre — 2 seções das telas finais aprovadas: 19 Quem Somos · 20 Como
 // Nasceu / Fundadores. Copy fiel às telas, estrutura fiel ao padrão de

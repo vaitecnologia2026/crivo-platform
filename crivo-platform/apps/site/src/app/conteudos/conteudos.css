@@ -108,7 +108,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .cc-mini-card__ic svg { width: 20px; height: 20px; }
-.cc-mini-card strong { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--azul-profundo); }
+.cc-mini-card strong, .cc-mini-card h3 { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--azul-profundo); }
 .cc-mini-card p { font-size: 12.5px; font-weight: 300; line-height: 1.5; color: #4A5568; margin: 0; flex: 1; }
 .cc-mini-badge {
   align-self: flex-start; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
