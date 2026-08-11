@@ -962,6 +962,14 @@ th.compare__crivo { color: var(--terra) !important; }
 .footer ul li a:hover { color: var(--terra-dourado); }
 .footer__legal { padding: 24px 0; font-size: 12px; font-weight: 300; letter-spacing: 0.04em; color: var(--cinza-escuro); }
 .footer__legal .container { color: var(--prata); opacity: 0.6; }
+/* §11 — MAPA em duas etapas: indicador discreto e barra de navegacao. */
+.diag-etapa {
+  font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--terra); font-weight: 600; margin: 0 0 10px;
+}
+.diag-form__nav { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.diag-form__nav .btn--terra { flex: 1; min-width: 200px; }
+
 /* §13 — faixa de links legais acima do copyright. */
 .footer__legal-links { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
 .footer__legal-links a, .footer__legal-links button { color: inherit; text-decoration: underline; }

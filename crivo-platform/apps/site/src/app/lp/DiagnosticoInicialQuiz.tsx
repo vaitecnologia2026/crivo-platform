@@ -130,6 +130,9 @@ export function DiagnosticoInicialQuiz() {
   const [result, setResult] = useState<RenderResult | null>(null);
   const [methodology, setMethodology] = useState<MethodologyConfig | null>(null);
   const [sent, setSent] = useState<"idle" | "sending" | "ok" | "captured" | "error">("idle");
+  // §11 — o MAPA nao pode parecer "um cadastro pesado": duas etapas curtas.
+  // Etapa 1 pede o essencial para contato; etapa 2, a qualificacao.
+  const [etapa, setEtapa] = useState<1 | 2>(1);
   // #3/2C — perguntas vêm do produto "Pré-Diagnóstico LP" (texto editável no super admin),
   // com fallback para as perguntas padrão. Só o TEXTO muda; ids/dimensões/score seguem fixos.
   const [questions, setQuestions] = useState<typeof PRE_DIAGNOSTIC_QUESTIONS>(PRE_DIAGNOSTIC_QUESTIONS);
@@ -144,10 +147,12 @@ export function DiagnosticoInicialQuiz() {
   }, []);
 
   const total = questions.length;
-  const formValid =
-    contact.name.trim() && contact.role.trim() && contact.company.trim() &&
-    contact.phone.trim() && contact.email.trim() &&
-    contact.employeesCount.trim() && contact.segment.trim();
+  // §11 — Etapa 1: Nome, E-mail, Telefone/WhatsApp, Empresa e ate 3 temas.
+  const etapa1Valida =
+    contact.name.trim() && contact.email.trim() && contact.phone.trim() && contact.company.trim();
+  // §11 — Etapa 2: Cargo/Funcao, Funcionarios, Segmento e CNPJ (CNPJ opcional).
+  const etapa2Valida = contact.role.trim() && contact.employeesCount.trim() && contact.segment.trim();
+  const formValid = etapa1Valida && etapa2Valida;
   const set = (k: "name" | "cnpj" | "role" | "company" | "phone" | "email" | "employeesCount" | "segment" | "challengeOther") =>
     (v: string) => setContact((c) => ({ ...c, [k]: v }));
   function toggleChallenge(c: string) {
@@ -162,6 +167,11 @@ export function DiagnosticoInicialQuiz() {
 
   function startOrientacao(e: React.FormEvent) {
     e.preventDefault();
+    // Na etapa 1 o botao avanca; so na 2 e que segue para o questionario.
+    if (etapa === 1) {
+      if (etapa1Valida) setEtapa(2);
+      return;
+    }
     if (!formValid) return;
     // Validação leve: telefone com DDD (10–13 dígitos) e CNPJ, se informado, com 14.
     const phoneDigits = contact.phone.replace(/\D/g, "");
@@ -483,21 +493,51 @@ export function DiagnosticoInicialQuiz() {
           </div>
         </div>
 
-        <div className="diag-form__grid">
+        {/* §11 — dividido em duas etapas para nao parecer um cadastro pesado.
+            Os campos da outra etapa ficam MONTADOS e apenas escondidos, para o
+            que ja foi digitado nao se perder ao voltar. */}
+        <p className="diag-etapa">Etapa {etapa} de 2</p>
+
+        <div className="diag-form__grid" hidden={etapa !== 1}>
           <label className="diag-field diag-field--full">
             <span>Nome*</span>
-            <input value={contact.name} onChange={(e) => set("name")(e.target.value)} required />
+            <input value={contact.name} onChange={(e) => set("name")(e.target.value)} />
           </label>
-          <label className="diag-field diag-field--third">
-            <span>Cargo / Função*</span>
-            <input value={contact.role} onChange={(e) => set("role")(e.target.value)} required />
+          <label className="diag-field diag-field--half">
+            <span>E-mail*</span>
+            <input type="email" value={contact.email} onChange={(e) => set("email")(e.target.value)} />
           </label>
-          <label className="diag-field diag-field--third">
+          <label className="diag-field diag-field--half">
+            <span>Telefone / WhatsApp*</span>
+            <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" />
+          </label>
+          <label className="diag-field diag-field--full">
             <span>Empresa*</span>
-            <input value={contact.company} onChange={(e) => set("company")(e.target.value)} required />
+            <input value={contact.company} onChange={(e) => set("company")(e.target.value)} />
           </label>
-          <label className="diag-field diag-field--third">
-            <span>CNPJ</span>
+        </div>
+
+        <div className="diag-form__grid" hidden={etapa !== 2}>
+          <label className="diag-field diag-field--half">
+            <span>Cargo / Função*</span>
+            <input value={contact.role} onChange={(e) => set("role")(e.target.value)} />
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>Funcionários*</span>
+            <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)}>
+              <option value="">Selecione…</option>
+              {EMPLOYEE_RANGES.map((r) => (<option key={r} value={r}>{r}</option>))}
+            </select>
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>Segmento*</span>
+            <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)}>
+              <option value="">Selecione o segmento</option>
+              {SEGMENTS.map((s) => (<option key={s} value={s}>{s}</option>))}
+            </select>
+          </label>
+          <label className="diag-field diag-field--half">
+            <span>CNPJ <em style={{ fontStyle: "normal", opacity: 0.6 }}>(opcional)</em></span>
             <input
               value={contact.cnpj}
               onChange={(e) => set("cnpj")(e.target.value)}
@@ -505,31 +545,9 @@ export function DiagnosticoInicialQuiz() {
               placeholder="00.000.000/0000-00"
             />
           </label>
-          <label className="diag-field diag-field--half">
-            <span>Telefone / WhatsApp*</span>
-            <input value={contact.phone} onChange={(e) => set("phone")(e.target.value)} inputMode="tel" required />
-          </label>
-          <label className="diag-field diag-field--half">
-            <span>E-mail*</span>
-            <input type="email" value={contact.email} onChange={(e) => set("email")(e.target.value)} required />
-          </label>
-          <label className="diag-field diag-field--half">
-            <span>Funcionários*</span>
-            <select value={contact.employeesCount} onChange={(e) => set("employeesCount")(e.target.value)} required>
-              <option value="">Selecione…</option>
-              {EMPLOYEE_RANGES.map((r) => (<option key={r} value={r}>{r}</option>))}
-            </select>
-          </label>
-          <label className="diag-field diag-field--half">
-            <span>Segmento*</span>
-            <select value={contact.segment} onChange={(e) => set("segment")(e.target.value)} required>
-              <option value="">Selecione o segmento</option>
-              {SEGMENTS.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          </label>
         </div>
 
-        <div className="diag-challenges">
+        <div className="diag-challenges" hidden={etapa !== 1}>
           <span className="diag-challenges__label">
             Quais temas pedem mais atenção na empresa atualmente?
             <em> · até {MAX_CHALLENGES} opções</em>
@@ -564,9 +582,22 @@ export function DiagnosticoInicialQuiz() {
           )}
         </div>
 
-        <button type="submit" className="btn btn--terra btn--block" disabled={!formValid}>
-          Gerar MAPA Executivo →
-        </button>
+        {/* §11 — na etapa 1 o botao AVANCA; so na 2 ele gera o MAPA. O rotulo
+            diz exatamente o que vai acontecer em cada uma. */}
+        {etapa === 1 ? (
+          <button type="submit" className="btn btn--terra btn--block" disabled={!etapa1Valida}>
+            Continuar →
+          </button>
+        ) : (
+          <div className="diag-form__nav">
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEtapa(1)}>
+              ← Voltar
+            </button>
+            <button type="submit" className="btn btn--terra" disabled={!formValid}>
+              Gerar MAPA Executivo →
+            </button>
+          </div>
+        )}
         <p className="diag-form__privacy">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
