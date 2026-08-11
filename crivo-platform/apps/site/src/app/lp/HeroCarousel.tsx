@@ -97,6 +97,9 @@ export function HeroCarousel() {
           style={{ backgroundImage: `url('${s.foto}')` }}
           role="img"
           aria-label={s.alt}
+          // A foto inativa some por opacidade, não por visibility — sem isto o
+          // leitor de tela anunciaria as duas descrições ao mesmo tempo.
+          aria-hidden={i !== atual}
         />
       ))}
 
