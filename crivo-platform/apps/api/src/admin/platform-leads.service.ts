@@ -258,7 +258,7 @@ export class PlatformLeadsService {
     // WhatsApp (VAI) — confirmação + link do e-book. Best-effort: só envia se
     // VAI_API_EMAIL/VAI_API_PASSWORD existirem; nunca bloqueia/derruba o intake.
     if (lead.phone && whatsappConfigured()) {
-      const ebookUrl = process.env.EBOOK_URL ?? 'https://crivo.vai-sistema.com/ebook-crivo.pdf';
+      const ebookUrl = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
       void sendWhatsapp({
         to: lead.phone,
         name,

@@ -44,8 +44,8 @@ type DiagResult = {
   topAttentions?: string[];
 };
 
-const EBOOK_URL = process.env.EBOOK_URL ?? "https://crivo.vai-sistema.com/ebook-crivo.pdf";
-const SITE_URL = process.env.SITE_URL ?? "https://crivo.vai-sistema.com";
+const EBOOK_URL = process.env.EBOOK_URL ?? "https://crivolegacy.com.br/ebook-crivo.pdf";
+const SITE_URL = process.env.SITE_URL ?? "https://crivolegacy.com.br";
 
 const LEVEL_LABEL: Record<string, string> = {
   CRITICO: "Crítico",

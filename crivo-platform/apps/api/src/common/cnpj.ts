@@ -36,7 +36,7 @@ export async function consultarCnpj(cnpj: string | null | undefined): Promise<Cn
       // BrasilAPI (Cloudflare) bloqueia o User-Agent padrão do Node (403). Um UA
       // de navegador passa. Accept JSON por garantia.
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CRIVO/1.0; +https://crivo.vai-sistema.com)',
+        'User-Agent': 'Mozilla/5.0 (compatible; CRIVO/1.0; +https://crivolegacy.com.br)',
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(10000),

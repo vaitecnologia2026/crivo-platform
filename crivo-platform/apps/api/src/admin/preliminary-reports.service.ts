@@ -264,7 +264,7 @@ export class PreliminaryReportsService {
     // #5 — anexa o e-book complementar ao relatório (busca do /public da LP).
     let ebook: Buffer | null = null;
     try {
-      const url = process.env.EBOOK_URL ?? 'https://crivo.vai-sistema.com/ebook-crivo.pdf';
+      const url = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
       const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (r.ok) ebook = Buffer.from(await r.arrayBuffer());
     } catch {

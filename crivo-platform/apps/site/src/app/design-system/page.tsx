@@ -15,7 +15,7 @@ export const metadata: Metadata = paginaSeo({
 // Plataforma React (apps/web). Configurável por NEXT_PUBLIC_PLATAFORMA_URL
 // (ex.: https://app.crivolegacy.com.br). Fallback: preview atual da Vercel.
 const PLATAFORMA_URL =
-  process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://crivo-web.vercel.app/";
+  process.env.NEXT_PUBLIC_PLATAFORMA_URL ?? "https://app.crivolegacy.com.br/";
 
 function swatchStyle(c: string): CSSProperties {
   return { ["--c" as string]: c } as CSSProperties;
