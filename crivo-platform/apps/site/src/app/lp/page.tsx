@@ -4,6 +4,7 @@ import { LpEffects } from "./LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { FaqSection } from "./FaqSection";
+import { CtaFinalSection, FundadoresSection } from "./FundadoresSection";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC, Seals } from "../_site/icons";
 import "./lp.css";
@@ -78,141 +79,6 @@ export default function LandingPage() {
               <span className="strip-card__ic">{IC.prancheta}</span>
               <strong>Diagnósticos e soluções sob medida</strong>
               <p>NR-1, riscos psicossociais, liderança, cultura e governança.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 02 · IA + VANTAGEM HUMANA (tela 02) ============ */}
-      <section id="ia-vantagem-humana" className="hero hero--2 section--dark">
-        <div
-          className="hero__bleed"
-          style={{ backgroundImage: "url('/imagens/ia-boardroom.jpg')" }}
-          role="img"
-          aria-label="Executivos reunidos em boardroom noturno com a marca CRIVO"
-        />
-        <div className="container hero__inner">
-          <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">Futuro do Trabalho · IA · Pessoas · Decisões</span>
-            <h2 className="display">
-              A IA amplia e acelera
-              <br />a capacidade das organizações.{" "}
-              <span className="terra-text">A vantagem competitiva continuará sendo humana.</span>
-            </h2>
-            <p className="hero__sub">
-              O diferencial está no julgamento, no critério e na qualidade das decisões que orientam tecnologia,
-              liderança, cultura e evolução organizacional.
-            </p>
-            <p className="hero__bold">
-              Tecnologia amplia capacidade. Decisões definem direção. Liderança sustenta a evolução.
-            </p>
-            <div className="hero__ctas">
-              <Link href="/solucoes" className="btn btn--terra">
-                Conhecer Soluções CRIVO →
-              </Link>
-              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost-terra">
-                Falar com a CRIVO →
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Fileira de 4 cards creme (tela 02) */}
-        <div className="container">
-          <div className="strip">
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.cerebro}</span>
-              <strong>IA integrada à gestão</strong>
-              <p>Integração entre tecnologia, pessoas, processos e decisões.</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.grafico}</span>
-              <strong>Trabalho em evolução</strong>
-              <p>Competências, adaptação e aprendizagem para novas formas de trabalho.</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.pessoas}</span>
-              <strong>Liderança adaptativa</strong>
-              <p>Capacidade para lidar com mudanças, riscos psicossociais e responsabilidades ampliadas.</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.escudo}</span>
-              <strong>Governança responsável</strong>
-              <p>Limites, rituais e evidências para orientar tecnologia, cultura e resultado.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 03 · ARQUITETURA CRIVO™ (tela 03) ============ */}
-      <section id="arquitetura" className="section section--light">
-        <div className="container">
-          <div className="arch-hero">
-            <div>
-              <span className="eyebrow eyebrow--terra">Arquitetura CRIVO™</span>
-              <h2 className="h2">
-                Estrutura que transforma
-                <br />
-                <span className="terra-text">inteligência</span> em <span className="terra-text">resultado</span>.
-              </h2>
-              <span className="rule-terra" aria-hidden="true" />
-              <p className="lede">
-                A CRIVO™ combina método proprietário, inteligência decisória, gestão executiva e desenvolvimento da
-                liderança em uma jornada integrada e mensurável.
-              </p>
-            </div>
-            <div
-              className="arch-photo"
-              style={{ backgroundImage: "url('/imagens/arquitetura-reuniao.jpg')" }}
-              role="img"
-              aria-label="Executivos analisando o dashboard CRIVO em sala de reunião"
-            />
-          </div>
-
-          <div className="arch">
-            <div className="arch-card">
-              <span className="arch-card__ic">{IC.alvo}</span>
-              <strong>Método CRIVO™</strong>
-              <p>Metodologia proprietária para estruturar leitura, decisão, execução e evolução.</p>
-              <Link href="/metodo#metodo">Saiba mais →</Link>
-            </div>
-            <div className="arch-card">
-              <span className="arch-card__ic">{IC.bussola}</span>
-              <strong>ICD™</strong>
-              <span className="sub">Índice de Coerência Decisória</span>
-              <p>Métrica proprietária para avaliar clareza, critério, alinhamento e sustentação.</p>
-              <Link href="/metodo#icd">Saiba mais →</Link>
-            </div>
-            <div className="arch-card">
-              <span className="arch-card__ic">{IC.grafico}</span>
-              <strong>Portal Executivo</strong>
-              <p>Indicadores, riscos, plano de ação, evidências e relatórios em um único ambiente.</p>
-              <Link href="/plataforma#portal">Saiba mais →</Link>
-            </div>
-            <div className="arch-card">
-              <span className="arch-card__ic">{IC.pessoas}</span>
-              <strong>Área do Líder</strong>
-              <p>Ferramentas práticas para apoiar decisões, registrar aprendizados e sustentar a rotina.</p>
-              <Link href="/plataforma#area-do-lider">Saiba mais →</Link>
-            </div>
-          </div>
-
-          <div className="cta-band">
-            <span className="cta-band__ic">{IC.escudo}</span>
-            <div className="cta-band__text">
-              <div className="t">
-                Da leitura executiva
-                <br />
-                ao <span className="terra-text">resultado</span> sustentado.
-              </div>
-            </div>
-            <div className="cta-band__actions">
-              <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA Executivo →
-              </a>
-              <Link href="/solucoes" className="btn btn--outline-light">
-                Conhecer Soluções CRIVO™ →
-              </Link>
             </div>
           </div>
         </div>
@@ -303,6 +169,142 @@ export default function LandingPage() {
             </span>
             <span className="plus-line__rule" aria-hidden="true" />
           </p>
+        </div>
+      </section>
+
+      {/* ============ 03 · ARQUITETURA CRIVO™ (tela 03) ============ */}
+      <section id="arquitetura" className="section section--light">
+        <div className="container">
+          <div className="arch-hero">
+            <div>
+              <span className="eyebrow eyebrow--terra">Arquitetura CRIVO™</span>
+              <h2 className="h2">
+                Estrutura que transforma
+                <br />
+                <span className="terra-text">inteligência</span> em <span className="terra-text">resultado</span>.
+              </h2>
+              <span className="rule-terra" aria-hidden="true" />
+              <p className="lede">
+                A CRIVO™ combina método proprietário, inteligência decisória, gestão executiva e desenvolvimento da
+                liderança em uma jornada integrada e mensurável.
+              </p>
+            </div>
+            <div
+              className="arch-photo"
+              style={{ backgroundImage: "url('/imagens/arquitetura-reuniao.jpg')" }}
+              role="img"
+              aria-label="Executivos analisando o dashboard CRIVO em sala de reunião"
+            />
+          </div>
+
+          <div className="arch">
+            <div className="arch-card">
+              <span className="arch-card__ic">{IC.alvo}</span>
+              <strong>Método CRIVO™</strong>
+              <p>Metodologia proprietária para estruturar leitura, decisão, execução e evolução.</p>
+              <Link href="/metodo#metodo">Saiba mais →</Link>
+            </div>
+            <div className="arch-card">
+              <span className="arch-card__ic">{IC.bussola}</span>
+              <strong>ICD™</strong>
+              <span className="sub">Índice de Coerência Decisória</span>
+              <p>Métrica proprietária para avaliar clareza, critério, alinhamento e sustentação.</p>
+              <Link href="/metodo#icd">Saiba mais →</Link>
+            </div>
+            <div className="arch-card">
+              <span className="arch-card__ic">{IC.grafico}</span>
+              <strong>Portal Executivo</strong>
+              <p>Indicadores, riscos, plano de ação, evidências e relatórios em um único ambiente.</p>
+              <Link href="/plataforma#portal">Saiba mais →</Link>
+            </div>
+            <div className="arch-card">
+              <span className="arch-card__ic">{IC.pessoas}</span>
+              <strong>Área do Líder</strong>
+              <p>Ferramentas práticas para apoiar decisões, registrar aprendizados e sustentar a rotina.</p>
+              <Link href="/plataforma#area-do-lider">Saiba mais →</Link>
+            </div>
+          </div>
+
+          <div className="cta-band">
+            <span className="cta-band__ic">{IC.escudo}</span>
+            <div className="cta-band__text">
+              <div className="t">
+                Da leitura executiva
+                <br />
+                ao <span className="terra-text">resultado</span> sustentado.
+              </div>
+            </div>
+            <div className="cta-band__actions">
+              <a href="#diagnostico" className="btn btn--terra">
+                Gerar MAPA Executivo →
+              </a>
+              <Link href="/solucoes" className="btn btn--outline-light">
+                Conhecer Soluções CRIVO™ →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ 02 · IA + VANTAGEM HUMANA (tela 02) ============ */}
+      {/* §7 — a tela de IA deixa de ser Hero e passa a ser uma SEÇÃO da Home. */}
+      <section id="ia-vantagem-humana" className="section section--dark">
+        <div
+          className="hero__bleed"
+          style={{ backgroundImage: "url('/imagens/ia-boardroom.jpg')" }}
+          role="img"
+          aria-label="Executivos reunidos em boardroom noturno com a marca CRIVO"
+        />
+        <div className="container hero__inner">
+          <div className="hero__copy">
+            <span className="eyebrow eyebrow--terra">Futuro do Trabalho · IA · Pessoas · Decisões</span>
+            <h2 className="display">
+              A IA amplia e acelera
+              <br />a capacidade das organizações.{" "}
+              <span className="terra-text">A vantagem competitiva continuará sendo humana.</span>
+            </h2>
+            <p className="hero__sub">
+              O diferencial está no julgamento, no critério e na qualidade das decisões que orientam tecnologia,
+              liderança, cultura e evolução organizacional.
+            </p>
+            <p className="hero__bold">
+              Tecnologia amplia capacidade. Decisões definem direção. Liderança sustenta a evolução.
+            </p>
+            <div className="hero__ctas">
+              <Link href="/solucoes" className="btn btn--terra">
+                Conhecer Soluções CRIVO →
+              </Link>
+              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost-terra">
+                Falar com a CRIVO →
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Fileira de 4 cards creme (tela 02) */}
+        <div className="container">
+          <div className="strip">
+            <div className="strip-card">
+              <span className="strip-card__ic">{IC.cerebro}</span>
+              <strong>IA integrada à gestão</strong>
+              <p>Integração entre tecnologia, pessoas, processos e decisões.</p>
+            </div>
+            <div className="strip-card">
+              <span className="strip-card__ic">{IC.grafico}</span>
+              <strong>Trabalho em evolução</strong>
+              <p>Competências, adaptação e aprendizagem para novas formas de trabalho.</p>
+            </div>
+            <div className="strip-card">
+              <span className="strip-card__ic">{IC.pessoas}</span>
+              <strong>Liderança adaptativa</strong>
+              <p>Capacidade para lidar com mudanças, riscos psicossociais e responsabilidades ampliadas.</p>
+            </div>
+            <div className="strip-card">
+              <span className="strip-card__ic">{IC.escudo}</span>
+              <strong>Governança responsável</strong>
+              <p>Limites, rituais e evidências para orientar tecnologia, cultura e resultado.</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -557,8 +559,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* §13 — FAQ imediatamente antes do rodapé. */}
+
+      {/* Ordem final do documento: … Quem Somos → Fundadores → FAQ → CTA final. */}
+      <FundadoresSection />
+
       <FaqSection />
+
+      <CtaFinalSection whatsapp={WHATSAPP_ESPECIALISTA} />
 
       <SiteFooter />
     </>

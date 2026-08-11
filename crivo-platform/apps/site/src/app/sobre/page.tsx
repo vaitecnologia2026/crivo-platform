@@ -216,13 +216,9 @@ export default function SobrePage() {
                 aplicada, inteligência artificial, mentoria, conselho consultivo, universidade de negócios e tomada
                 de decisão.
               </p>
-              <div className="chips">
-                <span className="chip">{IC.grafico} Visão de negócio</span>
-                <span className="chip">{IC.bussola} Estratégia</span>
-                <span className="chip">{IC.pessoas} Liderança</span>
-                <span className="chip">{IC.escudo} Governança</span>
-                <span className="chip">{IC.engrenagem} Transformação organizacional</span>
-              </div>
+              {/* §9 — as tags/pílulas inferiores (Estratégia, Liderança,
+                  Governança, Mercado Financeiro…) saíram: o card fica com
+                  nome, função e mini bio, como o documento pede. */}
             </div>
 
             <div className="sobre-founder-card">
@@ -242,13 +238,9 @@ export default function SobrePage() {
                 Sua trajetória também incorpora mentoria, desenvolvimento humano e comportamento, reforçando a base
                 humana e estratégica que sustenta a atuação da CRIVO™.
               </p>
-              <div className="chips">
-                <span className="chip">{IC.grafico} Mercado financeiro</span>
-                <span className="chip chip--active">{IC.alvo} Negócios</span>
-                <span className="chip">{IC.pessoas} Liderança</span>
-                <span className="chip">{IC.escudo} Alta performance</span>
-                <span className="chip">{IC.cerebro} Desenvolvimento humano</span>
-              </div>
+              {/* §9 — as tags/pílulas inferiores (Estratégia, Liderança,
+                  Governança, Mercado Financeiro…) saíram: o card fica com
+                  nome, função e mini bio, como o documento pede. */}
             </div>
           </div>
 
