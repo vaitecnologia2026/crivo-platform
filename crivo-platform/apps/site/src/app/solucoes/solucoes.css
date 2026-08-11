@@ -196,3 +196,10 @@
 /* Setas desabilitadas nas pontas (sem dar a volta 01↔07). */
 .sol-tabs__arrow:disabled { opacity: 0.35; cursor: default; }
 .sol-tabs__arrow:disabled:hover { border-color: var(--line); color: var(--azul-profundo); }
+
+/* §2 — só a solução escolhida fica visível, já no primeiro paint.
+   Antes o estado só existia depois da hidratação (efeito do SolucoesTabs), e o
+   HTML inicial mostrava as 7 soluções empilhadas. Com a classe no servidor a
+   página abre correta mesmo antes do JS. */
+.sol-pane { display: none; }
+.sol-pane.is-open { display: block; }

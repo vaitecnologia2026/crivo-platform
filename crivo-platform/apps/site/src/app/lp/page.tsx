@@ -5,8 +5,9 @@ import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { FaqSection } from "./FaqSection";
 import { CtaFinalSection, FundadoresSection } from "./FundadoresSection";
+import { HeroCarousel } from "./HeroCarousel";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
-import { IC, Seals } from "../_site/icons";
+import { IC } from "../_site/icons";
 import "./lp.css";
 
 export const metadata: Metadata = {
@@ -24,65 +25,8 @@ export default function LandingPage() {
       <LpEffects />
       <SiteNav />
 
-      {/* ============ 01 · HERO PRINCIPAL (tela 01) ============ */}
-      <section id="hero" className="hero hero--1 section--dark">
-        <div
-          className="hero__bleed"
-          style={{ backgroundImage: "url('/imagens/hero-noturno.jpg')" }}
-          role="img"
-          aria-label="Executivos observando o skyline da cidade ao anoitecer"
-        />
-        <div className="container hero__inner">
-          <div className="hero__copy">
-            <span className="eyebrow eyebrow--terra">Transformação Organizacional · Liderança · Governança</span>
-            <h1 className="display">
-              Decidir com <span className="terra-text">clareza</span>.<br />
-              Liderar com <span className="terra-text">coerência</span>.<br />
-              Evoluir com <span className="terra-text">sustentação</span>.
-            </h1>
-            <span className="rule-terra" aria-hidden="true" />
-            <p className="hero__sub">
-              Para empresas que querem converter estratégia em execução, liderança em coerência e cultura em
-              resultados, com Método CRIVO™, dados e evidências.
-            </p>
-            <div className="hero__ctas">
-              <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA Executivo →
-              </a>
-              <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost">
-                Falar com a CRIVO →
-              </a>
-            </div>
-            <Seals dark items={["Sem custo", "Confidencial", "Leitura executiva inicial"]} />
-          </div>
-        </div>
-
-        {/* Fileira de 4 cards creme (base da dobra, tela 01) */}
-        <div className="container">
-          <div className="strip">
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.alvo}</span>
-              <strong>Método CRIVO™</strong>
-              <p>Consciência · Responsabilidade · Integração · Valores · Organização</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.bussola}</span>
-              <strong>ICD™ — Coerência Decisória</strong>
-              <p>Clareza · Critério · Alinhamento · Sustentação</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.chip}</span>
-              <strong>Governança para a era da IA</strong>
-              <p>Critérios, cultura e responsabilidade para integrar pessoas, processos e tecnologia.</p>
-            </div>
-            <div className="strip-card">
-              <span className="strip-card__ic">{IC.prancheta}</span>
-              <strong>Diagnósticos e soluções sob medida</strong>
-              <p>NR-1, riscos psicossociais, liderança, cultura e governança.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ============ 01 · HEROES (telas 01 e 02, mesmo componente · §3) ============ */}
+      <HeroCarousel />
 
       {/* ============ 08 · SOLUÇÕES CRIVO™ (tela 08) ============ */}
       <section id="solucoes" className="section section--light" style={{ paddingTop: 0 }}>

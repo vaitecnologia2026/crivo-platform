@@ -2495,33 +2495,8 @@ button:focus-visible,
   .float-cta { right: 12px; left: 12px; bottom: 12px; justify-content: center; padding: 14px 18px; }
 }
 
-.social-proof {
-  position: fixed; left: 24px; bottom: 24px; z-index: 1150;
-  display: flex; align-items: center; gap: 13px;
-  width: 322px; max-width: calc(100vw - 48px);
-  padding: 13px 16px; border-radius: var(--r-lg);
-  background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--terra);
-  box-shadow: var(--shadow-2);
-  animation: spRise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-@keyframes spRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
-.social-proof__avatar {
-  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 999px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--off-white);
-  background: linear-gradient(140deg, var(--azul-cobalto), var(--azul-profundo));
-}
-.social-proof__body { flex: 1; min-width: 0; line-height: 1.3; }
-.social-proof__body strong { display: block; font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--azul-profundo); }
-.social-proof__org { display: block; font-size: 12px; color: var(--text-dark-sec); }
-.social-proof__act { display: block; font-size: 11.5px; font-style: normal; color: var(--terra); margin-top: 2px; }
-.social-proof__check {
-  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 999px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: rgba(46, 120, 80, 0.12); color: #2e7850;
-}
-.social-proof__check svg { width: 13px; height: 13px; }
-@media (max-width: 600px) { .social-proof { display: none; } }
+/* O card de prova social foi removido junto com o componente: ele exibia
+   nomes, empresas e horarios sorteados como se fossem pessoas reais. */
 @media (prefers-reduced-motion: reduce) { .float-cta { animation: none; } }
 
 /* ============================================================
@@ -2928,7 +2903,60 @@ button:focus-visible,
     order: 2;
     margin-top: 8px;
   }
-  .hero--1 > .container:last-of-type { order: 3; }
+  .hero--home > .hero__ctrl-wrap { order: 3; }
+}
+
+/* ===== §3 · Hero 1 e Hero 2 como telas transitórias do MESMO componente =====
+   Cross-fade discreto: as duas telas ficam no HTML (texto real para leitores e
+   buscadores) e alternam por opacidade. A inativa recebe `visibility: hidden`,
+   o que a tira da ordem de tabulação e da árvore de acessibilidade — os botões
+   escondidos não podem receber foco. */
+.hero__bleed--fade { opacity: 0; transition: opacity 0.9s ease; }
+.hero__bleed--fade.is-on { opacity: 1; }
+
+/* As duas telas ocupam a MESMA célula: a altura é a da tela mais alta e não
+   pula ao trocar. */
+.hero__deck { display: grid; min-width: 0; }
+.hero__deck > .hero__slide { grid-area: 1 / 1; }
+/* A tela que sai apaga PRIMEIRO; a que entra só começa depois. Com os dois
+   textos aparecendo ao mesmo tempo, um lia por cima do outro e a dobra ficava
+   embaralhada no meio da transição. */
+.hero__slide {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.34s ease, transform 0.34s ease, visibility 0s linear 0.34s;
+}
+.hero__slide.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.45s ease 0.36s, transform 0.5s ease 0.36s, visibility 0s;
+}
+
+/* Controle manual — dois traços discretos, sem cartela nem sombra. */
+.hero__ctrl-wrap { position: relative; z-index: 1; padding-top: 26px; }
+.hero__ctrl { display: flex; gap: 10px; }
+.hero__dot {
+  width: 34px; height: 3px; padding: 0;
+  border: 0; border-radius: 2px;
+  background: rgba(242, 240, 236, 0.28);
+  cursor: pointer;
+  transition: background 0.25s ease, width 0.25s ease;
+}
+.hero__dot:hover { background: rgba(242, 240, 236, 0.55); }
+.hero__dot.is-on { width: 52px; background: var(--terra); }
+.hero__dot:focus-visible { outline: 2px solid var(--terra-claro); outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__bleed--fade, .hero__slide { transition-duration: 0.01ms; }
+  .hero__slide { transform: none; }
+}
+
+@media (max-width: 900px) {
+  /* Em telas estreitas o .hero__bleed entra no fluxo (position: relative), então
+     as duas fotos empilhariam. Aqui só a ativa existe. */
+  .hero__bleed--fade:not(.is-on) { display: none; }
 }
 
 /* — Tela 02 · fidelidade 1:1: foto sangrada mais larga, título em 4 linhas,

@@ -112,7 +112,7 @@ export default function SolucoesPage() {
           {/* ============ 01 · MAPA EXECUTIVO (tela 09) ============ */}
           <SolucoesTabs />
 
-          <div id="mapa-executivo">
+          <div id="mapa-executivo" className="sol-pane is-open">
             <div className="sol-block">
               <div className="solu-card">
                 <div className="solu-card__main">
@@ -179,7 +179,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 02 · Diagnóstico (tela 10) ============ */}
-          <div id="diagnostico-sol">
+          <div id="diagnostico-sol" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -253,7 +253,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 03 · Gestão da Rotina (tela 11) ============ */}
-          <div id="gestao-da-rotina">
+          <div id="gestao-da-rotina" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -320,7 +320,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 04 · Liderança (tela 12) ============ */}
-          <div id="lideranca">
+          <div id="lideranca" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -387,7 +387,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 05 · Evolução (tela 13) ============ */}
-          <div id="evolucao">
+          <div id="evolucao" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -454,7 +454,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 06 · Enterprise (tela 14) ============ */}
-          <div id="enterprise">
+          <div id="enterprise" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">
@@ -524,7 +524,7 @@ export default function SolucoesPage() {
           </div>
 
           {/* ============ 07 · Advisory (tela 15) ============ */}
-          <div id="advisory">
+          <div id="advisory" className="sol-pane">
           <div className="sol-block">
             <div className="solu-card">
               <div className="solu-card__main">

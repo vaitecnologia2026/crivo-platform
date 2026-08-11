@@ -33,11 +33,11 @@ const Chevron = ({ dir }: { dir: "l" | "r" }) => (
 export function SolucoesTabs() {
   const [active, setActive] = useState<string>("mapa-executivo");
 
-  // Mostra só a solução ativa (as demais seções ficam com display:none).
+  // Mostra só a solução ativa. A classe (e não style.display) porque o servidor
+  // já entrega .sol-pane/.is-open — assim a página abre certa antes do JS.
   useEffect(() => {
     for (const id of IDS) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = id === active ? "" : "none";
+      document.getElementById(id)?.classList.toggle("is-open", id === active);
     }
   }, [active]);
 
@@ -50,6 +50,22 @@ export function SolucoesTabs() {
     fromHash();
     window.addEventListener("hashchange", fromHash);
     return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
+
+  // §2 — "cada opção do menu Soluções deve abrir a solução escolhida e deixá-la
+  // ativa". Estando JÁ em /solucoes, o clique no submenu é navegação só de hash:
+  // o App Router resolve com history.pushState, que NÃO emite `hashchange`, e o
+  // componente não remonta — sem isto a URL mudava e a aba ficava na anterior.
+  // O listener é em fase de captura, antes do handler do <Link>.
+  useEffect(() => {
+    const aoClicar = (ev: MouseEvent) => {
+      const a = (ev.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a) return;
+      const id = (a.getAttribute("href") || "").match(/^\/solucoes#(.+)$/)?.[1];
+      if (id && IDS.includes(id)) setActive(id);
+    };
+    document.addEventListener("click", aoClicar, true);
+    return () => document.removeEventListener("click", aoClicar, true);
   }, []);
 
   const idx = IDS.indexOf(active);
