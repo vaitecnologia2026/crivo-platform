@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { Injectable, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 
@@ -28,8 +29,10 @@ export class FcmService {
       if (raw && raw.trim().startsWith('{')) {
         credentialJson = JSON.parse(raw) as admin.ServiceAccount;
       } else if (path) {
-        // require dinâmico: só quando há caminho configurado.
-        credentialJson = require(path) as admin.ServiceAccount;
+        // Leitura explícita (não require dinâmico): o arquivo só é lido quando
+        // FCM_SERVICE_ACCOUNT_PATH está configurado, e um JSON inválido cai no
+        // catch abaixo em vez de derrubar o módulo na resolução do require.
+        credentialJson = JSON.parse(readFileSync(path, 'utf8')) as admin.ServiceAccount;
       }
     } catch (e) {
       this.log.error(`Credencial FCM inválida: ${String(e)}`);

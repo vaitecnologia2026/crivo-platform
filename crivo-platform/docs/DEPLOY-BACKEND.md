@@ -1,3 +1,9 @@
+> ⚠️ **DOCUMENTO HISTÓRICO — NÃO SIGA ESTE ARQUIVO.**
+> Ele descreve a arquitetura antiga (Railway / Vercel / Supabase), que **não é a
+> produção**. Hoje tudo roda num VPS por rsync + systemd. Seguir os passos daqui
+> provisiona um ambiente paralelo errado e deixa a produção real intocada.
+> O documento válido é **[DEPLOY.md](./DEPLOY.md)**.
+
 # Deploy do backend CRIVO (Railway) — passo a passo
 
 > Backend = **API NestJS** (servidor Node, prefixo `/api`) + **Postgres com RLS**.

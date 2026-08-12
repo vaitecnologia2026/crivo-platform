@@ -46,6 +46,7 @@ export class DiagnosticsService {
   /** Gera (idempotente) o link público de um instrumento para uma empresa. */
   async ensureLink(rawTenantId: string, instrumentSlug: string, _actor: Actor) {
     const tenantId = await this.resolveOrgId(rawTenantId);
+    // rls-allow: DiagnosticInstrument é catálogo GLOBAL (sem tenantId).
     const instrument = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug: instrumentSlug } });
     if (!instrument || !instrument.active) throw new BadRequestException('Instrumento inválido ou inativo.');
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
@@ -89,6 +90,7 @@ export class DiagnosticsService {
     // rls-allow: escrita de CONTROL PLANE (super admin owner-only), por id do link.
     const link = await this.prisma.admin.diagnosticLink.findUnique({ where: { id } });
     if (!link) throw new NotFoundException('Link não encontrado.');
+    // rls-allow: escrita de control-plane — rota @UseGuards(SuperAdminGuard).
     await this.prisma.admin.diagnosticLink.update({ where: { id }, data: { active } });
     return { id, active };
   }
@@ -100,6 +102,9 @@ export class DiagnosticsService {
       include: { org: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    // Agregado cross-tenant do super admin: só CONTAGEM por empresa, nenhuma
+    // resposta individual sai daqui. Rota @UseGuards(SuperAdminGuard).
+    // rls-allow: agregado do super admin, sem dado individual.
     const counts = await this.prisma.admin.diagnosticResponse.groupBy({
       by: ['tenantId'],
       where: { instrumentSlug },

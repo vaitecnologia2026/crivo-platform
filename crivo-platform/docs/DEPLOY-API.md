@@ -1,3 +1,9 @@
+> ⚠️ **DOCUMENTO HISTÓRICO — NÃO SIGA ESTE ARQUIVO.**
+> Ele descreve a arquitetura antiga (Railway / Vercel / Supabase), que **não é a
+> produção**. Hoje tudo roda num VPS por rsync + systemd. Seguir os passos daqui
+> provisiona um ambiente paralelo errado e deixa a produção real intocada.
+> O documento válido é **[DEPLOY.md](./DEPLOY.md)**.
+
 # Runbook — Deploy da API (`apps/api`) + Banco de produção
 
 > Objetivo: colocar a API NestJS no ar com um Postgres real, para destravar o

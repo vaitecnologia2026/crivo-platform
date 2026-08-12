@@ -341,8 +341,8 @@ export class DocumentsService {
     // só vale se a solução não define o seu. Antes o override do contrato tinha
     // precedência e ficava preso ao trocar a solução (documentos saíam com o
     // método antigo). Mesma regra do portal (/me/diagnostic-context).
-    // rls-allow: product é control-plane (catálogo global).
     const product = contract?.productId
+      // rls-allow: Product é catálogo GLOBAL (sem tenantId) — control-plane.
       ? await this.prisma.admin.product.findUnique({
           where: { id: contract.productId },
           select: { method: true },
@@ -368,6 +368,9 @@ export class DocumentsService {
       select: { id: true },
     });
     if (tenant) {
+      // PlatformLead é control-plane (CRM de leads, sem tenantId); aqui já vem
+      // filtrado pelo tenant convertido, resolvido logo acima.
+      // rls-allow: tabela de control-plane, sem coluna de tenant.
       const leads = await this.prisma.admin.platformLead.findMany({
         where: { convertedTenantId: tenant.id },
         orderBy: { updatedAt: 'desc' },

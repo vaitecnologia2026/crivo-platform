@@ -22,6 +22,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Saída do Capacitor: uma CÓPIA do build do Next dentro dos projetos
+    // nativos. Não é fonte — sem isto o lint tenta analisar bundle minificado
+    // (erros em "linha 1, coluna 24343") e o gate nasce vermelho.
+    "android/**",
+    "ios/**",
   ]),
 ]);
 

@@ -86,6 +86,10 @@ export function CookieConsent() {
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
+    // A escolha vive no localStorage, que não existe no servidor: a leitura tem
+    // de acontecer depois da montagem, e é uma sincronização com armazenamento
+    // externo — o caso que a regra abre exceção, não uma cascata de renders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!consentimentoDeCookies()) setVisivel(true);
     const reabrir = () => {
       const atual = consentimentoDeCookies();

@@ -1,8 +1,11 @@
 name: CI
 
 # Quality gate — roda em todo push na main e em todo PR.
-# Como o deploy é manual (Vercel) e a API auto-deploya no push (Railway),
-# este gate é a ÚNICA rede de proteção antes do código chegar perto de produção.
+#
+# NADA neste repositório publica sozinho: NÃO existe auto-deploy. Produção é o
+# VPS do cliente e sobe por rsync + build no servidor + `systemctl restart`,
+# rodado à mão (ver docs/DEPLOY.md). Push na main NÃO chega no ar.
+# Por isso este gate é a única rede de proteção antes de alguém deployar.
 #
 # OBS: o monorepo vive no subdiretório `crivo-platform/` deste repositório,
 # então os passos `run` rodam com working-directory nessa pasta.
@@ -55,6 +58,9 @@ jobs:
 
       - name: Tests (funções puras de cálculo — ICD)
         run: pnpm test
+
+      - name: Build (site, web, api, packages)
+        run: pnpm build
 
       - name: Lint
         run: pnpm lint

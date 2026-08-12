@@ -12,8 +12,30 @@ out/
 .vite/
 
 # env & secrets
+# Cobre TODA variacao de .env (inclusive .env.production, que a regra antiga
+# deixava passar) e os nomes que a producao usa de fato (api.env / lp.env em
+# /opt/crivo). O movimento natural de quem esta aprendendo o deploy e copiar o
+# env do servidor para debugar local — sem isto, um `git add -A` versionaria os
+# segredos de producao inteiros.
 .env
-.env.local
+.env.*
+!.env.example
+*.env
+!*.env.example
+api.env
+lp.env
+
+# chaves, certificados e dumps de banco
+*.pem
+*.key
+*.p12
+*.jks
+*.p8
+*.keystore
+service-account*.json
+google-services.json
+*.sql.gz
+*.dump
 *.local
 .vercel
 

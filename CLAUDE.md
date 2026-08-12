@@ -46,22 +46,23 @@ pnpm --filter @crivo/web dev    # plataforma (localhost:3000)
 pnpm build                       # build de todos os apps/packages (turbo)
 ```
 
-## Deploy (Vercel)
+## Deploy
 
-Projetos separados, **build remoto a partir de `crivo-platform/`** com Root Directory configurado:
+**Não há auto-deploy e não é Vercel.** Produção é o VPS do cliente: rsync do
+fonte → build no servidor → `systemctl restart`. Três serviços atrás do nginx:
+`crivo-lp` (site, 3001), `crivo-web` (portal + superadm, 3000) e `crivo-api`
+(NestJS, 3046, prefixo `/api`).
 
-| App | Projeto Vercel | Root Directory | Preview |
-|---|---|---|---|
-| site | `crivo-site` | `apps/site` | https://crivo-site.vercel.app |
-| web | `crivo-web` | `apps/web` | https://crivo-web.vercel.app |
+- Runbook completo: **[crivo-platform/docs/DEPLOY.md](crivo-platform/docs/DEPLOY.md)**
+- Variáveis e onde elas vivem: **[crivo-platform/docs/ENVIRONMENT.md](crivo-platform/docs/ENVIRONMENT.md)**
+- Unidades systemd e vhosts nginx versionados: **[crivo-platform/infra/](crivo-platform/infra/)**
 
-Deploy: `cd crivo-platform && vercel link --project <projeto> && vercel deploy` (preview) / `--prod` (produção).
-Notas de monorepo: `next.config` fixa `turbopack.root` no monorepo (pnpm); deploy **não-prebuilt** (build remoto resolve o workspace).
+Domínios de produção: `crivolegacy.com.br` (site) e `app.crivolegacy.com.br`
+(portal e `/superadm`).
 
-## ✅ Cutover concluído (06/2026)
+## Histórico
 
-`crivo.vai-sistema.com` agora aponta para o projeto **`crivo-site`** (React, `apps/site`): `/` (gate), `/lp` (landing), `/design-system`. O domínio foi movido do antigo projeto `crivo` (estático), que ficou sem domínio.
-
-O site estático original foi arquivado em **`legacy/`** (`index.html`, `CRIVO-LP/`, `CRIVO-PLATAFORMA/`, `design-system.html`, `ds.css`, `tokens.css`, `logger.js`) — referência histórica, **não é mais servido** e não deve receber ajustes. Todo trabalho novo é em `crivo-platform/`.
-
-> A plataforma (`crivo-web` / `apps/web`) está publicada em https://crivo-web.vercel.app. Quando ganhar domínio próprio (ex.: `app.vai-sistema.com`), atualizar os links "Acessar sistema"/"Plataforma" na LP e no design system (hoje apontando para `/CRIVO-PLATAFORMA/`).
+O site já foi estático e já esteve na Vercel em `crivo.vai-sistema.com`. Os dois
+saíram: o estático está arquivado em `legacy/` (não é servido) e os projetos da
+Vercel foram apagados — `crivo.vai-sistema.com` **não é mais da CRIVO**. Se
+encontrar esse domínio em algum lugar do código ou da documentação, é resíduo.

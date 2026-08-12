@@ -1,135 +1,70 @@
-<div align="center">
+# CRIVO™
 
-# CRIVO™ — Decision Intelligence System
-**Design System · Landing Page · Plataforma**
+Plataforma de inteligência organizacional da **CRIVO** (O2 Legacy & Consulting):
+site público, portal executivo para as empresas contratantes e um super admin de
+control-plane.
 
-*A linguagem visual e os entregáveis digitais da CRIVO™ — autoridade, rigor e clareza em cada ponto de contato.*
-
-`v1.0` · Brand Identity System V3.0 · O2 Legacy & Consulting
-
-</div>
+**No ar:** https://crivolegacy.com.br (site) · https://app.crivolegacy.com.br (portal e `/superadm`)
 
 ---
 
-> ⚛️ **Migrado para React.** Desde 06/2026, o desenvolvimento acontece em **React (Next.js 16 + Tailwind v4 + `@crivo/ui`)** no monorepo **`crivo-platform/`**. Todo ajuste/melhoria deve seguir esse padrão — veja **[`CLAUDE.md`](CLAUDE.md)**. Os arquivos estáticos descritos abaixo são **legado** que ainda serve a produção até o cutover do domínio.
-
-## 1. Visão geral
-
-> _Histórico — versão estática original, em processo de aposentadoria:_
-
-Repositório estático (HTML + CSS + JS, sem build) que reúne três entregáveis coesos sob a mesma identidade de marca:
-
-| Entregável | Pasta | Descrição |
-|---|---|---|
-| **Design System** | `index.html` · `ds.css` | Showcase navegável: princípios, marca, cores, tipografia, componentes, motion e voz. |
-| **Landing Page** | `CRIVO-LP/` | Página comercial — hero, problema, método, ICD, NR-1, soluções, diagnóstico e FAQ. |
-| **Plataforma** | `CRIVO-PLATAFORMA/` | Protótipo navegável — login, dashboard executivo, ICD, questionário NR-1, área do líder e relatórios. |
-
-Fundamentos compartilhados na raiz:
-
-| Arquivo | Papel |
-|---|---|
-| `tokens.css` | **Fonte única de verdade** dos design tokens (`--crivo-*` canônicos + aliases). |
-| `favicon.svg` | Marca "O Vértice" como favicon, usada por todas as páginas. |
-| `logger.js` | Sistema de **observabilidade** hierárquico compartilhado (ver §4). |
-| `CRIVO-LP/COPY-CRIVO.md` | Bíblia de copy, posicionamento e tom de voz. |
-
----
-
-## 2. Como executar
-
-Não há build nem dependências. Abra qualquer `index.html` no navegador:
+## Comece por aqui
 
 ```bash
-open index.html                      # Design System
-open CRIVO-LP/index.html             # Landing Page
-open CRIVO-PLATAFORMA/index.html     # Plataforma (login → qualquer credencial entra; é mockado)
+cd crivo-platform
+pnpm install
+pnpm build          # compila os 3 apps + os pacotes
+pnpm test           # 173 testes (cálculo do ICD e regras da API)
 ```
 
-> Para servir via HTTP (recomendado para inspecionar o `localStorage` e o nível de log de produção):
-> `python3 -m http.server` e acesse `http://localhost:8000`.
+Isso funciona sem banco, sem Docker e sem nenhuma variável de ambiente. Para
+**rodar** de verdade (não só compilar), siga
+[docs/ENVIRONMENT.md](crivo-platform/docs/ENVIRONMENT.md).
 
----
+| Quero… | Leia |
+|---|---|
+| Entender a arquitetura e onde mexer | [CLAUDE.md](CLAUDE.md) |
+| Rodar local com banco | [docs/ENVIRONMENT.md](crivo-platform/docs/ENVIRONMENT.md) |
+| **Publicar em produção** | [docs/DEPLOY.md](crivo-platform/docs/DEPLOY.md) |
+| Ver a infra que está no servidor | [infra/](crivo-platform/infra/) |
 
-## 3. Design tokens
+## O monorepo
 
-Arquitetura em camadas, conforme metodologia de design system:
+`crivo-platform/` — pnpm + Turborepo, Next.js 16 · React 19 · NestJS · Prisma · PostgreSQL.
 
-```
-GLOBAL   --crivo-azul-profundo: #0D1F3C;      (valor bruto, canônico)
-  ↓
-ALIAS    --azul-profundo: var(--crivo-azul-profundo);   (semântico, por app)
-  ↓
-USO      color: var(--azul-profundo);
-```
+| Pacote | O que é |
+|---|---|
+| `apps/site` | Site público e a LP. Captura o lead do **MAPA Executivo**. |
+| `apps/web` | Portal da empresa contratante (`/plataforma`) + super admin (`/superadm`). Também empacotado como app via Capacitor (`android/`, `ios/`). |
+| `apps/api` | API NestJS, prefixo global `/api`. Multi-tenant com **RLS** no Postgres. |
+| `packages/db` | Prisma: schema, 88 migrations, RLS (`sql/rls.sql`), seeds. |
+| `packages/types` | Tipos e o **motor de cálculo** compartilhados (ICD, metodologias). |
+| `packages/ui` | Design system em código — tokens e componentes de marca. |
+| `packages/config` | tsconfig base. |
 
-- **Cores** — Azuis estruturais (base) · Neutros sofisticados · **Terra** (acento exclusivo: ponto do vértice, CTAs, sublinhados, citações — *nunca* fundo dominante).
-- **Tipografia** — Lora (display/serif) + Poppins (corpo/sans) + Cormorant Garamond (wordmark). O contraste serif/sans **é** a identidade.
-- **Escala 4pt**, radius sóbrio (2–10px), sombras e motion (`easeOutExpo`).
+## Três coisas que economizam horas
 
-Cada página mantém uma camada semântica local que **aponta para o token canônico** com fallback literal — ex.: `--shadow-1: var(--crivo-shadow-1, 0 2px 16px ...)`. Isso elimina divergência de valores e mantém a página resiliente mesmo se `tokens.css` não carregar.
+1. **Multi-tenant é RLS de verdade.** Query de negócio usa
+   `prisma.forTenant(tenantId, …)`. A conexão `prisma.admin` **fura** a RLS e só
+   vale para control-plane — há um gate na CI (`pnpm --filter @crivo/api
+   check:rls-bypass`) que barra uso novo sem justificativa explícita.
 
----
+2. **Não existe auto-deploy.** Push na `main` roda só o gate de qualidade.
+   Publicar é manual — [docs/DEPLOY.md](crivo-platform/docs/DEPLOY.md).
 
-## 4. Observabilidade — `logger.js`
+3. **`seed:demo` apaga a base.** São ~37 `deleteMany` sem escopo; por isso ele
+   exige `CRIVO_SEED_DEMO=1`. O seed seguro, idempotente, é `seed:bootstrap`.
 
-Logger hierárquico compartilhado, carregado **antes** do script de cada app. Funciona em `file://` e `http(s)://`, sem módulos.
+## Pastas fora do monorepo
 
-### Duas hierarquias
+Material de projeto, não código de produção: `legacy/` (site estático anterior ao
+React — **não é servido**), `docs/`, `assets/`, `images_Crivo_nova/` (as 20 telas
+de referência do cliente, citadas em comentário no código como "Tela NN"),
+`Solicitacoes cliente/`, `Antes e depois/`, `crivo-validacao-antes-depois/`.
 
-**1 · Severidade** (crescente, com filtro por limiar):
+## Documentos históricos
 
-```
-DEBUG  →  INFO  →  WARN  →  ERROR  →  SILENT
-```
-
-**2 · Namespace** (árvore encadeável via `.child()`):
-
-```
-crivo
-├── crivo:lp            ├── crivo:plataforma        └── crivo:ds
-│   ├── crivo:lp:form   │   ├── crivo:plataforma:auth    ├── crivo:ds:motion
-│   ├── crivo:lp:nav    │   ├── crivo:plataforma:router  └── crivo:ds:nav
-│   ├── crivo:lp:reveal │   ├── crivo:plataforma:quiz
-│   └── crivo:lp:ebook  │   └── crivo:plataforma:chat
-```
-
-### Uso
-
-```js
-var log = window.CRIVO.log.create('crivo:lp');   // logger de namespace
-var formLog = log.child('form');                 // → crivo:lp:form
-
-formLog.info('pré-diagnóstico submetido', payload);
-formLog.warn('e-mail não-corporativo bloqueado');
-log.time('render', () => renderHeavy());         // mede duração e loga em DEBUG
-```
-
-### Controle do nível em runtime
-
-| Mecanismo | Exemplo | Prioridade |
-|---|---|---|
-| `localStorage` | `localStorage.setItem('CRIVO_LOG_LEVEL','DEBUG')` | 1ª |
-| Global pré-carga | `window.CRIVO_LOG_LEVEL = 'WARN'` | 2ª |
-| API em runtime | `CRIVO.log.setLevel('ERROR')` | — |
-
-Padrão: **DEBUG** em `localhost`/`file://`, **WARN** em produção. Cada linha exibe badge colorido (paleta CRIVO), namespace e timestamp `HH:MM:SS.mmm`.
-
----
-
-## 5. Convenções de marca (resumo)
-
-- O triângulo **nunca fecha** — a base aberta representa o sistema em movimento.
-- O símbolo **nunca** aparece sem o ponto terra (o ICD).
-- Lora **nunca** é substituída por sans nos títulos.
-- Voz: rigorosa, técnica, baseada em evidência. **Sem** coaching, motivacional ou paleta de bem-estar.
-
-> Diretrizes completas no Design System (`index.html`) e em `CRIVO-LP/COPY-CRIVO.md`.
-
----
-
-<div align="center">
-
-© 2026 CRIVO™ — Decision Intelligence System · O2 Legacy & Consulting · Confidencial · LGPD
-
-</div>
+`crivo-platform/docs/DEPLOY-API.md`, `DEPLOY-BACKEND.md` e `DEPLOY-CHECKLIST.md`
+descrevem uma arquitetura **antiga** (Railway + Vercel + Supabase) que não é a
+produção atual. Ficaram como registro. Para deploy, use
+[docs/DEPLOY.md](crivo-platform/docs/DEPLOY.md).

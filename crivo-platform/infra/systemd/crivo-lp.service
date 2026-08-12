@@ -1,0 +1,16 @@
+[Unit]
+Description=CRIVO LP (Next.js landing - apps/site)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/crivo/app/apps/site
+EnvironmentFile=/opt/crivo/lp.env
+ExecStart=/usr/bin/node /opt/crivo/app/apps/site/node_modules/next/dist/bin/next start -p 3001
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/crivo-lp.log
+StandardError=append:/var/log/crivo-lp.log
+
+[Install]
+WantedBy=multi-user.target
