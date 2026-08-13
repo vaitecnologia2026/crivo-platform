@@ -159,7 +159,7 @@ export default function SolucoesPage() {
                   <h3>Próximo passo</h3>
                   <span className="rule-terra" aria-hidden="true" />
                   <ul className="checks">
-                    <li>{IC.check} Gerar MAPA</li>
+                    <li>{IC.check} Gerar MAPA Executivo</li>
                     <li>{IC.check} Receber devolutiva</li>
                     <li>{IC.check} Definir rota de avanço</li>
                   </ul>
