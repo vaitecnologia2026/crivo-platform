@@ -22,7 +22,7 @@
   --prata: #B8C4D0;
   --cinza-quente: #D6D2CC;
   --off-white: #F2F0EC; /* §1 do docx — era #F7F4EF */
-  --creme-card: #F5F1E8; /* cards claros das telas finais */
+  --creme-card: var(--off-white); /* cards claros das telas finais — §1 do docx: era #F5F1E8 */
 
   /* Laranja queimado — acento/ação das telas finais aprovadas (NUNCA fundo
      dominante). Substitui o terra sóbrio anterior mantendo os nomes dos tokens. */
