@@ -259,13 +259,13 @@ export function ContractModal({
             <fieldset className="prod-fs">
               <legend>Adicionais do contrato (catálogo de Adicionais)</legend>
               {(() => {
-                // C4: a lista vem do CATÁLOGO (só configurados e ativos) — os
-                // mesmos nomes da tela Adicionais. addons === null significa
-                // FALHA ao carregar (aí a lista fixa evita travar o contrato);
-                // catálogo carregado porém vazio NÃO cai na lista fixa — senão
-                // precificar o 1º adicional "sumiria" com todos os outros.
+                // C4: a lista vem do CATÁLOGO — espelha a tela Adicionais item a
+                // item, sem filtrar por precificação nem por status. addons === null
+                // significa FALHA ao carregar (aí a lista fixa evita travar o
+                // contrato); catálogo carregado porém vazio NÃO cai na lista fixa —
+                // senão precificar o 1º adicional "sumiria" com todos os outros.
                 const failed = addons === null;
-                const catalog = (addons ?? []).filter((a) => a.configured && a.active);
+                const catalog = addons ?? [];
                 const options = failed
                   ? MODULES.map((m) => ({ code: m.code, name: m.name }))
                   : catalog.map((a) => ({ code: a.moduleCode, name: a.label }));
@@ -301,7 +301,7 @@ export function ContractModal({
                     <p className="prod-note" style={{ margin: "6px 0 0" }}>
                       {failed
                         ? "Catálogo de Adicionais indisponível agora — exibindo a lista padrão de módulos."
-                        : "Os nomes e preços vivem na tela Adicionais — adicionais sem preço configurado não aparecem aqui até serem precificados."}
+                        : "Os nomes e preços vivem na tela Adicionais — a lista aqui espelha o catálogo completo."}
                     </p>
                   </>
                 );
