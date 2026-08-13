@@ -29,7 +29,7 @@ import "./cnae.css";
 
 // Fallback enquanto o catálogo carrega (os 2 built-in existem sempre).
 const BUILTIN_TABS: InstrumentSummary[] = [
-  { id: "b1", slug: "PRE_DIAGNOSTIC", name: "Diagnóstico Inicial (LP)", bandKind: "MATURITY", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
+  { id: "b1", slug: "PRE_DIAGNOSTIC", name: "Diagnóstico Executivo", bandKind: "MATURITY", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
   { id: "b2", slug: "PSYCHOSOCIAL", name: "Diagnóstico Organizacional", bandKind: "RISK", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
 ];
 const bandWordOf = (k: "MATURITY" | "RISK") => (k === "RISK" ? "Faixas de risco" : "Faixas de maturidade");

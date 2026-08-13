@@ -2066,7 +2066,7 @@ model ContractTemplate {
 
 // LEGADO — mantido no banco até a fatia de limpeza (a coluna virou TEXT).
 enum MethodologyInstrument {
-  PRE_DIAGNOSTIC // Diagnóstico Inicial (LP)
+  PRE_DIAGNOSTIC // Diagnóstico Executivo
   PSYCHOSOCIAL // Diagnóstico Organizacional (psicossocial)
 }
 

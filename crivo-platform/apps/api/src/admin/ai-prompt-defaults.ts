@@ -169,7 +169,7 @@ export const AI_PROMPT_DEFAULTS: AiPromptDefault[] = [
   {
     useCase: 'preliminary_report',
     label: 'Relatório Preliminar CRIVO',
-    description: 'Prompt do relatório executivo gerado a partir do Diagnóstico Inicial (LP). Os dados do lead/diagnóstico são anexados automaticamente.',
+    description: 'Prompt do relatório executivo gerado a partir do Diagnóstico Executivo. Os dados do lead/diagnóstico são anexados automaticamente.',
     content: PRELIMINARY_REPORT,
   },
   {
