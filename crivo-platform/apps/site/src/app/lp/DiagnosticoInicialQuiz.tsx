@@ -337,18 +337,18 @@ export function DiagnosticoInicialQuiz() {
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: 16, height: 16, display: "inline-block", verticalAlign: "-0.15em", marginRight: 4 }}>
                 <path d="M5 12.5l4 4 10-10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Seu diagnóstico foi enviado para seu WhatsApp ou e-mail.
+              Seu Relatório Preliminar CRIVO™ foi enviado para seu WhatsApp ou e-mail.
             </>
           )}
           {sent === "captured" &&
             "Recebemos suas respostas — nossa equipe entrará em contato pelo seu e-mail ou WhatsApp."}
           {sent === "error" &&
             "Não conseguimos concluir o envio agora. Tente de novo em instantes ou fale com a gente pelo botão abaixo."}
-          {sent === "idle" && "Seu diagnóstico foi enviado para seu WhatsApp ou e-mail."}
+          {sent === "idle" && "Seu Relatório Preliminar CRIVO™ foi enviado para seu WhatsApp ou e-mail."}
         </div>
 
         <p className="diag-form__lead diag-encerramento">
-          Obrigado por responder ao Diagnóstico Inicial CRIVO™. Seu <strong>Relatório Preliminar</strong> foi gerado e
+          Obrigado por responder ao MAPA Executivo CRIVO™. Seu <strong>Relatório Preliminar</strong> foi gerado e
           será enviado junto com o <strong>e-book complementar</strong>. Em breve, nossa equipe poderá entrar em contato
           para aprofundar a análise da sua empresa.
         </p>
@@ -603,7 +603,10 @@ export function DiagnosticoInicialQuiz() {
             <path d="M12 3 5 5.8v5C5 15.6 7.9 19.4 12 21c4.1-1.6 7-5.4 7-10.2v-5L12 3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
             <path d="m9 11.5 2.2 2.2L15.5 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Seus dados estão seguros. Utilizamos suas informações apenas para fins de diagnóstico e devolutiva.
+          {/* §11 — a frase precisa descrever o fluxo REAL: gerar e enviar o MAPA,
+              registrar a solicitacao no CRM e permitir o contato sobre ela. */}
+          Seus dados estão seguros. Utilizamos suas informações para gerar e enviar o seu MAPA Executivo, registrar
+          a solicitação e permitir o contato relacionado.
         </p>
       </div>
     </form>
