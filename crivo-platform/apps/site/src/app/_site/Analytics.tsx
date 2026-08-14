@@ -23,9 +23,19 @@ export function Analytics() {
   const [podeMedir, setPodeMedir] = useState(false);
 
   useEffect(() => {
-    if (!GA4_ID) return;
+    // §15 — a origem da 1a visita da sessao e gravada SEMPRE, antes de tudo.
+    // Ela nao serve so ao GA4: e ela que viaja no corpo do lead ate o CRM e
+    // responde "qual campanha gerou este lead".
+    //
+    // Estava depois da guarda de GA4_ID, e com a propriedade do GA4 ainda nao
+    // criada isso significava nao gravar nada: quem chegava por um anuncio,
+    // navegava duas paginas e so entao preenchia o MAPA chegava ao CRM SEM
+    // campanha, porque o utm ja tinha sumido da URL. Medido em producao:
+    // chegando com utm_source/medium/campaign completos, crivo.atribuicao.v1
+    // ficava null.
+    capturarAtribuicao();
 
-    capturarAtribuicao(); // origem da 1ª visita da sessão
+    if (!GA4_ID) return;
 
     const ler = () => {
       try {
