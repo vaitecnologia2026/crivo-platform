@@ -3197,3 +3197,48 @@ button:focus-visible,
     background-image: url("/imagens/quem-somos-ia-m.jpg") !important;
   }
 }
+
+/* ============================================================
+   Responsividade — celulares estreitos (ate 400px)
+   ============================================================
+   A barra do topo era montada para 375px ("marca 147 + MAPA 121 + Portal 134
+   + burger 42", no comentario da propria .nav__actions), mas a conta nao
+   fechava: marca 147 + folga 20 + MAPA 121 + folga 10 + burger 44, mais os
+   28px de padding do .container de cada lado, dao 398px de largura minima.
+   Abaixo disso o conteudo nao encolhe — ele vaza. Medido ao vivo: em 360px
+   (a largura de Galaxy e da maioria dos Androids) o hamburguer ficava em
+   326–370, ou seja 10px dele fora da tela; em 320px ele saia inteiro. Como o
+   menu mobile SO abre por esse botao, o site ficava sem navegacao nessas
+   larguras.
+
+   Aqui a barra e apertada o suficiente para caber: em 360px a marca volta ao
+   tamanho natural e o hamburguer para exatamente na margem; em 320px o
+   subtitulo "Decision Intelligence" quebra em duas linhas, mas nada sai da
+   tela. Acima de 400px nada muda.
+
+   Os botoes da banda CTA tem `white-space: nowrap` (regra .btn) e o rotulo
+   mais longo — "Conhecer Diagnostico CRIVO™ →" — mede 297px; com os 36px de
+   padding da banda e os 28px do container ele vazava abaixo de 361px. Em
+   telas estreitas eles ja caiam empilhados, entao passam a ocupar a largura
+   inteira e podem quebrar a linha. */
+@media (max-width: 400px) {
+  .nav .container { padding-left: 16px; padding-right: 16px; }
+  .nav__inner { gap: 10px; }
+  .nav__actions { gap: 8px; }
+  .nav__actions .btn { padding-left: 13px; padding-right: 13px; font-size: 12.5px; }
+  .nav .brand { gap: 8px; }
+  .nav .brand__name { font-size: 19px; }
+  .nav .brand__sub { font-size: 6.6px; letter-spacing: 0.3em; }
+  .cta-band { padding: 26px 22px; }
+  .cta-band__actions { width: 100%; }
+  .cta-band__actions .btn { width: 100%; white-space: normal; text-align: center; }
+}
+
+/* O "X" do modal do MAPA fica em position: absolute no canto, fora do fluxo,
+   entao o texto passa por baixo dele. No celular o eyebrow ("MAPA Executivo
+   CRIVO™ · Leitura inicial sem custo") quebra e a primeira linha ia parar
+   debaixo do botao — em 320px eram 34px de texto encobertos. A reserva de
+   44px cobre os 38px do botao mais o afastamento de 16px, descontado o
+   padding do cartao. Em telas largas o eyebrow cabe numa linha so e continua
+   terminando muito antes do botao, entao nada muda. */
+.diag-modal .eyebrow { padding-right: 44px; }

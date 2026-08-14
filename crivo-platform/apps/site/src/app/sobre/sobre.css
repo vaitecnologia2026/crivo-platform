@@ -135,6 +135,21 @@
   .sobre-founders-band { flex-direction: column; align-items: flex-start; }
   .sobre-founders-band__pillars { justify-content: flex-start; }
 }
+/* O `min-width: 280px` dos pilares e um piso rigido: com os 40px de padding
+   da faixa e os 28px do container, ele so cabe a partir de 416px de tela.
+   Abaixo disso os quatro pilares vazavam para fora do cartao navy — em 320px
+   terminavam em 348px, contra a borda do cartao em 292px e a tela em 320px.
+   Aqui eles viram uma grade 2x2 de verdade (a quebra por flex-wrap deixava
+   1+2+1, com os tracos divisorios soltos) e o piso sai do caminho. */
+@media (max-width: 400px) {
+  .sobre-founders-band { padding: 30px 22px; }
+  .sobre-founders-band__pillars {
+    display: grid; grid-template-columns: 1fr 1fr; row-gap: 22px;
+    min-width: 0; width: 100%;
+  }
+  .sobre-founders-pillar { padding: 0 10px; min-width: 0; }
+  .sobre-founders-pillar:nth-child(odd) { border-left: none; }
+}
 
 .sobre-founders-tagline {
   text-align: center;

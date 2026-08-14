@@ -157,6 +157,15 @@
 .sol-plus p { font-size: 14px; color: var(--prata); line-height: 1.6; margin-bottom: 18px; }
 .sol-plus__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 @media (max-width: 760px) { .sol-plus__grid { grid-template-columns: repeat(2, 1fr); } }
+/* As duas colunas paravam de caber muito antes de 760px: os rotulos mais
+   longos ("Profissionalizacao da Gestao", "Sucessao e Empresas Familiares")
+   deixam cada item com 174px de largura minima, o que da 343px de trilha
+   contra os 256px disponiveis dentro do cartao em 360px. Como `1fr` nao
+   encolhe abaixo do min-content do conteudo, a trilha empurrava o cartao
+   inteiro para fora: medido em 390px (iPhone), o bloco CRIVO Plus terminava
+   em 395px numa tela de 390. Abaixo de 460px vai para uma coluna — em 461px
+   as duas colunas ainda cabem com folga. */
+@media (max-width: 460px) { .sol-plus__grid { grid-template-columns: 1fr; } }
 .sol-plus__item {
   display: flex; align-items: center; gap: 10px;
   border: 1px solid rgba(139, 175, 212, 0.24); border-radius: 12px;
