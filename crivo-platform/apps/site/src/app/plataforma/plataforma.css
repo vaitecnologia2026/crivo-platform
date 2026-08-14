@@ -273,3 +273,23 @@
   /* Largura de projeto do mockup: abaixo disso o dashboard se deforma. */
   .pf-laptop-scroll > .laptop { min-width: 620px; }
 }
+
+/* PROPORCAO HORIZONTAL DO NOTEBOOK NO DESKTOP (§7).
+   O §7 pede o dashboard "claramente dentro de um notebook, com moldura, base e
+   proporcao horizontal" e proibe redesenhar o dashboard.
+   O problema: a coluna do mockup media 588px, ABAIXO da largura de projeto do
+   proprio dashboard (800px). Espremido, ele reflowava para 581px de altura —
+   proporcao 0,99, quase quadrada, que nao le como laptop.
+   Solucao sem tocar no dashboard: a coluna vai a 676px (grid 0.85/1.15, que
+   mantem o titulo nas 4 linhas do mockup) e o dashboard e renderizado na sua
+   largura de projeto, reduzido a 79,5% para caber nos 636px internos da
+   moldura. Resultado: tela 676x380 — proporcao 1,78 (16:9) — com os 4 KPIs em
+   uma unica linha, como no design. O layout interno nao muda: so deixa de ser
+   espremido.
+   So a partir de 1320px: abaixo disso o container ainda nao esta travado em
+   --maxw, a coluna nao mede 676px exatos e a arte seria cortada a direita. */
+@media (min-width: 1320px) {
+  #portal .hero__inner { grid-template-columns: 0.85fr 1.15fr; }
+  #portal .laptop__screen { aspect-ratio: 16 / 9; overflow: hidden; }
+  #portal .pf-laptop-body { width: 800px; transform: scale(0.795); transform-origin: top left; }
+}
