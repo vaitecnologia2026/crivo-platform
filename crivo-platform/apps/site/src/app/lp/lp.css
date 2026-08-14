@@ -3114,12 +3114,16 @@ button:focus-visible,
 }
 .mvv__rule { width: 30px; height: 2px; border-radius: var(--r); background: var(--terra); margin: 8px 0 12px; }
 .mvv__col p { font-size: 13.5px; line-height: 1.6; color: var(--text-dark-sec); max-width: 360px; }
-.mvv__values { display: flex; gap: 44px; margin-top: 12px; text-align: left; }
-.mvv__values ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.mvv__values li { font-size: 13.5px; color: var(--azul-profundo); display: flex; align-items: center; gap: 9px; }
+/* Os 7 valores passaram a trazer descricao (nome — definicao), entao a lista
+   deixou de ser duas colunas de palavras soltas e virou coluna unica: com texto
+   que quebra em varias linhas, o marcador alinha pelo TOPO, nao pelo meio. */
+.mvv__values { display: block; margin-top: 12px; text-align: left; }
+.mvv__values ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.mvv__values li { font-size: 13.5px; color: var(--azul-profundo); display: flex; align-items: flex-start; gap: 9px; line-height: 1.5; }
+.mvv__values li strong { font-weight: 600; }
 .mvv__values li::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--terra); flex-shrink: 0;
+  background: var(--terra); flex-shrink: 0; margin-top: 7px;
 }
 @media (max-width: 960px) {
   .qs-hero { padding-top: 0; }

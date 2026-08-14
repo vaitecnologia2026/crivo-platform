@@ -400,19 +400,17 @@ export default function LandingPage() {
                 e resultados mensuráveis.
               </p>
               <p className="qs-p">
-                Integramos método proprietário, desenvolvimento humano, dados e tecnologia para conectar{" "}
-                <strong>diagnóstico, plano de ação, evidências e sustentação da liderança</strong> em uma jornada
-                estruturada.
+                Integramos método proprietário, experiência executiva, dados e tecnologia para conectar{" "}
+                <strong>diagnóstico, prioridades, plano de ação, evidências e evolução</strong>.
               </p>
               <p className="qs-p">
-                Nossa abordagem nasce da convergência entre experiência executiva, ciência do comportamento e visão
-                organizacional. Essa base se traduz em um sistema aplicado para fortalecer{" "}
-                <strong>decisões, cultura, responsabilidades e execução</strong>.
+                Unimos experiência executiva, ciência do comportamento e visão organizacional para fortalecer{" "}
+                <strong>decisões, responsabilidades e execução</strong>.
               </p>
               <p className="qs-p">
-                Em um novo ciclo marcado por inteligência artificial, novas gerações, fatores psicossociais e maior
-                complexidade empresarial, organizamos a inteligência necessária para transformar{" "}
-                <strong>intenção em rotina, decisão em ação e evolução</strong> em <strong>legado de gestão</strong>.
+                Em um contexto marcado por inteligência artificial, novas formas de trabalho e maior complexidade,
+                ajudamos organizações a transformar{" "}
+                <strong>intenção em rotina, decisão em ação e ação em evolução mensurável</strong>.
               </p>
               <Link href="/sobre" className="btn btn--terra" style={{ marginTop: 10 }}>
                 Conheça nossa história →
@@ -470,8 +468,9 @@ export default function LandingPage() {
               <strong className="mvv__title">Visão</strong>
               <span className="mvv__rule" aria-hidden="true" />
               <p>
-                Transformar Decision Intelligence em referência nacional de liderança e gestão, impulsionando
-                organizações mais conscientes, ágeis e sustentáveis.
+                Ser referência em inteligência organizacional e desenvolvimento da liderança, integrando pessoas,
+                cultura, tecnologia e IA para elevar a qualidade das decisões, da execução e da performance com
+                responsabilidade.
               </p>
             </div>
             <div className="mvv__col mvv__col--valores">
@@ -489,15 +488,43 @@ export default function LandingPage() {
               </p>
               <div className="mvv__values">
                 <ul>
-                  <li>Clareza</li>
-                  <li>Critério</li>
-                  <li>Coragem</li>
-                  <li>Coerência</li>
-                </ul>
-                <ul>
-                  <li>Governança</li>
-                  <li>Integridade</li>
-                  <li>Responsabilidade</li>
+                  <li>
+                    <span>
+                      <strong>Clareza</strong> — tornar o complexo compreensível e o essencial visível.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Critério</strong> — decidir com evidências, experiência, contexto e visão de
+                      consequências.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Responsabilidade</strong> — assumir escolhas, compromissos, consequências e resultados.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Integridade</strong> — manter coerência entre o que defendemos, decidimos e fazemos.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Governança</strong> — criar estruturas, papéis e controles que sustentem boas decisões.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Humanidade</strong> — colocar tecnologia a serviço das pessoas, preservando julgamento,
+                      dignidade e responsabilidade humana.
+                    </span>
+                  </li>
+                  <li>
+                    <span>
+                      <strong>Evolução</strong> — aprender, medir, ajustar e melhorar continuamente.
+                    </span>
+                  </li>
                 </ul>
               </div>
             </div>
