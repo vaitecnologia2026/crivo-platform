@@ -158,6 +158,9 @@ export default function ConteudosPage() {
 
             {/* 3 — Siga a CRIVO nas redes */}
             <div className="strip-card">
+              {/* Padronizacao dos cards: este era o unico sem icone, e por isso o
+                  titulo dele nascia fora da linha dos outros tres. */}
+              <span className="strip-card__ic">{IC.balao}</span>
               <h2>Siga a CRIVO nas redes</h2>
               <p>
                 Acompanhe conteúdos, vídeos e reflexões sobre liderança, cultura, tomada de decisão e inteligência
@@ -168,7 +171,7 @@ export default function ConteudosPage() {
                   (ajustes finais §10); volta quando o canal existir. */}
               <div className="cc-social">
                 <a
-                  href="https://www.linkedin.com/company/crivolegacy/"
+                  href="https://www.linkedin.com/company/crivolegacy/about/?viewAsMember=true"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="CRIVO no LinkedIn"
@@ -213,37 +216,14 @@ export default function ConteudosPage() {
       {/* ============ EM DESENVOLVIMENTO + CTA final (tela 18) ============ */}
       <section id="em-desenvolvimento" className="section section--light">
         <div className="container">
+          {/* Podcast, Webinars, Biblioteca e Estudos/Pesquisas eram quatro
+              mini-cards com selo "Em breve". Viraram este bloco unico: enquanto
+              nenhum dos quatro existe de fato, anunciar cada um separadamente
+              promete mais do que ha. */}
           <div className="cc-dev-head">
             <h2 className="cc-dev-head__tag">Em desenvolvimento</h2>
             <span className="cc-dev-head__rule" aria-hidden="true" />
-            <p>Novos formatos e conteúdos estão sendo preparados para ampliar ainda mais a sua jornada de conhecimento.</p>
-          </div>
-
-          <div className="cc-mini-grid">
-            <div className="cc-mini-card">
-              <span className="cc-mini-card__ic">{IC.apresentacao}</span>
-              <h3>Webinars CRIVO™</h3>
-              <p>Encontros online com especialistas sobre liderança, cultura, IA e o futuro do trabalho.</p>
-              <span className="cc-mini-badge">Em breve</span>
-            </div>
-            <div className="cc-mini-card">
-              <span className="cc-mini-card__ic">{IC.microfone}</span>
-              <h3>Podcast CRIVO™</h3>
-              <p>Conversas executivas sobre decisões, comportamento humano, gestão e transformação organizacional.</p>
-              <span className="cc-mini-badge">Em breve</span>
-            </div>
-            <div className="cc-mini-card">
-              <span className="cc-mini-card__ic">{IC.documento}</span>
-              <h3>Biblioteca CRIVO™</h3>
-              <p>Guias, templates, playbooks e materiais práticos para apoiar sua gestão no dia a dia.</p>
-              <span className="cc-mini-badge">Em breve</span>
-            </div>
-            <div className="cc-mini-card">
-              <span className="cc-mini-card__ic">{IC.grafico}</span>
-              <h3>Estudos e Pesquisas</h3>
-              <p>Análises, benchmarks e relatórios especiais sobre tendências e desafios organizacionais.</p>
-              <span className="cc-mini-badge">Em breve</span>
-            </div>
+            <p>Novos conteúdos, pesquisas, encontros e formatos estão sendo preparados.</p>
           </div>
 
           {/* Rodapé da seção — banda navy (tela 18) */}
