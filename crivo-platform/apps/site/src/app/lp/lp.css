@@ -3160,3 +3160,40 @@ button:focus-visible,
   .diag-2col .diag-field--full,
   .diag-2col .diag-field--third:nth-of-type(2) { grid-column: span 6; }
 }
+
+/* IMAGEM MENOR NO CELULAR (§15 — "carregamento adequado").
+   Medido em 4G lento a 390px: 909 KB so de imagens de fundo, as cinco baixando
+   ao mesmo tempo e disputando banda — a do Hero levava 4,97s sozinha e o LCP
+   ficava em 8,0s (o limite do Google e 2,5s).
+
+   As quatro mais pesadas ganham uma versao de celular, na resolucao que o
+   aparelho realmente pinta (DPR 2, medido a 390px). A PROPORCAO de cada arquivo
+   e identica a da versao de desktop — e ela que decide o enquadramento dentro
+   do background: cover, entao o que aparece na tela nao muda.
+
+   A troca e so CSS: nenhum markup foi tocado. O seletor ancora no proprio
+   style inline que ja existe ([style*="arquivo.jpg"]), o que dispensa classe
+   nova e nao depende da ordem dos elementos. O !important e necessario e
+   suficiente: e a unica forma de um stylesheet vencer um style inline.
+
+   O navegador baixa APENAS a imagem vencedora da cascata — a de desktop nao
+   chega a ser requisitada no celular.
+
+   Ficaram de fora, de proposito, as que nao teriam ganho: em arquitetura-reuniao,
+   nr1-executivo, conteudos-laptop, fundadores e metodo-executivos a caixa do
+   celular exige quase a mesma largura (ou mais, nos casos de caixa alta com arte
+   larga), entao uma variante so acrescentaria arquivo sem economizar byte. */
+@media (max-width: 760px) {
+  .hero__bleed[style*="hero-noturno.jpg"] {
+    background-image: url("/imagens/hero-noturno-m.jpg") !important;
+  }
+  .hero__bleed[style*="hero-executivos.jpg"] {
+    background-image: url("/imagens/hero-executivos-m.jpg") !important;
+  }
+  .hero__bleed[style*="ia-boardroom.jpg"] {
+    background-image: url("/imagens/ia-boardroom-m.jpg") !important;
+  }
+  .qs-hero__bleed[style*="quem-somos-ia.jpg"] {
+    background-image: url("/imagens/quem-somos-ia-m.jpg") !important;
+  }
+}
