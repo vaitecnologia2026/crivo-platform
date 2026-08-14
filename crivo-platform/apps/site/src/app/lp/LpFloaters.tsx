@@ -25,7 +25,17 @@ export function LpFloaters() {
     // continuaria visível página adentro — o botão nunca apareceria.
     const hero = document.querySelector<HTMLElement>(".hero");
     const limite = () => (hero ? hero.offsetHeight : window.innerHeight) * 0.9;
-    const aoRolar = () => setVisivel(window.scrollY > limite());
+    // §12 — e ele tambem SOME ao chegar no rodape. No mobile o botao vira uma
+    // barra de largura total (left/right: 12px) e cobria a linha de copyright.
+    // ZONA_DO_BOTAO e a faixa que ele ocupa na base da tela (altura + respiro);
+    // quando o topo do rodape entra nessa faixa, o botao sai.
+    const ZONA_DO_BOTAO = 96;
+    const rodape = document.querySelector<HTMLElement>("footer");
+    const aoRolar = () => {
+      const passouOHero = window.scrollY > limite();
+      const topoDoRodape = rodape ? rodape.getBoundingClientRect().top : Infinity;
+      setVisivel(passouOHero && topoDoRodape > window.innerHeight - ZONA_DO_BOTAO);
+    };
     aoRolar();
     window.addEventListener("scroll", aoRolar, { passive: true });
     window.addEventListener("resize", aoRolar);
