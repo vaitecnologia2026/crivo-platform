@@ -293,3 +293,45 @@
   #portal .laptop__screen { aspect-ratio: 16 / 9; overflow: hidden; }
   #portal .pf-laptop-body { width: 800px; transform: scale(0.795); transform-origin: top left; }
 }
+
+/* MESMA PROPORCAO ENTRE 981 E 1320px.
+   A regra acima so vale de 1320px para cima; abaixo dela o notebook voltava a
+   ficar vertical — medido a 1000px: 441x662, proporcao 0,666, que le como
+   celular em pe, nao como laptop. A 1280px chegava a 581x581, quadrado.
+
+   Mesmo remedio de cima: o dashboard e renderizado na sua largura de projeto
+   (800px) e reduzido, em vez de ser espremido e reflowar. O que muda e que
+   aqui a coluna NAO tem largura fixa — o container ainda nao esta travado em
+   --maxw, entao ela cresce junto com a janela (medido: largura interna da
+   moldura = 0,5 x viewport - 79px). Uma escala unica nao serve para a faixa
+   toda, e CSS nao converte a largura do pai em fator de escala; por isso a
+   escala vai em degraus de 50px de viewport.
+
+   Cada degrau usa a escala do seu PISO, nunca do teto: assim a arte jamais
+   passa da moldura e nada e cortado. Sobra entao ate ~40px a direita — e isso
+   e invisivel porque .laptop__screen e .pf-laptop-body tem exatamente o mesmo
+   fundo (rgb(13,31,60)); le como respiro interno, nao como falha.
+
+   A escala e calculada pela ALTURA, nao pela largura. `aspect-ratio: 16/9`
+   incide sobre a borda (box-sizing: border-box) e a moldura tem 10px de borda
+   mais 10px de padding, entao a area util sobra com razao 1,851 — mais
+   achatada que o proprio dashboard, que e 800x445 (1,798). Quem aperta e a
+   altura: pela largura a arte parecia caber e vazava 3px por baixo.
+   Altura util = 0,28125 x viewport - 53,19; escala = (altura util - 3) / 445,
+   com esses 3px de folga absorvendo a diferenca de barra de rolagem entre
+   sistemas.
+
+   O grid 1fr/1fr do bloco de 981px NAO e alterado aqui de proposito: mexer na
+   divisao das colunas estreitaria a coluna de texto e mudaria a quebra do
+   titulo, que ja esta validada. */
+@media (min-width: 981px) and (max-width: 1319.98px) {
+  #portal .laptop__screen { aspect-ratio: 16 / 9; overflow: hidden; }
+  #portal .pf-laptop-body { width: 800px; transform-origin: top left; }
+}
+@media (min-width: 981px) and (max-width: 1029.98px) { #portal .pf-laptop-body { transform: scale(0.493); } }
+@media (min-width: 1030px) and (max-width: 1079.98px) { #portal .pf-laptop-body { transform: scale(0.524); } }
+@media (min-width: 1080px) and (max-width: 1129.98px) { #portal .pf-laptop-body { transform: scale(0.556); } }
+@media (min-width: 1130px) and (max-width: 1179.98px) { #portal .pf-laptop-body { transform: scale(0.587); } }
+@media (min-width: 1180px) and (max-width: 1229.98px) { #portal .pf-laptop-body { transform: scale(0.619); } }
+@media (min-width: 1230px) and (max-width: 1279.98px) { #portal .pf-laptop-body { transform: scale(0.651); } }
+@media (min-width: 1280px) and (max-width: 1319.98px) { #portal .pf-laptop-body { transform: scale(0.682); } }
