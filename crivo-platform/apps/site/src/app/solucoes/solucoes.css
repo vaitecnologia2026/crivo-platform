@@ -166,6 +166,16 @@
    em 395px numa tela de 390. Abaixo de 460px vai para uma coluna — em 461px
    as duas colunas ainda cabem com folga. */
 @media (max-width: 460px) { .sol-plus__grid { grid-template-columns: 1fr; } }
+/* Uma coluna so nao basta em telas muito estreitas: quem passa a mandar na
+   largura minima e o botao "Conversar sobre CRIVO Plus →", que tem
+   `white-space: nowrap` da regra .btn e mede 278px. Como ele e item da grade
+   externa do cartao, era ele que esticava a trilha para 278px contra os
+   216px disponiveis em 320px. Deixando o rotulo quebrar, a largura minima
+   passa a ser a da maior palavra. */
+@media (max-width: 400px) {
+  .sol-plus { padding: 26px 20px; }
+  .sol-plus .btn { white-space: normal; text-align: center; }
+}
 .sol-plus__item {
   display: flex; align-items: center; gap: 10px;
   border: 1px solid rgba(139, 175, 212, 0.24); border-radius: 12px;
