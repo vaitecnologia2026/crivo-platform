@@ -3,6 +3,7 @@ import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
+import { TrilhaSeo } from "../_site/TrilhaSeo";
 import { VerticeMark } from "../_site/VerticeMark";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
@@ -248,6 +249,9 @@ export default function ConteudosPage() {
       </section>
 
       <SiteFooter />
+
+      {/* §14 — trilha de navegação para os buscadores (BreadcrumbList). */}
+      <TrilhaSeo nome="Conteúdos" caminho="/conteudos" />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
+import { TrilhaSeo } from "../_site/TrilhaSeo";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
 import { SolucoesTabs } from "./SolucoesTabs";
@@ -188,7 +189,10 @@ export default function SolucoesPage() {
                 <span className="solu-card__icon">{IC.lupa}</span>
                 <h2>Diagnóstico CRIVO™</h2>
                 <span className="solu-card__sub">Leitura estruturada para riscos, cultura, liderança e rotina.</span>
-                <p>Base de dados, evidências e plano de ação para orientar decisões e prioridades.</p>
+                <p>
+                  Diagnóstico organizacional com base de dados, evidências e plano de ação para orientar decisões e
+                  prioridades.
+                </p>
 
                 <div className="sol-nr1">
                   <span className="sol-nr1__badge">NR-1</span>
@@ -631,6 +635,9 @@ export default function SolucoesPage() {
       </section>
 
       <SiteFooter />
+
+      {/* §14 — trilha de navegação para os buscadores (BreadcrumbList). */}
+      <TrilhaSeo nome="Soluções" caminho="/solucoes" />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
+import { TrilhaSeo } from "../_site/TrilhaSeo";
 import { IC } from "../_site/icons";
 import "../lp/lp.css";
 import "./sobre.css";
@@ -307,6 +308,9 @@ export default function SobrePage() {
       </section>
 
       <SiteFooter />
+
+      {/* §14 — trilha de navegação para os buscadores (BreadcrumbList). */}
+      <TrilhaSeo nome="Sobre" caminho="/sobre" />
     </>
   );
 }

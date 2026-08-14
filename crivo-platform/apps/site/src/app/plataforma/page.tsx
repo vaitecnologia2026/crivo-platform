@@ -3,6 +3,7 @@ import { paginaSeo } from "../_site/seo";
 import { LpEffects } from "../lp/LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
+import { TrilhaSeo } from "../_site/TrilhaSeo";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
 import "../lp/lp.css";
@@ -73,8 +74,8 @@ export default function PlataformaPage() {
             </h1>
             <span className="rule-terra" aria-hidden="true" />
             <p className="hero__sub">
-              Informação estratégica para decisões mais rápidas, prioridades claras, plano de ação acompanhado e
-              resultados sustentáveis.
+              Workforce Intelligence aplicada à gestão: informação estratégica para decisões mais rápidas, prioridades
+              claras, plano de ação acompanhado e resultados sustentáveis.
             </p>
           </div>
 
@@ -410,6 +411,9 @@ export default function PlataformaPage() {
       </section>
 
       <SiteFooter />
+
+      {/* §14 — trilha de navegação para os buscadores (BreadcrumbList). */}
+      <TrilhaSeo nome="Plataforma" caminho="/plataforma" />
     </>
   );
 }
