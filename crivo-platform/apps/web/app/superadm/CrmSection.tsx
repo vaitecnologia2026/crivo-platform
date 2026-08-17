@@ -37,41 +37,40 @@ import { ContractModal } from "./ContractModal";
 const brlCents = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-// Board no modelo do cliente (mockup 14/07): 8 colunas da captação ao onboarding.
-// PERDIDO sai do board (painel "Motivos de perda"); etapas pós-onboarding
-// (implantação → upsell) aparecem dobradas na coluna Onboarding.
+// Board em 6 colunas (análise 17/08). É agrupamento de VISUALIZAÇÃO: as 15 etapas
+// continuam existindo no banco, nos relatórios e no seletor "Mover etapa" — só
+// deixam de ocupar uma coluna cada. PERDIDO segue fora do board (painel "Motivos
+// de perda") e as etapas pós-onboarding (implantação → upsell) seguem dobradas.
+type ColAction = { label: string; next?: PlatformLeadStage; kind?: "contato" | "habilitar" | "onboarding" };
 type BoardCol = {
   key: string;
   label: string;
+  /** O que precisa ser verdade para o card estar aqui — tira a dúvida de onde ele deveria estar. */
+  criteria: string;
   stages: PlatformLeadStage[];
-  pill: { label: string; tone: "lav" | "green" | "blue" | "gray" };
+  /** Só onde acrescenta algo que o título da coluna já não diz. */
+  pill?: { label: string; tone: "lav" | "green" | "blue" | "gray" };
   /** Ação primária do card: avança para `next` (ou ação especial via `kind`). */
-  action: { label: string; next?: PlatformLeadStage; kind?: "contato" | "habilitar" | "onboarding" };
+  action: ColAction;
+  /** Coluna que junta etapas: cada etapa mantém a SUA ação, para que a fusão não
+   *  apague nenhuma transição de um clique. Sem entrada aqui, vale `action`. */
+  stageActions?: Partial<Record<PlatformLeadStage, ColAction>>;
 };
 const COLUMNS: BoardCol[] = [
-  { key: "captacao", label: "Captação", stages: ["NOVO"],
+  { key: "novos", label: "Novos", criteria: "Chegou e ninguém falou ainda", stages: ["NOVO"],
     pill: { label: "Sem 1º contato", tone: "lav" },
     action: { label: "Marcar 1º contato", kind: "contato", next: "OPORTUNIDADE" } },
-  { key: "qualificacao", label: "Qualificação", stages: ["OPORTUNIDADE"],
-    pill: { label: "Lead qualificado", tone: "green" },
-    action: { label: "Agendar pré-diagnóstico", next: "PRE_DIAGNOSTICO" } },
-  { key: "prediag", label: "Pré-diagnóstico", stages: ["PRE_DIAGNOSTICO", "REUNIAO"],
-    pill: { label: "Reunião marcada", tone: "lav" },
+  { key: "contato", label: "Em contato", criteria: "Já conversamos, faz sentido", stages: ["OPORTUNIDADE"],
+    action: { label: "Agendar diagnóstico", next: "PRE_DIAGNOSTICO" } },
+  { key: "diagnostico", label: "Diagnóstico", criteria: "Reunião ou pré-diagnóstico em curso", stages: ["PRE_DIAGNOSTICO", "REUNIAO"],
     action: { label: "Enviar proposta", next: "PROPOSTA" } },
-  { key: "proposta", label: "Proposta", stages: ["PROPOSTA"],
-    pill: { label: "Proposta enviada", tone: "lav" },
-    action: { label: "Iniciar negociação", next: "NEGOCIACAO" } },
-  { key: "negociacao", label: "Negociação", stages: ["NEGOCIACAO"],
-    pill: { label: "Em negociação", tone: "blue" },
-    action: { label: "Registrar fechamento", next: "FECHADO" } },
-  { key: "fechamento", label: "Fechamento", stages: ["FECHADO"],
-    pill: { label: "Assinado", tone: "green" },
-    action: { label: "Gerar contrato rascunho", next: "CONTRATO" } },
-  { key: "contrato", label: "Contrato rascunho", stages: ["CONTRATO"],
-    pill: { label: "Contrato rascunho", tone: "gray" },
-    action: { label: "Enviar assinatura", kind: "habilitar", next: "ONBOARDING" } },
-  { key: "onboarding", label: "Onboarding", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"],
-    pill: { label: "Em onboarding", tone: "blue" },
+  { key: "proposta", label: "Proposta", criteria: "Proposta na mesa, em negociação", stages: ["PROPOSTA", "NEGOCIACAO"],
+    action: { label: "Registrar fechamento", next: "FECHADO" },
+    stageActions: { PROPOSTA: { label: "Iniciar negociação", next: "NEGOCIACAO" } } },
+  { key: "fechado", label: "Fechado", criteria: "Assinou; contrato sendo preparado", stages: ["FECHADO", "CONTRATO"],
+    action: { label: "Gerar contrato rascunho", next: "CONTRATO" },
+    stageActions: { CONTRATO: { label: "Enviar assinatura", kind: "habilitar", next: "ONBOARDING" } } },
+  { key: "ativo", label: "Cliente ativo", criteria: "Sistema liberado, em implantação", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"],
     action: { label: "Ver onboarding", kind: "onboarding" } },
 ];
 const ALL_STAGES: PlatformLeadStage[] = [...COLUMNS.flatMap((c) => c.stages), "PERDIDO"];
@@ -91,6 +90,33 @@ function dropStage(lead: PlatformLeadSummary, col: BoardCol): PlatformLeadStage 
   const target = col.stages[0];
   if (lead.convertedTenantId && PRE_FECHAMENTO.includes(target)) return null;
   return target;
+}
+
+/** Quem cuida e o tamanho da empresa numa linha só, por extenso: "Resp." e
+ *  "Func." abreviados não se leem de primeira por quem chegou agora. */
+function quemEQuantos(lead: PlatformLeadSummary): string {
+  const quem = lead.commercialOwner?.trim() || "Sem responsável";
+  return lead.employeesCount ? `${quem} · ${lead.employeesCount} funcionários` : quem;
+}
+
+/** Dias desde a última movimentação do lead.
+ *  ATENÇÃO ao rótulo: é "sem movimentação" (qualquer alteração no lead), NÃO
+ *  "parado nesta etapa" — o lead guarda `updatedAt`, não a data de entrada na
+ *  etapa. Chamar de outra coisa seria mentir com o dado que existe hoje. */
+function diasSemMovimento(lead: PlatformLeadSummary): number {
+  const ms = Date.now() - new Date(lead.updatedAt).getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+const AGE_ATENCAO = 7;
+const AGE_CRITICO = 21;
+function ageTone(dias: number): "ok" | "warn" | "bad" {
+  if (dias >= AGE_CRITICO) return "bad";
+  if (dias >= AGE_ATENCAO) return "warn";
+  return "ok";
+}
+function ageLabel(dias: number): string {
+  if (dias === 0) return "Movimentado hoje";
+  return dias === 1 ? "1 dia sem movimentação" : `${dias} dias sem movimentação`;
 }
 
 const EDITOR_LABEL: CSSProperties = { fontSize: 10.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-sec)", marginTop: 6 };
@@ -502,7 +528,7 @@ export function CrmSection() {
       if (l.archivedAt) continue; // jornada concluída — fora do kanban (call 14/07)
       if (l.stage === "PERDIDO") { lost.push(l); continue; }
       const col = COLUMNS.find((c) => c.stages.includes(l.stage));
-      map.get(col?.key ?? "captacao")?.push(l);
+      map.get(col?.key ?? "novos")?.push(l);
     }
     map.set("__perdidos", lost);
     return map;
@@ -512,14 +538,20 @@ export function CrmSection() {
   const arquivados = (leads ?? []).filter((l) => l.archivedAt).length;
   const abertos = (leads ?? []).filter((l) => l.stage !== "PERDIDO" && !l.archivedAt);
   const total = abertos.length;
-  const reunioes = (byColumn.get("prediag") ?? []).length;
+  const reunioes = (byColumn.get("diagnostico") ?? []).length;
   const preDiags = abertos.filter((l) => l.diagnosticScore != null).length;
   const semContato = abertos.filter((l) => !l.firstContactedAt && !l.convertedTenantId).length;
   const GANHO: PlatformLeadStage[] = ["FECHADO", "CONTRATO", "ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"];
-  const ganhos = abertos.filter((l) => GANHO.includes(l.stage) || l.convertedTenantId);
   const todosLeads = leads ?? [];
-  const conv = todosLeads.length ? Math.round((ganhos.length / todosLeads.length) * 100) : 0;
-  const comValor = (ganhos.length ? ganhos : abertos).filter((l) => (l.proposedValueCents ?? 0) > 0);
+  // Ganhos contando TAMBÉM as jornadas já concluídas (arquivadas). Antes o
+  // numerador saía de `abertos` e o denominador incluía os arquivados: concluir
+  // um cliente ganho o tirava de cima e o mantinha embaixo, então a taxa CAÍA
+  // justamente quando a venda dava certo. Mesma conta do "Conversão por origem".
+  const ganhosTodos = todosLeads.filter((l) => GANHO.includes(l.stage) || l.convertedTenantId);
+  const conv = todosLeads.length ? Math.round((ganhosTodos.length / todosLeads.length) * 100) : 0;
+  // Ticket médio dos GANHOS. Sem nenhum ganho com valor mostra "—": cair para a
+  // média dos leads em aberto trocava o significado do número sem trocar o rótulo.
+  const comValor = ganhosTodos.filter((l) => (l.proposedValueCents ?? 0) > 0);
   const ticket = comValor.length
     ? brlCents(Math.round(comValor.reduce((s, l) => s + (l.proposedValueCents ?? 0), 0) / comValor.length))
     : "—";
@@ -553,6 +585,7 @@ export function CrmSection() {
 
   const [resetting, setResetting] = useState(false);
   const [deduping, setDeduping] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false); // revela o botão destrutivo
   async function onDedup() {
     if (
       !window.confirm(
@@ -603,9 +636,21 @@ export function CrmSection() {
           <button className="btn btn--ghost btn--sm" onClick={onDedup} disabled={deduping}>
             {deduping ? "Limpando…" : "Limpar duplicados"}
           </button>
-          <button className="btn btn--ghost btn--sm is-danger" onClick={onResetData} disabled={resetting}>
-            {resetting ? "Zerando…" : "Zerar base (admin)"}
+          {/* "Zerar base" apaga clientes, leads e diagnósticos. Sai de lado a lado
+              com uma ação de rotina e passa a exigir abrir "Administração" antes —
+              a confirmação por digitação continua exatamente como estava. */}
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => setShowAdmin((v) => !v)}
+            aria-expanded={showAdmin}
+          >
+            {showAdmin ? "Ocultar administração" : "Administração"}
           </button>
+          {showAdmin && (
+            <button className="btn btn--ghost btn--sm is-danger" onClick={onResetData} disabled={resetting}>
+              {resetting ? "Zerando…" : "Zerar base (admin)"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -658,28 +703,35 @@ export function CrmSection() {
                     <span>{col.label}</span>
                     <em>{items.length}</em>
                   </div>
+                  {/* Critério de entrada: o que precisa ser verdade para o card estar aqui. */}
+                  <p className="crm-col__crit">{col.criteria}</p>
                   {items.map((l) => {
                     const contatoFeito = !!l.firstContactedAt;
                     const pill =
-                      col.key === "captacao" && contatoFeito
+                      col.key === "novos" && contatoFeito
                         ? { label: "Contato feito", tone: "green" as const }
                         : col.pill;
+                    // Coluna que junta etapas usa a ação da etapa REAL do lead: sem
+                    // isto a fusão apagaria transições de um clique (Proposta →
+                    // Negociação, Fechado → Contrato rascunho).
+                    const act = col.stageActions?.[l.stage] ?? col.action;
                     // Ação primária da coluna (rótulo/comportamento por etapa).
-                    let actionLabel = col.action.label;
+                    let actionLabel = act.label;
                     let onAction: () => void = () => {};
-                    if (col.action.kind === "contato") {
+                    if (act.kind === "contato") {
                       if (!contatoFeito) onAction = () => markContact(l.id);
                       else { actionLabel = "Qualificar lead"; onAction = () => move(l.id, "OPORTUNIDADE"); }
-                    } else if (col.action.kind === "habilitar") {
+                    } else if (act.kind === "habilitar") {
                       if (l.convertedTenantId) onAction = () => openContract(l.convertedTenantId!);
-                      else { actionLabel = "Habilitar cliente (sistema)"; onAction = () => setConverting(l); }
-                    } else if (col.action.kind === "onboarding") {
+                      else { actionLabel = "Liberar acesso do cliente"; onAction = () => setConverting(l); }
+                    } else if (act.kind === "onboarding") {
                       if (l.convertedTenantId) onAction = () => openContract(l.convertedTenantId!);
-                      else { actionLabel = "Habilitar cliente (sistema)"; onAction = () => setConverting(l); }
-                    } else if (col.action.next) {
-                      const n = col.action.next;
+                      else { actionLabel = "Liberar acesso do cliente"; onAction = () => setConverting(l); }
+                    } else if (act.next) {
+                      const n = act.next;
                       onAction = () => move(l.id, n);
                     }
+                    const dias = diasSemMovimento(l);
                     const expanded = expandedId === l.id;
                     return (
                       <article
@@ -710,20 +762,13 @@ export function CrmSection() {
                             </svg>
                           </button>
                         </div>
-                        <span className="crm-chip">Origem: {platformLeadOriginLabel(l.origin)}</span>
-                        <div className="crm-rows">
-                          <div className="crm-row">
-                            <span>Func.</span>
-                            <b>{l.employeesCount ?? "—"}</b>
-                          </div>
-                          <div className="crm-row">
-                            <span>Resp.</span>
-                            <b>{l.commercialOwner ?? "—"}</b>
-                          </div>
-                        </div>
-                        <span className={`crm-pill crm-pill--${pill.tone}`}>{pill.label}</span>
+                        {/* Uma linha por extenso no lugar de duas abreviações. A origem
+                            continua no painel do card (⋮), onde também se edita. */}
+                        <p className="crm-who">{quemEQuantos(l)}</p>
+                        <p className={`crm-age crm-age--${ageTone(dias)}`}>{ageLabel(dias)}</p>
+                        {pill && <span className={`crm-pill crm-pill--${pill.tone}`}>{pill.label}</span>}
                         <p className="crm-next">
-                          <b>Próxima:</b>{" "}
+                          <b>Próximo passo:</b>{" "}
                           {l.nextActionNote
                             ? `${l.nextActionNote}${l.nextActionAt ? ` · ${new Date(l.nextActionAt).toLocaleDateString("pt-BR")}` : ""}`
                             : l.nextActionAt
@@ -732,13 +777,13 @@ export function CrmSection() {
                         </p>
                         <button
                           type="button"
-                          className={`crm-btn${col.key === "qualificacao" ? " crm-btn--dark" : ""}`}
+                          className={`crm-btn${col.key === "contato" ? " crm-btn--dark" : ""}`}
                           disabled={busyId === l.id}
                           onClick={onAction}
                         >
                           {actionLabel}
                         </button>
-                        {col.key === "onboarding" && (
+                        {col.key === "ativo" && (
                           <button
                             type="button"
                             className="crm-btn"
@@ -768,7 +813,7 @@ export function CrmSection() {
                                 Contrato da empresa
                               </button>
                             )}
-                            {!contatoFeito && col.key !== "captacao" && (
+                            {!contatoFeito && col.key !== "novos" && (
                               <button type="button" className="kb-report" disabled={busyId === l.id} onClick={() => markContact(l.id)}>
                                 Marcar 1º contato
                               </button>

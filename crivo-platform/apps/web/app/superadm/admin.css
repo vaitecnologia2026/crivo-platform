@@ -404,15 +404,17 @@
 }
 .adm .pu-temp code { font-family: var(--font-mono, monospace); font-weight: 700; color: var(--gold-deep); }
 
-/* — CRM · Funil (mockup do cliente 14/07): 8 colunas, cards compactos,
-   painéis Conversão por origem / Motivos de perda e rodapé de regras. — */
+/* — CRM · Funil (mockup do cliente 14/07; reagrupado para 6 colunas em 17/08):
+   cards compactos, painéis Conversão por origem / Motivos de perda e rodapé de
+   regras. Com 6 colunas o board cabe inteiro na tela — com 8 (≈1650px de largura
+   mínima) as duas últimas ficavam fora em notebook de 1366/1440px. — */
 .adm .crm-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 1280px) { .adm .crm-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .adm .crm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .adm .crm-board {
   display: grid;
-  grid-template-columns: repeat(8, minmax(196px, 1fr));
+  grid-template-columns: repeat(6, minmax(196px, 1fr));
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 8px;
@@ -488,6 +490,34 @@
   border-radius: 999px;
   padding: 3px 10px;
 }
+/* Critério de entrada da coluna — o que precisa ser verdade para o card estar ali. */
+.adm .crm-col__crit {
+  margin: -6px 0 0;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-sec);
+}
+/* Responsável + porte, por extenso, no lugar de "Resp."/"Func." abreviados. */
+.adm .crm-who {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-sec);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Tempo sem movimentação: o card "envelhece" e pede atenção sozinho. */
+.adm .crm-age {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(13, 31, 60, 0.07);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.adm .crm-age--ok { font-weight: 500; color: var(--text-sec); }
+.adm .crm-age--warn { color: var(--gold-deep); }
+.adm .crm-age--bad { color: var(--danger, #b4432f); }
 .adm .crm-rows { display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid rgba(13, 31, 60, 0.07); padding-bottom: 8px; }
 .adm .crm-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; }
 .adm .crm-row span { color: var(--text-sec); }
@@ -586,7 +616,7 @@
 .adm .crm-rules p { margin: 0; font-size: 12.5px; color: var(--text-sec); line-height: 1.55; }
 
 @media (max-width: 1100px) {
-  .adm .crm-board { grid-template-columns: repeat(8, 216px); }
+  .adm .crm-board { grid-template-columns: repeat(6, 216px); }
 }
 
 /* — Soluções CRIVO (mockup do cliente 14/07): cards empilhados de largura total. — */
