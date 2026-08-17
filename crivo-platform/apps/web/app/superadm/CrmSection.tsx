@@ -76,6 +76,23 @@ const COLUMNS: BoardCol[] = [
 ];
 const ALL_STAGES: PlatformLeadStage[] = [...COLUMNS.flatMap((c) => c.stages), "PERDIDO"];
 
+/** Etapas anteriores ao Fechamento. Lead já convertido (sistema liberado) não
+ *  regride para elas — regra que já valia no select "Mover etapa"; virou
+ *  constante para o arraste obedecer EXATAMENTE a mesma, sem duplicar a lista. */
+const PRE_FECHAMENTO: PlatformLeadStage[] = ["NOVO", "OPORTUNIDADE", "PRE_DIAGNOSTICO", "REUNIAO", "PROPOSTA", "NEGOCIACAO"];
+
+/** Etapa de destino ao soltar um card numa coluna — ou `null` quando o arraste
+ *  não deve mudar nada. Uma coluna dobra várias etapas (Pré-diagnóstico =
+ *  PRE_DIAGNOSTICO+REUNIAO; Onboarding = 6): se o lead JÁ está numa delas,
+ *  soltar ali não move, senão largar de volta rebaixaria REUNIAO para
+ *  PRE_DIAGNOSTICO. Convertido não volta para antes do Fechamento. */
+function dropStage(lead: PlatformLeadSummary, col: BoardCol): PlatformLeadStage | null {
+  if (col.stages.includes(lead.stage)) return null;
+  const target = col.stages[0];
+  if (lead.convertedTenantId && PRE_FECHAMENTO.includes(target)) return null;
+  return target;
+}
+
 const EDITOR_LABEL: CSSProperties = { fontSize: 10.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-sec)", marginTop: 6 };
 
 /** Bloco de edição comercial do lead (Tela 02): origem/canal, solução de interesse e
@@ -286,6 +303,8 @@ export function CrmSection() {
   const [products, setProducts] = useState<ProductSummary[]>([]); // catálogo p/ "solução de interesse"
   const [tenants, setTenants] = useState<TenantSummary[]>([]); // p/ abrir o contrato da empresa
   const [contractTenant, setContractTenant] = useState<TenantSummary | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null); // card sendo arrastado
+  const [overCol, setOverCol] = useState<string | null>(null); // coluna sob o cursor
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -357,6 +376,54 @@ export function CrmSection() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  /** Arraste do card entre as colunas — HTML5 nativo, sem biblioteca nova.
+   *  Só monta o transporte; quem move o lead continua sendo o `move()` acima,
+   *  o mesmo do select "Mover etapa" (otimista, com recarga se o PATCH falhar). */
+  function onCardDragStart(e: React.DragEvent, lead: PlatformLeadSummary) {
+    // Começar o arraste em cima de um controle roubaria o clique dele.
+    if ((e.target as HTMLElement).closest("input, textarea, select, button, a")) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData("text/plain", lead.id);
+    e.dataTransfer.effectAllowed = "move";
+    setDragId(lead.id);
+  }
+
+  function onCardDragEnd() {
+    setDragId(null);
+    setOverCol(null);
+  }
+
+  /** Sinaliza a coluna que aceita o card. Sem `preventDefault` o navegador não
+   *  deixa soltar — é assim que a coluna que não mudaria nada recusa o drop. */
+  function onColDragOver(e: React.DragEvent, col: BoardCol) {
+    const lead = (leads ?? []).find((l) => l.id === dragId);
+    if (!lead || dropStage(lead, col) == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (overCol !== col.key) setOverCol(col.key);
+  }
+
+  function onColDragLeave(e: React.DragEvent, col: BoardCol) {
+    // `dragleave` também dispara ao passar de um card para outro DENTRO da
+    // coluna; só apaga o destaque quando o cursor sai mesmo da coluna.
+    const to = e.relatedTarget as Node | null;
+    if (to && e.currentTarget.contains(to)) return;
+    setOverCol((k) => (k === col.key ? null : k));
+  }
+
+  function onColDrop(e: React.DragEvent, col: BoardCol) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain") || dragId;
+    setDragId(null);
+    setOverCol(null);
+    const lead = (leads ?? []).find((l) => l.id === id);
+    if (!lead) return;
+    const stage = dropStage(lead, col);
+    if (stage) void move(lead.id, stage);
   }
 
   // Catálogo de soluções (para "solução de interesse") — todas as cadastradas,
@@ -580,7 +647,13 @@ export function CrmSection() {
             {COLUMNS.map((col) => {
               const items = byColumn.get(col.key) ?? [];
               return (
-                <div className="crm-col" key={col.key}>
+                <div
+                  className={`crm-col${overCol === col.key ? " crm-col--over" : ""}`}
+                  key={col.key}
+                  onDragOver={(e) => onColDragOver(e, col)}
+                  onDragLeave={(e) => onColDragLeave(e, col)}
+                  onDrop={(e) => onColDrop(e, col)}
+                >
                   <div className="crm-col__head">
                     <span>{col.label}</span>
                     <em>{items.length}</em>
@@ -609,7 +682,18 @@ export function CrmSection() {
                     }
                     const expanded = expandedId === l.id;
                     return (
-                      <article key={l.id} className="crm-card" style={{ opacity: busyId === l.id ? 0.55 : 1 }}>
+                      <article
+                        key={l.id}
+                        className={`crm-card${dragId === l.id ? " crm-card--dragging" : ""}`}
+                        style={{ opacity: busyId === l.id ? 0.55 : dragId === l.id ? 0.5 : 1 }}
+                        /* Card aberto NÃO arrasta: o editor comercial tem campos de
+                           texto, e um ancestral arrastável atrapalharia a seleção
+                           dentro deles. Fecha o card (botão ⋮) e ele volta a arrastar. */
+                        draggable={busyId !== l.id && !expanded}
+                        onDragStart={(e) => onCardDragStart(e, l)}
+                        onDragEnd={onCardDragEnd}
+                        title={expanded ? undefined : "Arraste o card para mover o lead de etapa"}
+                      >
                         <div className="crm-card__top">
                           <strong className="crm-card__name" title={l.company || l.name}>
                             {l.company || l.name}
@@ -699,7 +783,7 @@ export function CrmSection() {
                             >
                               {/* Convertido não regride para antes do Fechamento (o sistema já foi liberado). */}
                               {ALL_STAGES.filter((s) => s !== "PERDIDO")
-                                .filter((s) => !l.convertedTenantId || !["NOVO", "OPORTUNIDADE", "PRE_DIAGNOSTICO", "REUNIAO", "PROPOSTA", "NEGOCIACAO"].includes(s))
+                                .filter((s) => !l.convertedTenantId || !PRE_FECHAMENTO.includes(s))
                                 .map((s) => (
                                   <option key={s} value={s}>{PLATFORM_LEAD_STAGE_LABEL[s]}</option>
                                 ))}

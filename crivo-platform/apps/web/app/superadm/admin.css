@@ -523,6 +523,24 @@
 .adm .crm-btn--dark:hover { background: #13294d; border-color: #13294d; }
 .adm .crm-more { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
 
+/* — Arraste do card entre as colunas do funil. O card fechado inteiro é a alça
+     (`draggable`); o card aberto não arrasta, para não atrapalhar os campos do
+     editor comercial. Os controles mantêm o cursor próprio deles. — */
+.adm .crm-card[draggable="true"] { cursor: grab; }
+.adm .crm-card[draggable="true"]:active { cursor: grabbing; }
+.adm .crm-card[draggable="true"] input,
+.adm .crm-card[draggable="true"] textarea { cursor: auto; }
+.adm .crm-card[draggable="true"] select { cursor: pointer; }
+.adm .crm-card--dragging {
+  border-color: rgba(13, 31, 60, 0.28);
+  box-shadow: 0 6px 16px rgba(13, 31, 60, 0.12);
+}
+.adm .crm-col--over {
+  background: rgba(13, 31, 60, 0.085);
+  outline: 2px dashed rgba(13, 31, 60, 0.3);
+  outline-offset: -2px;
+}
+
 .adm .crm-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
