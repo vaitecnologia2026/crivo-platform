@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { classifyTechnicalRisk, RISK_LEVELS_3, type RiskLevel3 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import {
@@ -18,6 +19,20 @@ export type EngineConfigInput = {
   defaultRounding?: number;
   defaultMinValidCompletionPercent?: number;
 };
+
+/**
+ * Classificação técnica do fator a partir do que a empresa informou. MESMA
+ * regra do Portal (`RiskCell` em PlanoAcaoScreen) e do dossiê (doc 09 §6):
+ * matriz 3x3 Probabilidade × Severidade. Null quando a empresa ainda não
+ * preencheu os dois eixos — nesse caso quem vale é o `riskLevel` legado.
+ */
+function derivedRisk(severity: string | null, probability: string | null): string | null {
+  const sev = severity as RiskLevel3 | null;
+  const prob = probability as RiskLevel3 | null;
+  if (!sev || !prob) return null;
+  if (!RISK_LEVELS_3.includes(sev) || !RISK_LEVELS_3.includes(prob)) return null;
+  return classifyTechnicalRisk(prob, sev);
+}
 
 /**
  * Motores CRIVO (Configuração do Motor — mockup do cliente 14/07). Visão de
@@ -123,10 +138,17 @@ export class EngineService {
       orderBy: { createdAt: 'desc' },
       include: {
         org: { select: { name: true } },
-        plan: { select: { title: true, source: true, validatedAt: true } },
+        plan: { select: { title: true, source: true, validatedAt: true, validatedBy: true } },
         evidences: { select: { id: true, status: true } },
         // A4 — proveniência estruturada (nome do diagnóstico do Motor).
         sourceInstrument: { select: { slug: true, name: true } },
+        // F2 — trilha de alteração POR AÇÃO: a última mexida do cliente no
+        // portal. É o "o que o cliente está fazendo" em forma de evento.
+        history: {
+          orderBy: { at: 'desc' },
+          take: 1,
+          select: { change: true, changedBy: true, at: true },
+        },
       },
       take: 500,
     });
@@ -135,6 +157,7 @@ export class EngineService {
       const evCount = i.evidences.length;
       const overdue =
         i.dueDate != null && i.dueDate.getTime() < now && i.status !== 'CONCLUIDA';
+      const last = i.history[0] ?? null;
       return {
         id: i.id,
         action: i.action,
@@ -151,6 +174,29 @@ export class EngineService {
         evidenceCount: evCount,
         riskLevel: i.riskLevel,
         overdue,
+        // ── O que o CLIENTE preenche no Portal e até aqui não chegava ──
+        // O plano: o título que ele deu e se já validou (minuta × documento
+        // final). `validatedAt` já vinha no include e era descartado no map.
+        planTitle: i.plan?.title ?? null,
+        planValidatedAt: i.plan?.validatedAt ? i.plan.validatedAt.toISOString() : null,
+        planValidatedBy: i.plan?.validatedBy ?? null,
+        // Matriz de risco do dossiê (doc 09 §6): severidade e probabilidade são
+        // as ENTRADAS que o cliente informa; a classificação técnica é DERIVADA
+        // pela mesma matriz 3x3 que o Portal usa — nunca digitada. `riskLevel`
+        // acima segue como valor legado/manual dos registros antigos.
+        severity: i.severity,
+        probability: i.probability,
+        riskDerived: derivedRisk(i.severity, i.probability),
+        // Inventário de fatores e campos F2 informados pela empresa.
+        exposedGroup: i.exposedGroup,
+        areaProcess: i.areaProcess,
+        existingMeasure: i.existingMeasure,
+        indicator: i.indicator,
+        reviewDate: i.reviewDate ? i.reviewDate.toISOString() : null,
+        updatedAt: i.updatedAt.toISOString(),
+        lastChange: last
+          ? { change: last.change, changedBy: last.changedBy, at: last.at.toISOString() }
+          : null,
       };
     });
     if (filters.status) rows = rows.filter((r) => r.status === filters.status);
@@ -172,6 +218,64 @@ export class EngineService {
       semEvidencia: rows.filter((r) => r.evidenceCount === 0).length,
     };
     return { stats, rows };
+  }
+
+  /**
+   * O que o CLIENTE registra no Portal do Cliente e que não é uma ação — e por
+   * isso não aparecia em lugar nenhum do Motor de Evolução, que só listava
+   * `action_items`:
+   *
+   *  - **Ciclos de diagnóstico** (`CyclesCard` do Portal): a aplicação formal
+   *    que ele abre e encerra. O encerramento CONGELA os fatores do plano e é
+   *    o que habilita o comparativo do Relatório de Evolução (TPL-003) — logo,
+   *    saber quem abriu/encerrou e quando é governança do Motor de Evolução.
+   *  - **Comunicação e devolutiva** (`DevolutivaCard` do Portal, TPL-002 §10):
+   *    quando e como a empresa comunicou resultados e medidas aos
+   *    trabalhadores. É obrigação da empresa e prova de conformidade.
+   *
+   * Leitura cross-tenant do owner, como o resto desta classe (SuperAdminGuard).
+   */
+  async listClientActivity() {
+    const [cycles, devolutivas] = await Promise.all([
+      // rls-allow: governança cross-tenant do super admin (owner-only).
+      this.prisma.admin.diagnosticCycle.findMany({
+        orderBy: { openedAt: 'desc' },
+        take: 200,
+        include: { org: { select: { name: true } } },
+      }),
+      // rls-allow: governança cross-tenant do super admin (owner-only).
+      this.prisma.admin.devolutivaRecord.findMany({
+        orderBy: { date: 'desc' },
+        take: 200,
+        include: { org: { select: { name: true } } },
+      }),
+    ]);
+    return {
+      cycles: cycles.map((c) => ({
+        id: c.id,
+        tenantName: c.org.name,
+        label: c.label,
+        status: c.status,
+        openedAt: c.openedAt.toISOString(),
+        openedBy: c.openedBy,
+        closedAt: c.closedAt ? c.closedAt.toISOString() : null,
+        closedBy: c.closedBy,
+        method: c.method,
+        methodologyVersion: c.methodologyVersion,
+      })),
+      devolutivas: devolutivas.map((d) => ({
+        id: d.id,
+        tenantName: d.org.name,
+        date: d.date.toISOString(),
+        format: d.format,
+        audience: d.audience,
+        topics: d.topics,
+        confirmedPoints: d.confirmedPoints,
+        communicatedMeasures: d.communicatedMeasures,
+        createdBy: d.createdBy,
+        createdAt: d.createdAt.toISOString(),
+      })),
+    };
   }
 
   /** Evidências: governança cross-tenant (aprovar/rejeitar/substituir). */

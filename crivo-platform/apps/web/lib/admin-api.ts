@@ -1111,6 +1111,24 @@ export interface EngineActionRow {
   evidenceCount: number;
   riskLevel: string | null;
   overdue: boolean;
+  // ── O que o CLIENTE preenche no Portal (antes não chegava ao Motor) ──
+  /** Título do plano e estado da validação: minuta × documento final. */
+  planTitle: string | null;
+  planValidatedAt: string | null;
+  planValidatedBy: string | null;
+  /** Entradas da matriz de risco informadas pela empresa (Baixa|Moderada|Alta). */
+  severity: string | null;
+  probability: string | null;
+  /** Classificação técnica DERIVADA da matriz 3x3 (null sem os dois eixos). */
+  riskDerived: string | null;
+  exposedGroup: string | null;
+  areaProcess: string | null;
+  existingMeasure: string | null;
+  indicator: string | null;
+  reviewDate: string | null;
+  updatedAt: string;
+  /** Última alteração registrada na trilha da ação (F2). */
+  lastChange: { change: string; changedBy: string | null; at: string } | null;
 }
 export function listEngineActions(params: { status?: string; withoutEvidence?: boolean; q?: string } = {}): Promise<{
   stats: { total: number; emAndamento: number; emRevisao: number; atrasadas: number; semEvidencia: number };
@@ -1123,6 +1141,40 @@ export function listEngineActions(params: { status?: string; withoutEvidence?: b
   const suffix = qs.toString() ? `?${qs}` : "";
   return adminFetch(`/admin/engine/actions${suffix}`);
 }
+/** Ciclo de diagnóstico aberto/encerrado pelo cliente no Portal. */
+export interface EngineCycleRow {
+  id: string;
+  tenantName: string;
+  label: string;
+  status: string; // ABERTO | ENCERRADO
+  openedAt: string;
+  openedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  method: string | null;
+  methodologyVersion: string | null;
+}
+/** Comunicação e devolutiva registrada pelo cliente no Portal (TPL-002 §10). */
+export interface EngineDevolutivaRow {
+  id: string;
+  tenantName: string;
+  date: string;
+  format: string;
+  audience: string | null;
+  topics: string | null;
+  confirmedPoints: string | null;
+  communicatedMeasures: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+/** O que o cliente registra no Portal e não é ação (ciclos e devolutivas). */
+export function listEngineClientActivity(): Promise<{
+  cycles: EngineCycleRow[];
+  devolutivas: EngineDevolutivaRow[];
+}> {
+  return adminFetch("/admin/engine/client-activity");
+}
+
 export interface EngineEvidenceRow {
   id: string;
   kind: string;

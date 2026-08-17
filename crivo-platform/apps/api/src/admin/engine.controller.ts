@@ -73,6 +73,12 @@ export class EngineController {
     return this.engine.listActions({ status, withoutEvidence: withoutEvidence === '1', q });
   }
 
+  /** O que o cliente registra no Portal e não é ação: ciclos e devolutivas. */
+  @Get('client-activity')
+  clientActivity() {
+    return this.engine.listClientActivity();
+  }
+
   @Get('evidences')
   evidences(@Query('status') status?: string, @Query('kind') kind?: string) {
     return this.engine.listEvidences({ status, kind });
