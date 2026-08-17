@@ -214,20 +214,24 @@ export class PlatformLeadsService {
       diagnosticScore: result.score,
       diagnosticResult: result as unknown as object,
     };
-    // Dedup por CNPJ: se já existe um lead ABERTO com o mesmo CNPJ, atualiza-o em
-    // vez de criar outro card (evita a empresa repetida no funil). Mantém o estágio.
-    const dup = await this.findOpenLeadByCnpj(cnpjLimpo);
-    const lead = dup
-      ? await this.prisma.admin.platformLead.update({
-          where: { id: dup.id },
-          data: {
-            ...base,
-            email: base.email ?? dup.email,
-            phone: base.phone ?? dup.phone,
-            company: base.company ?? dup.company,
-          },
-        })
-      : await this.prisma.admin.platformLead.create({ data: { ...base, stage: 'NOVO' } });
+    // CADA resposta do MAPA Executivo cria um card NOVO, sempre em "Novos"
+    // (decisão do cliente em 17/08/2026).
+    //
+    // Antes havia dedup por CNPJ aqui: existindo um lead ABERTO com o mesmo CNPJ,
+    // a resposta ATUALIZAVA aquele card e MANTINHA o estágio dele. A empresa não
+    // se repetia no funil, mas quem respondia o MAPA de novo não aparecia como
+    // lead novo — o card seguia na coluna em que já estava, e quem olhava "Novos"
+    // concluía que o cadastro não tinha entrado.
+    //
+    // Consequência assumida: a mesma empresa pode ocupar mais de um card. A
+    // limpeza continua no botão "Limpar duplicados", no topo do CRM — Funil, que
+    // mantém o lead mais avançado de cada CNPJ.
+    //
+    // `findOpenLeadByCnpj` NÃO foi removido: segue servindo o cadastro por CNPJ
+    // do Dashboard (`createFromCnpj`), que não foi tocado.
+    const lead = await this.prisma.admin.platformLead.create({
+      data: { ...base, stage: 'NOVO' },
+    });
 
     await this.audit.record({
       action: 'lead.intake',
