@@ -1148,7 +1148,11 @@ function ConvertModal({
               )}
               <div style={{ marginTop: 12 }}>
                 <button className="btn btn--terra btn--sm" onClick={sendAccessEmail} disabled={access.sending}>
-                  {access.sending ? "Enviando…" : "Enviar acesso por e-mail"}
+                  {/* O rótulo diz o que o botão FAZ: ele gera uma senha nova e
+                      invalida a que está à vista. Chamado só de "Enviar acesso",
+                      levava a copiar a senha da conversão e clicar em seguida —
+                      e a senha copiada morria sem ninguém perceber. */}
+                  {access.sending ? "Enviando…" : "Gerar nova senha e enviar por e-mail"}
                 </button>
                 {access.sent === true && (
                   <p className="convert-warn" style={{ color: "#1d9e75" }}>
@@ -1157,11 +1161,16 @@ function ConvertModal({
                 )}
                 {access.sent === false && access.reason === "email-not-configured" && (
                   <p className="convert-warn">
-                    E-mail ainda não configurado — acesso preparado. Copie a senha acima e envie manualmente.
+                    E-mail ainda não configurado — nada foi enviado, mas a <strong>senha foi
+                    trocada</strong>. Use a que está acima e envie manualmente: a anterior deixou de
+                    valer.
                   </p>
                 )}
                 {access.sent === false && access.reason && access.reason !== "email-not-configured" && (
-                  <p className="convert-warn">Não foi possível enviar agora. Copie a senha acima.</p>
+                  <p className="convert-warn">
+                    Não foi possível enviar agora, mas a <strong>senha foi trocada</strong>. Use a que
+                    está acima: a anterior deixou de valer.
+                  </p>
                 )}
               </div>
             </div>
