@@ -23,6 +23,7 @@ Referência de nomes: [`../.env.example`](../.env.example) (monorepo) e
 | `WEB_URL` / `PORTAL_URL` | sim | CORS e links de e-mail apontam para o lugar errado |
 | `FCM_SERVICE_ACCOUNT_PATH` | não | push vira no-op silencioso (loga WARN) |
 | `SITE_NOTIFY_SECRET` | **recomendada** | ⚠️ **a validação é pulada inteira**: `POST /notifications/site-event/:key` fica aberto e qualquer um dispara push, com título e corpo escolhidos por quem chama |
+| `SMTP_HOST/PORT/SECURE/USER/PASS/FROM` | **sim** | **nenhum e-mail sai da API** — falha silenciosa: o "Gerar nova senha e enviar por e-mail" **troca a senha do cliente e não entrega a ninguém**, e o Relatório Preliminar não chega. É o **mesmo bloco do `lp.env`** (conta `financeiro@crivolegacy.com.br`, a que já envia o e-book) |
 | `EBOOK_URL` | não | usa `https://crivolegacy.com.br/ebook-crivo.pdf` (o fallback já é o domínio vivo) |
 | `OPENAI_API_KEY` | não | a chave de IA fica **no banco**, pela UI do super admin — não aqui |
 
