@@ -1799,10 +1799,61 @@ export const ESSENTIAL_RECORD_LABEL: Record<EssentialRecordKind, string> = {
   OBSERVACAO: 'Observação / análise da atividade',
 };
 
+/**
+ * Resultado da autoavaliação do portal. SUPERSET de PreDiagnosticResult: quando
+ * existe metodologia ATIVA do Diagnóstico Executivo (PRE_DIAGNOSTIC) — a que o
+ * Super Admin cadastra no Motor —, quem pontua é ela, e aí os slugs de dimensão
+ * e os códigos de faixa deixam de ser os 5 fixos do hardcode. Por isso
+ * `byDimension` é Record<string, number> e os rótulos vêm junto. Sem versão
+ * ativa, o fallback embutido devolve exatamente os campos antigos (todo
+ * PreDiagnosticResult continua sendo um SelfAssessmentResult válido).
+ */
+export interface SelfAssessmentResult {
+  score: number;
+  /** Código da faixa: MaturityLevel no fallback, código da metodologia ativa. */
+  level: string;
+  /** Rótulo da faixa publicada (ausente no fallback — use MATURITY_LABEL). */
+  levelLabel?: string;
+  byDimension: Record<string, number>;
+  /** slug → rótulo da dimensão da versão que pontuou (ausente no fallback). */
+  dimensionLabels?: Record<string, string>;
+  topAttention: string;
+  topAttentions?: string[];
+  /** MET1 — versão da metodologia que pontuou; null = fallback hardcoded. */
+  methodologyVersionId?: string | null;
+}
+
 export interface SelfAssessmentData {
   id: string;
   score: number;
-  result: PreDiagnosticResult;
+  result: SelfAssessmentResult;
+  createdAt: string;
+}
+
+/** Perguntas + escala da autoavaliação, como cadastradas no Motor. */
+export interface SelfAssessmentInstrument {
+  questions: { id: number; dimension: string; text: string }[];
+  /** Os 5 rótulos da escala publicada (ou o padrão, no fallback). */
+  scaleLabels: string[];
+  /** De onde vieram: metodologia ATIVA do Motor ou o padrão embutido. */
+  source: 'methodology' | 'default';
+}
+
+/**
+ * Diagnóstico do catálogo APLICADO a uma empresa (motor dinâmico): é o que o
+ * Super Admin cadastra em Metodologia → Aplicação ("Gerar link de aplicação").
+ */
+export interface AppliedDiagnosticData {
+  id: string;
+  /** Slug do link público — a empresa aplica em /d/<slug>. */
+  slug: string;
+  instrumentSlug: string;
+  name: string;
+  description: string | null;
+  bandKind: 'MATURITY' | 'RISK';
+  /** false = link revogado pela CRIVO (segue visível, mas não abre). */
+  active: boolean;
+  respondents: number;
   createdAt: string;
 }
 

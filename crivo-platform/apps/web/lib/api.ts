@@ -3,6 +3,7 @@
 import type {
   ActionItemData,
   ActionPlanData,
+  AppliedDiagnosticData,
   CampaignSummary,
   CopilotoAskRequest,
   CopilotoAskResponse,
@@ -38,6 +39,7 @@ import type {
   OrganizationData,
   UpdateOrganizationRequest,
   SelfAssessmentData,
+  SelfAssessmentInstrument,
   SubmitSelfAssessmentRequest,
   TenantBrandingData,
   TermsStatus,
@@ -510,6 +512,20 @@ export function askCopiloto(dto: CopilotoAskRequest): Promise<CopilotoAskRespons
 }
 
 // ── Diagnóstico Essencial (Briefing §5) ──
+
+/**
+ * Perguntas e escala da autoavaliação vindas do MOTOR (metodologia ATIVA do
+ * Diagnóstico Executivo). Antes a tela montava as 10 perguntas fixas do
+ * `@crivo/types`, então o que o Super Admin cadastrava não chegava ao cliente.
+ * Sem versão publicada o backend devolve o padrão embutido (`source:'default'`).
+ */
+export function getSelfAssessmentInstrument(): Promise<SelfAssessmentInstrument> {
+  return apiFetch<SelfAssessmentInstrument>('/essencial/instrument');
+}
+/** Diagnósticos do catálogo aplicados a esta empresa (links /d/<slug>). */
+export function listAppliedDiagnostics(): Promise<AppliedDiagnosticData[]> {
+  return apiFetch<AppliedDiagnosticData[]>('/essencial/diagnostics');
+}
 
 export function getSelfAssessment(): Promise<SelfAssessmentData | null> {
   return apiFetch<SelfAssessmentData | null>('/essencial/self-assessment');

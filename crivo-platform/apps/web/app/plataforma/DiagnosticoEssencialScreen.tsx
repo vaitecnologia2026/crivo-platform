@@ -5,12 +5,14 @@ import {
   ESSENTIAL_RECORD_LABEL,
   MATURITY_LABEL,
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
-  PRE_DIAGNOSTIC_DIMENSIONS,
-  PRE_DIAGNOSTIC_QUESTIONS,
-  PRE_DIAGNOSTIC_SCALE,
+  type AppliedDiagnosticData,
   type EssentialRecordData,
   type EssentialRecordKind,
+  type MaturityLevel,
+  type PreDiagnosticDimension,
   type SelfAssessmentData,
+  type SelfAssessmentInstrument,
+  type SelfAssessmentResult,
 } from "@crivo/types";
 import { publicOrigin } from "@/lib/share-url";
 import {
@@ -19,6 +21,8 @@ import {
   getDiagnosticContext,
   getPsychosocialLink,
   getSelfAssessment,
+  getSelfAssessmentInstrument,
+  listAppliedDiagnostics,
   listEssentialRecords,
   submitSelfAssessment,
 } from "@/lib/api";
@@ -86,6 +90,12 @@ export function DiagnosticoEssencialScreen() {
               empresa — mesma tabela, mesmo agregado, sem caminho paralelo. */}
           <EscutaDosEmpregados />
 
+          {/* O Super Admin cadastra diagnósticos no Motor e os APLICA à empresa
+              (Metodologia → Aplicação, "Gerar link de aplicação"). Essa lista só
+              existia no painel dele: no portal do cliente não havia nada, então
+              o diagnóstico cadastrado para a empresa não aparecia para ela. */}
+          <DiagnosticosAplicados />
+
           <RecordsBlock records={records} onChanged={refresh} />
 
           <p className="dash-state" style={{ marginTop: 8 }}>
@@ -97,19 +107,43 @@ export function DiagnosticoEssencialScreen() {
   );
 }
 
+/**
+ * Rótulo da dimensão: o da VERSÃO que pontuou (metodologia ativa do Motor) e,
+ * se ela não veio — resultados gravados antes deste ajuste —, o rótulo do padrão
+ * embutido. Último recurso: o próprio slug, para nunca renderizar vazio.
+ */
+function dimLabelOf(r: SelfAssessmentResult, slug: string): string {
+  return (
+    r.dimensionLabels?.[slug] ??
+    PRE_DIAGNOSTIC_DIMENSION_LABEL[slug as PreDiagnosticDimension] ??
+    slug
+  );
+}
+
+/** Rótulo da faixa: o publicado na metodologia; senão o do padrão embutido. */
+function levelLabelOf(r: SelfAssessmentResult): string {
+  return r.levelLabel ?? MATURITY_LABEL[r.level as MaturityLevel] ?? r.level;
+}
+
 function AssessmentResult({ a, onRedo }: { a: SelfAssessmentData; onRedo: () => void }) {
+  const attentions = a.result.topAttentions ?? [a.result.topAttention];
+  // As dimensões vêm do RESULTADO, não de uma lista fixa: com metodologia ativa
+  // os slugs são os que o Motor publicou (podem não ser 5, nem os mesmos nomes).
+  const dims = Object.keys(a.result.byDimension ?? {});
   return (
     <div>
       <div className="kpi-grid" style={{ marginBottom: 14 }}>
         <div className="kpi">
           <span className="kpi__label">Maturidade geral</span>
-          <strong className="kpi__value">{a.score}</strong>
-          <span className="kpi__delta">{MATURITY_LABEL[a.result.level]}</span>
+          {/* result.score guarda a precisão da versão (o motor v3.1 pode usar 1
+              casa); a coluna `score` é inteira e serve de rede se faltar. */}
+          <strong className="kpi__value">{a.result.score ?? a.score}</strong>
+          <span className="kpi__delta">{levelLabelOf(a.result)}</span>
         </div>
         <div className="kpi">
           <span className="kpi__label">Ponto de atenção</span>
           <strong className="kpi__value" style={{ fontSize: 18, fontFamily: "var(--font-display)" }}>
-            {(a.result.topAttentions ?? [a.result.topAttention]).map((d) => PRE_DIAGNOSTIC_DIMENSION_LABEL[d]).join(" · ")}
+            {attentions.map((d) => dimLabelOf(a.result, d)).join(" · ")}
           </strong>
           <span className="kpi__delta">menor maturidade</span>
         </div>
@@ -117,9 +151,9 @@ function AssessmentResult({ a, onRedo }: { a: SelfAssessmentData; onRedo: () => 
       <table className="data-table">
         <thead><tr><th>Dimensão</th><th>Maturidade</th></tr></thead>
         <tbody>
-          {PRE_DIAGNOSTIC_DIMENSIONS.map((d) => (
+          {dims.map((d) => (
             <tr key={d}>
-              <td>{PRE_DIAGNOSTIC_DIMENSION_LABEL[d]}{(a.result.topAttentions ?? [a.result.topAttention]).includes(d) && <span className="card__sub"> · atenção</span>}</td>
+              <td>{dimLabelOf(a.result, d)}{attentions.includes(d) && <span className="card__sub"> · atenção</span>}</td>
               <td><strong>{a.result.byDimension[d]}</strong></td>
             </tr>
           ))}
@@ -130,37 +164,62 @@ function AssessmentResult({ a, onRedo }: { a: SelfAssessmentData; onRedo: () => 
   );
 }
 
+/**
+ * Perguntas e escala vêm do MOTOR (metodologia ativa do Diagnóstico Executivo),
+ * não mais das constantes fixas do `@crivo/types`. Era exatamente aqui que o
+ * diagnóstico cadastrado deixava de aparecer para o cliente: a LP, o psicossocial
+ * e o dossiê já liam a versão publicada e só esta tela seguia com o hardcode.
+ * O fallback ao padrão embutido é feito no backend, então o contrato é um só.
+ */
 function AssessmentForm({ onDone }: { onDone: () => void }) {
+  const [instrument, setInstrument] = useState<SelfAssessmentInstrument | null>(null);
+  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
-  const total = PRE_DIAGNOSTIC_QUESTIONS.length;
-  const done = Object.keys(answers).length === total;
+
+  useEffect(() => {
+    let alive = true;
+    getSelfAssessmentInstrument()
+      .then((i) => { if (alive) { setInstrument(i); setStatus("ok"); } })
+      .catch(() => { if (alive) setStatus("error"); });
+    return () => { alive = false; };
+  }, []);
+
+  const questions = instrument?.questions ?? [];
+  const scale = instrument?.scaleLabels ?? [];
+  const total = questions.length;
+  const answered = questions.filter((q) => answers[q.id]).length;
+  const done = total > 0 && answered === total;
 
   async function submit() {
     setSaving(true);
     try {
-      await submitSelfAssessment({ answers: PRE_DIAGNOSTIC_QUESTIONS.map((q) => ({ questionId: q.id, value: answers[q.id] })) });
+      await submitSelfAssessment({ answers: questions.map((q) => ({ questionId: q.id, value: answers[q.id] })) });
       await onDone();
     } catch (e) { alert(e instanceof Error ? e.message : "Falha"); } finally { setSaving(false); }
   }
 
+  if (status === "loading") return <p className="card__sub">Carregando o instrumento…</p>;
+  if (status === "error")
+    return <p className="dash-state dash-state--error">Não foi possível carregar as perguntas do diagnóstico.</p>;
+
   return (
     <div>
-      <ScaleHelpBox scale={PRE_DIAGNOSTIC_SCALE} />
+      <ScaleHelpBox scale={scale.map((label, i) => ({ value: i + 1, label }))} />
       <ol className="essencial-q">
-        {PRE_DIAGNOSTIC_QUESTIONS.map((q) => (
+        {questions.map((q) => (
           <li key={q.id}>
             <p>{q.text}</p>
             <div className="essencial-scale">
-              {PRE_DIAGNOSTIC_SCALE.map((opt) => (
+              {scale.map((label, i) => (
                 <button
-                  key={opt.value}
+                  key={i + 1}
                   type="button"
-                  title={opt.label}
-                  className={`essencial-opt${answers[q.id] === opt.value ? " is-sel" : ""}`}
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt.value }))}
+                  title={label}
+                  className={`essencial-opt${answers[q.id] === i + 1 ? " is-sel" : ""}`}
+                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: i + 1 }))}
                 >
-                  {opt.value}
+                  {i + 1}
                 </button>
               ))}
             </div>
@@ -168,7 +227,7 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
         ))}
       </ol>
       <button className="btn btn--terra btn--sm" disabled={!done || saving} onClick={submit}>
-        {saving ? "Salvando…" : done ? "Concluir autoavaliação" : `Responda todas (${Object.keys(answers).length}/${total})`}
+        {saving ? "Salvando…" : done ? "Concluir autoavaliação" : `Responda todas (${answered}/${total})`}
       </button>
     </div>
   );
@@ -259,6 +318,88 @@ function EscutaDosEmpregados() {
         </a>
         .
       </p>
+    </div>
+  );
+}
+
+/**
+ * Diagnósticos do catálogo que a CRIVO cadastrou no Motor e APLICOU a esta
+ * empresa (Metodologia → Aplicação). Cada um tem o seu link público /d/<slug>,
+ * o mesmo que o Super Admin copia — uma fonte só, sem caminho paralelo. Link
+ * revogado continua listado (o histórico de respostas é dele), mas sem botões.
+ */
+function DiagnosticosAplicados() {
+  const [items, setItems] = useState<AppliedDiagnosticData[] | null>(null);
+  const [erro, setErro] = useState(false);
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    listAppliedDiagnostics()
+      .then((r) => { if (alive) setItems(r); })
+      .catch(() => { if (alive) { setItems([]); setErro(true); } });
+    return () => { alive = false; };
+  }, []);
+
+  const urlOf = (slug: string) => `${publicOrigin()}/d/${slug}`;
+
+  function copiar(d: AppliedDiagnosticData) {
+    navigator.clipboard?.writeText(urlOf(d.slug)).then(() => {
+      setCopiado(d.id);
+      setTimeout(() => setCopiado((c) => (c === d.id ? null : c)), 1800);
+    });
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card__head">
+        <div>
+          {/* Sem número: os blocos numerados são os passos da jornada validada
+              (1. autoavaliação · 2. escuta) e a numeração deles não se mexe. */}
+          <h3>Diagnósticos aplicados pela CRIVO</h3>
+          <span className="card__sub">
+            Instrumentos do Motor CRIVO liberados para a sua empresa. Cada um tem um link anônimo
+            próprio — as respostas entram no agregado da empresa (visível a partir de 5 respostas).
+          </span>
+        </div>
+      </div>
+      {items === null ? (
+        <p className="card__sub">Carregando…</p>
+      ) : erro ? (
+        <p className="dash-state dash-state--error">Não foi possível carregar os diagnósticos aplicados.</p>
+      ) : items.length === 0 ? (
+        <p className="card__sub">
+          Nenhum diagnóstico do catálogo liberado até agora. A autoavaliação e a escuta acima seguem
+          disponíveis; novos instrumentos aparecem aqui assim que a CRIVO os aplicar à sua empresa.
+        </p>
+      ) : (
+        <ul className="lib-list">
+          {items.map((d) => (
+            <li key={d.id} className="lib-row">
+              <span className="lib-ic">✦</span>
+              <div>
+                <strong>{d.name}</strong>
+                <span>
+                  {d.description ? `${d.description} · ` : ""}
+                  {d.bandKind === "RISK" ? "régua de risco" : "régua de maturidade"} ·{" "}
+                  {d.respondents} resposta(s)
+                  {!d.active && " · link revogado pela CRIVO"}
+                </span>
+              </div>
+              {d.active && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button className="btn btn--gold btn--sm" onClick={() => copiar(d)}>
+                    {copiado === d.id ? "Copiado" : "Copiar link"}
+                  </button>
+                  <a className="btn btn--ghost btn--sm" href={urlOf(d.slug)} target="_blank" rel="noreferrer">
+                    Abrir
+                  </a>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

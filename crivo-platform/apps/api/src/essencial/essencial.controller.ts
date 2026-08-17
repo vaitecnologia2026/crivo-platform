@@ -17,6 +17,18 @@ import { CreateEssentialRecordDto, SubmitSelfAssessmentDto } from './dto';
 export class EssencialController {
   constructor(private readonly svc: EssencialService) {}
 
+  /** Perguntas + escala da autoavaliação, como cadastradas no Motor. */
+  @Get('instrument')
+  instrument() {
+    return this.svc.getInstrument();
+  }
+
+  /** Diagnósticos do catálogo que a CRIVO aplicou a esta empresa (/d/<slug>). */
+  @Get('diagnostics')
+  diagnostics(@CurrentUser() user: SessionUser) {
+    return this.svc.listAppliedDiagnostics(user.tenantId);
+  }
+
   @Get('self-assessment')
   latest(@CurrentUser() user: SessionUser) {
     return this.svc.latestSelfAssessment(user.tenantId);
