@@ -414,7 +414,12 @@
 
 .adm .crm-board {
   display: grid;
-  grid-template-columns: repeat(6, minmax(196px, 1fr));
+  /* 172px é o mínimo que faz as 6 colunas caberem numa janela de 1440px
+     (1440 − menu lateral − respiro = ~1097px úteis; 1097 − 5×12 de gap = 1037,
+     dividido por 6 = 172,8). Com 196px o board ainda estourava 11px e rolava de
+     lado. O `1fr` continua mandando quando há espaço: em tela larga as colunas
+     voltam a ter a mesma largura de antes. */
+  grid-template-columns: repeat(6, minmax(172px, 1fr));
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 8px;
@@ -552,6 +557,36 @@
 .adm .crm-btn--dark { background: var(--navy, #0d1f3c); border-color: var(--navy, #0d1f3c); color: #fff; }
 .adm .crm-btn--dark:hover { background: #13294d; border-color: #13294d; }
 .adm .crm-more { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
+
+/* Atalho de preenchimento: o que falta no card vira convite, não travessão. */
+.adm .crm-btn--quick {
+  border-style: dashed;
+  background: transparent;
+  color: var(--gold-deep);
+}
+.adm .crm-btn--quick:hover { background: rgba(138, 109, 31, 0.06); border-color: var(--gold-deep); }
+.adm .crm-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+
+/* Atalho de preenchimento: o que falta no card vira convite, não travessão. */
+.adm .crm-btn--quick {
+  border-style: dashed;
+  background: transparent;
+  color: var(--gold-deep);
+}
+.adm .crm-btn--quick:hover { background: rgba(138, 109, 31, 0.06); border-color: var(--gold-deep); }
+.adm .crm-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
 
 /* — Arraste do card entre as colunas do funil. O card fechado inteiro é a alça
      (`draggable`); o card aberto não arrasta, para não atrapalhar os campos do

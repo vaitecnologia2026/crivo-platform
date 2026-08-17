@@ -50,6 +50,12 @@ type BoardCol = {
   stages: PlatformLeadStage[];
   /** Só onde acrescenta algo que o título da coluna já não diz. */
   pill?: { label: string; tone: "lav" | "green" | "blue" | "gray" };
+  /** Coluna onde o relógio COMERCIAL não corre (pós-venda): o tempo continua
+   *  escrito no card, mas nunca em âmbar/vermelho. Um cliente já implantado, em
+   *  sustentação, não tem toque comercial a cada três semanas — deixá-lo alarmar
+   *  pintaria a coluna inteira de vermelho e o alerta perderia o sentido nas
+   *  colunas onde ele estava certo. */
+  semAlerta?: boolean;
   /** Ação primária do card: avança para `next` (ou ação especial via `kind`). */
   action: ColAction;
   /** Coluna que junta etapas: cada etapa mantém a SUA ação, para que a fusão não
@@ -68,9 +74,11 @@ const COLUMNS: BoardCol[] = [
     action: { label: "Registrar fechamento", next: "FECHADO" },
     stageActions: { PROPOSTA: { label: "Iniciar negociação", next: "NEGOCIACAO" } } },
   { key: "fechado", label: "Fechado", criteria: "Assinou; contrato sendo preparado", stages: ["FECHADO", "CONTRATO"],
+    semAlerta: true,
     action: { label: "Gerar contrato rascunho", next: "CONTRATO" },
     stageActions: { CONTRATO: { label: "Enviar assinatura", kind: "habilitar", next: "ONBOARDING" } } },
   { key: "ativo", label: "Cliente ativo", criteria: "Sistema liberado, em implantação", stages: ["ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"],
+    semAlerta: true,
     action: { label: "Ver onboarding", kind: "onboarding" } },
 ];
 const ALL_STAGES: PlatformLeadStage[] = [...COLUMNS.flatMap((c) => c.stages), "PERDIDO"];
@@ -317,6 +325,96 @@ function LeadEditor({
   );
 }
 
+/**
+ * Preenchimento rápido no próprio card: dono e próximo passo — os dois campos
+ * que TODO lead recém-chegado não tem, porque chega pela landing page sem dono
+ * e sem próxima ação definida. Antes, preencher os dois exigia abrir o ⋮ e
+ * encarar 10 campos e 13 caixas de seleção.
+ *
+ * Não há endpoint novo: usa os MESMOS `setLeadCommercial` e `setLeadNextAction`
+ * do editor comercial completo, que continua inteiro no ⋮.
+ *
+ * A data vem junto por necessidade, não por escolha: o backend faz `?? null` nos
+ * dois campos da próxima ação, então salvar só a nota APAGARIA a data já gravada.
+ */
+function QuickFill({
+  lead,
+  busy,
+  onOwner,
+  onNextAction,
+  onClose,
+}: {
+  lead: PlatformLeadSummary;
+  busy: boolean;
+  onOwner: (v: string) => void | Promise<void>;
+  onNextAction: (at: string, note: string) => void | Promise<void>;
+  onClose: () => void;
+}) {
+  const atInicial = lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "";
+  const [owner, setOwner] = useState(lead.commercialOwner ?? "");
+  const [note, setNote] = useState(lead.nextActionNote ?? "");
+  const [at, setAt] = useState(atInicial);
+
+  const ownerChanged = owner !== (lead.commercialOwner ?? "");
+  const naChanged = note !== (lead.nextActionNote ?? "") || at !== atInicial;
+
+  async function salvar() {
+    // Só grava o que mudou — o editor completo continua dono do resto.
+    if (ownerChanged) await onOwner(owner);
+    if (naChanged) await onNextAction(at, note);
+    onClose();
+  }
+
+  return (
+    <div className="crm-quick">
+      <span style={EDITOR_LABEL}>Responsável</span>
+      <input
+        type="text"
+        className="kb-stage-select"
+        value={owner}
+        maxLength={120}
+        disabled={busy}
+        placeholder="Quem cuida deste lead"
+        onChange={(e) => setOwner(e.target.value)}
+        aria-label="Responsável comercial"
+      />
+      <span style={EDITOR_LABEL}>Próximo passo</span>
+      <input
+        type="text"
+        className="kb-stage-select"
+        value={note}
+        maxLength={240}
+        disabled={busy}
+        placeholder="O que fazer (ex.: ligar)"
+        onChange={(e) => setNote(e.target.value)}
+        aria-label="O que fazer na próxima ação"
+      />
+      <span style={EDITOR_LABEL}>Quando</span>
+      <input
+        type="date"
+        className="kb-stage-select"
+        value={at}
+        disabled={busy}
+        onChange={(e) => setAt(e.target.value)}
+        aria-label="Data da próxima ação"
+      />
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <button type="button" className="crm-btn" onClick={onClose} disabled={busy}>
+          Cancelar
+        </button>
+        <button
+          type="button"
+          className="crm-btn crm-btn--dark"
+          onClick={salvar}
+          disabled={busy || (!ownerChanged && !naChanged)}
+        >
+          Salvar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** CRM do Super Admin — funil comercial da CRIVO (leads da LP + manuais). */
 export function CrmSection() {
   const [leads, setLeads] = useState<PlatformLeadSummary[] | null>(null);
@@ -329,6 +427,7 @@ export function CrmSection() {
   const [products, setProducts] = useState<ProductSummary[]>([]); // catálogo p/ "solução de interesse"
   const [tenants, setTenants] = useState<TenantSummary[]>([]); // p/ abrir o contrato da empresa
   const [contractTenant, setContractTenant] = useState<TenantSummary | null>(null);
+  const [quickId, setQuickId] = useState<string | null>(null); // card no preenchimento rápido
   const [dragId, setDragId] = useState<string | null>(null); // card sendo arrastado
   const [overCol, setOverCol] = useState<string | null>(null); // coluna sob o cursor
 
@@ -667,11 +766,14 @@ export function CrmSection() {
               <strong className="kpi__value">{total}</strong>
             </div>
             <div className="kpi">
-              <span className="kpi__label">Reuniões agendadas</span>
+              {/* Conta o tamanho da coluna Diagnóstico, não reuniões marcadas. */}
+              <span className="kpi__label">Em diagnóstico</span>
               <strong className="kpi__value">{reunioes}</strong>
             </div>
             <div className="kpi">
-              <span className="kpi__label">Pré-diagnósticos</span>
+              {/* Quem TEM nota de diagnóstico — diferente de estar NA etapa
+                  Diagnóstico. Os dois números conviviam com nomes parecidos. */}
+              <span className="kpi__label">Leads com diagnóstico feito</span>
               <strong className="kpi__value">{preDiags}</strong>
             </div>
             <div className="kpi">
@@ -732,19 +834,24 @@ export function CrmSection() {
                       onAction = () => move(l.id, n);
                     }
                     const dias = diasSemMovimento(l);
+                    // Colunas de pós-venda mantêm o texto e perdem o alarme.
+                    const tomIdade = col.semAlerta ? "ok" : ageTone(dias);
+                    const faltaDono = !l.commercialOwner?.trim();
+                    const faltaProximo = !l.nextActionNote?.trim() && !l.nextActionAt;
                     const expanded = expandedId === l.id;
                     return (
                       <article
                         key={l.id}
                         className={`crm-card${dragId === l.id ? " crm-card--dragging" : ""}`}
                         style={{ opacity: busyId === l.id ? 0.55 : dragId === l.id ? 0.5 : 1 }}
-                        /* Card aberto NÃO arrasta: o editor comercial tem campos de
-                           texto, e um ancestral arrastável atrapalharia a seleção
-                           dentro deles. Fecha o card (botão ⋮) e ele volta a arrastar. */
-                        draggable={busyId !== l.id && !expanded}
+                        /* Card com formulário aberto NÃO arrasta — vale tanto para o
+                           editor comercial (⋮) quanto para o preenchimento rápido: os
+                           dois têm campos de texto, e um ancestral arrastável
+                           atrapalharia a seleção dentro deles. Fechar devolve o arraste. */
+                        draggable={busyId !== l.id && !expanded && quickId !== l.id}
                         onDragStart={(e) => onCardDragStart(e, l)}
                         onDragEnd={onCardDragEnd}
-                        title={expanded ? undefined : "Arraste o card para mover o lead de etapa"}
+                        title={expanded || quickId === l.id ? undefined : "Arraste o card para mover o lead de etapa"}
                       >
                         <div className="crm-card__top">
                           <strong className="crm-card__name" title={l.company || l.name}>
@@ -765,7 +872,7 @@ export function CrmSection() {
                         {/* Uma linha por extenso no lugar de duas abreviações. A origem
                             continua no painel do card (⋮), onde também se edita. */}
                         <p className="crm-who">{quemEQuantos(l)}</p>
-                        <p className={`crm-age crm-age--${ageTone(dias)}`}>{ageLabel(dias)}</p>
+                        <p className={`crm-age crm-age--${tomIdade}`}>{ageLabel(dias)}</p>
                         {pill && <span className={`crm-pill crm-pill--${pill.tone}`}>{pill.label}</span>}
                         <p className="crm-next">
                           <b>Próximo passo:</b>{" "}
@@ -783,6 +890,26 @@ export function CrmSection() {
                         >
                           {actionLabel}
                         </button>
+                        {/* Atalho: o que falta vira botão, em vez de virar traço. */}
+                        {(faltaDono || faltaProximo) && !expanded && quickId !== l.id && (
+                          <button
+                            type="button"
+                            className="crm-btn crm-btn--quick"
+                            disabled={busyId === l.id}
+                            onClick={() => setQuickId(l.id)}
+                          >
+                            + definir {faltaDono && faltaProximo ? "dono e próximo passo" : faltaDono ? "dono" : "próximo passo"}
+                          </button>
+                        )}
+                        {quickId === l.id && (
+                          <QuickFill
+                            lead={l}
+                            busy={busyId === l.id}
+                            onOwner={(v) => saveCommercial(l.id, { commercialOwner: v })}
+                            onNextAction={(at, note) => saveNextAction(l.id, at, note)}
+                            onClose={() => setQuickId(null)}
+                          />
+                        )}
                         {col.key === "ativo" && (
                           <button
                             type="button"
