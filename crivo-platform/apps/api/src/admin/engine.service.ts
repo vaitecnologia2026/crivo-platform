@@ -284,7 +284,12 @@ export class EngineService {
       orderBy: { createdAt: 'desc' },
       include: {
         org: { select: { name: true } },
-        item: { select: { action: true } },
+        // `plan` junto: a evidência é comprovação de uma ação, e a ação vive num
+        // plano. Sem o plano, a CRIVO vê a ação solta e não sabe de qual
+        // Plano de Evolução ela veio. NÃO inclui `file` — os bytes só saem no
+        // download, senão a listagem carregaria todos os anexos de todos os
+        // clientes numa resposta só.
+        item: { select: { action: true, plan: { select: { title: true } } } },
       },
       take: 500,
     });
@@ -300,6 +305,17 @@ export class EngineService {
       createdAt: e.createdAt.toISOString(),
       reviewedAt: e.reviewedAt ? e.reviewedAt.toISOString() : null,
       hasFile: !!e.fileName,
+      // ── O CONTEÚDO que o cliente enviou pelo Portal ──
+      // Sem isto a tela de governança pedia para APROVAR ou REJEITAR uma
+      // evidência que o Super Admin não tinha como abrir: só via o título.
+      itemId: e.itemId,
+      planTitle: e.item?.plan?.title ?? null,
+      url: e.url,
+      note: e.note,
+      fileName: e.fileName,
+      fileMime: e.fileMime,
+      fileSize: e.fileSize,
+      reviewedBy: e.reviewedBy,
     }));
     if (filters.status) rows = rows.filter((r) => r.status === filters.status);
     if (filters.kind) rows = rows.filter((r) => r.kind === filters.kind);
@@ -310,6 +326,31 @@ export class EngineService {
       rejeitadas: rows.filter((r) => r.status === 'REJEITADA').length,
     };
     return { stats, rows };
+  }
+
+  /**
+   * Bytes do arquivo de uma evidência para o SUPER ADMIN. O download que já
+   * existia (`/action-plans/evidences/:id/file`) é escopado pelo tenant do
+   * usuário logado no Portal — o Super Admin não tem tenant, então não havia
+   * nenhum caminho para ele abrir o anexo. Resultado: a tela de Evidências
+   * oferecia Aprovar / Rejeitar / Substituir sobre um arquivo que ele não
+   * conseguia ver. Espelha `ActionPlansService.getEvidenceFile`, trocando a RLS
+   * pela leitura de owner (a rota é @UseGuards(SuperAdminGuard)).
+   */
+  async getEvidenceFile(
+    evidenceId: string,
+  ): Promise<{ fileName: string; fileMime: string; data: Buffer }> {
+    // rls-allow: governança cross-tenant do super admin (owner-only).
+    const ev = await this.prisma.admin.evidence.findUnique({
+      where: { id: evidenceId },
+      include: { file: true },
+    });
+    if (!ev || !ev.file) throw new NotFoundException('Arquivo não encontrado.');
+    return {
+      fileName: ev.fileName ?? 'evidencia',
+      fileMime: ev.fileMime ?? 'application/octet-stream',
+      data: Buffer.from(ev.file.data),
+    };
   }
 
   /** Aprova / rejeita (com motivo) / marca como substituída uma evidência. */

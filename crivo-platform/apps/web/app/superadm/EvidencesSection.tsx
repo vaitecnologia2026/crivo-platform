@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listEngineEvidences, reviewEngineEvidence, type EngineEvidenceRow } from "@/lib/admin-api";
+import {
+  downloadEngineEvidenceFile,
+  listEngineEvidences,
+  reviewEngineEvidence,
+  type EngineEvidenceRow,
+} from "@/lib/admin-api";
 
 const STATUS_LABEL: Record<string, string> = {
   ENVIADA: "Enviada",
@@ -17,6 +22,57 @@ const STATUS_CLASS: Record<string, string> = {
   REJEITADA: "evd-status--rej",
   SUBSTITUIDA: "evd-status--sub",
 };
+
+/** Tamanho legível do anexo — mesma regra do Portal (`fmtSize`). */
+function fmtSize(bytes: number | null): string {
+  if (!bytes) return "";
+  return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * O CONTEÚDO que o cliente enviou pelo Portal. A tela pedia para aprovar ou
+ * rejeitar e mostrava só o título: o link não aparecia, a observação não
+ * aparecia e o arquivo não tinha como ser aberto (o download existente é
+ * escopado pelo tenant do Portal). Aqui a evidência fica de fato inspecionável.
+ */
+function EvidenceContent({ e }: { e: EngineEvidenceRow }) {
+  const [baixando, setBaixando] = useState(false);
+  async function baixar() {
+    setBaixando(true);
+    try {
+      await downloadEngineEvidenceFile(e.id, e.fileName ?? e.title);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao baixar o arquivo.");
+    } finally {
+      setBaixando(false);
+    }
+  }
+  return (
+    <>
+      {e.planTitle && <p>Plano: {e.planTitle}</p>}
+      {e.note && <p>Obs.: {e.note}</p>}
+      <p>
+        {e.fileName ? (
+          <button
+            type="button"
+            onClick={() => void baixar()}
+            disabled={baixando}
+            style={{
+              padding: 0, border: 0, background: "none", cursor: "pointer",
+              font: "inherit", color: "var(--gold-deep, #8A6D1F)", textDecoration: "underline",
+            }}
+          >
+            {baixando ? "baixando…" : `baixar ${e.fileName}${e.fileSize ? ` (${fmtSize(e.fileSize)})` : ""}`}
+          </button>
+        ) : e.url ? (
+          <a href={e.url} target="_blank" rel="noopener noreferrer">abrir link enviado</a>
+        ) : (
+          <span>registro sem arquivo nem link</span>
+        )}
+      </p>
+    </>
+  );
+}
 
 /**
  * Evidências (mockup do cliente 14/07): governança cross-tenant das evidências
@@ -116,6 +172,7 @@ export function EvidencesSection() {
                     <td className="addx-name">
                       <strong>{e.title}</strong>
                       {e.linkedAction && <p>{e.linkedAction}</p>}
+                      <EvidenceContent e={e} />
                     </td>
                     <td>{e.tenantName}</td>
                     <td>{e.author || "—"}</td>
@@ -124,6 +181,14 @@ export function EvidencesSection() {
                       <span className={`addx-status ${STATUS_CLASS[e.status] ?? ""}`}>{STATUS_LABEL[e.status] ?? e.status}</span>
                       {e.status === "REJEITADA" && e.rejectionReason && (
                         <p className="evd-reason">Motivo: {e.rejectionReason}</p>
+                      )}
+                      {/* Trilha da revisão: quem decidiu e quando. Já era gravada
+                          em reviewed_at/reviewed_by e não aparecia em tela. */}
+                      {e.reviewedAt && (
+                        <p className="evd-reason">
+                          Revisada em {new Date(e.reviewedAt).toLocaleDateString("pt-BR")}
+                          {e.reviewedBy ? ` por ${e.reviewedBy}` : ""}
+                        </p>
                       )}
                     </td>
                     <td className="addx-actions">

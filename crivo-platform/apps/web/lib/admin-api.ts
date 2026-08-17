@@ -1187,6 +1187,38 @@ export interface EngineEvidenceRow {
   createdAt: string;
   reviewedAt: string | null;
   hasFile: boolean;
+  // ── O conteúdo que o cliente enviou pelo Portal ──
+  itemId: string | null;
+  planTitle: string | null;
+  /** Link, quando a evidência é uma referência em vez de arquivo. */
+  url: string | null;
+  note: string | null;
+  fileName: string | null;
+  fileMime: string | null;
+  fileSize: number | null;
+  reviewedBy: string | null;
+}
+/**
+ * Baixa o ARQUIVO da evidência pelo control plane. Não usa `adminFetch` (que
+ * força JSON e faria `res.json()` estourar em cima dos bytes) — mesmo desenho
+ * do `downloadEvidenceFile` do Portal, trocando o token do tenant pelo do
+ * super admin.
+ */
+export async function downloadEngineEvidenceFile(id: string, fileName: string): Promise<void> {
+  const token = getAdminToken();
+  const res = await fetch(`${apiBase()}/admin/engine/evidences/${id}/file`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("Falha ao baixar o arquivo da evidência.");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 export function listEngineEvidences(params: { status?: string; kind?: string } = {}): Promise<{
   stats: { total: number; aprovadas: number; pendentes: number; rejeitadas: number };

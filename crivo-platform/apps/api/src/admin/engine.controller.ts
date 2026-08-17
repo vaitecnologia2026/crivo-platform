@@ -1,4 +1,17 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ArrayMaxSize,
   IsArray,
@@ -82,6 +95,24 @@ export class EngineController {
   @Get('evidences')
   evidences(@Query('status') status?: string, @Query('kind') kind?: string) {
     return this.engine.listEvidences({ status, kind });
+  }
+
+  /**
+   * Baixa o ARQUIVO que o cliente anexou como evidência. Sem esta rota o Super
+   * Admin decidia aprovar/rejeitar sem conseguir abrir o anexo — o download que
+   * existia é escopado pelo tenant do Portal.
+   */
+  @Get('evidences/:id/file')
+  async downloadEvidence(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const f = await this.engine.getEvidenceFile(id);
+    res.set({
+      'Content-Type': f.fileMime,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(f.fileName)}"`,
+    });
+    return new StreamableFile(f.data);
   }
 
   @Post('evidences/:id/review')
