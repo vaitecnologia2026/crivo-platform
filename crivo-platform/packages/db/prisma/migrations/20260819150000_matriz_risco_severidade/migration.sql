@@ -1,0 +1,13 @@
+-- Matriz de Risco psicossocial (método MapaHDS): severidade por ESCALA.
+--
+-- Severidade (1–5) = gravidade da consequência caso o fator se mantenha em nível
+-- crítico. Combinada com a Probabilidade (percentual de respondentes na faixa
+-- crítica da escala), produz o Risco: R = P x S, de 1 a 25.
+--
+-- Coluna ADITIVA e NULA: nenhuma linha existente é reescrita, não há default e
+-- não há backfill. Escala sem severidade parametrizada simplesmente não entra na
+-- matriz — atribuir 0 produziria um risco "aceitável" falso.
+--
+-- Não afeta o cálculo de média, de pontuação nem de faixas: `severity` é lida
+-- apenas pela Matriz de Risco.
+ALTER TABLE "methodology_dimensions" ADD COLUMN "severity" INTEGER;

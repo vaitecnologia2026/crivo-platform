@@ -121,7 +121,26 @@ DECLARE
                               'report_templates',
                               -- F3: textos aprovados dos documentos — fila de aprovação
                               -- cross-tenant do super admin; leitura no gerador via owner.
-                              'approved_texts'];
+                              'approved_texts',
+                              -- Catálogo de origens/canais do lead (Governança): global, como
+                              -- platform_leads, e tocado só pelo módulo Admin via prisma.admin.
+                              -- A migration 20260817200000_lead_origins já aplica o mesmo par
+                              -- ENABLE RLS + REVOKE; repetido aqui para que um setup:prod
+                              -- completo não deixe a tabela de fora do control plane.
+                              'platform_lead_origins',
+                              -- E-book disparado aos leads (Governança · E-book): arquivo único
+                              -- e global da CRIVO, escrito só pelo módulo Admin via prisma.admin
+                              -- e lido pela rota pública também via owner. A migration
+                              -- 20260819210000_ebook_asset já aplica o mesmo par ENABLE RLS +
+                              -- REVOKE; repetido aqui para que um setup:prod completo não deixe
+                              -- a tabela de fora do control plane.
+                              'ebook_assets',
+                              -- Conta de e-mail de envio (Governança · E-mail de envio): guarda
+                              -- credencial CIFRADA, é global da CRIVO e só é tocada pelo módulo
+                              -- Admin via prisma.admin. A migration 20260819230000_mail_settings
+                              -- já aplica o mesmo par ENABLE RLS + REVOKE; repetido aqui para que
+                              -- um setup:prod completo não deixe a tabela de fora do control plane.
+                              'mail_settings'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

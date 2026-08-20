@@ -1033,6 +1033,105 @@ export function computePsychosocial(answers: IcdAnswer[]): PsychosocialResult {
   return { score, level: psychosocialLevel(score), byDimension, topRisk };
 }
 
+// ── Matriz de Risco psicossocial (método MapaHDS) ─────────────────────────────
+// Prioriza os fatores combinando EXPOSIÇÃO CRÍTICA (probabilidade) com GRAVIDADE
+// plausível (severidade): R = P × S, de 1 a 25. Recurso SEMIQUANTITATIVO de apoio
+// à gestão — não é diagnóstico clínico individual, laudo pericial nem medida
+// epidemiológica de adoecimento. Referências do método: ISO 45003:2021,
+// IEC 31010:2019 e Taibi et al. (2022).
+
+/**
+ * PROBABILIDADE (1–5) a partir do percentual de respondentes cujo escore na
+ * escala caiu na faixa CRÍTICA. Indica exposição crítica ATUAL do grupo — não é
+ * estimativa de adoecimento futuro.
+ *
+ * Os limites seguem o método: <5 · 5–20 · 21–50 · 51–80 · >80. Como o percentual
+ * é contínuo, as fronteiras são fechadas à direita (20,0 ainda é nível 2; 20,1 já
+ * é nível 3), que é a leitura natural de "21 a 50".
+ */
+export const PSYCHOSOCIAL_PROBABILITY_LABEL: Record<number, string> = {
+  1: 'Baixíssimo — raro (<5%)',
+  2: 'Baixo — ocasional (5% a 20%)',
+  3: 'Médio — moderado (21% a 50%)',
+  4: 'Alto — frequente (51% a 80%)',
+  5: 'Crítico — muito frequente (>80%)',
+};
+
+export function psychosocialProbabilityLevel(percentCritical: number): number {
+  if (!Number.isFinite(percentCritical) || percentCritical < 5) return 1;
+  if (percentCritical <= 20) return 2;
+  if (percentCritical <= 50) return 3;
+  if (percentCritical <= 80) return 4;
+  return 5;
+}
+
+/** SEVERIDADE (1–5): gravidade da consequência se o fator seguir em nível crítico. */
+export const PSYCHOSOCIAL_SEVERITY_LABEL: Record<number, string> = {
+  1: 'Leve — sintomas passageiros ou desconforto leve',
+  2: 'Moderado leve — sintomas persistentes, não incapacitantes',
+  3: 'Moderado — estresse ou sofrimento sem afastamento clínico',
+  4: 'Grave — sintomas severos ou indicadores organizacionais críticos',
+  5: 'Muito grave — diagnósticos clínicos severos, acidentes, afastamentos',
+};
+
+export const PSYCHOSOCIAL_RISK_CLASSES = [
+  'ACEITAVEL',
+  'MODERADO',
+  'SIGNIFICATIVO',
+  'CRITICO',
+  'INTOLERAVEL',
+] as const;
+export type PsychosocialRiskClass = (typeof PSYCHOSOCIAL_RISK_CLASSES)[number];
+
+export const PSYCHOSOCIAL_RISK_CLASS_LABEL: Record<PsychosocialRiskClass, string> = {
+  ACEITAVEL: 'Aceitável',
+  MODERADO: 'Moderado',
+  SIGNIFICATIVO: 'Significativo',
+  CRITICO: 'Crítico',
+  INTOLERAVEL: 'Intolerável',
+};
+
+/** Conduta esperada por classificação — é o que transforma a matriz em decisão. */
+export const PSYCHOSOCIAL_RISK_CLASS_ACTION: Record<PsychosocialRiskClass, string> = {
+  ACEITAVEL: 'Ações preventivas',
+  MODERADO: 'Monitorar',
+  SIGNIFICATIVO: 'Mitigar se possível',
+  CRITICO: 'Ações urgentes',
+  INTOLERAVEL: 'Eliminar ou reduzir drasticamente',
+};
+
+/** Classificação do risco (R = P × S, 1–25). */
+export function psychosocialRiskClass(risk: number): PsychosocialRiskClass {
+  if (risk <= 5) return 'ACEITAVEL';
+  if (risk <= 10) return 'MODERADO';
+  if (risk <= 15) return 'SIGNIFICATIVO';
+  if (risk <= 20) return 'CRITICO';
+  return 'INTOLERAVEL';
+}
+
+/** Uma linha da Matriz de Risco: uma ESCALA dentro de um recorte (geral ou setor). */
+export interface PsychosocialRiskMatrixRow {
+  slug: string;
+  label: string;
+  /** Respondentes do recorte cujo escore nesta escala caiu na faixa crítica. */
+  criticalCount: number;
+  respondents: number;
+  percentCritical: number;
+  probability: number;
+  severity: number;
+  risk: number;
+  riskClass: PsychosocialRiskClass;
+}
+
+/** Distribuição de pessoas por faixa, em UMA dimensão (o "Perfil de grupo"). */
+export interface PsychosocialProfileRow {
+  slug: string;
+  label: string;
+  respondents: number;
+  /** Pessoas em cada faixa da metodologia, na ordem em que as faixas foram definidas. */
+  byBand: { code: string; label: string; count: number; percent: number }[];
+}
+
 // ── Produtos (núcleo product-driven — Super Admin) ──
 // Tudo nasce de um Produto: preço, limites, módulos, instrumento de diagnóstico
 // (perguntas editáveis) e IA por produto. Espelha o model Product (control plane).
@@ -1243,6 +1342,83 @@ export interface PlatformLeadSummary {
   updatedAt: string;
 }
 
+/**
+ * Aba "Usuários" (Governança · Papéis & Permissões) — o CADASTRO do lead que
+ * veio do MAPA Executivo somado à CONTA DE ACESSO criada quando esse lead virou
+ * cliente.
+ *
+ * `account` é null enquanto o lead NÃO foi convertido: sem empresa provisionada
+ * não existe usuário e, portanto, não há senha para editar. Nenhum hash de senha
+ * trafega neste payload — só o cadastro e o estado da conta.
+ */
+export interface LeadUserSummary {
+  leadId: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  cnpj: string | null;
+  origin: string | null;
+  stage: PlatformLeadStage;
+  diagnosticScore: number | null; // score do MAPA Executivo respondido
+  convertedTenantId: string | null;
+  createdAt: string; // ISO — quando o MAPA foi respondido
+  account: {
+    userId: string;
+    email: string;
+    name: string;
+    role: Role;
+    active: boolean;
+    createdAt: string; // ISO
+  } | null;
+}
+
+/**
+ * Conta de e-mail que dispara as mensagens da plataforma (Governança · E-mail
+ * de envio): senha de acesso do cliente, Relatório Preliminar com o e-book em
+ * anexo e convite de campanha do ICD.
+ *
+ * A SENHA nunca trafega neste payload — só `passwordHint`, com os 4 últimos
+ * caracteres, para o operador conferir qual credencial está gravada.
+ */
+export interface MailSettingsData {
+  /** Já existe conta salva (mesmo desligada)? */
+  configured: boolean;
+  /** true = as mensagens saem por esta conta; false = saem pelo ambiente. */
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  fromName: string | null;
+  fromEmail: string;
+  passwordHint: string | null;
+  updatedAt: string | null;
+  /** O que está valendo AGORA, para não restar dúvida sobre quem envia. */
+  activeSource: 'painel' | 'ambiente' | 'nenhum';
+  /** Remetente em uso agora ("Nome <endereco>"), ou null se ninguém envia. */
+  activeFrom: string | null;
+}
+
+/**
+ * E-book complementar disparado ao lead por e-mail (anexo) e WhatsApp (link),
+ * importado pelo super admin em Governança · E-book.
+ *
+ * NÃO carrega o conteúdo do arquivo: o base64 fica só no banco e é servido pela
+ * rota pública. `publicUrl` é o endereço estável do arquivo — é ele que vai no
+ * texto do WhatsApp e é ele que o site baixa para anexar no e-mail.
+ */
+export interface EbookAssetSummary {
+  id: string;
+  name: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  publicUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Canais/origem do lead (Caderno Tela 02 [2]) — usados no CRM e no dashboard.
  *  `origin` continua string livre no banco; estes são os valores canônicos do seletor. */
 export const PLATFORM_LEAD_ORIGINS = [
@@ -1273,6 +1449,29 @@ export function platformLeadOriginLabel(origin: string | null | undefined): stri
     itz: 'ITZ',
   };
   return legacy[origin] ?? origin;
+}
+
+/** Uma origem/canal como o seletor do CRM a enxerga.
+ *
+ *  A lista que a API devolve é a UNIÃO de duas coisas: as 7 canônicas acima, que
+ *  continuam vindo do código (`builtin: true`, não removíveis), e as cadastradas
+ *  pelo super admin em Governança · Origens e Canais (`builtin: false`).
+ *
+ *  `value` é o que vai para `platform_leads.origin` — string livre no banco, sem
+ *  chave estrangeira: um lead antigo com origem fora da lista continua válido. */
+export interface PlatformLeadOriginOption {
+  value: string;
+  label: string;
+  /** Desativada some do seletor, mas NÃO apaga a origem dos leads já gravados. */
+  active: boolean;
+  /** true = canônica do código: pode ser renomeada e desativada, nunca excluída. */
+  builtin: boolean;
+}
+
+/** Cadastro/edição de uma origem. O `value` vai na URL; só rótulo e ativação mudam. */
+export interface PlatformLeadOriginUpsertRequest {
+  label?: string;
+  active?: boolean;
 }
 
 /** Motivos de perda estruturados (Caderno) — usados no CRM e no dashboard. */

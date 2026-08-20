@@ -796,6 +796,28 @@ model PlatformLead {
   @@map("platform_leads")
 }
 
+/// Origem/canal do lead CADASTRADA pelo super admin (Governança · Origens e Canais).
+///
+/// `PlatformLead.origin` continua STRING LIVRE — nada aqui vira chave estrangeira.
+/// Esta tabela é o CATÁLOGO do seletor, não uma restrição: leads antigos com origem
+/// fora da lista continuam válidos e continuam sendo exibidos, exatamente como antes.
+///
+/// As 7 origens canônicas (`PLATFORM_LEAD_ORIGINS`, em @crivo/types) NÃO foram movidas
+/// para cá: seguem no código como base fixa e aparecem na lista como embutidas, não
+/// removíveis. Esta tabela guarda apenas o que for cadastrado ALÉM delas — mesmo
+/// desenho do catálogo de Adicionais, onde o banco complementa a lista fixa.
+model PlatformLeadOriginOption {
+  id     String  @id @default(uuid()) @db.Uuid
+  value  String  @unique // código gravado em platform_leads.origin (ex.: INSTAGRAM)
+  label  String // rótulo exibido no seletor e nos painéis (ex.: Instagram)
+  active Boolean @default(true) // some do seletor SEM apagar a origem dos leads antigos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_lead_origins")
+}
+
 // =====================================================================
 // CONTRATO (Briefing §11 + Matriz §Super Admin) — o que a CRIVO configura por
 // cliente SEM programação: produto, modelo, prazo, rodadas, respondentes,
@@ -2031,6 +2053,36 @@ model CnaeDecisionHistory {
 // Integrações externas (assinatura/cobrança) + modelos de contrato.
 // ───────────────────────────────────────────────────────────────────────────
 
+/// Conta de e-mail que DISPARA as mensagens da CRIVO (Governança · E-mail de
+/// envio): a senha de acesso do cliente, o Relatório Preliminar com o e-book em
+/// anexo e o convite de campanha do ICD — todos saem pelo mesmo transporte.
+///
+/// LINHA ÚNICA. Sobrepõe as variáveis SMTP_* do ambiente quando `enabled` é
+/// verdadeiro; desligada ou ausente, o envio segue EXATAMENTE pelo que está no
+/// ambiente, como antes desta tabela existir.
+///
+/// A senha fica CIFRADA em repouso (AES-256-GCM, secret-crypto) e nunca é
+/// devolvida pela API — só `passwordHint`, com os 4 últimos caracteres.
+model MailSettings {
+  id        String  @id @default(uuid()) @db.Uuid
+  enabled   Boolean @default(false)
+  host      String
+  port      Int     @default(465)
+  secure    Boolean @default(true)
+  username  String  @map("smtp_user") // usuário autenticado no SMTP
+  fromName  String? @map("from_name") // nome exibido do remetente
+  fromEmail String  @map("from_email") // endereço do remetente
+
+  passwordEnc  String @map("password_enc") // ciphertext base64
+  passwordIv   String @map("password_iv") // IV base64
+  passwordTag  String @map("password_tag") // auth tag base64 (GCM)
+  passwordHint String @map("password_hint") // 4 últimos caracteres, para conferência
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("mail_settings")
+}
+
 /// Credenciais de uma integração externa (cifradas). 1 linha por provedor.
 model PlatformIntegration {
   id             String   @id @default(uuid()) @db.Uuid
@@ -2056,6 +2108,27 @@ model ContractTemplate {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("contract_templates")
+}
+
+/// E-book complementar disparado ao lead por E-MAIL (anexo) e WHATSAPP (link),
+/// importado pelo super admin em Governança · E-book. Guardado em base64, do
+/// mesmo jeito que o ContractTemplate.
+///
+/// LINHA ÚNICA por design: importar de novo SUBSTITUI o arquivo atual. Não é um
+/// acervo — o disparo precisa de UM e-book corrente, sem ambiguidade sobre qual
+/// sai. Enquanto a tabela estiver vazia, o sistema continua usando o PDF
+/// estático da LP (EBOOK_URL), exatamente como antes desta tabela existir.
+model EbookAsset {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  fileName  String   @map("file_name")
+  mimeType  String   @map("mime_type")
+  sizeBytes Int      @map("size_bytes") // tamanho do arquivo original (bytes)
+  data      String   @db.Text // base64 do arquivo
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ebook_assets")
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -2201,6 +2274,12 @@ model MethodologyDimension {
   // Regra de cálculo do nó (só folhas e nós internos de MÉDIA). null = herda o
   // modo do instrumento. Espelha "média simples/ponderada" por subdimensão.
   aggregation ScoreAggregation?
+  // SEVERIDADE (1–5) da Matriz de Risco psicossocial: gravidade da consequência
+  // caso o fator se mantenha em nível crítico. É parâmetro da ESCALA (dimensão de
+  // topo) e, por definição do método, adaptável à realidade laboral da empresa.
+  // null = escala sem severidade parametrizada → fica FORA da matriz (não entra
+  // com 0, que viraria um risco "aceitável" falso). Não afeta média nem pontuação.
+  severity    Int?
 
   @@unique([versionId, slug])
   @@index([versionId, parentSlug])

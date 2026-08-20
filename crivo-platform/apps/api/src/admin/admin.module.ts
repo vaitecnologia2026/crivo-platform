@@ -50,6 +50,8 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { AddonsController } from './addons.controller';
 import { AddonsService } from './addons.service';
+import { LeadOriginsController } from './lead-origins.controller';
+import { LeadOriginsService } from './lead-origins.service';
 import { IntelligenceController } from './intelligence.controller';
 import { IntelligenceService } from './intelligence.service';
 import { AiPromptsController } from './ai-prompts.controller';
@@ -61,6 +63,10 @@ import { AiInsightsController } from './ai-insights.controller';
 import { AiInsightsService } from './ai-insights.service';
 import { ReportsAdminService } from './reports.service';
 import { PlatformUsersService } from './platform-users.service';
+import { EbookController, PublicEbookController } from './ebook.controller';
+import { EbookService } from './ebook.service';
+import { MailSettingsController } from './mail-settings.controller';
+import { MailSettingsService } from './mail-settings.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -92,12 +98,16 @@ import { PlatformUsersService } from './platform-users.service';
     GroupsController,
     DashboardController,
     AddonsController,
+    LeadOriginsController,
     IntelligenceController,
     AiPromptsController,
     ContractsController,
     PlatformUsersController,
     ReportsAdminController,
     AiInsightsController,
+    EbookController,
+    PublicEbookController,
+    MailSettingsController,
   ],
   providers: [
     AdminAuthService,
@@ -126,11 +136,14 @@ import { PlatformUsersService } from './platform-users.service';
     GroupsService,
     DashboardService,
     AddonsService,
+    LeadOriginsService,
     IntelligenceService,
     AiPromptsService,
     PlatformUsersService,
     ReportsAdminService,
     AiInsightsService,
+    EbookService,
+    MailSettingsService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })
