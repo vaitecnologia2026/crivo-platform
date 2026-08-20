@@ -5,7 +5,7 @@ import { LpEffects } from "./LpEffects";
 import { SiteNav } from "../_site/SiteNav";
 import { SiteFooter } from "../_site/SiteFooter";
 import { FaqSection } from "./FaqSection";
-import { CtaFinalSection, FundadoresSection } from "./FundadoresSection";
+import { CtaFinalSection } from "./FundadoresSection";
 import { HeroCarousel } from "./HeroCarousel";
 import { WHATSAPP_ESPECIALISTA } from "../_site/site.config";
 import { IC } from "../_site/icons";
@@ -102,7 +102,7 @@ export default function LandingPage() {
               <a href="#diagnostico" className="btn btn--terra">
                 Gerar MAPA Executivo →
               </a>
-              <Link href="/solucoes" className="btn btn--outline-light">
+              <Link href="/solucoes#mapa-executivo" className="btn btn--outline-light">
                 Conhecer Soluções CRIVO™ →
               </Link>
             </div>
@@ -184,7 +184,7 @@ export default function LandingPage() {
               <a href="#diagnostico" className="btn btn--terra">
                 Gerar MAPA Executivo →
               </a>
-              <Link href="/solucoes" className="btn btn--outline-light">
+              <Link href="/solucoes#mapa-executivo" className="btn btn--outline-light">
                 Conhecer Soluções CRIVO™ →
               </Link>
             </div>
@@ -217,7 +217,7 @@ export default function LandingPage() {
               Tecnologia amplia capacidade. Decisões definem direção. Liderança sustenta a evolução.
             </p>
             <div className="hero__ctas">
-              <Link href="/solucoes" className="btn btn--terra">
+              <Link href="/solucoes#mapa-executivo" className="btn btn--terra">
                 Conhecer Soluções CRIVO →
               </Link>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--ghost-terra">
@@ -533,8 +533,12 @@ export default function LandingPage() {
       </section>
 
 
-      {/* Ordem final do documento: … Quem Somos → Fundadores → FAQ → CTA final. */}
-      <FundadoresSection />
+      {/* Ordem final do documento: … Quem Somos → FAQ → CTA final.
+          A seção "Os Fundadores" saiu daqui: passa a ser acessada pelo botão
+          "Conheça nossa história →" de Quem Somos, que leva a /sobre — onde a
+          versão completa (com fotos, banda navy e tagline) sempre esteve.
+          O componente <FundadoresSection /> continua íntegro em
+          ./FundadoresSection; para reativar, reimporte-o e recoloque a tag aqui. */}
 
       <FaqSection />
 

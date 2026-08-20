@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CookieConsent } from "./_site/CookieConsent";
 import { Analytics } from "./_site/Analytics";
 import { SITE_URL } from "./_site/site.config";
-import { Lora, Poppins, Cormorant_Garamond, Plus_Jakarta_Sans, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Lora, Poppins, Cormorant_Garamond, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const lora = Lora({
@@ -30,19 +30,6 @@ const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
   weight: ["400", "500"],
-});
-
-// Fonte do portal VAI (gate) — identidade própria, distinta do CRIVO.
-// `preload: false` porque ela só é usada em gate.module.css, ou seja, na tela de
-// acesso — e em nenhuma página de marketing. Sendo pré-carregada, o arquivo
-// baixava (26,9 KB) em TODA página, disputando banda com o Hero justamente na
-// janela em que o LCP é decidido. Sem o preload ela continua disponível e é
-// baixada quando o CSS do gate a usa; a variável --font-jakarta segue igual.
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  preload: false,
 });
 
 // Mono para dados/números (Design System).
@@ -125,7 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // injetam atributos no <html> antes do React hidratar — suprime apenas o
       // aviso de mismatch deste elemento, não da árvore.
       suppressHydrationWarning
-      className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jakarta.variable} ${jetbrains.variable} ${spaceGrotesk.variable}`}
+      className={`${lora.variable} ${poppins.variable} ${cormorant.variable} ${jetbrains.variable} ${spaceGrotesk.variable}`}
     >
       <body>
         {children}

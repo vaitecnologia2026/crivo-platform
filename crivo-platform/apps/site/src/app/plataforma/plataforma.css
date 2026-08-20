@@ -335,3 +335,28 @@
 @media (min-width: 1180px) and (max-width: 1229.98px) { #portal .pf-laptop-body { transform: scale(0.619); } }
 @media (min-width: 1230px) and (max-width: 1279.98px) { #portal .pf-laptop-body { transform: scale(0.651); } }
 @media (min-width: 1280px) and (max-width: 1319.98px) { #portal .pf-laptop-body { transform: scale(0.682); } }
+
+/* ============================================================
+   Padrão do topo da página — eyebrow e espaçamento
+   ============================================================
+   Referência: o eyebrow do hero da home ("Transformação Organizacional ·
+   Liderança · Governança"), que usa font-size: clamp(11px, 1.02vw, 14px).
+   As demais páginas estavam em 11px fixos, e a distância entre o menu fixo
+   (72px, position: fixed) e o primeiro texto variava de 11px a 180px conforme
+   a página. Medido ao vivo em produção, página por página.
+
+   O padding foi CALIBRADO por medição, não estimado: cada hero tem estrutura
+   própria (uns são seção comum, outros são flex com min-height: 100vh), então
+   o valor que leva o eyebrow a 180px abaixo do menu é diferente em cada um.
+
+   O recorte em min-width: 1000px é deliberado. Abaixo disso a faixa 881-999px
+   já é instável HOJE, antes de qualquer alteração (medido: /metodo salta de
+   369px para 95px entre 881 e 940; /sobre de 263px para 11px entre 940 e
+   1000), porque os heros ficam espremidos em 2 colunas. Mexer ali mudaria um
+   comportamento que não foi pedido. Abaixo de 1000px tudo continua como está.
+   O tamanho da letra não precisa de recorte: o próprio clamp devolve 11px em
+   telas estreitas, igual ao da referência. */
+@media (min-width: 1000px) {
+  #portal { padding-top: 232px; }
+}
+#portal .eyebrow { font-size: clamp(11px, 1.02vw, 14px); }

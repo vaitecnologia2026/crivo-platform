@@ -378,8 +378,10 @@ export function DiagnosticoInicialQuiz() {
         <span className="eyebrow eyebrow--terra">MAPA Executivo CRIVO™ · Leitura inicial sem custo</span>
         <h3 className="diag-orient__title">Vamos começar.</h3>
         <p className="diag-orient__intro">
-          Você vai responder agora, de forma muito prática, <strong>10 perguntas</strong> que vão gerar o seu MAPA
-          Executivo.
+          {/* O número acompanha a versão ativa do instrumento no Super Admin —
+              o texto fixo "10" prometia menos perguntas do que o MAPA tem. */}
+          Você vai responder agora, de forma muito prática, <strong>{total} perguntas</strong> que vão gerar o seu
+          MAPA Executivo.
         </p>
         <div className="diag-rules">
           <span className="diag-rules__h">Como responder</span>
@@ -461,9 +463,8 @@ export function DiagnosticoInicialQuiz() {
           impacto.
         </h3>
         <p className="diag-form__lead">
-          Preencha os dados da empresa e, na próxima etapa, responda ao MAPA Executivo CRIVO™. Ao final, você
-          receberá uma leitura preliminar sobre liderança, cultura, rotina, fatores psicossociais, governança e
-          preparação para IA, por e-mail ou WhatsApp.
+          Preencha os dados e responda ao MAPA Executivo CRIVO™. Em poucos minutos, você identifica os temas que
+          mais pedem atenção e ganha clareza sobre onde vale aprofundar a análise.
         </p>
 
         <div className="diag-ebook-note">
@@ -472,9 +473,10 @@ export function DiagnosticoInicialQuiz() {
             <strong>CRIVO™</strong>
           </span>
           <span className="diag-ebook-note__txt">
-            <strong>Relatório Preliminar + E-book CRIVO™</strong> — ao concluir o MAPA, você recebe uma leitura
-            inicial da maturidade da empresa e um e-book complementar sobre decisão, liderança, cultura, rotina,
-            fatores psicossociais e evidências.
+            <strong>Relatório Preliminar + E-book CRIVO™</strong>
+            <br />
+            Ao concluir, você recebe por e-mail ou WhatsApp seu relatório preliminar e um e-book complementar com
+            conteúdos práticos para apoiar os próximos passos.
           </span>
         </div>
 

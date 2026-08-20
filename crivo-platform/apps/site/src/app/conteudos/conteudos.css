@@ -142,3 +142,160 @@
   flex-direction: column;
   padding-left: 100px;
 }
+
+/* =========================================================================
+   TELA 18 — ENQUADRAMENTO DA FOTO E ALINHAMENTO DOS 4 CARDS (alteração 052)
+   Pedido: "melhorar o enquadramento da foto do note + xícara; os cards
+   precisam estar alinhados (figuras e botões)".
+   ========================================================================= */
+
+/* ----- 1. Foto do hero: mostrar a composição inteira -----
+   A imagem é 941×390 (proporção 2,41). A caixa era 660×340 (proporção 1,94) e,
+   com `background-size: cover`, o navegador escalava para 819×340 e CORTAVA
+   159px na horizontal — sumiam a alça da xícara à esquerda e quase todo o
+   caderno à direita.
+
+   `aspect-ratio: 941 / 390` faz a caixa nascer com a MESMA proporção do
+   arquivo, então `cover` preenche sem cortar nada, em qualquer largura. O
+   `min-height: 0` é obrigatório: sem ele o `min-height: 340px` da linha 121
+   continua vencendo e a proporção nunca é respeitada.
+
+   A guarda `min-width: 901px` preserva o celular EXATAMENTE como está: a regra
+   da linha 125 (`max-width: 900px` → `min-height: 240px`) segue mandando lá,
+   porque em 390px de largura a proporção cheia daria só 132px de altura e o
+   laptop ficaria pequeno demais para ler. As duas faixas não se sobrepõem nem
+   deixam vão. */
+@media (min-width: 901px) {
+  .cc-photo { min-height: 0; aspect-ratio: 941 / 390; }
+}
+
+/* ----- 2. Os quatro cards: ícone, título, texto e botão na mesma linha -----
+   ERA ASSIM: a lp.css (linha 3023) converteu `.strip-card` num grid
+   `auto 1fr` — ícone À ESQUERDA do título — para as telas 01/02 da landing.
+   Mas o card 1 desta página é forçado de volta a `flex column` (linha 140
+   deste arquivo) para o mockup do livro caber. Resultado: o ícone do card 1
+   ficava ACIMA do título e os outros três ao LADO. Medido antes:
+
+     ícone   card 1 em 28px · cards 2-4 em 44-46px   → 18px fora
+     título  card 1 em 76px · cards 2-4 em 43-45px   → 32px fora
+     botão   topos em 239 / 256 / 265 / 273px        → 34px de dispersão
+
+   AGORA: os quatro cards usam UMA coluna (ícone acima do título, que é o
+   layout do card 1, o único que tem espaço reservado para o livro) e
+   `grid-template-rows: subgrid`, herdando as MESMAS quatro faixas do
+   contêiner. Ícone, título, parágrafo e rodapé passam a compartilhar as
+   trilhas — o alinhamento é automático e não depende de nenhum número mágico.
+
+   POR QUE SUBGRID E NÃO `min-height`: a primeira tentativa foi reservar altura
+   fixa no rodapé. Funciona em 1536px, mas entre 960 e 1100px o card 1 fica
+   estreito (os 100px reservados ao livro) e o botão dele quebra numa linha a
+   mais, estourando a reserva — o rodapé desalinhava 17px. Subgrid mede o
+   conteúdo real de todos os cards e dimensiona a faixa pelo maior.
+
+   `grid-template-columns: 1fr` é o que desfaz o `auto 1fr` da lp.css:3023 —
+   sem essa linha o ícone volta para o lado do título e os títulos quebram em
+   3 linhas. `grid-row: span 4` é a contagem de filhos EM FLUXO de cada card
+   (ícone, título, parágrafo, rodapé); `.cc-book` e `.cc-badge` são absolutos e
+   não ocupam trilha. Se um dia acrescentarem um quinto elemento em fluxo, este
+   número precisa acompanhar.
+
+   `align-self: stretch` no rodapé faz o botão preencher a faixa inteira, então
+   topo E base ficam alinhados nos quatro cards. */
+.cc-cards .strip-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+  row-gap: 8px;
+  align-items: start;
+}
+.cc-cards .strip-card__ic { margin-bottom: 4px; }
+.cc-cards .cc-card__cta,
+.cc-cards .cc-social {
+  margin-top: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ============================================================
+   Card do livro no celular — o empilhado voltou a valer (responsividade)
+   ============================================================
+   A query de ≤560px acima já monta o layout empilhado do card 1: o livro sai da
+   lateral, vai CENTRALIZADO para o topo (`.cc-book { left: 50%; transform:
+   translateX(-50%) }`) e o card troca a reserva lateral por uma reserva no topo
+   (`padding-left: 22px; padding-top: 116px`).
+
+   SÓ QUE ESSAS DUAS ÚLTIMAS NÃO CHEGAVAM A VALER. A regra `.strip-card.cc-card--book`
+   (mais acima neste arquivo) tem especificidade dobrada (0,2,0) e vem DEPOIS, então
+   devolvia `padding-left: 100px`; e `.cc-cards .strip-card` (0,2,0) também vence o
+   seletor de classe única da query, devolvendo o `padding-top` de 28px. Resultado
+   medido ao vivo em 280, 320, 360, 480 e 560px: o livro ficava centralizado no topo
+   E o texto continuava deslocado 100px para a direita, com a capa por CIMA do ícone
+   e do título — "Mapa Executivo CRIVO™" ilegível em todo celular. Acima de 560px
+   nunca houve sobreposição, porque lá o livro volta para `left: -22px`.
+
+   Aqui os dois valores são repostos com especificidade (0,3,0), que vence as duas
+   regras acima independentemente da ordem dos chunks de CSS. O topo vai a 158px em
+   vez dos 116px originais porque a capa ocupa de 14px a 146px medidos — 116px
+   ainda deixaria 30px dela sobre o ícone. Com 158px sobra uma folga de 12px.
+
+   Escopo: só o card do livro, só até 560px. Nada acima disso muda. */
+@media (max-width: 560px) {
+  .cc-cards .strip-card.cc-card--book { padding-left: 22px; padding-top: 158px; }
+}
+
+/* ============================================================
+   Padrão do topo da página — eyebrow e espaçamento
+   ============================================================
+   Referência: o eyebrow do hero da home ("Transformação Organizacional ·
+   Liderança · Governança"), que usa font-size: clamp(11px, 1.02vw, 14px).
+   As demais páginas estavam em 11px fixos, e a distância entre o menu fixo
+   (72px, position: fixed) e o primeiro texto variava de 11px a 180px conforme
+   a página. Medido ao vivo em produção, página por página.
+
+   O padding foi CALIBRADO por medição, não estimado: cada hero tem estrutura
+   própria (uns são seção comum, outros são flex com min-height: 100vh), então
+   o valor que leva o eyebrow a 180px abaixo do menu é diferente em cada um.
+
+   O recorte em min-width: 1000px é deliberado. Abaixo disso a faixa 881-999px
+   já é instável HOJE, antes de qualquer alteração (medido: /metodo salta de
+   369px para 95px entre 881 e 940; /sobre de 263px para 11px entre 940 e
+   1000), porque os heros ficam espremidos em 2 colunas. Mexer ali mudaria um
+   comportamento que não foi pedido. Abaixo de 1000px tudo continua como está.
+   O tamanho da letra não precisa de recorte: o próprio clamp devolve 11px em
+   telas estreitas, igual ao da referência. */
+@media (min-width: 1000px) {
+  #conteudos { padding-top: 232px; }
+}
+#conteudos .eyebrow { font-size: clamp(11px, 1.02vw, 14px); }
+
+
+/* ============================================================
+   Alteração 071 — o mesmo padrão de topo abaixo de 1000px
+   ============================================================
+   A alteração 070 padronizou o espaçamento apenas a partir de 1000px, e a
+   falha continuou visível abaixo dessa largura: o primeiro texto seguia colado
+   no menu fixo.
+
+   O alvo aqui é 96px, e NÃO os 183px do desktop. 96px é exatamente o que a
+   referência (o eyebrow do hero da home) entrega nessas larguras — medido ao
+   vivo: 89 a 98px de 360 a 880px, estável em qualquer altura de janela, porque
+   abaixo de 880px o hero da home perde a folga vertical e o padding passa a
+   mandar sozinho. Forçar 183px no celular criaria uma faixa vazia que a
+   própria referência não tem.
+
+   Toda medição foi feita com a página CARREGADA DO ZERO e já assentada (700ms
+   de load + 600ms de folga). Isso importa: a 070 errou a primeira calibração
+   justamente por medir página já estabilizada de um jeito e recém-carregada de
+   outro, e nesta página o valor chega a variar 13px entre os dois momentos. */
+/* /conteudos — medido 47px do menu ao eyebrow em todas as larguras abaixo de
+   1000px, com padding-top de 112px. Abaixo de 148px o valor satura em 47px,
+   porque o .hero ainda tem folga vertical e centraliza o conteúdo; acima disso
+   a resposta é 1:1. Calibrado a partir do trecho linear: 160px dá 95px e 161px
+   dá 96px. Conferido em 320, 390, 560, 768, 880, 960 e 999px. */
+@media (max-width: 999.98px) {
+  #conteudos { padding-top: 161px; }
+}

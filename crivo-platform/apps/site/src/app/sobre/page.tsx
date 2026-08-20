@@ -187,7 +187,7 @@ export default function SobrePage() {
         <div className="qs-hero">
           <div
             className="qs-hero__bleed"
-            style={{ backgroundImage: "url('/imagens/fundadores.jpg')" }}
+            style={{ backgroundImage: "url('/imagens/fundadores.jpeg')" }}
             role="img"
             aria-label="Os fundadores da CRIVO™ no escritório, com a marca ao fundo"
           />

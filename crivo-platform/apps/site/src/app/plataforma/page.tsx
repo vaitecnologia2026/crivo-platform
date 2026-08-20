@@ -73,9 +73,11 @@ export default function PlataformaPage() {
               <span className="terra-text">evidências</span> e <span className="terra-text">resultado.</span>
             </h1>
             <span className="rule-terra" aria-hidden="true" />
+            {/* Ajustes item 9: o cliente pediu a saída do termo "Workforce
+                Intelligence" desta página. */}
             <p className="hero__sub">
-              Workforce Intelligence aplicada à gestão: informação estratégica para decisões mais rápidas, prioridades
-              claras, plano de ação acompanhado e resultados sustentáveis.
+              Informação estratégica para decisões mais rápidas, prioridades claras, plano de ação acompanhado e
+              resultados sustentáveis.
             </p>
           </div>
 
@@ -235,10 +237,10 @@ export default function PlataformaPage() {
             </div>
             <div className="cta-band__actions">
               <a href="#diagnostico" className="btn btn--terra">
-                Gerar MAPA Executivo →
+                Gerar MAPA →
               </a>
               <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-light">
-                Falar com a CRIVO →
+                Agendar conversa estratégica →
               </a>
             </div>
           </div>

@@ -162,3 +162,136 @@
 /* — Tela 20 · eyebrow sem traço (a régua fica embaixo, como no mockup) — */
 #como-nasceu .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #como-nasceu .eyebrow::before { display: none; }
+
+/* Tela 20 · "Como Nasceu" — sem a lavagem do lado direito.
+   O degradê claro à direita da faixa existe para os callouts da seção QUEM
+   SOMOS assentarem sobre área lavada da arte. A seção "Como Nasceu" não tem
+   callouts: ali ele só apagava a foto. Com a arte antiga (parede + logo à
+   direita) isso passava despercebido; com a foto dos fundadores, que traz o
+   Rodrigo justamente nesse lado, ele desbotava metade da dupla.
+   Fica apenas a fusão da borda esquerda com o fundo creme. Vale só aqui:
+   #como-nasceu não existe em nenhuma outra página, e a faixa de Quem Somos
+   continua exatamente como está. */
+#como-nasceu .qs-hero__bleed::before {
+  background: linear-gradient(90deg, var(--bg-light) 0%, rgba(247, 244, 239, 0) 7%);
+}
+
+/* Tela 20 · "Como Nasceu" — foto inteira e centralizada na coluna.
+   A foto é 1600x900 (proporção 1,778); a coluna da direita tem proporção entre
+   0,75 e 1,45 no desktop. Com background-size: cover só aparecia de 42% a 81%
+   da largura do arquivo, e a caneca CRIVO — que fica entre 11% e 20% — caía
+   fora do recorte. Deslocar o recorte para trazê-la resolvia a caneca, mas
+   cortava o ombro do fundador da direita: a caneca e a borda dele somam 70% da
+   largura, e a janela visível tem no máximo 65%. Não cabem os dois.
+   Com `contain` a foto aparece INTEIRA e centralizada: caneca, os dois
+   fundadores e a marca da parede, sem cortar ninguém. Sobra creme acima e
+   abaixo, o que assenta a foto como peça da composição.
+   Vale só no layout de 2 colunas. O limite é 960.02px, e não 961px, para fechar
+   o vão: o bloco mobile usa max-width 960px, e uma janela de 960,5px não cairia
+   em nenhum dos dois — medido, era exatamente o que acontecia. Abaixo disso a faixa continua
+   exatamente como está hoje, com `cover` e altura fixa de 300px. */
+@media (min-width: 960.02px) {
+  #como-nasceu .qs-hero__bleed {
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+}
+
+/* Tela 20 · "Como Nasceu" — foto alinhada ao container, para o conjunto
+   texto + imagem ficar centralizado na página.
+   Medido em produção: o texto começa a 148px da borda (o container tem 1280px,
+   centralizado, com 28px de respiro), mas a faixa da foto ia ate a borda da
+   página — 15px. O bloco inteiro pendia para a direita. No vertical texto e
+   foto já estavam centralizados entre si (8px de diferença), então só o
+   horizontal precisava de ajuste.
+   Aqui a borda direita da faixa passa a coincidir com a borda interna do
+   container, e as margens ficam simétricas. A conta reproduz exatamente o
+   recuo do container em qualquer largura — conferida em 1024, 1280, 1336,
+   1440, 1536, 1920 e 2560px: metade do que sobra além dos 1280px, mais os
+   28px de respiro; abaixo de 1280px o container ocupa tudo e sobram só os 28px.
+   O "left: 48%" mantém a borda esquerda exatamente onde ela já estava (antes
+   vinha de "width: 52%" ancorado à direita), então a foto não avança sobre o
+   texto; ela apenas recua da direita e, por isso, fica menor.
+   Vale só no layout de 2 colunas: abaixo de 960px a faixa é estática e de
+   largura total, e continua exatamente como está. */
+@media (min-width: 960.02px) {
+  #como-nasceu .qs-hero__bleed {
+    left: 48%;
+    right: max(28px, calc((100% - 1280px) / 2 + 28px));
+    width: auto;
+  }
+}
+
+/* ============================================================
+   Padrão do topo da página — eyebrow e espaçamento
+   ============================================================
+   Referência: o eyebrow do hero da home ("Transformação Organizacional ·
+   Liderança · Governança"), que usa font-size: clamp(11px, 1.02vw, 14px).
+   As demais páginas estavam em 11px fixos, e a distância entre o menu fixo
+   (72px, position: fixed) e o primeiro texto variava de 11px a 180px conforme
+   a página. Medido ao vivo em produção, página por página.
+
+   O padding foi CALIBRADO por medição, não estimado: cada hero tem estrutura
+   própria (uns são seção comum, outros são flex com min-height: 100vh), então
+   o valor que leva o eyebrow a 180px abaixo do menu é diferente em cada um.
+
+   O recorte em min-width: 1000px é deliberado. Abaixo disso a faixa 881-999px
+   já é instável HOJE, antes de qualquer alteração (medido: /metodo salta de
+   369px para 95px entre 881 e 940; /sobre de 263px para 11px entre 940 e
+   1000), porque os heros ficam espremidos em 2 colunas. Mexer ali mudaria um
+   comportamento que não foi pedido. Abaixo de 1000px tudo continua como está.
+   O tamanho da letra não precisa de recorte: o próprio clamp devolve 11px em
+   telas estreitas, igual ao da referência. */
+@media (min-width: 1000px) {
+  /* O !important existe porque o padding-top desta secao vem de um style inline
+     no page.tsx (paddingTop: 0), e style inline só cede a !important. A opção
+     era editar o .tsx; preferi manter a mudança inteira no CSS, sem tocar em
+     nenhum arquivo de componente. */
+  #quem-somos { padding-top: 176px !important; }
+}
+#quem-somos .eyebrow { font-size: clamp(11px, 1.02vw, 14px); }
+
+
+/* ============================================================
+   Alteração 071 — o mesmo padrão de topo abaixo de 1000px
+   ============================================================
+   A alteração 070 padronizou o espaçamento apenas a partir de 1000px, e a
+   falha continuou visível abaixo dessa largura: o primeiro texto seguia colado
+   no menu fixo.
+
+   O alvo aqui é 96px, e NÃO os 183px do desktop. 96px é exatamente o que a
+   referência (o eyebrow do hero da home) entrega nessas larguras — medido ao
+   vivo: 89 a 98px de 360 a 880px, estável em qualquer altura de janela, porque
+   abaixo de 880px o hero da home perde a folga vertical e o padding passa a
+   mandar sozinho. Forçar 183px no celular criaria uma faixa vazia que a
+   própria referência não tem.
+
+   Toda medição foi feita com a página CARREGADA DO ZERO e já assentada (700ms
+   de load + 600ms de folga). Isso importa: a 070 errou a primeira calibração
+   justamente por medir página já estabilizada de um jeito e recém-carregada de
+   outro, e nesta página o valor chega a variar 13px entre os dois momentos. */
+/* /sobre — esta página tem dois comportamentos abaixo de 1000px, e só um deles
+   é falha:
+
+   • até 960px o hero empilha e o texto fica a 263px do menu. É o hero de altura
+     cheia com o conteúdo centralizado na vertical — desenho existente, não está
+     colado no menu, e por isso NÃO foi tocado.
+   • de 960,02 a 999,98px o layout já é de 2 colunas e o texto ficava a 11px do
+     menu, praticamente encostado. Era o pior caso do site inteiro.
+
+   O limite inferior é 960,02px para casar exatamente com o @media
+   (max-width: 960px) que comanda o empilhamento — mesmo par complementar já
+   usado nesta página desde a alteração 067, que evita o vão em larguras
+   fracionárias (uma janela de 960,5px não cai em nenhum dos dois lados quando
+   se usa 960 e 961).
+
+   O !important tem o mesmo motivo da 070: o padding-top desta seção vem de um
+   style inline no page.tsx (paddingTop: 0), e style inline só cede a
+   !important. Nenhum arquivo de componente foi tocado.
+
+   Calibrado por medição: a resposta é 1:1, 85px leva os 11px a 96px.
+   Conferido em 961 e 999px. */
+@media (min-width: 960.02px) and (max-width: 999.98px) {
+  #quem-somos { padding-top: 85px !important; }
+}

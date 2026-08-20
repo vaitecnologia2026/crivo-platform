@@ -203,7 +203,7 @@ export default function SolucoesPage() {
                 </div>
 
                 <div className="solu-card__ctas">
-                  <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--terra">
+                  <a href="#diagnostico" className="btn btn--terra">
                     Solicitar diagnóstico →
                   </a>
                   <a href={WHATSAPP_ESPECIALISTA} target="_blank" rel="noopener" className="btn btn--outline-dark">

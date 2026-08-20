@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // GATE DE ACESSO REMOVIDO (a pedido): as páginas abrem direto, sem "Acesso
-// restrito". A raiz "/" passa a ir direto para a landing (/lp).
-//
-// Para REATIVAR o gate, restaure a verificação do cookie httpOnly:
-//   import { GATE_COOKIE, gateSecret, verifyGate } from "@/lib/gate";
-//   const ok = await verifyGate(gateSecret(), req.cookies.get(GATE_COOKIE)?.value);
-//   if (!ok) { const u = req.nextUrl.clone(); u.pathname = "/"; return NextResponse.redirect(u); }
-// (a lógica em src/lib/gate.ts e o handler /api/gate continuam no repo.)
+// restrito". A raiz "/" é reescrita para a landing (/lp), servida na URL limpa.
+// Os arquivos do antigo gate (page.tsx da raiz, lib/gate.ts, /api/gate,
+// gate.module.css) foram removidos — exibiam a marca "VAI" e estavam inalcançáveis.
 // (Convenção Next 16: arquivo "proxy", antigo "middleware".)
 export function proxy(req: NextRequest) {
   const url = req.nextUrl.clone();

@@ -2894,9 +2894,37 @@ button:focus-visible,
 /* — Tela 01 · fidelidade 1:1: foto SANGRADA na borda direita (sem card),
    título em 3 linhas, eyebrow sem traço, selos sem ícone — */
 #hero .hero__inner { grid-template-columns: 1fr; }
-#hero .hero__copy { max-width: 620px; }
-#hero .display { font-size: clamp(32px, 3.9vw, 54px); line-height: 1.14; }
-#hero .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
+/* A coluna fica em 730px, e NÃO volta aos 620px do resto do site: a linha mais
+   longa do título 1 ("Evoluir com sustentação.") mede 623px no corpo de 56px,
+   e os 620px a quebrariam em 4 linhas, desmanchando a composição de 3 linhas
+   fixadas pelos <br>. Ou seja, a largura aqui é consequência do corpo do
+   título — os dois andam juntos e não devem ser mexidos separadamente. */
+#hero .hero__copy { max-width: 730px; }
+#hero .display { font-size: clamp(32px, 3.45vw, 48px); line-height: 1.14; }
+/* §3 — a TELA 1 é a primeira coisa que se lê no site e continua com corpo maior
+   que a tela 2: 56px contra 48px. O ganho desta medida é que, nos dois, o texto
+   volta a PARAR ANTES da foto sangrada — sobram 34px de folga na tela 1 e 56px
+   na tela 2, então nenhuma linha entra na faixa de degradê. Isso importa
+   sobretudo na tela 2, cuja foto é CLARA (um corredor iluminado): ali o texto
+   por cima da imagem é o que mais custa a ler.
+   Entrelinha 1.06 na tela 1 (e não a 1.14 herdada) porque em corpo de display a
+   entrelinha de texto corrido abre demais o bloco: é a proporção do título, não
+   só o tamanho.
+   As duas clamps batem no piso de 32px abaixo de ~800px (tela 1) e ~928px
+   (tela 2) de largura. Esse piso é o mesmo de sempre, então o celular não muda
+   de tamanho em nenhuma das duas telas. */
+#hero h1.display { font-size: clamp(32px, 4.0vw, 56px); line-height: 1.06; }
+/* O eyebrow do site inteiro é 11px fixo (regra base, e o token do design system
+   `--crivo-fs-eyebrow`). Aqui — e SÓ aqui — ele sobe até 14px, que é o degrau
+   `--crivo-fs-sm` da própria escala: não é número inventado. O motivo é que o
+   Hero é o único ponto do site com título de 64px; nas outras telas o título
+   fica entre 38px e 58px e os 11px continuam proporcionais. Antes do título
+   crescer, a razão eyebrow/título era 11/54 = 0,204; tinha caído para 0,172 e
+   volta a 0,219. O piso da clamp é o próprio 11px de hoje, então abaixo de
+   ~1078px de largura nada muda — e em 14px a linha mais longa
+   ("TRANSFORMAÇÃO ORGANIZACIONAL · LIDERANÇA · GOVERNANÇA") mede 573px, dentro
+   dos 730px da coluna: continua em uma linha só. */
+#hero .eyebrow { padding-left: 0; letter-spacing: 0.18em; font-size: clamp(11px, 1.02vw, 14px); }
 #hero .eyebrow::before { display: none; }
 #hero .seals svg { display: none; }
 .hero__bleed {
@@ -3021,7 +3049,15 @@ button:focus-visible,
    "CRIVO Plus™" centralizada FORA da banda, entre dois traços — */
 #solucoes .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #solucoes .eyebrow::before { display: none; }
-.journey-card { align-items: center; text-align: center; }
+/* A moldura terra passa a valer para os QUATRO cards. Antes, só o card 1 a
+   tinha (via `--hl`, logo abaixo) e os outros três ficavam com a borda neutra
+   de 1px `var(--line)` da regra base — que no fundo claro desta tela some e
+   dava a impressão de que estavam sem moldura. Não desloca nada: `box-sizing:
+   border-box` é global (linha 67), então trocar 1px por 1.5px não muda a caixa
+   — medido nos quatro cards, 293x253 antes e depois.
+   A regra `--hl` do card 1 fica onde está, com o mesmo valor: o card 1 não
+   muda de aparência e a classe continua no HTML, sem mexer no componente. */
+.journey-card { align-items: center; text-align: center; border: 1.5px solid var(--terra); }
 .journey-card__ic { margin: 10px 0 10px; }
 .journey-card__ic svg { width: 46px; height: 46px; }
 .journey-card--hl { border: 1.5px solid var(--terra); }
@@ -3221,7 +3257,7 @@ button:focus-visible,
    padding da banda e os 28px do container ele vazava abaixo de 361px. Em
    telas estreitas eles ja caiam empilhados, entao passam a ocupar a largura
    inteira e podem quebrar a linha. */
-@media (max-width: 400px) {
+@media (max-width: 449.98px) {
   .nav .container { padding-left: 16px; padding-right: 16px; }
   .nav__inner { gap: 10px; }
   .nav__actions { gap: 8px; }
@@ -3242,3 +3278,458 @@ button:focus-visible,
    padding do cartao. Em telas largas o eyebrow cabe numa linha so e continua
    terminando muito antes do botao, entao nada muda. */
 .diag-modal .eyebrow { padding-right: 44px; }
+
+/* ============================================================
+   Bordas suaves das fotos — a imagem para de parecer um recorte
+   ============================================================
+   As fotos de fundo (.arch-photo na tela 03 e .hero__bleed nos heros e na
+   secao de IA) eram retangulos de aresta dura assentados sobre o fundo da
+   pagina. Media na tela 03: a foto termina numa linha vertical nitida a
+   esquerda e em duas linhas horizontais em cima e embaixo — le-se como
+   figura colada, nao como parte da composicao.
+
+   A borda e desmanchada com MASCARA, e nao com uma tarja de sobreposicao na
+   cor do fundo. A diferenca importa: a mascara apaga o pixel da propria foto
+   e deixa aparecer o que estiver atras, seja qual for. Funciona igual no
+   creme da tela 03, no gradiente claro do /metodo e no azul escuro do hero e
+   da secao de IA — sem ninguem ter de acertar cor nenhuma. Uma tarja colorida
+   precisaria ser diferente em cada um desses fundos e sairia errada no dia em
+   que o fundo mudasse.
+
+   Sao DUAS mascaras combinadas com `intersect`: uma horizontal, que apaga a
+   aresta da esquerda, e uma vertical, que apaga as de cima e de baixo. O
+   `intersect` e obrigatorio — a composicao padrao e `add`, que faz a UNIAO
+   das duas e devolveria a aresta reta no meio de cada lado. Por isso vao as
+   duas sintaxes: `-webkit-mask-composite: source-in` (Safari e Chrome antigo)
+   antes de `mask-composite: intersect` (padrao), nessa ordem, para o padrao
+   vencer onde existir.
+
+   A direita nao e suavizada de proposito: nos dois casos a foto sangra ate a
+   borda da janela, entao ali nao ha aresta visivel para desmanchar.
+
+   O `border-radius` da .arch-photo e o degrau de seguranca: se um navegador
+   antigo ignorar a mascara, a foto ainda assim nao fica quadrada.
+
+   Isto e mudanca de PINTURA apenas. Medido antes e depois em /lp e /metodo, a
+   1440x900 e a 390x800: largura, altura e posicao de cada foto identicas, e a
+   altura total do documento igual ao byte — nenhum reflow, nenhuma barra de
+   rolagem lateral nova. */
+.arch-photo {
+  border-radius: 24px;
+  -webkit-mask-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 72px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 60px, #000 calc(100% - 60px), rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 72px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 60px, #000 calc(100% - 60px), rgba(0, 0, 0, 0) 100%);
+  mask-composite: intersect;
+}
+.hero__bleed {
+  -webkit-mask-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 128px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 64px, #000 calc(100% - 64px), rgba(0, 0, 0, 0) 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 128px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 64px, #000 calc(100% - 64px), rgba(0, 0, 0, 0) 100%);
+  mask-composite: intersect;
+}
+
+/* No celular as duas fotos deixam de sangrar e viram blocos empilhados de
+   260px e 300px de altura. Os desvanecimentos do desktop (128px e 64px)
+   comeriam quase metade da imagem nesse tamanho, entao aqui eles encolhem
+   proporcionalmente. Medido a 390x800: as alturas continuam 260px e 300px,
+   iguais as de antes. */
+@media (max-width: 900px) {
+  .arch-photo { border-radius: 18px; }
+  .arch-photo,
+  .hero__bleed {
+    -webkit-mask-image:
+      linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 30px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 26px, #000 calc(100% - 26px), rgba(0, 0, 0, 0) 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, rgba(0, 0, 0, 0) 0, #000 30px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, #000 26px, #000 calc(100% - 26px), rgba(0, 0, 0, 0) 100%);
+    mask-composite: intersect;
+  }
+}
+
+/* ============================================================
+   Secao "A IA amplia e acelera" — texto legivel e foto inteira
+   ============================================================
+   Dois defeitos na MESMA secao, com a mesma origem: ela nasceu como Hero e
+   virou SECAO (o §7 registrado em lp/page.tsx), e duas regras ficaram para
+   tras porque dependiam da classe `.hero`, que ela deixou de ter.
+
+   1 · COR DO PARAGRAFO
+   `.hero.section--dark .hero__sub` (linha 350) pinta o subtitulo de
+   `--azul-gelo` nos heros escuros. O seletor exige as DUAS classes juntas.
+   A secao de IA e `section section--dark` — tem `section--dark`, mas NAO tem
+   `.hero`. A regra nao alcancava, e o paragrafo caia no valor base de
+   `.hero__sub`, que e `--text-dark-sec` (#5C6470): cinza-ardosia ESCURO,
+   pensado para fundo claro.
+
+   Cinza escuro sobre azul escuro. Contraste medido contra os tons do fundo
+   desta secao: 2,40 a 2,75 para 1. O minimo da WCAG AA e 4,5 para 1 em texto
+   normal e 3 para 1 em texto grande — reprovava nos dois. Com `--azul-gelo`
+   sobe para 9,97 a 11,42 para 1.
+
+   As outras seis ocorrencias de `.hero__sub` no site foram conferidas uma a
+   uma e estao corretas: home e /conteudos sao `.hero ... section--dark` e ja
+   recebiam o azul-gelo; /metodo (duas) e /plataforma (duas) tem fundo CLARO e
+   devem mesmo ficar com o cinza escuro. Esta era a unica quebrada.
+
+   2 · FOTO CORTADA NO CELULAR
+   `#ia-vantagem-humana .hero__bleed { width: 55% }` (linha 3014) tem id na
+   frente, entao a especificidade dela (1,1,0) vence a do
+   `@media (max-width: 900px) .hero__bleed { width: auto }` (0,1,0) —
+   e media query nao aumenta especificidade. Resultado: no celular esta foto,
+   e so ela, continuava em 55% da largura enquanto todas as outras passavam a
+   ocupar a largura toda. Medido em 390px: 206px de foto e 169px de vazio ao
+   lado. A imagem aparecia cortada ao meio.
+
+   A regra abaixo devolve `width: auto` SO no celular. Em desktop os 55%
+   continuam valendo, intactos.
+
+   Nenhuma regra existente foi alterada: as duas entram no fim do arquivo e
+   vencem pela ordem da cascata. */
+#ia-vantagem-humana .hero__sub { color: var(--azul-gelo); }
+@media (max-width: 900px) {
+  #ia-vantagem-humana .hero__bleed { width: auto; }
+}
+
+/* ============================================================
+   Tela 16 · NR-1 — o texto sai de cima da foto e vai para o lado
+   ============================================================
+   O desenho anterior punha o bloco escuro DENTRO da foto
+   (`.nr1-photo .nr1-dark { position: absolute; right: 20px; top: 50% }`),
+   com largura fixa de 330px. Como a foto e fluida e o card nao, quanto mais
+   estreita a janela, mais o card comia a imagem. Medido antes:
+
+     1536 / 1440 / 1280 px .... foto 602px, card 330px .... cobria 55% da largura
+     1024 px .................. foto 463px, card 330px .... cobria 71%
+      950 px .................. foto 426px, card 330px .... cobria 78%, sobravam 76px
+
+   Agora a foto e o texto dividem a coluna: a foto reserva um espaco a direita
+   com `margin-right`, e o card ocupa exatamente esse espaco. O card deixa de
+   ter fundo, sombra e padding — vira texto sobre o fundo claro da secao, com
+   titulo em azul-profundo, itens em cinza de leitura e icones em terracota.
+
+   POR QUE `clamp(216px, 19vw, 300px)` NOS DOIS LADOS, E IDENTICO
+   A reserva (`margin-right` da foto) e a extensao do card (`right` negativo)
+   precisam ser SEMPRE o mesmo numero, senao sobra ou falta espaco. Nao da
+   para usar porcentagem: a da margem resolve contra a coluna da grade e a do
+   `right` resolve contra a largura da propria foto — bases diferentes, valores
+   diferentes. `vw` resolve contra a janela nos dois casos, entao bate sempre.
+   O `clamp` impede os dois extremos: sem o piso de 216px o texto ficaria
+   ilegivel em janela estreita; sem o teto de 300px ele engoliria a foto em
+   telas muito largas. Se um dia mudar, MUDE OS DOIS JUNTOS.
+
+   O `left: calc(100% + 24px)` e o que garante que o card comece 24px DEPOIS
+   da borda direita da foto — nunca em cima dela.
+
+   Medido depois, do 950px ao 1536px: o card nunca encosta na foto, a folga
+   ate a borda direita da secao e 0, o intervalo foto-texto e 24px constante,
+   a foto nunca fica abaixo de 262px e nao ha rolagem lateral em largura
+   nenhuma.
+
+   A guarda `min-width: 901px` e obrigatoria: abaixo dela ja existe
+   `@media (max-width: 900px)` (linha 2889) que empilha o card com
+   `position: static` e o mantem com fundo escuro sobre a base da foto. Esse
+   comportamento de celular NAO muda. */
+@media (min-width: 901px) {
+  #nr1 .nr1-hero { grid-template-columns: 1fr 1.35fr; }
+  #nr1 .nr1-photo { margin-right: clamp(216px, 19vw, 300px); }
+  #nr1 .nr1-photo .nr1-dark {
+    left: calc(100% + 24px);
+    right: calc(-1 * clamp(216px, 19vw, 300px));
+    max-width: none;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    color: var(--text-dark-sec);
+  }
+  #nr1 .nr1-dark strong { color: var(--azul-profundo); font-size: 16px; }
+  #nr1 .nr1-dark li { color: var(--text-dark-sec); font-size: 13.5px; }
+  #nr1 .nr1-dark li svg { color: var(--terra); width: 16px; height: 16px; }
+}
+
+/* ===================== FAQ — CAIXAS MAIS DISCRETAS (alteração 049) =====================
+   Pedido: "deixar essa parte mais discreta, reduzir as caixas brancas para ficar
+   menos extenso". As 11 perguntas ocupavam 1430px de altura na /lp.
+
+   NADA é removido: o fundo branco, a borda, o raio de 3px, o "+"/"–" em terracota
+   e a borda esquerda de 2px em terracota quando aberto continuam exatamente como
+   estavam. O que muda é só a ESCALA — respiro, corpo de texto e tamanho do sinal.
+
+   ATENÇÃO ao truque do padding, que não é estético e sim de usabilidade:
+   em <details>/<summary>, só o <summary> alterna o estado — clicar no padding do
+   <details> não faz nada. Com o padding no <details> (22px), o alvo de clique era
+   de apenas 40px de altura e encolheria para 29px com a redução. Por isso o padding
+   vertical foi movido do <details> para o <summary>: a caixa fica do mesmo tamanho,
+   mas a linha inteira passa a ser clicável e o alvo SOBE de 40px para 57px.
+   Se algum dia devolverem o padding vertical ao <details>, o alvo de clique
+   encolhe junto — não faça isso sem medir.
+
+   Como o padding-bottom do <details> foi a zero, a folga abaixo da resposta passou
+   a ser responsabilidade do próprio <p> (padding-bottom). E o `margin-top` do <p>
+   foi a zero porque o espaço entre pergunta e resposta agora vem do padding-bottom
+   do <summary>. Os três valores andam juntos.
+
+   Escopo: `.faq` só existe em lp/FaqSection.tsx, renderizado só na /lp — conferido
+   com grep. Este lp.css é importado por seis páginas, mas nenhuma outra tem a
+   marcação, então nenhuma outra é afetada.
+
+   Medido em produção (1536px): seção 1430 → 1085px (−345px, −24%);
+   caixa 84 → 58px (−31%); alvo de clique 40 → 57px (+43%).
+   ===================================================================================== */
+.faq { margin-top: 28px; }
+.faq details { padding: 0 20px; margin-bottom: 6px; }
+.faq summary { padding: 14px 0; font-size: 14.5px; }
+.faq summary::after { font-size: 18px; }
+.faq details p { margin-top: 0; padding-bottom: 16px; font-size: 14px; }
+
+/* ===================== LOGO DO MENU — MAIOR, PROPORCIONAL E NÍTIDO (alteração 050) =====
+   Pedido: "logo aparece apagado, ficar maior e proporcional e nítido".
+
+   O logo NÃO é imagem — é o SVG de VerticeMark.tsx. Não havia o que "melhorar de
+   resolução": o que lia como apagado era o subtítulo em 8px, peso 300, na cor
+   --azul-claro (#8BAFD4). Tamanho, peso e contraste resolvem; o desenho não muda.
+
+   ESCALA UNIFORME de ×1,17 — é o que atende "proporcional". Os três elementos
+   crescem junto, mantendo a relação entre símbolo e assinatura:
+     vértice  34 → 40px      CRIVO  24 → 28px      subtítulo  8 → 9.4px   gap 12 → 14px
+   O letter-spacing fica em `em` (0.22 e 0.34), então acompanha sozinho.
+
+   CONTRASTE: --azul-claro (#8BAFD4) → --azul-gelo (#C8D9ED) sobre o navy #0D1F3C
+   leva a razão de 7,18:1 para 11,42:1. Com o peso 300 → 400, o subtítulo para de
+   sumir. É daqui que vem o "nítido".
+
+   `white-space: nowrap` NÃO É ENFEITE — é o que impede a barra de crescer.
+   Entre 1090px e 1180px o subtítulo JÁ QUEBRAVA em duas linhas (defeito anterior a
+   esta alteração). Com 2 linhas a marca media 43px e ainda cabia nos 44px úteis da
+   barra; aumentada, passaria a 48px e a barra iria de 72px para 77px, empurrando
+   todo o site. O nowrap trava a assinatura em uma linha e, de quebra, corrige a
+   quebra que já existia — medida em 1090, 1100, 1150, 1180, 401 e 360px.
+
+   A GUARDA `min-width: 450px` É OBRIGATÓRIA. Mais acima existe
+   `@media (max-width: 449.98px)` que define `.nav .brand__name: 19px` e
+   `.nav .brand__sub: 6.6px` para a marca caber na barra do celular
+   (marca 147 + MAPA 121 + Portal 134 + burger 42 = 444px em 375). Como este bloco
+   vem DEPOIS no arquivo e tem a mesma especificidade (0,2,0), sem a guarda ele
+   venceria aquele ajuste e estouraria a largura nas telas estreitas.
+   Só a cor/peso/nowrap ficam fora da guarda, porque valem em qualquer largura.
+
+   A FRONTEIRA ERA 400/401 E ESTAVA BAIXA DEMAIS (corrigido aqui). Medido ao vivo
+   nas 6 páginas: com o lockup grande (vértice 40 + CRIVO 28px) a marca mede 227px
+   e as ações 174px; com os 20px de folga e os 28px de padding do container de cada
+   lado, a barra precisa de 449px. Ou seja, de 401px a 449px o lockup grande JÁ
+   entrava mas NÃO cabia: o hamburguer parava em 449px e ficava até 35px FORA da
+   tela. Como o menu mobile só abre por esse botão, o site ficava sem navegação
+   justamente em 414px (iPhone XR/11), 428px (12/13/14 Pro Max) e 430px (15 Pro Max).
+   Subir as DUAS fronteiras juntas (449.98 e 450) mantém os blocos complementares,
+   sem buraco e sem sobreposição, e o lockup grande passa a entrar só onde cabe.
+
+   Escopo: tudo prefixado com `.nav`. O mesmo lockup existe no RODAPÉ
+   (.brand--footer) e na capa do e-book de /conteudos (.cc-book__mark) — nenhum
+   dos dois é afetado, porque o pedido era o logo do menu.
+
+   Verificado em 21 larguras (360 → 1536px): barra em 72px (71px em ≤400px) em
+   TODAS, sem quebra do subtítulo, sem corte e sem rolagem lateral. Pior folga
+   entre a marca e os links: 20px, na faixa 1090–1180px.
+   ======================================================================================= */
+.nav .brand__sub { color: var(--azul-gelo); font-weight: 400; white-space: nowrap; }
+@media (min-width: 450px) {
+  .nav .brand { gap: 14px; }
+  .nav .vertice { width: 40px; }
+  .nav .brand__name { font-size: 28px; }
+  .nav .brand__sub { font-size: 9.4px; }
+}
+
+/* ===================== CTA FINAL — PARÁGRAFO LEGÍVEL (alteração 051) =================
+   Pedido: "texto apagado do parágrafo" — o parágrafo abaixo de "Comece pelo MAPA
+   Executivo.", na faixa escura que fecha a /lp.
+
+   CAUSA, a mesma da alteração 045: `.lede` (linha 598) nasce com
+   `color: var(--text-dark-sec)` = #5C6470, um cinza pensado para FUNDO CLARO.
+   O #cta-final é `.section--dark`, navy #0D1F3C. Cinza escuro sobre navy dá
+   2,75:1 — abaixo do mínimo de 4,5:1 para texto normal (18px, peso 300).
+
+   A CONVENÇÃO JÁ EXISTIA NO ARQUIVO e não foi inventada aqui: a linha 603 traz
+   `.lede--light { color: var(--text-light-sec) }`, que é exatamente a variante de
+   fundo escuro. Este bloco só aplica o MESMO token ao parágrafo que ficou de fora.
+   Resultado: 2,75:1 → 9,27:1.
+
+   POR QUE NÃO ACRESCENTAR A CLASSE `.lede--light` NA MARCAÇÃO: além de `color`,
+   aquela classe traz `text-align: center` e `margin: 0 auto 64px`. O parágrafo tem
+   `margin: "14px auto 26px"` em estilo inline, e o alinhamento central vem do
+   container. Aplicar a classe inteira mexeria no espaçamento — que não foi pedido.
+   Só a cor muda.
+
+   ESCOPO — só existe UM `#cta-final` no repositório inteiro (FundadoresSection.tsx
+   linha 71), então este lp.css, mesmo importado por seis páginas, alcança apenas a
+   /lp. Levantamento feito antes: o site tem cinco `.lede`; os outros quatro estão em
+   fundo claro com 5,25:1 e continuam intocados. Este era o único quebrado.
+
+   A especificidade (1,1,0) do seletor com id vence `.lede` (0,1,0) por larga
+   margem — não depende da posição no arquivo para funcionar.
+   ===================================================================================== */
+#cta-final .lede { color: var(--text-light-sec); }
+
+
+/* ============================================================
+   Responsividade — telas ultraestreitas (até 344px)
+   ============================================================
+   O bloco de ≤449.98px acima resolve os celulares comuns, mas ele mantém a
+   marca em 19px e o botão em 12.5px — uma barra que precisa de 323px de
+   conteúdo mais 32px de padding, ou seja 355px. Abaixo disso ela volta a vazar:
+   medido ao vivo, em 320px o hamburguer ia até 339px, 19px fora da tela, e em
+   280px (Galaxy Fold fechado) ia a 339px, 59px fora. Como o menu mobile SÓ abre
+   por esse botão, essas larguras ficavam sem navegação nenhuma.
+
+   `min-width: 0` na marca e no bloco de texto é o que permite ela encolher: sem
+   isso um item de flex nunca fica menor que o próprio conteúdo e empurra as
+   ações para fora. `flex: 0 0 auto` nas ações garante o contrário — o botão e o
+   hamburguer nunca encolhem nem são empurrados. O subtítulo perde o `nowrap` e
+   quebra em duas linhas, que é o que o CSS de ≤400px já presumia (e não
+   acontecia, porque o `nowrap` da linha do lockup impedia).
+
+   Os `min-width: 0` de .cta-band__text, .strip-card, .solu-card e .mv-col
+   atacam a mesma causa fora da barra: são itens de grid/flex cuja largura
+   mínima automática era maior que a tela. O .cta-band__text tinha `min-width:
+   240px` fixo — mais largo que a área útil de um Fold.
+
+   `white-space: normal` no .btn deixa os rótulos longos quebrarem a linha ("Conhecer
+   Soluções CRIVO →" mede 264px e não cabia em 280px). O `nowrap` é reposto logo
+   em seguida SÓ para os botões da barra, onde quebrar linha desalinharia o topo.
+
+   Verificado ao vivo nas 6 páginas em 27 larguras (280 → 1920px): nenhum elemento
+   fora da tela e o hamburguer sempre acessível. Acima de 344px nada muda. */
+@media (max-width: 344px) {
+  .nav .container { padding-left: 12px; padding-right: 12px; }
+  .nav__inner { gap: 8px; }
+  .nav .brand { min-width: 0; gap: 6px; }
+  .nav .brand__text { min-width: 0; }
+  .nav .vertice { width: 28px; }
+  .nav .brand__name { font-size: 16px; }
+  .nav .brand__sub { white-space: normal; }
+  .nav__actions { flex: 0 0 auto; gap: 6px; }
+  .btn { white-space: normal; padding-left: 18px; padding-right: 18px; }
+  .nav__actions .btn { white-space: nowrap; font-size: 11.5px; padding-left: 10px; padding-right: 10px; }
+  .cta-band__text { min-width: 0; }
+  .strip-card { min-width: 0; }
+  .solu-card, .solu-card__main, .solu-card__col, .solu-card__ctas { min-width: 0; }
+  .mv-col { min-width: 0; }
+}
+
+/* Galaxy Fold fechado (280px) e afins: mesmo com o bloco acima, a marca em 16px
+   ainda somava 19px a mais que a área útil. Só a marca encolhe mais; o botão e o
+   hamburguer ficam como estão, para o alvo de toque não cair abaixo de 44px. */
+@media (max-width: 300px) {
+  .nav .vertice { width: 24px; }
+  .nav .brand__name { font-size: 13px; }
+  .nav .brand__sub { font-size: 5.6px; }
+}
+
+
+/* ============================================================
+   Alteração 072 — o tamanho de letra padrão em TODOS os eyebrows
+   ============================================================
+   A alteração 070 levou ao padrão da referência apenas o eyebrow do TOPO de
+   cada página, porque foi essa a decisão daquele momento. Os eyebrows das
+   seções internas continuaram nos 11px fixos da regra base — "Como Nasceu a
+   CRIVO™", "Os Fundadores", "ICD™", "Área do Líder", "Arquitetura CRIVO™",
+   "NR-1 · Fatores Psicossociais", "Futuro do Trabalho · IA · Pessoas ·
+   Decisões", "Quem Somos", "Soluções CRIVO™" e "Perguntas frequentes".
+
+   Inventário medido ao vivo, nas 6 páginas: 16 eyebrows visíveis, 6 já no
+   padrão (os do topo) e 10 ainda em 11px. Agora todos usam o mesmo valor da
+   referência, que é o eyebrow do hero da home:
+
+       font-size: clamp(11px, 1.02vw, 14px)
+
+   POR QUE NA REGRA BASE, e não 10 regras avulsas. O valor é o mesmo para
+   todos; espalhar dez seletores por quatro arquivos deixaria qualquer eyebrow
+   futuro nascendo fora do padrão de novo. Uma linha aqui resolve o site
+   inteiro, presente e futuro — é o ponto onde o 11px fixo estava declarado,
+   então é o lugar certo para o padrão. As regras específicas que a 070 criou
+   (#metodo, #quem-somos, #portal, #conteudos, .sol-hero__inner) continuam
+   valendo e declaram exatamente este mesmo valor: não há conflito nem
+   divergência, e nenhuma delas foi removida.
+
+   O PISO DA CLAMP É 11px, e 1.02vw só alcança 11px a partir de ~1078px de
+   largura. Ou seja: em celular e tablet NADA muda. O crescimento acontece só
+   em tela larga, onde sobra espaço — verificado que nenhum eyebrow passa a
+   quebrar linha em nenhuma largura.
+
+   ISTO SUBSTITUI A NOTA DE PROJETO que está algumas centenas de linhas acima,
+   junto do `#hero .eyebrow`, onde ficou registrado que o eyebrow seria 11px em
+   todo o site e 14px "só ali". Aquele critério era a proporção com o título de
+   64px do Hero. A padronização pedida agora vale mais que essa proporção, e a
+   nota antiga foi mantida no arquivo por ser o registro histórico da decisão —
+   não foi apagada nenhuma linha. */
+.eyebrow { font-size: clamp(11px, 1.02vw, 14px); }
+
+/* O modal do MAPA fica FORA do escopo, de propósito, e por isso é fixado de
+   volta em 11px.
+
+   Motivo: o pedido é sobre os textos das páginas; o modal é um formulário, e
+   ali o eyebrow "MAPA Executivo CRIVO™ · Leitura inicial sem custo" divide a
+   linha com o botão de fechar — existe inclusive um `padding-right: 44px` só
+   para isso. Aumentar a fonte dele aumenta o risco de quebra de linha num
+   ponto que está funcionando e que não foi pedido.
+
+   A especificidade é segura: `.diag-modal .eyebrow` (0,2,0) vence a regra
+   acima (0,1,0), e o modal é filho direto do <body> — não está dentro de
+   #hero, então o `#hero .eyebrow` (1,1,0) não o alcança. Conferido no DOM ao
+   vivo. */
+.diag-modal .eyebrow { font-size: 11px; }
+
+
+/* ============================================================
+   Alteração 073 — recuo de topo padrão em #solucoes e #nr1
+   ============================================================
+   O texto "NR-1 · Fatores Psicossociais" estava encostado na divisa entre a
+   seção escura de cima (#ia-vantagem-humana) e a seção clara dele: medido ao
+   vivo, o eyebrow ficava a apenas 2px do topo da própria seção.
+
+   A causa não é o CSS — é um `style` inline no page.tsx (`paddingTop: 0`) que
+   anula o `padding: 120px 0` da regra base `.section`. Duas seções da home têm
+   esse inline e são exatamente as duas que ficam coladas na divisa:
+
+     #solucoes  — vem logo depois do hero (escuro)
+     #nr1       — vem logo depois de #ia-vantagem-humana (escuro)
+
+   Recuo do topo da seção até o eyebrow, medido ao vivo em 9 larguras ANTES:
+
+     largura      360-1024   1280   1440/1920
+     #nr1                6      4       2
+     #solucoes           6      4       2
+     #ia-vantagem…     126*   124     122     <- padrão
+     #faq              126    124     122     <- padrão
+     #arquitetura      126    160     158
+
+   (*) em telas estreitas o #ia-vantagem-humana tem estrutura própria e vai a
+   428px; os 126px valem de 1024px para cima. O padrão de referência aqui é o
+   par #ia-vantagem-humana / #faq, que são as seções de mesma estrutura.
+
+   O VALOR NÃO É INVENTADO: 120px é o `padding` da própria regra base
+   `.section`, que estas duas seções estavam anulando. Há uma única declaração
+   de `.section` no arquivo inteiro, sem variação por media query — conferido —
+   então 120px é o padrão em qualquer largura e o !important não cria efeito
+   colateral em celular.
+
+   O !important é necessário porque style inline só cede a !important. A
+   alternativa era editar o page.tsx; preferi manter a alteração inteira no
+   CSS, sem tocar em nenhum arquivo de componente — mesmo padrão já usado nas
+   alterações 070 e 071 para o #quem-somos.
+
+   RESULTADO MEDIDO DEPOIS: #nr1 e #solucoes passam a 126 / 124 / 122px,
+   exatamente os mesmos valores de #ia-vantagem-humana e #faq em cada largura.
+
+   Sobre a âncora `href="#solucoes"` do hero: o html tem
+   `scroll-padding-top: 80px`, e com mais padding no topo da seção o texto
+   passa a parar MAIS LONGE do menu fixo, não mais perto. Não quebra nada. */
+#solucoes, #nr1 { padding-top: 120px !important; }

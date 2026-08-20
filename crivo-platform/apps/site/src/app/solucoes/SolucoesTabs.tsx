@@ -33,6 +33,26 @@ const Chevron = ({ dir }: { dir: "l" | "r" }) => (
 export function SolucoesTabs() {
   const [active, setActive] = useState<string>("mapa-executivo");
 
+  // Conta ESCOLHAS DE SOLUÇÃO — por âncora (card da home, submenu, link
+  // externo), por clique numa aba ou pelas setas. Em todos os casos a tela é
+  // reposicionada para caber a solução inteira.
+  //
+  // É um contador, e não uma marca de sim/não, por um motivo concreto: escolher
+  // a solução que JÁ está aberta não muda `active`, o React não re-renderiza e
+  // um efeito preso a `[active]` nunca rodaria — clicar na aba da solução aberta
+  // deixaria de trazê-la para a tela, e a marca ficaria ligada esperando a
+  // próxima troca, provocando um salto fora de hora. O contador sempre muda.
+  //
+  // Começa em zero e o efeito ignora o zero: entrar em /solucoes pelo menu, pelo
+  // rodapé ou pela URL, sem âncora, continua abrindo a página pela introdução.
+  const [pedido, setPedido] = useState(0);
+
+  // Único caminho para escolher uma solução — nada chama setActive direto.
+  const escolher = (id: string) => {
+    setActive(id);
+    setPedido((n) => n + 1);
+  };
+
   // Mostra só a solução ativa. A classe (e não style.display) porque o servidor
   // já entrega .sol-pane/.is-open — assim a página abre certa antes do JS.
   useEffect(() => {
@@ -45,7 +65,7 @@ export function SolucoesTabs() {
   useEffect(() => {
     const fromHash = () => {
       const h = window.location.hash.replace("#", "");
-      if (IDS.includes(h)) setActive(h);
+      if (IDS.includes(h)) escolher(h);
     };
     fromHash();
     window.addEventListener("hashchange", fromHash);
@@ -62,15 +82,60 @@ export function SolucoesTabs() {
       const a = (ev.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
       if (!a) return;
       const id = (a.getAttribute("href") || "").match(/^\/solucoes#(.+)$/)?.[1];
-      if (id && IDS.includes(id)) setActive(id);
+      if (id && IDS.includes(id)) escolher(id);
     };
     document.addEventListener("click", aoClicar, true);
     return () => document.removeEventListener("click", aoClicar, true);
   }, []);
 
+  // Escolher uma solução precisa MOSTRAR a solução inteira. Sem reposicionar, o
+  // cabeçalho da seção (eyebrow + título + lede + arte) ocupa ~470px e a barra
+  // de abas mais ~90px: o painel começaria a ~587px do topo e sobraria menos de
+  // 100px dele na tela — a informação apareceria partida em duas rolagens.
+  //
+  // O alvo da rolagem depende da altura da janela, e a regra é uma só: MOSTRAR
+  // AS ABAS SEMPRE QUE ELAS COUBEREM JUNTO COM O PAINEL; quando não couberem, a
+  // tela inteira vai para o painel. Assim a navegação nunca come o espaço da
+  // informação — que é o que foi pedido — e em telas normais a barra de abas
+  // continua visível. Para dimensionar: com as abas no topo a janela precisa de
+  // 719px (Evolução) a 905px (Diagnóstico); com o painel encostado no topo, de
+  // 609px a 795px.
+  //
+  // Este efeito é declarado DEPOIS do que abre o painel, então roda depois dele:
+  // quando a rolagem é calculada, a altura do painel já é a definitiva. Os dois
+  // quadros de espera existem porque o App Router também mexe na rolagem ao
+  // resolver o hash — sem eles, a rolagem dele sobrescreveria esta.
+  useEffect(() => {
+    if (pedido === 0) return;
+    const abas = document.querySelector(".sol-tabs-wrap");
+    const painel = document.getElementById(active);
+    if (!abas || !painel) return;
+    let q2 = 0;
+    const q1 = requestAnimationFrame(() => {
+      q2 = requestAnimationFrame(() => {
+        // 80px é o `scroll-padding-top` do html (lp.css), que já desconta o
+        // header fixo: é onde o topo do elemento escolhido vai parar.
+        const TOPO = 80;
+        const comAbas =
+          painel.getBoundingClientRect().bottom - abas.getBoundingClientRect().top + TOPO;
+        const alvo = comAbas <= window.innerHeight ? abas : painel;
+        alvo.scrollIntoView({ block: "start" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(q1);
+      cancelAnimationFrame(q2);
+    };
+  }, [pedido, active]);
+
   const idx = IDS.indexOf(active);
   const go = (id: string) => {
-    setActive(id);
+    // Clicar numa aba (ou nas setas) também reposiciona: se a pessoa estiver
+    // lendo o fim de uma solução e trocar para outra, sem isto a solução nova
+    // abriria com o começo dela acima da dobra. Quando a barra de abas já está
+    // no lugar, o reposicionamento não move nada — o salto só acontece quando
+    // de fato havia rolagem a corrigir.
+    escolher(id);
     window.history.replaceState(null, "", `#${id}`);
   };
 

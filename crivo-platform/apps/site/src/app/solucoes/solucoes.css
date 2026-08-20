@@ -100,19 +100,53 @@
 .solu-card__col h3 { font-family: var(--font-serif); font-size: 16.5px; color: var(--azul-profundo); font-weight: 600; }
 .solu-card__col .rule-terra { margin: 2px 0 4px; width: 34px; height: 2px; }
 
-/* Sub-card NR-1 (só na seção Diagnóstico) */
+/* Sub-card NR-1 (só na seção Diagnóstico)
+
+   Este card vive na 1ª coluna do `.solu-card`, que é estreita por natureza —
+   medida no ar: 225px a 249px de largura. No arranjo anterior, badge e texto
+   ficavam lado a lado em flex, e o badge comia ~62px: sobravam apenas 137px
+   para o texto. O título quebrava em 2 linhas e a descrição em 4 (5 em janela
+   de 1100px), e o card chegava a 183px de altura — 210px no caso pior.
+
+   Agora são DUAS FAIXAS numa grade: badge e título dividem a primeira, e a
+   descrição ocupa a segunda inteira. A descrição passa a ter 197px a 242px em
+   vez de 137px e cai para 3 linhas; o título cabe em uma só na maioria das
+   larguras. O card vai de 183px para 107px de altura — e não perde uma
+   palavra do texto: o que mudou foi o arranjo e o respiro, não o conteúdo.
+
+   `display: contents` na div interna é o que dissolve aquele agrupamento e
+   deixa badge, título e descrição serem os três itens da grade. É por isso
+   que a marcação em `page.tsx` continua exatamente a mesma — nenhuma linha
+   de JSX foi tocada para conseguir este layout.
+
+   O seletor da descrição é `.sol-nr1 > div > span`, e NÃO `.sol-nr1 span`,
+   porque o badge também é um `span`: a regra antiga alcançava o badge com
+   especificidade maior que a de `.sol-nr1__badge` e sobrescrevia o tamanho e
+   a cor dele. Na prática o badge renderizava 13px cinza, e não o azul menor
+   que o próprio desenho já pedia. Com o seletor mais específico, a regra do
+   badge finalmente vale. Não volte para `.sol-nr1 span`. */
 .sol-nr1 {
-  display: flex; align-items: flex-start; gap: 12px;
-  background: var(--bg-light-dim); border: 1px solid var(--line); border-radius: 12px;
-  padding: 14px 16px; margin-top: 2px;
+  display: grid; grid-template-columns: auto 1fr; align-items: center;
+  column-gap: 8px; row-gap: 4px;
+  background: var(--bg-light-dim); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 13px; margin-top: 2px;
 }
+.sol-nr1 > div { display: contents; }
 .sol-nr1__badge {
-  flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
-  color: var(--azul-profundo); border: 1.5px solid var(--azul-profundo); border-radius: 6px;
-  padding: 3px 8px; white-space: nowrap;
+  grid-column: 1; grid-row: 1;
+  flex-shrink: 0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.35;
+  color: var(--azul-profundo); border: 1.5px solid var(--azul-profundo); border-radius: 5px;
+  padding: 2px 6px; white-space: nowrap;
 }
-.sol-nr1 strong { display: block; font-size: 14px; color: var(--azul-profundo); margin-bottom: 2px; }
-.sol-nr1 span { font-size: 13px; color: #4A5568; line-height: 1.5; }
+.sol-nr1 strong {
+  grid-column: 2; grid-row: 1;
+  display: block; font-size: 13px; color: var(--azul-profundo);
+  line-height: 1.3; margin-bottom: 0;
+}
+.sol-nr1 > div > span {
+  grid-column: 1 / -1; grid-row: 2;
+  font-size: 12.5px; color: #4A5568; line-height: 1.45;
+}
 
 /* Painel navy lateral ("Da leitura inicial à rota de avanço." etc.) */
 .sol-side {
@@ -222,3 +256,116 @@
    página abre correta mesmo antes do JS. */
 .sol-pane { display: none; }
 .sol-pane.is-open { display: block; }
+
+/* — Telas BAIXAS: compactação de ESPAÇO para a solução caber inteira —
+   O requisito é que, ao escolher uma solução, ela apareça toda na tela. O
+   reposicionamento (SolucoesTabs) resolve ONDE o painel fica; isto resolve
+   QUANTO ele mede. Sem isto, o painel mais alto (Diagnóstico, 713px, que tem o
+   box extra da NR-1) fica maior que a área útil de janelas baixas ou de quem
+   navega com zoom, e nenhuma rolagem consegue mostrá-lo por completo.
+
+   O que muda aqui é SÓ ESPAÇO — padding, gap e margem. Nenhum tamanho de
+   fonte, nenhuma cor, nenhum conteúdo: o painel não perde uma palavra, só
+   aperta os respiros. Medido: 44px a 77px recuperados por solução, o que leva
+   o Diagnóstico de 713px para 664px e faz os sete caberem a partir de ~744px
+   de altura de janela (antes eram ~832px).
+
+   As duas condições da media query importam:
+   • `max-height: 860px` — em telas normais NADA muda; o espaçamento original
+     continua valendo e este bloco simplesmente não se aplica.
+   • `min-width: 981px` — o layout de celular/tablet já tem o seu próprio
+     empilhamento em `@media (max-width: 980px)`, com paddings pensados para
+     tela estreita. Sem esta guarda, este bloco venceria por vir depois no
+     arquivo e desmancharia aquele ajuste. Verificado em 390x800: ganho zero,
+     mobile intacto. */
+@media (max-height: 860px) and (min-width: 981px) {
+  .sol-block { margin-top: 16px; }
+  .solu-card { padding: 22px 26px; }
+  .solu-card__main { gap: 9px; }
+  .solu-card__col { gap: 8px; padding: 0 20px; }
+  .sol-side { padding: 20px 22px; }
+  .sol-side ul { gap: 9px; }
+  .sol-side .rule-terra { margin: 9px 0 12px; }
+  .sol-side__flow { margin-top: 11px; padding-top: 12px; }
+}
+
+/* ============================================================
+   Padrão do topo da página — eyebrow e espaçamento
+   ============================================================
+   Referência: o eyebrow do hero da home ("Transformação Organizacional ·
+   Liderança · Governança"), que usa font-size: clamp(11px, 1.02vw, 14px).
+   As demais páginas estavam em 11px fixos, e a distância entre o menu fixo
+   (72px, position: fixed) e o primeiro texto variava de 11px a 180px conforme
+   a página. Medido ao vivo em produção, página por página.
+
+   O padding foi CALIBRADO por medição, não estimado: cada hero tem estrutura
+   própria (uns são seção comum, outros são flex com min-height: 100vh), então
+   o valor que leva o eyebrow a 180px abaixo do menu é diferente em cada um.
+
+   O recorte em min-width: 1000px é deliberado. Abaixo disso a faixa 881-999px
+   já é instável HOJE, antes de qualquer alteração (medido: /metodo salta de
+   369px para 95px entre 881 e 940; /sobre de 263px para 11px entre 940 e
+   1000), porque os heros ficam espremidos em 2 colunas. Mexer ali mudaria um
+   comportamento que não foi pedido. Abaixo de 1000px tudo continua como está.
+   O tamanho da letra não precisa de recorte: o próprio clamp devolve 11px em
+   telas estreitas, igual ao da referência. */
+@media (min-width: 1000px) {
+  section:has(.sol-hero__inner) { padding-top: 225px; }
+}
+/* Esta página era a única ainda no estilo base do eyebrow (0.3em de entrelinha
+   e o traço à esquerda). As outras cinco já seguiam o formato da referência,
+   então aqui ele também é alinhado — sem isso a página continuaria a exceção
+   visível, que é justamente o que se quer padronizar. */
+.sol-hero__inner .eyebrow {
+  font-size: clamp(11px, 1.02vw, 14px);
+  letter-spacing: 0.18em;
+  padding-left: 0;
+}
+.sol-hero__inner .eyebrow::before { display: none; }
+
+
+/* ============================================================
+   Alteração 071 — o mesmo padrão de topo abaixo de 1000px
+   ============================================================
+   A alteração 070 padronizou o espaçamento apenas a partir de 1000px, e a
+   falha continuou visível abaixo dessa largura: o primeiro texto seguia colado
+   no menu fixo.
+
+   O alvo aqui é 96px, e NÃO os 183px do desktop. 96px é exatamente o que a
+   referência (o eyebrow do hero da home) entrega nessas larguras — medido ao
+   vivo: 89 a 98px de 360 a 880px, estável em qualquer altura de janela, porque
+   abaixo de 880px o hero da home perde a folga vertical e o padding passa a
+   mandar sozinho. Forçar 183px no celular criaria uma faixa vazia que a
+   própria referência não tem.
+
+   Toda medição foi feita com a página CARREGADA DO ZERO e já assentada (700ms
+   de load + 600ms de folga). Isso importa: a 070 errou a primeira calibração
+   justamente por medir página já estabilizada de um jeito e recém-carregada de
+   outro, e nesta página o valor chega a variar 13px entre os dois momentos. */
+/* /solucoes — medido 55px do menu ao eyebrow em TODAS as larguras de 320 a
+   999px, com padding-top de 120px. A resposta é 1:1 (abaixo de 980px o
+   .sol-hero__inner vira coluna única e some a centralização vertical do grid),
+   logo 161px leva a 96px. Conferido em 320, 390, 560, 768, 880, 960 e 999px. */
+@media (max-width: 999.98px) {
+  section:has(.sol-hero__inner) { padding-top: 161px; }
+}
+
+/* Sobra residual da própria 070, na faixa de 1000 a 1280px: aqui o espaçamento
+   ficava entre 160 e 181px em vez dos 183px do restante do site. A causa não é
+   o padding — é o .sol-hero__inner, que é um grid com align-items: center. A
+   coluna da arte cresce junto com a largura da tela até o container travar em
+   1280px; enquanto ela é mais baixa que a coluna de texto, a centralização não
+   desloca nada, e a partir daí desloca cada vez mais, até os 26px que fecham os
+   183px. É um efeito CONTÍNUO, não um degrau — por isso a compensação também é
+   contínua, e não um valor fixo.
+
+   A conta: faltavam 23px em 1024px e 0px em 1280px, variação linear de
+   0,0898px por pixel de largura, ou seja 115px - 8.98vw, com piso em zero para
+   nunca subtrair. Medido depois: 179 a 185px em 1000, 1024, 1060, 1100, 1140,
+   1180, 1220, 1260, 1279 e 1280px — contra 160 a 183px antes.
+
+   Corrigir na origem (tirar o align-items: center) mudaria o desenho do hero,
+   que está funcionando; a compensação mexe só em espaço. */
+@media (min-width: 1000px) and (max-width: 1279.98px) {
+  section:has(.sol-hero__inner) { padding-top: calc(225px + max(0px, 115px - 8.98vw)); }
+}
