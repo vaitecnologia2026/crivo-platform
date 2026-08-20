@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   PERMISSIONS,
+  PLATFORM_LEAD_STAGE_LABEL,
   ROLES,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
+  platformLeadOriginLabel,
+  type LeadUserSummary,
   type PermissionCode,
   type Role,
 } from "@crivo/types";
 import {
   createPlatformUser,
+  listLeadUsers,
   listPlatformUsers,
+  setLeadUserPassword,
   updatePlatformUser,
   type PlatformUserData,
 } from "../../lib/admin-api";
@@ -26,6 +31,7 @@ const CRIVO_ROLES = ["Super Admin", "Comercial", "Financeiro", "Operações", "C
  * exatamente o que cada papel pode ver.
  */
 export function RbacSection() {
+  const [tab, setTab] = useState<"papeis" | "usuarios">("papeis");
   const [activeRole, setActiveRole] = useState<Role>("CEO");
 
   const grid = useMemo(() => buildGrid(), []);
@@ -36,80 +42,111 @@ export function RbacSection() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Papéis & Permissões</h1>
-          <p className="page-sub">
-            Catálogo RBAC do sistema, separado por módulo. Cada papel abaixo tem um conjunto
-            de permissões — o acesso nunca é irrestrito por padrão.
-          </p>
+          {tab === "papeis" ? (
+            <p className="page-sub">
+              Catálogo RBAC do sistema, separado por módulo. Cada papel abaixo tem um conjunto
+              de permissões — o acesso nunca é irrestrito por padrão.
+            </p>
+          ) : (
+            <p className="page-sub">
+              Cadastro dos leads que responderam o MAPA Executivo CRIVO™ e a conta de acesso
+              criada quando o lead virou cliente — inclusive a edição da senha desse acesso.
+            </p>
+          )}
         </div>
-        <span className="adm-readonly" title="Catálogo de referência — sem edição nesta tela">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
-            <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          Somente leitura
-        </span>
+        {/* O selo vale para o catálogo RBAC; a aba Usuários edita senha, então não se aplica. */}
+        {tab === "papeis" && (
+          <span className="adm-readonly" title="Catálogo de referência — sem edição nesta tela">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Somente leitura
+          </span>
+        )}
       </div>
 
-      <div className="adm-callout">
-        <strong>Papel × escopo.</strong> Este catálogo define <em>o que</em> cada papel pode fazer.
-        O <em>onde</em> — escopo por <strong>grupo, CNPJ, contrato, módulo e ciclo</strong> — é
-        aplicado no backend por empresa (isolamento multi-tenant RLS: um RH do CNPJ 01 não enxerga
-        dados do CNPJ 02, salvo permissão de grupo autorizada) e a edição visual desses recortes,
-        papéis customizados (Admin Empresa/Grupo, RH Grupo/CNPJ, Mentor/Facilitador) e o log de
-        alteração de permissões entram na próxima fatia (TenantRole). Dados individuais de
-        colaboradores, Pocket e ICD nunca são expostos como ranking.
-      </div>
-
-      <PlatformUsersPanel />
-
-      <div className="adm-chips">
-        {ROLES.map((r) => (
+      <div className="adm-tabs">
+        {([
+          ["papeis", "Papéis & Permissões"],
+          ["usuarios", "Usuários"],
+        ] as const).map(([key, label]) => (
           <button
-            key={r}
-            onClick={() => setActiveRole(r)}
-            className={`adm-chip${activeRole === r ? " is-active" : ""}`}
+            key={key}
+            onClick={() => setTab(key)}
+            className={`adm-tab${tab === key ? " is-active" : ""}`}
           >
-            {ROLE_LABELS[r]}
+            {label}
           </button>
         ))}
       </div>
 
-      <div className="card">
-        <div className="card__head">
-          <div>
-            <h3>
-              Permissões do papel: <strong>{ROLE_LABELS[activeRole]}</strong>
-            </h3>
-            <span className="card__sub">
-              {activePerms.size} de {PERMISSIONS.length} permissões do catálogo liberadas para este papel.
-            </span>
+      {tab === "usuarios" && <LeadUsersTab />}
+
+      {tab === "papeis" && (
+        <>
+          <div className="adm-callout">
+            <strong>Papel × escopo.</strong> Este catálogo define <em>o que</em> cada papel pode fazer.
+            O <em>onde</em> — escopo por <strong>grupo, CNPJ, contrato, módulo e ciclo</strong> — é
+            aplicado no backend por empresa (isolamento multi-tenant RLS: um RH do CNPJ 01 não enxerga
+            dados do CNPJ 02, salvo permissão de grupo autorizada) e a edição visual desses recortes,
+            papéis customizados (Admin Empresa/Grupo, RH Grupo/CNPJ, Mentor/Facilitador) e o log de
+            alteração de permissões entram na próxima fatia (TenantRole). Dados individuais de
+            colaboradores, Pocket e ICD nunca são expostos como ranking.
           </div>
-        </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Módulo</th>
-              <th>Permissão</th>
-              <th>Liberada?</th>
-            </tr>
-          </thead>
-          <tbody>
-            {grid.map((g) => (
-              <tr key={g.code}>
-                <td><code className="cell-code">{g.module}</code></td>
-                <td>{g.label}</td>
-                <td>
-                  {activePerms.has(g.code) ? (
-                    <span className="pattern-tag">✓ Liberada</span>
-                  ) : (
-                    <span className="cell-na">—</span>
-                  )}
-                </td>
-              </tr>
+
+          <PlatformUsersPanel />
+
+          <div className="adm-chips">
+            {ROLES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setActiveRole(r)}
+                className={`adm-chip${activeRole === r ? " is-active" : ""}`}
+              >
+                {ROLE_LABELS[r]}
+              </button>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+
+          <div className="card">
+            <div className="card__head">
+              <div>
+                <h3>
+                  Permissões do papel: <strong>{ROLE_LABELS[activeRole]}</strong>
+                </h3>
+                <span className="card__sub">
+                  {activePerms.size} de {PERMISSIONS.length} permissões do catálogo liberadas para este papel.
+                </span>
+              </div>
+            </div>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Módulo</th>
+                  <th>Permissão</th>
+                  <th>Liberada?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grid.map((g) => (
+                  <tr key={g.code}>
+                    <td><code className="cell-code">{g.module}</code></td>
+                    <td>{g.label}</td>
+                    <td>
+                      {activePerms.has(g.code) ? (
+                        <span className="pattern-tag">✓ Liberada</span>
+                      ) : (
+                        <span className="cell-na">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -292,6 +329,256 @@ function PlatformUsersPanel() {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+// ── Aba "Usuários" — leads do MAPA Executivo + conta de acesso ─────
+
+/** Data curta pt-BR (mesmo formato usado nas demais telas do painel). */
+function fmtLeadDate(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString("pt-BR") : "—";
+}
+
+/** CNPJ com máscara; devolve o valor cru se não tiver 14 dígitos. */
+function fmtLeadCnpj(cnpj: string | null): string {
+  const d = (cnpj ?? "").replace(/\D/g, "");
+  if (d.length !== 14) return cnpj || "—";
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+/**
+ * Cadastro dos leads que responderam o MAPA Executivo CRIVO™ e, quando o lead
+ * já virou cliente, a conta de acesso criada na conversão — com edição da senha.
+ *
+ * Lead ainda NÃO convertido aparece na lista (é cadastro), mas sem conta: não
+ * existe usuário e portanto não há senha para editar.
+ */
+function LeadUsersTab() {
+  const [rows, setRows] = useState<LeadUserSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
+  const [reveal, setReveal] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try {
+      setRows(await listLeadUsers());
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao carregar os usuários.");
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!rows) return [];
+    if (!term) return rows;
+    const digits = term.replace(/\D/g, "");
+    return rows.filter(
+      (r) =>
+        [r.name, r.company, r.email, r.phone].some((v) => (v ?? "").toLowerCase().includes(term)) ||
+        (digits.length >= 3 && (r.cnpj ?? "").includes(digits)),
+    );
+  }, [rows, q]);
+
+  function openForm(leadId: string) {
+    setOpenId(leadId);
+    setPwd("");
+    setPwd2("");
+    setReveal(false);
+    setError(null);
+    setOkMsg(null);
+  }
+
+  function closeForm() {
+    setOpenId(null);
+    setPwd("");
+    setPwd2("");
+    setReveal(false);
+  }
+
+  async function save(row: LeadUserSummary) {
+    if (pwd.length < 8) {
+      setError("A senha precisa ter ao menos 8 caracteres.");
+      return;
+    }
+    if (pwd !== pwd2) {
+      setError("As duas senhas não conferem.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setOkMsg(null);
+    try {
+      const res = await setLeadUserPassword(row.leadId, pwd);
+      setOkMsg(
+        `Senha de ${res.email} atualizada. As sessões abertas desse usuário foram encerradas — ` +
+          `ele entra com a senha nova no próximo acesso.`,
+      );
+      closeForm();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao atualizar a senha.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="card__head">
+        <div>
+          <h3>Usuários dos leads do MAPA Executivo</h3>
+          <span className="card__sub">
+            Quem respondeu o MAPA Executivo CRIVO™ entra aqui como cadastro. Depois que o lead
+            é convertido em cliente, a conta de acesso aparece na coluna Acesso e a senha pode
+            ser editada. {rows ? `${filtered.length} de ${rows.length} registros.` : ""}
+          </span>
+        </div>
+        <input
+          className="ct-search"
+          placeholder="Buscar por nome, empresa, e-mail ou CNPJ"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+
+      {okMsg && <div className="pu-temp">{okMsg}</div>}
+      {error && <div className="dash-state dash-state--error">{error}</div>}
+      {rows === null && !error && <p className="dash-state">Carregando usuários…</p>}
+
+      {rows !== null && (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Empresa</th>
+              <th>Contato</th>
+              <th>MAPA</th>
+              <th>Etapa</th>
+              <th>Acesso</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r) => (
+              <Fragment key={r.leadId}>
+                <tr>
+                  <td>
+                    <strong>{r.name}</strong>
+                    <div className="cell-mute" style={{ fontSize: 12 }}>
+                      {platformLeadOriginLabel(r.origin)} · {fmtLeadDate(r.createdAt)}
+                    </div>
+                  </td>
+                  <td>
+                    {r.company || "—"}
+                    <div className="cell-mute" style={{ fontSize: 12 }}>
+                      {fmtLeadCnpj(r.cnpj)}
+                    </div>
+                  </td>
+                  <td className="cell-mute">
+                    {r.email || "—"}
+                    {r.phone && <div style={{ fontSize: 12 }}>{r.phone}</div>}
+                  </td>
+                  <td>{r.diagnosticScore ?? "—"}</td>
+                  <td className="cell-mute">{PLATFORM_LEAD_STAGE_LABEL[r.stage] ?? r.stage}</td>
+                  <td>
+                    {r.account ? (
+                      <>
+                        <span
+                          className={`ct-pill ${r.account.active ? "ct-pill--ativo" : "ct-pill--suspenso"}`}
+                        >
+                          {r.account.active ? "Ativo" : "Inativo"}
+                        </span>
+                        <div className="cell-mute" style={{ fontSize: 12 }}>
+                          {r.account.email}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="cell-na" title="Lead ainda não convertido em cliente">
+                        sem acesso
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {r.account ? (
+                      <span className="row-actions">
+                        <button
+                          className="row-action"
+                          disabled={busy}
+                          onClick={() => (openId === r.leadId ? closeForm() : openForm(r.leadId))}
+                        >
+                          {openId === r.leadId ? "Cancelar" : "Editar senha"}
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="cell-na">—</span>
+                    )}
+                  </td>
+                </tr>
+                {openId === r.leadId && r.account && (
+                  <tr>
+                    <td colSpan={7}>
+                      <div className="ct-filters" style={{ marginTop: 0 }}>
+                        <input
+                          className="ct-search"
+                          type={reveal ? "text" : "password"}
+                          placeholder="Nova senha (mínimo 8 caracteres)"
+                          value={pwd}
+                          autoComplete="new-password"
+                          onChange={(e) => setPwd(e.target.value)}
+                        />
+                        <input
+                          className="ct-search"
+                          type={reveal ? "text" : "password"}
+                          placeholder="Repita a nova senha"
+                          value={pwd2}
+                          autoComplete="new-password"
+                          onChange={(e) => setPwd2(e.target.value)}
+                        />
+                        <button
+                          className="row-action"
+                          type="button"
+                          onClick={() => setReveal((v) => !v)}
+                        >
+                          {reveal ? "Ocultar" : "Mostrar"}
+                        </button>
+                        <button
+                          className="btn btn--primary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void save(r)}
+                        >
+                          {busy ? "Salvando…" : "Salvar senha"}
+                        </button>
+                      </div>
+                      <div className="cell-mute" style={{ fontSize: 12, marginTop: 6 }}>
+                        A senha vale para <strong>{r.account.email}</strong> no portal do cliente.
+                        Salvar encerra as sessões abertas desse usuário.
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="cell-mute">
+                  Nenhum lead do MAPA Executivo encontrado.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}

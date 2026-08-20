@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import {
   CONTRACT_MODELS,
   CONTRACT_MODEL_LABEL,
@@ -22,9 +22,11 @@ import {
   getContract,
   getGroupContract,
   listAddons,
+  listPlatformUsers,
   listProducts,
   upsertContract,
   upsertGroupContract,
+  type PlatformUserData,
 } from "@/lib/admin-api";
 
 /** Configura o contrato de uma empresa OU de um grupo (Tela 05) — sem programação.
@@ -47,6 +49,9 @@ export function ContractModal({
   // null = catálogo de Adicionais INDISPONÍVEL (falha de rede) — diferente de
   // catálogo carregado porém vazio (nenhum adicional precificado/ativo).
   const [addons, setAddons] = useState<AddonSummary[] | null>([]);
+  // Equipe CRIVO cadastrada em Papéis e Permissões — alimenta o "Responsável CRIVO".
+  // Falha de rede aqui não derruba o modal: a lista fica vazia e o campo avisa.
+  const [crivoUsers, setCrivoUsers] = useState<PlatformUserData[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -55,16 +60,20 @@ export function ContractModal({
     let alive = true;
     (async () => {
       try {
-        const [c, prods, adds] = await Promise.all([
+        const [c, prods, adds, users] = await Promise.all([
           isGroup ? getGroupContract(targetId) : getContract(targetId),
           listProducts(),
           // C4: opcionais vêm do catálogo de Adicionais — mesmos nomes da tela
           // Adicionais. Falha aqui não derruba o modal: cai na lista fixa.
           listAddons().catch(() => null),
+          // Usuários CRIVO (Papéis e Permissões) p/ o seletor de responsável.
+          // Mesmo tratamento: falhar aqui não pode impedir de editar o contrato.
+          listPlatformUsers().catch(() => [] as PlatformUserData[]),
         ]);
         if (!alive) return;
         setProducts(prods.filter((p) => !p.isLeadCapture));
         setAddons(adds);
+        setCrivoUsers(users);
         setForm(
           c
             ? {
@@ -311,10 +320,16 @@ export function ContractModal({
             <fieldset className="prod-fs">
               <legend>Responsável e observações</legend>
               <div className="prod-form__grid">
-                <label className="prod-field prod-field--full">
-                  <span>Responsável CRIVO</span>
-                  <input value={form.responsible ?? ""} onChange={(e) => set("responsible", e.target.value)} />
-                </label>
+                {/* Era um campo de texto livre: cada contrato ganhava o nome escrito
+                    de um jeito ("Ana", "ana souza", "Ana S."), e nada garantia que a
+                    pessoa ainda estivesse na equipe. Agora escolhe-se de quem já está
+                    em Papéis e Permissões. O que é GRAVADO continua sendo o nome
+                    (string), igual a antes — nenhum contrato antigo precisou mudar. */}
+                <ResponsibleSelect
+                  value={form.responsible ?? ""}
+                  users={crivoUsers}
+                  onChange={(v) => set("responsible", v)}
+                />
                 <label className="prod-field prod-field--full">
                   <span>Observações</span>
                   <textarea rows={2} value={form.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
@@ -334,4 +349,181 @@ export function ContractModal({
       </div>
     </div>
   );
+}
+
+/**
+ * "Responsável CRIVO" — dropdown com busca sobre os usuários cadastrados em
+ * Papéis e Permissões (`GET /admin/platform-users`, a mesma lista do painel
+ * "Usuários CRIVO").
+ *
+ * O que é GRAVADO continua sendo o NOME, string, exatamente como o campo de texto
+ * gravava: `Contract.responsible` não mudou de tipo e nenhum contrato antigo
+ * precisou ser tocado. O seletor troca só COMO se escolhe.
+ *
+ * Três cuidados que o campo de texto não tinha e que aqui não podem faltar:
+ *  • um responsável já gravado que NÃO está na lista (pessoa que saiu da equipe,
+ *    ou nome digitado antes desta tela existir) continua aparecendo e continua
+ *    salvo — some só se alguém escolher outro de propósito;
+ *  • só usuários ATIVOS entram nas opções novas: desativar alguém em Papéis e
+ *    Permissões tira a pessoa das escolhas futuras sem mexer no que já foi feito;
+ *  • se a lista não carregar, o campo diz isso em vez de fingir que não há ninguém.
+ */
+function ResponsibleSelect({
+  value,
+  users,
+  onChange,
+}: {
+  value: string;
+  users: PlatformUserData[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  // O combobox precisa apontar para a lista que ele controla (aria-controls).
+  const listId = useId();
+
+  // Fecha ao clicar fora. `mousedown` e não `click`: o clique numa opção só
+  // termina depois, e com `click` o documento fecharia a lista antes da escolha.
+  useEffect(() => {
+    if (!open) return;
+    function onDocDown(e: MouseEvent) {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [open]);
+
+  const ativos = users.filter((u) => u.active);
+  const q = query.trim().toLowerCase();
+  // Busca por nome, e-mail ou função — quem procura "comercial" acha o time todo.
+  const filtrados = q
+    ? ativos.filter(
+        (u) =>
+          u.name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.role ?? "").toLowerCase().includes(q),
+      )
+    : ativos;
+
+  const foraDaLista = value.trim() !== "" && !ativos.some((u) => u.name === value);
+
+  function escolher(nome: string) {
+    onChange(nome);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div className="prod-field prod-field--full">
+      <span>Responsável CRIVO</span>
+      <div ref={boxRef} style={{ position: "relative" }}>
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-label="Responsável CRIVO"
+          autoComplete="off"
+          style={{ width: "100%" }}
+          placeholder={ativos.length ? "Buscar usuário CRIVO…" : "Nenhum usuário disponível"}
+          /* Fechado mostra quem está escolhido; aberto mostra o que se digita. */
+          value={open ? query : value}
+          onFocus={() => { setOpen(true); setQuery(""); }}
+          onClick={() => { setOpen(true); }}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setOpen(false); setQuery(""); }
+          }}
+        />
+        {open && (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Usuários CRIVO"
+            style={{
+              position: "absolute",
+              zIndex: 5,
+              top: "calc(100% + 4px)",
+              left: 0,
+              right: 0,
+              margin: 0,
+              padding: 4,
+              listStyle: "none",
+              maxHeight: 220,
+              overflowY: "auto",
+              background: "var(--bg-elev)",
+              border: "1px solid var(--line)",
+              borderRadius: "var(--r-sm)",
+              boxShadow: "var(--shadow-2)",
+            }}
+          >
+            {/* Limpar o campo é uma escolha legítima: contrato sem responsável
+                definido ainda é rascunho válido, e era possível antes (texto vazio). */}
+            <li>
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === ""}
+                onClick={() => escolher("")}
+                style={optionStyle(value === "")}
+              >
+                — nenhum —
+              </button>
+            </li>
+            {filtrados.map((u) => (
+              <li key={u.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={u.name === value}
+                  onClick={() => escolher(u.name)}
+                  style={optionStyle(u.name === value)}
+                >
+                  <strong style={{ fontSize: 13 }}>{u.name}</strong>
+                  <span style={{ display: "block", fontSize: 11, color: "var(--text-sec)" }}>
+                    {u.role ? `${u.role} · ` : ""}{u.email}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {filtrados.length === 0 && (
+              <li style={{ padding: "10px 8px", fontSize: 12, color: "var(--text-sec)" }}>
+                {ativos.length === 0
+                  ? "Nenhum usuário ativo em Papéis e Permissões."
+                  : "Nenhum usuário encontrado."}
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+      {foraDaLista && (
+        <p className="prod-note" style={{ margin: "6px 0 0" }}>
+          <strong>{value}</strong> não está entre os usuários ativos de Papéis e Permissões.
+          O nome segue gravado no contrato — escolha outro só se for para trocar.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Estilo de uma opção da lista — a selecionada fica marcada. */
+function optionStyle(selecionada: boolean): CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "7px 8px",
+    border: 0,
+    borderRadius: "var(--r-sm)",
+    background: selecionada ? "var(--line-soft)" : "transparent",
+    font: "inherit",
+    fontSize: 13,
+    color: "var(--text)",
+    cursor: "pointer",
+  };
 }

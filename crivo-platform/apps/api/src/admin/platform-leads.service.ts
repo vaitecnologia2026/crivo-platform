@@ -4,6 +4,7 @@ import {
   scoreWithMethodology,
   PRE_DIAGNOSTIC_QUESTIONS,
   type CreateDiagnosticLeadRequest,
+  type LeadUserSummary,
   type MethodologyConfig,
   type Plan,
   type PlatformLeadStage,
@@ -23,6 +24,7 @@ import { randomBytes } from 'node:crypto';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { sendWhatsapp, whatsappConfigured } from '../common/whatsapp';
 import { consultarCnpj, grauDeRiscoCnpj } from '../common/cnpj';
+import { ebookPublicUrl } from './ebook.service';
 
 type Actor = { id: string; email: string };
 
@@ -163,9 +165,12 @@ export class PlatformLeadsService {
 
     // Cargo + principais desafios entram nas observações do lead (visíveis no
     // funil do CRM). Doc do cliente: o lead deve trazer porte/segmento/desafios.
+    // O quiz do site mostra o campo livre quando o desafio começa com "Outro"
+    // (a opção real é "Outro desafio relevante"); comparar por igualdade exata
+    // com 'Outro' descartava silenciosamente o texto digitado pelo lead.
     const challengesText = (dto.challenges ?? [])
       .map((c) =>
-        c === 'Outro' && dto.challengeOther?.trim() ? `Outro: ${dto.challengeOther.trim()}` : c,
+        c.startsWith('Outro') && dto.challengeOther?.trim() ? `Outro: ${dto.challengeOther.trim()}` : c,
       )
       .join('; ');
     const noteParts: string[] = [];
@@ -262,7 +267,17 @@ export class PlatformLeadsService {
     // WhatsApp (VAI) — confirmação + link do e-book. Best-effort: só envia se
     // VAI_API_EMAIL/VAI_API_PASSWORD existirem; nunca bloqueia/derruba o intake.
     if (lead.phone && whatsappConfigured()) {
-      const ebookUrl = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
+      // Link do e-book: se o super admin IMPORTOU um arquivo (Governança ·
+      // E-book), manda a rota pública — que serve o arquivo importado. Se nada
+      // foi importado, mantém EXATAMENTE o link de antes (EBOOK_URL / PDF da
+      // LP). A consulta é só de existência: não carrega o base64 à toa.
+      let ebookUrl = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
+      try {
+        const imported = await this.prisma.admin.ebookAsset.findFirst({ select: { id: true } });
+        if (imported) ebookUrl = ebookPublicUrl();
+      } catch {
+        /* segue com o link padrão — o WhatsApp nunca trava por causa disto */
+      }
       void sendWhatsapp({
         to: lead.phone,
         name,
@@ -629,6 +644,147 @@ export class PlatformLeadsService {
   private genPassword(): string {
     const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     return Array.from(randomBytes(16), (b) => alphabet[b % alphabet.length]).join('');
+  }
+
+  /**
+   * Aba "Usuários" (Governança · Papéis & Permissões): cadastro dos leads que
+   * vieram do MAPA Executivo + a conta de acesso de cada um, quando já existe.
+   *
+   * O filtro é `diagnosticScore != null` — e NÃO `origin`. `origin` é string
+   * livre e varia por campanha (lp-diagnostico, ITZ, ANUNCIO, OUTRO…), enquanto
+   * o score só é gravado por quem de fato RESPONDEU o MAPA Executivo. Filtrar
+   * por origem deixaria de fora leads do MAPA capturados por outros canais.
+   *
+   * Leads não convertidos entram na lista com `account: null` — aparecem no
+   * cadastro, mas não têm senha para editar (não existe usuário ainda).
+   *
+   * Somente leitura; não altera nenhum lead. Owner-only (SuperAdminGuard).
+   */
+  async listLeadUsers(): Promise<LeadUserSummary[]> {
+    const leads = await this.prisma.admin.platformLead.findMany({
+      where: { diagnosticScore: { not: null } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // convertedTenantId guarda o id do registro Tenant (CONTROL plane), que é
+    // DIFERENTE do Organization.id onde o usuário vive (User.tenantId →
+    // Organization.id). Resolve os dois numa consulta só; aceita também um id
+    // já-Organization (defensivo — mesma tolerância do sendAccess).
+    const convertedIds = Array.from(
+      new Set(leads.map((l) => l.convertedTenantId).filter((v): v is string => !!v)),
+    );
+    const orgByAnyId = new Map<string, string>();
+    if (convertedIds.length > 0) {
+      const tenants = await this.prisma.admin.tenant.findMany({
+        where: {
+          OR: [{ id: { in: convertedIds } }, { organizationId: { in: convertedIds } }],
+        },
+        select: { id: true, organizationId: true },
+      });
+      for (const t of tenants) {
+        orgByAnyId.set(t.id, t.organizationId);
+        orgByAnyId.set(t.organizationId, t.organizationId);
+      }
+    }
+
+    // (tenantId, email) casa exatamente o admin provisionado na conversão
+    // (provisionFromProduct cria o ADMIN com o e-mail do lead).
+    const orgIds = Array.from(new Set(orgByAnyId.values()));
+    const users = orgIds.length
+      ? await this.prisma.admin.user.findMany({
+          where: { tenantId: { in: orgIds } },
+          select: {
+            id: true,
+            tenantId: true,
+            email: true,
+            name: true,
+            role: true,
+            active: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const userByOrgEmail = new Map<string, (typeof users)[number]>();
+    for (const u of users) userByOrgEmail.set(`${u.tenantId}::${u.email.toLowerCase()}`, u);
+
+    return leads.map((l) => {
+      const organizationId = l.convertedTenantId
+        ? orgByAnyId.get(l.convertedTenantId) ?? l.convertedTenantId
+        : null;
+      const email = l.email?.toLowerCase().trim() ?? null;
+      const u = organizationId && email
+        ? userByOrgEmail.get(`${organizationId}::${email}`) ?? null
+        : null;
+      return {
+        leadId: l.id,
+        name: l.name,
+        company: l.company,
+        email: l.email,
+        phone: l.phone,
+        cnpj: l.cnpj,
+        origin: l.origin,
+        stage: l.stage as PlatformLeadStage,
+        diagnosticScore: l.diagnosticScore,
+        convertedTenantId: l.convertedTenantId,
+        createdAt: l.createdAt.toISOString(),
+        account: u
+          ? {
+              userId: u.id,
+              email: u.email,
+              name: u.name,
+              role: u.role as NonNullable<LeadUserSummary['account']>['role'],
+              active: u.active,
+              createdAt: u.createdAt.toISOString(),
+            }
+          : null,
+      };
+    });
+  }
+
+  /**
+   * Aba "Usuários": define MANUALMENTE a senha do usuário de acesso do lead já
+   * convertido. Diferente do `sendAccess` (#12), que SORTEIA uma senha e envia
+   * por e-mail — aqui o super admin escolhe a senha e repassa como quiser.
+   *
+   * Incrementa `tokenVersion` para derrubar as sessões antigas do usuário —
+   * mesma regra já aplicada na redefinição de senha dos usuários CRIVO
+   * (platform-users.service) e na troca de senha do próprio usuário.
+   *
+   * A senha NUNCA entra no log de auditoria — só o e-mail alvo. Owner-only.
+   */
+  async setLeadUserPassword(
+    leadId: string,
+    password: string,
+    actor: Actor,
+  ): Promise<{ ok: true; email: string }> {
+    const lead = await this.prisma.admin.platformLead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead não encontrado');
+    if (!lead.convertedTenantId) throw new BadRequestException('Lead ainda não foi convertido em cliente');
+    if (!lead.email) throw new BadRequestException('Lead sem e-mail');
+
+    const adminEmail = lead.email.toLowerCase().trim();
+    const tenantRow = await this.prisma.admin.tenant.findFirst({
+      where: { OR: [{ id: lead.convertedTenantId }, { organizationId: lead.convertedTenantId }] },
+      select: { organizationId: true },
+    });
+    const organizationId = tenantRow?.organizationId ?? lead.convertedTenantId;
+    const user = await this.prisma.admin.user.findFirst({
+      where: { tenantId: organizationId, email: adminEmail },
+    });
+    if (!user) throw new NotFoundException('Usuário admin do cliente não encontrado');
+
+    await this.prisma.admin.user.update({
+      where: { id: user.id },
+      data: { passwordHash: bcrypt.hashSync(password, 12), tokenVersion: { increment: 1 } },
+    });
+
+    await this.audit.record({
+      action: 'lead.user.password',
+      actor,
+      target: leadId,
+      meta: { to: adminEmail, userId: user.id },
+    });
+    return { ok: true, email: adminEmail };
   }
 
   private toSummary(l: {

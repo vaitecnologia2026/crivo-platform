@@ -8,6 +8,9 @@ import { TenantsManager } from "./TenantsManager";
 import { CrmSection } from "./CrmSection";
 import { ProductsSection } from "./ProductsSection";
 import { AddonsSection } from "./AddonsSection";
+import { EbookSection } from "./EbookSection";
+import { MailSettingsSection } from "./MailSettingsSection";
+import { LeadOriginsSection } from "./LeadOriginsSection";
 import { AiSettingsSection } from "./AiSettingsSection";
 import { NotificationsSection } from "./NotificationsSection";
 import { ExtrasSection } from "./ExtrasSection";
@@ -15,6 +18,7 @@ import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
 import { CnpjLookupCard } from "./CnpjLookupCard";
 import { ContractsSection } from "./ContractsSection";
+import { ManagementReportsSection } from "./ManagementReportsSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { MethodologySection } from "./MethodologySection";
 import { EngineConfigSection } from "./EngineConfigSection";
@@ -39,7 +43,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "relatorios" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria";
+type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "relatorios" | "relgerenciais" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria" | "origens" | "ebook" | "email";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -49,6 +53,9 @@ const NI = {
   funil: <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>,
   empresas: <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V6l6-3v17M10 20h10V9l-6-2" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M7 8v.01M7 11v.01M7 14v.01M15 12v.01M15 15v.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
   contratos: <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 3v4h4M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  // Relatórios Gerenciais: a folha do relatório com as barras do indicador dentro
+  // — distingue do ícone `relatorios` (Dossiês), que é a folha com linhas de texto.
+  relgerenciais: <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 3v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9.5 17v-3.5M12 17v-6M14.5 17v-2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
   solucoes: <svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 12v9M12 12 4 7.5M12 12l8-4.5" stroke="currentColor" strokeWidth="1.5"/></svg>,
   enquadramento: <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7"/><path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   diagnosticos: <svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.7"/><path d="m15.5 15.5 5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M8 12.5v-2M10.5 12.5V9M13 12.5v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
@@ -65,6 +72,14 @@ const NI = {
   relatorios: <svg viewBox="0 0 24 24" fill="none"><path d="M8 3h8l3 3v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M15.5 3.5V6.5h3.5M10 11h7M10 14.5h7M10 18h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M4 7v13.5a1 1 0 0 0 1 1h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   engineconfig: <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M4 12h6M14 12h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><circle cx="16" cy="7" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="10" cy="17" r="2" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.7"/></svg>,
   notificacoes: <svg viewBox="0 0 24 24" fill="none"><path d="M6 9.5a6 6 0 1 1 12 0c0 3.8 1.3 5.3 1.9 5.9H4.1c.6-.6 1.9-2.1 1.9-5.9Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M10.2 18.4a2 2 0 0 0 3.6 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  // Origens e Canais: três pontos de entrada convergindo para um — é o que a
+  // tela cadastra, os caminhos por onde o lead chega ao funil.
+  origens: <svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="5" r="2.2" stroke="currentColor" strokeWidth="1.7"/><circle cx="5" cy="12" r="2.2" stroke="currentColor" strokeWidth="1.7"/><circle cx="5" cy="19" r="2.2" stroke="currentColor" strokeWidth="1.7"/><circle cx="19" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.7"/><path d="M7.4 5.6c4 1 6 2.9 8.4 5.5M7.2 12h9.4M7.4 18.4c4-1 6-2.9 8.4-5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
+
+  // E-book: livro aberto com a seta de importação entrando nele — é o que a
+  // tela faz, subir o arquivo que será disparado ao lead.
+  email: <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5.5" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.7"/><path d="m3.8 7 7.1 5.2a2 2 0 0 0 2.2 0L20.2 7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  ebook: <svg viewBox="0 0 24 24" fill="none"><path d="M12 8.5C10.2 7.2 8 6.6 5.5 6.6V18c2.5 0 4.7.6 6.5 1.9 1.8-1.3 4-1.9 6.5-1.9V6.6c-1.3 0-2.5.2-3.6.5" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 8.5v11.4" stroke="currentColor" strokeWidth="1.5"/><path d="M18 2.5v5m0 0 1.8-1.8M18 7.5l-1.8-1.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
 // Agrupamento do redesign aprovado (mockup Lovable): 5 grupos. Sem seções novas —
@@ -74,6 +89,9 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "crm", label: "CRM — Funil", icon: NI.funil, current: "CRM — Funil", group: "Operação" },
   { key: "empresas", label: "Grupos e Empresas-cliente", icon: NI.empresas, current: "Grupos e Empresas-cliente", group: "Operação" },
   { key: "contratos", label: "Contratos e Liberações", icon: NI.contratos, current: "Contratos e Liberações", group: "Operação" },
+  // Posição definida pelo mockup Lovable: logo ABAIXO de "Contratos e Liberações",
+  // ainda dentro do grupo "Operação" — a contiguidade dos grupos é mantida.
+  { key: "relgerenciais", label: "Relatórios Gerenciais CRIVO", icon: NI.relgerenciais, current: "Relatórios Gerenciais CRIVO", group: "Operação" },
   { key: "produtos", label: "Soluções CRIVO", icon: NI.solucoes, current: "Soluções CRIVO", group: "Catálogo Comercial" },
   { key: "adicionais", label: "Adicionais", icon: NI.adicionais, current: "Adicionais", group: "Catálogo Comercial" },
   { key: "cnae", label: "Motor de Enquadramento", icon: NI.enquadramento, current: "Motor de Enquadramento CRIVO", group: "Motores e Entrega" },
@@ -86,6 +104,9 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "extras", label: "Recursos da Entrega", icon: NI.entrega, current: "Recursos da Entrega", group: "Motores e Entrega" },
   { key: "inteligencia", label: "Inteligência CRIVO", icon: NI.inteligencia, current: "Inteligência CRIVO", group: "Inteligência" },
   { key: "basecrivo", label: "Base CRIVO", icon: NI.base, current: "Base CRIVO · Benchmarks", group: "Inteligência" },
+  { key: "origens", label: "Origens e Canais", icon: NI.origens, current: "Origens e Canais", group: "Governança" },
+  { key: "ebook", label: "E-book", icon: NI.ebook, current: "E-book", group: "Governança" },
+  { key: "email", label: "E-mail de envio", icon: NI.email, current: "E-mail de envio", group: "Governança" },
   { key: "notificacoes", label: "Notificações", icon: NI.notificacoes, current: "Configuração de Notificações", group: "Governança" },
   { key: "integracoes", label: "Integrações", icon: NI.integracoes, current: "Integrações", group: "Governança" },
   { key: "rbac", label: "Papéis e Permissões", icon: NI.rbac, current: "Papéis & Permissões", group: "Governança" },
@@ -194,8 +215,12 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
           {section === "adicionais" && <AddonsSection />}
+          {section === "origens" && <LeadOriginsSection />}
+          {section === "ebook" && <EbookSection />}
+          {section === "email" && <MailSettingsSection />}
           {section === "cnae" && <CnaeSection />}
           {section === "contratos" && <ContractsSection />}
+          {section === "relgerenciais" && <ManagementReportsSection />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "integracoes" && <IntegrationsSection />}
           {section === "metodologia" && <MethodologySection />}
@@ -280,6 +305,11 @@ const ACTION_LABEL: Record<string, string> = {
   "lead.convert": "Lead convertido em cliente",
   "lead.dedup": "Lead deduplicado",
   "lead.send-access": "Acesso enviado ao lead",
+  "lead.user.password": "Senha do usuário do lead alterada",
+  "lead-origin.upsert": "Origem/canal do catálogo salva",
+  "lead-origin.delete": "Origem/canal do catálogo removida",
+  "ebook.import": "E-book importado",
+  "mail.settings.update": "Conta de e-mail de envio alterada",
   "contract.create": "Contrato criado",
   "contract.update": "Contrato atualizado",
   "platform.user.create": "Usuário CRIVO criado",

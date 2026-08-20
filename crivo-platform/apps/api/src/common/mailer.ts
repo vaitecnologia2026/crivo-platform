@@ -33,16 +33,46 @@ export interface SendMailResult {
 
 let cached: { key: string; transport: Transporter } | null = null;
 
+/**
+ * Conta SMTP configurada no painel (Governança · E-mail de envio), carregada do
+ * banco no boot e a cada gravação. Quando é `null` — que é o estado até alguém
+ * configurar — TODO o envio segue lendo as SMTP_* do ambiente, exatamente como
+ * antes desta configuração existir.
+ */
+export interface MailOverride {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  /** Remetente já montado ("Nome <endereco>" ou só o endereço). */
+  from: string;
+}
+
+let override: MailOverride | null = null;
+
+/**
+ * Define (ou limpa, com null) a conta configurada no painel. Zera o transporte
+ * em cache: sem isso, o nodemailer continuaria autenticando com as credenciais
+ * anteriores até o próximo restart.
+ */
+export function setMailOverride(cfg: MailOverride | null): void {
+  override = cfg;
+  cached = null;
+}
+
 function smtpTransport(): Transporter | null {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = override?.host ?? process.env.SMTP_HOST;
+  const user = override?.user ?? process.env.SMTP_USER;
+  const pass = override?.pass ?? process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
 
-  const port = Number(process.env.SMTP_PORT ?? 465);
-  const secure = process.env.SMTP_SECURE
-    ? process.env.SMTP_SECURE === 'true'
-    : port === 465;
+  const port = override?.port ?? Number(process.env.SMTP_PORT ?? 465);
+  const secure = override
+    ? override.secure
+    : process.env.SMTP_SECURE
+      ? process.env.SMTP_SECURE === 'true'
+      : port === 465;
 
   const key = `${host}:${port}:${secure}:${user}`;
   if (!cached || cached.key !== key) {
@@ -67,13 +97,49 @@ function smtpTransport(): Transporter | null {
 /** True se houver algum provider de e-mail configurado (SMTP ou Resend). */
 export function mailConfigured(): boolean {
   return Boolean(
-    (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) ||
+    override ||
+      (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) ||
       process.env.RESEND_API_KEY,
   );
 }
 
 function smtpFrom(): string {
+  if (override) return override.from;
   return process.env.SMTP_FROM ?? `CRIVO <${process.env.SMTP_USER}>`;
+}
+
+/**
+ * Testa uma conta SMTP SEM gravar nada e SEM mexer no transporte em uso: abre
+ * uma conexão descartável e autentica.
+ *
+ * Serve para que salvar uma conta errada no painel não derrube, em silêncio, o
+ * e-mail da senha de acesso e do Relatório Preliminar — a gravação só acontece
+ * se a autenticação passar.
+ */
+export async function verifySmtp(cfg: {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const probe = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.pass },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 12000,
+  });
+  try {
+    await probe.verify();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : 'Falha ao conectar no SMTP.' };
+  } finally {
+    probe.close();
+  }
 }
 
 /**

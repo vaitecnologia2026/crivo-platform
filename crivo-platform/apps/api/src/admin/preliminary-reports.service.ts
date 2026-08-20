@@ -261,14 +261,35 @@ export class PreliminaryReportsService {
       };
     }
 
-    // #5 — anexa o e-book complementar ao relatório (busca do /public da LP).
+    // #5 — anexa o e-book complementar ao relatório.
+    //
+    // 1º) o e-book IMPORTADO no painel (Governança · E-book), lido direto do
+    //     banco — sem ida à rede, então é o caminho mais rápido e o mais
+    //     confiável;
+    // 2º) se ninguém importou nada ainda, mantém EXATAMENTE o comportamento
+    //     anterior: busca o PDF estático da LP por HTTP.
+    // Qualquer falha nos dois segue sem o e-book — nunca trava o relatório.
     let ebook: Buffer | null = null;
+    let ebookFileName = 'E-book CRIVO - Lideranca que sustenta decisoes.pdf';
     try {
-      const url = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
-      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (r.ok) ebook = Buffer.from(await r.arrayBuffer());
+      const imported = await this.prisma.admin.ebookAsset.findFirst({
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (imported) {
+        ebook = Buffer.from(imported.data, 'base64');
+        ebookFileName = imported.fileName;
+      }
     } catch {
-      /* segue sem o e-book — nunca trava o envio do relatório */
+      /* banco indisponível para o e-book — cai no PDF da LP abaixo */
+    }
+    if (!ebook) {
+      try {
+        const url = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (r.ok) ebook = Buffer.from(await r.arrayBuffer());
+      } catch {
+        /* segue sem o e-book — nunca trava o envio do relatório */
+      }
     }
     const result = await sendMail({
       to: input.to,
@@ -276,7 +297,7 @@ export class PreliminaryReportsService {
       html,
       text: input.markdown,
       attachments: ebook
-        ? [{ filename: 'E-book CRIVO - Lideranca que sustenta decisoes.pdf', content: ebook, contentType: 'application/pdf' }]
+        ? [{ filename: ebookFileName, content: ebook, contentType: 'application/pdf' }]
         : undefined,
     });
 

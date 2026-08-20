@@ -39,7 +39,7 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
   SOMA_NORMALIZADA: "soma normalizada",
 };
 
-type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null };
+type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null };
 type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number };
 
@@ -102,7 +102,7 @@ export function MethodologySection() {
     const d = await getMethodologyVersion(id);
     setDraftId(d.id);
     setLabel(d.label);
-    setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null })));
+    setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null, severity: x.severity ?? null })));
     setQuestions(d.questions.map((x) => ({
       dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse,
       required: x.required ?? true,
@@ -1157,6 +1157,26 @@ function DraftEditor({
                 <div className="meth-dim__head">
                   <input className="meth-in" value={d.label} placeholder="Dimensão (ex.: Liderança)" onChange={(e) => setDim(d.slug, { label: e.target.value })} />
                   <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={d.weight} onChange={(e) => setDim(d.slug, { weight: Number(e.target.value) })} /></label>
+                  {/* Severidade da Matriz de Risco — só faz sentido em régua de RISCO
+                      e só na ESCALA (dimensão de topo). Vazio = escala fora da matriz.
+                      Não entra no peso, na média nem na pontuação. */}
+                  {bandKind === "RISK" && (
+                    <label className="meth-w" title="Severidade (1–5): gravidade da consequência se a escala seguir em nível crítico. Multiplica a probabilidade na Matriz de Risco. Vazio = escala fora da matriz.">
+                      sev
+                      <select
+                        className="meth-in meth-in--num"
+                        value={d.severity ?? ""}
+                        onChange={(e) => setDim(d.slug, { severity: e.target.value === "" ? null : Number(e.target.value) })}
+                      >
+                        <option value="">—</option>
+                        <option value={1}>1</option>
+                        <option value={2}>2</option>
+                        <option value={3}>3</option>
+                        <option value={4}>4</option>
+                        <option value={5}>5</option>
+                      </select>
+                    </label>
+                  )}
                   <button className="meth-del" title="Remover dimensão" onClick={() => removeDim(d.slug)}>✕</button>
                 </div>
 

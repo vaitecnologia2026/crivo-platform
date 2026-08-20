@@ -10,9 +10,12 @@ import type {
   CreateTenantRequest,
   CreateUserRequest,
   CreateUserResult,
+  EbookAssetSummary,
   EditableTextData,
   GeneratePreliminaryReportRequest,
   GlobalAcademyContentData,
+  LeadUserSummary,
+  MailSettingsData,
   MentoriaData,
   NotificationSettingData,
   Plan,
@@ -45,6 +48,8 @@ import type {
   UsageSummary,
   AddonSummary,
   AddonUpsertRequest,
+  PlatformLeadOriginOption,
+  PlatformLeadOriginUpsertRequest,
 } from "@crivo/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -178,6 +183,31 @@ export function archiveLead(id: string, archived = true): Promise<PlatformLeadSu
 }
 export function deleteAddon(moduleCode: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/addons/${moduleCode}`, { method: "DELETE" });
+}
+
+/** Catálogo de origens/canais do lead (Governança · Origens e Canais).
+ *  Devolve as 7 embutidas do código + as cadastradas pelo super admin. */
+export function listLeadOrigins(): Promise<PlatformLeadOriginOption[]> {
+  return adminFetch<PlatformLeadOriginOption[]>("/admin/lead-origins");
+}
+
+/** Cadastra ou edita uma origem. O `value` pode vir com espaço/acento — a API
+ *  normaliza ("Google Ads" → GOOGLE_ADS) antes de gravar. */
+export function upsertLeadOrigin(
+  value: string,
+  input: PlatformLeadOriginUpsertRequest,
+): Promise<PlatformLeadOriginOption> {
+  return adminFetch<PlatformLeadOriginOption>(`/admin/lead-origins/${encodeURIComponent(value)}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Exclui uma origem cadastrada. A API recusa se for embutida ou se algum lead a usa. */
+export function removeLeadOrigin(value: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/lead-origins/${encodeURIComponent(value)}`, {
+    method: "DELETE",
+  });
 }
 
 /** Cadastro do CNPJ (Tela 06): CNPJ, matriz/filial, responsável interno. */
@@ -468,6 +498,25 @@ export function sendLeadAccess(
   return adminFetch(`/admin/leads/${id}/send-access`, { method: "POST" });
 }
 
+/**
+ * Aba "Usuários" (Papéis & Permissões) — cadastro dos leads vindos do MAPA
+ * Executivo somado à conta de acesso de cada um (null enquanto não convertido).
+ */
+export function listLeadUsers(): Promise<LeadUserSummary[]> {
+  return adminFetch<LeadUserSummary[]>("/admin/leads/users");
+}
+
+/** Aba "Usuários" — define manualmente a senha do usuário de acesso do lead. */
+export function setLeadUserPassword(
+  id: string,
+  password: string,
+): Promise<{ ok: true; email: string }> {
+  return adminFetch(`/admin/leads/${id}/password`, {
+    method: "PATCH",
+    body: JSON.stringify({ password }),
+  });
+}
+
 /** #18 — Zera os dados de teste (mantém login, produtos e RBAC). Exige confirm "ZERAR". */
 export function resetTestData(
   confirm: string,
@@ -481,6 +530,56 @@ export function resetTestData(
 /** Remove leads duplicados pelo mesmo CNPJ (mantém convertidos + o melhor aberto). */
 export function dedupLeads(): Promise<{ ok: true; deleted: number; kept: number }> {
   return adminFetch(`/admin/leads/dedup`, { method: "POST" });
+}
+
+// ── Governança · E-book (disparado por e-mail e WhatsApp) ──
+
+/** O e-book corrente; null enquanto nada foi importado. */
+export function getEbook(): Promise<EbookAssetSummary | null> {
+  return adminFetch<EbookAssetSummary | null>("/admin/ebook");
+}
+
+/** Importa o e-book, substituindo o anterior. */
+export function uploadEbook(body: {
+  name: string;
+  fileName: string;
+  mimeType: string;
+  data: string;
+}): Promise<EbookAssetSummary> {
+  return adminFetch<EbookAssetSummary>("/admin/ebook", {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000),
+  });
+}
+
+// ── Governança · E-mail de envio (senha de acesso e e-book) ──
+
+/** Conta de e-mail configurada. A senha nunca volta — só a dica. */
+export function getMailSettings(): Promise<MailSettingsData> {
+  return adminFetch<MailSettingsData>("/admin/mail-settings");
+}
+
+/**
+ * Grava a conta de e-mail. `password` vazio mantém a senha já gravada.
+ * O servidor autentica no SMTP antes de persistir, então a chamada pode
+ * demorar alguns segundos.
+ */
+export function saveMailSettings(body: {
+  enabled: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password?: string;
+  fromName?: string | null;
+  fromEmail: string;
+}): Promise<MailSettingsData> {
+  return adminFetch<MailSettingsData>("/admin/mail-settings", {
+    method: "PUT",
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45000),
+  });
 }
 
 // ── Catálogo de produtos (product-driven) ──
@@ -1287,6 +1386,9 @@ export interface MethodologyDimension {
   label: string;
   weight: number;
   order?: number;
+  /** Severidade (1–5) da Matriz de Risco psicossocial. Só na ESCALA (dimensão de
+   *  topo); null = escala fora da matriz. Não entra em média nem em pontuação. */
+  severity?: number | null;
 }
 export interface MethodologyQuestion {
   id?: string;
@@ -1361,7 +1463,7 @@ export function updateMethodologyDraft(
     scaleLabels?: string[];
     rounding?: number;
     minValidCompletionPercent?: number;
-    dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null }>;
+    dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null }>;
     questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null }>;
     bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string }>;
   },

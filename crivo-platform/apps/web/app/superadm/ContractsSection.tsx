@@ -58,7 +58,9 @@ function ContractsTable() {
     });
   }, [rows, q, status, onlyAddons]);
 
-  const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—");
+  // timeZone UTC: as datas do contrato são date-only (meia-noite UTC). Sem isto,
+  // em fuso negativo (UTC-3) o toLocaleDateString exibia o dia anterior.
+  const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "—");
 
   function openContract(r: ContractListItem) {
     if (r.byGroup && r.groupId) {

@@ -12,6 +12,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -136,6 +137,19 @@ export class SetLeadOriginDto {
   // Origem/canal — canônica (ITZ, EVENTO…) ou legada; string livre.
   @IsString() @MaxLength(60)
   origin!: string;
+}
+
+/**
+ * Senha definida MANUALMENTE pelo super admin para o usuário de acesso do lead
+ * já convertido (aba Usuários, em Papéis & Permissões).
+ *
+ * Mínimo 8 = mesma regra da troca de senha do próprio usuário no portal.
+ * Máximo 72 = limite real do bcrypt (bytes além disso seriam ignorados no hash,
+ * o que faria senhas diferentes autenticarem igual).
+ */
+export class SetLeadUserPasswordDto {
+  @IsString() @MinLength(8) @MaxLength(72)
+  password!: string;
 }
 
 export class SetLeadInterestDto {

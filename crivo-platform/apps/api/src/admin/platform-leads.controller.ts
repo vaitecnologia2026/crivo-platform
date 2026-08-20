@@ -12,6 +12,7 @@ import {
   SetLeadNotesDto,
   SetLeadOriginDto,
   SetLeadStageDto,
+  SetLeadUserPasswordDto,
 } from './commerce.dto';
 
 /** CRM do super admin (funil comercial da CRIVO). Exclusivo de super admins. */
@@ -23,6 +24,18 @@ export class PlatformLeadsController {
   @Get()
   list() {
     return this.leads.list();
+  }
+
+  /**
+   * Aba "Usuários" (Papéis & Permissões): cadastro dos leads vindos do MAPA
+   * Executivo + a conta de acesso de cada um (null enquanto não convertido).
+   *
+   * Caminho literal ANTES de qualquer rota com parâmetro — este controller não
+   * declara nenhum `@Get(':id')`, então não há ambiguidade de resolução.
+   */
+  @Get('users')
+  listUsers() {
+    return this.leads.listLeadUsers();
   }
 
   /** Move o lead no funil (Kanban). Em PERDIDO, aceita o motivo estruturado. */
@@ -131,6 +144,19 @@ export class PlatformLeadsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.leads.sendAccess(id, { id: admin.id, email: admin.email });
+  }
+
+  /**
+   * Aba "Usuários": define manualmente a senha do usuário de acesso do lead já
+   * convertido. Exige senha de 8 a 72 caracteres (SetLeadUserPasswordDto).
+   */
+  @Patch(':id/password')
+  setUserPassword(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SetLeadUserPasswordDto,
+  ) {
+    return this.leads.setLeadUserPassword(id, dto.password, { id: admin.id, email: admin.email });
   }
 
   /**

@@ -110,12 +110,17 @@ export class ContractsService {
     });
 
     // Tela 05 · contrato vinculante: quando ATIVO, liga os módulos comprados na
-    // empresa (soluções + CORE + adicionais). Habilita (não desabilita outros).
+    // empresa (soluções + CORE + adicionais). Ao TROCAR a solução contratada,
+    // o que o contrato ANTERIOR liberava e o novo não libera mais é desligado —
+    // sem isso o painel do cliente somava os módulos da solução antiga aos da
+    // nova e a troca nunca aparecia lá. Só o que ESTE contrato concedeu é
+    // revogado (ver `activateContractModules`).
     if (saved.status === 'ATIVO') {
       await this.activateContractModules(
         organizationId,
         saved.solutionIds,
         Array.isArray(saved.optionalModules) ? (saved.optionalModules as string[]) : [],
+        await this.grantedByContract(existing),
       );
     }
 
@@ -152,14 +157,17 @@ export class ContractsService {
     });
 
     // Contrato de grupo vinculante: ao ATIVO, liga os módulos em CADA CNPJ do grupo.
+    // Mesma regra da empresa: a troca de solução também RETIRA, em cada CNPJ, o que
+    // o contrato de grupo anterior liberava e o novo não libera mais.
     if (saved.status === 'ATIVO') {
       const tenants = await this.prisma.admin.tenant.findMany({
         where: { groupId },
         select: { organizationId: true },
       });
       const opt = Array.isArray(saved.optionalModules) ? (saved.optionalModules as string[]) : [];
+      const previouslyGranted = await this.grantedByContract(existing);
       for (const t of tenants) {
-        await this.activateContractModules(t.organizationId, saved.solutionIds, opt);
+        await this.activateContractModules(t.organizationId, saved.solutionIds, opt, previouslyGranted);
       }
     }
 
@@ -192,12 +200,13 @@ export class ContractsService {
     };
   }
 
-  /** Habilita na empresa os módulos das soluções contratadas + CORE + adicionais. */
-  private async activateContractModules(
-    organizationId: string,
+  /** Códigos de módulo que UM contrato libera: soluções (modules + CORE) + adicionais.
+   *  Só calcula — não escreve nada. Serve tanto para o contrato que está sendo
+   *  salvo quanto para o anterior, e é o que permite saber o que precisa sair. */
+  private async contractModuleCodes(
     solutionIds: string[],
     optionalModules: string[],
-  ): Promise<void> {
+  ): Promise<Set<string>> {
     // C4: opcionais do contrato agora podem ser ADICIONAIS do catálogo com slug
     // próprio (ex.: crivo-plus). O que liga módulo é addon.activatedModules —
     // o slug em si NÃO vira tenant_module (seria linha órfã que nenhum guard
@@ -227,12 +236,53 @@ export class ContractsService {
         for (const c of Array.isArray(p.coreModules) ? (p.coreModules as string[]) : []) codes.add(c);
       }
     }
+    return codes;
+  }
+
+  /** O que o contrato ANTERIOR já havia liberado na empresa. Vazio quando não
+   *  existia contrato ou quando ele NÃO estava ATIVO — nesse caso ele nunca
+   *  concedeu módulo nenhum e, portanto, não há o que revogar em nome dele
+   *  (é o caso do rascunho gerado na conversão do lead, por exemplo). */
+  private async grantedByContract(previous: Contract | null): Promise<Set<string>> {
+    if (!previous || previous.status !== 'ATIVO') return new Set<string>();
+    return this.contractModuleCodes(
+      previous.solutionIds,
+      Array.isArray(previous.optionalModules) ? (previous.optionalModules as string[]) : [],
+    );
+  }
+
+  /** Habilita na empresa os módulos das soluções contratadas + CORE + adicionais.
+   *  Com `previouslyGranted`, DESLIGA também o que o contrato anterior liberava e
+   *  o atual não libera mais — é isso que faz a troca de solução aparecer no
+   *  painel do cliente, que hoje lê `tenant_modules` a cada carregamento.
+   *
+   *  A revogação é deliberadamente estreita: percorre só o conjunto do contrato
+   *  anterior. Módulo que o contrato NUNCA concedeu — veio do plano na provisão,
+   *  ou de um toggle manual do super admin — não é tocado. Sem `previouslyGranted`
+   *  o comportamento é exatamente o de antes: habilita e não desabilita nada. */
+  private async activateContractModules(
+    organizationId: string,
+    solutionIds: string[],
+    optionalModules: string[],
+    previouslyGranted: Set<string> = new Set<string>(),
+  ): Promise<void> {
+    const codes = await this.contractModuleCodes(solutionIds, optionalModules);
     for (const code of codes) {
       if (!code) continue;
       await this.prisma.admin.tenantModule.upsert({
         where: { tenantId_moduleCode: { tenantId: organizationId, moduleCode: code } },
         create: { tenantId: organizationId, moduleCode: code, enabled: true },
         update: { enabled: true },
+      });
+    }
+    // Saiu do contrato → sai do painel. `updateMany` de propósito: se a linha não
+    // existe, não há o que desligar e nada é criado (upsert criaria linha órfã
+    // desabilitada para um módulo que a empresa nunca teve).
+    for (const code of previouslyGranted) {
+      if (!code || codes.has(code)) continue;
+      await this.prisma.admin.tenantModule.updateMany({
+        where: { tenantId: organizationId, moduleCode: code },
+        data: { enabled: false },
       });
     }
   }

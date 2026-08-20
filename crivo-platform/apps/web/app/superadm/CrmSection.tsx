@@ -7,6 +7,7 @@ import {
   PLATFORM_LEAD_ORIGINS,
   PLATFORM_LEAD_STAGE_LABEL,
   platformLeadOriginLabel,
+  type PlatformLeadOriginOption,
   type PlatformLeadStage,
   type PlatformLeadSummary,
   type ProductSummary,
@@ -17,6 +18,7 @@ import {
   archiveLead,
   convertLead,
   dedupLeads,
+  listLeadOrigins,
   listLeads,
   listProducts,
   listTenants,
@@ -131,10 +133,14 @@ const EDITOR_LABEL: CSSProperties = { fontSize: 10.5, fontWeight: 600, letterSpa
 
 /** Bloco de edição comercial do lead (Tela 02): origem/canal, solução de interesse e
  *  follow-up (próxima ação + observações). Origem e solução salvam na hora; o follow-up
- *  (data+nota) e as observações salvam juntos no botão. */
+ *  (data+nota) e as observações salvam juntos no botão.
+ *
+ *  Renderizado dentro do modal "Informações Adicionais" (`CommercialInfoModal`), aberto
+ *  pelo ⋮ do card. O formulário é o mesmo de sempre — só deixou de morar no card. */
 function LeadEditor({
   lead,
   products,
+  origins,
   busy,
   onOrigin,
   onInterest,
@@ -144,6 +150,8 @@ function LeadEditor({
 }: {
   lead: PlatformLeadSummary;
   products: ProductSummary[];
+  /** Catálogo de Governança · Origens e Canais (embutidas + cadastradas). */
+  origins: PlatformLeadOriginOption[];
   busy: boolean;
   onOrigin: (v: string) => void | Promise<void>;
   onInterest: (v: string) => void | Promise<void>;
@@ -165,7 +173,11 @@ function LeadEditor({
   const [propAt, setPropAt] = useState(lead.proposalSentAt ? lead.proposalSentAt.slice(0, 10) : "");
   const [addons, setAddons] = useState<string[]>(lead.potentialAddons ?? []);
 
-  const canonVals = PLATFORM_LEAD_ORIGINS.map((o) => o.value) as string[];
+  // Só as ativas entram no seletor. Desativar uma origem em Governança tira ela
+  // das opções NOVAS sem mexer em quem já foi gravado — o lead que já veio por ela
+  // continua com ela, exibida na opção extra logo abaixo.
+  const origensAtivas = origins.filter((o) => o.active);
+  const canonVals = origensAtivas.map((o) => o.value);
   const naChanged = naAt !== (lead.nextActionAt ? lead.nextActionAt.slice(0, 10) : "") || naNote !== (lead.nextActionNote ?? "");
   const notesChanged = notes !== (lead.notes ?? "");
   const addonsKey = (a: string[]) => [...a].sort().join(",");
@@ -208,7 +220,7 @@ function LeadEditor({
         {lead.origin && !canonVals.includes(lead.origin) && (
           <option value={lead.origin}>{platformLeadOriginLabel(lead.origin)}</option>
         )}
-        {PLATFORM_LEAD_ORIGINS.map((o) => (
+        {origensAtivas.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
@@ -332,7 +344,8 @@ function LeadEditor({
  * encarar 10 campos e 13 caixas de seleção.
  *
  * Não há endpoint novo: usa os MESMOS `setLeadCommercial` e `setLeadNextAction`
- * do editor comercial completo, que continua inteiro no ⋮.
+ * do editor comercial completo, que continua inteiro no modal "Informações
+ * Adicionais", aberto pelo ⋮.
  *
  * A data vem junto por necessidade, não por escolha: o backend faz `?? null` nos
  * dois campos da próxima ação, então salvar só a nota APAGARIA a data já gravada.
@@ -425,11 +438,23 @@ export function CrmSection() {
   const [dataLead, setDataLead] = useState<PlatformLeadSummary | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null); // card em edição comercial
   const [products, setProducts] = useState<ProductSummary[]>([]); // catálogo p/ "solução de interesse"
+  // Catálogo de origens (Governança · Origens e Canais). Começa com as embutidas
+  // do código para o seletor mostrar EXATAMENTE o que sempre mostrou enquanto a
+  // lista não chega — e continuar mostrando se a chamada falhar.
+  const [origins, setOrigins] = useState<PlatformLeadOriginOption[]>(
+    PLATFORM_LEAD_ORIGINS.map((o) => ({ value: o.value, label: o.label, active: true, builtin: true })),
+  );
   const [tenants, setTenants] = useState<TenantSummary[]>([]); // p/ abrir o contrato da empresa
   const [contractTenant, setContractTenant] = useState<TenantSummary | null>(null);
   const [quickId, setQuickId] = useState<string | null>(null); // card no preenchimento rápido
   const [dragId, setDragId] = useState<string | null>(null); // card sendo arrastado
   const [overCol, setOverCol] = useState<string | null>(null); // coluna sob o cursor
+  const [commercialId, setCommercialId] = useState<string | null>(null); // lead no modal "Informações Adicionais"
+
+  // Lead do modal "Informações Adicionais": buscado na lista a cada render, e não
+  // copiado para o estado, para o modal enxergar o lead JÁ ATUALIZADO depois de
+  // cada gravação — do mesmo jeito que enxergava quando o formulário ficava no card.
+  const commercialLead = commercialId ? ((leads ?? []).find((l) => l.id === commercialId) ?? null) : null;
 
   async function refresh() {
     try { setLeads(await listLeads()); setStatus("ok"); } catch { setStatus("error"); }
@@ -559,6 +584,11 @@ export function CrmSection() {
       .catch(() => setProducts([]));
     // Empresas — para "link para contrato" (abre o contrato da empresa convertida).
     listTenants().then(setTenants).catch(() => setTenants([]));
+    // Origens/canais cadastrados em Governança. Em caso de falha, mantém o estado
+    // inicial (as embutidas) — o seletor nunca fica vazio.
+    listLeadOrigins()
+      .then((os) => { if (os.length > 0) setOrigins(os); })
+      .catch(() => { /* mantém as embutidas */ });
   }, []);
 
   /** Abre o contrato da empresa criada na conversão (link para contrato). */
@@ -659,7 +689,10 @@ export function CrmSection() {
   const porOrigem = useMemo(() => {
     const acc = new Map<string, { total: number; ganhos: number }>();
     for (const l of todosLeads) {
-      const key = platformLeadOriginLabel(l.origin);
+      // Rótulo cadastrado em Governança primeiro; o `platformLeadOriginLabel`
+      // continua sendo o fallback, e é ele que ainda dá nome às origens LEGADAS
+      // ("lp-diagnostico", "qrcode"), que não estão no catálogo.
+      const key = origins.find((o) => o.value === l.origin)?.label ?? platformLeadOriginLabel(l.origin);
       const cur = acc.get(key) ?? { total: 0, ganhos: 0 };
       cur.total += 1;
       if (GANHO.includes(l.stage) || l.convertedTenantId) cur.ganhos += 1;
@@ -668,8 +701,11 @@ export function CrmSection() {
     return [...acc.entries()]
       .map(([label, v]) => ({ label, pct: Math.round((v.ganhos / v.total) * 100), total: v.total }))
       .sort((a, b) => b.total - a.total);
+    // `origins` entrou nas dependências para o painel reetiquetar quando o
+    // catálogo chega (ele carrega depois dos leads) ou quando alguém renomeia
+    // uma origem em Governança. Sem isso o nome ficaria congelado no antigo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads]);
+  }, [leads, origins]);
 
   const motivosPerda = useMemo(() => {
     const acc = new Map<string, number>();
@@ -844,10 +880,10 @@ export function CrmSection() {
                         key={l.id}
                         className={`crm-card${dragId === l.id ? " crm-card--dragging" : ""}`}
                         style={{ opacity: busyId === l.id ? 0.55 : dragId === l.id ? 0.5 : 1 }}
-                        /* Card com formulário aberto NÃO arrasta — vale tanto para o
-                           editor comercial (⋮) quanto para o preenchimento rápido: os
-                           dois têm campos de texto, e um ancestral arrastável
-                           atrapalharia a seleção dentro deles. Fechar devolve o arraste. */
+                        /* Card com painel aberto NÃO arrasta — vale tanto para o painel
+                           do ⋮ quanto para o preenchimento rápido: os dois têm controles
+                           que se opera dentro do próprio card, e um ancestral arrastável
+                           atrapalharia o uso deles. Fechar devolve o arraste. */
                         draggable={busyId !== l.id && !expanded && quickId !== l.id}
                         onDragStart={(e) => onCardDragStart(e, l)}
                         onDragEnd={onCardDragEnd}
@@ -870,7 +906,7 @@ export function CrmSection() {
                           </button>
                         </div>
                         {/* Uma linha por extenso no lugar de duas abreviações. A origem
-                            continua no painel do card (⋮), onde também se edita. */}
+                            continua em "Informações Adicionais" (⋮), onde também se edita. */}
                         <p className="crm-who">{quemEQuantos(l)}</p>
                         <p className={`crm-age crm-age--${tomIdade}`}>{ageLabel(dias)}</p>
                         {pill && <span className={`crm-pill crm-pill--${pill.tone}`}>{pill.label}</span>}
@@ -977,16 +1013,18 @@ export function CrmSection() {
                                 </select>
                               </>
                             )}
-                            <LeadEditor
-                              lead={l}
-                              products={products}
-                              busy={busyId === l.id}
-                              onOrigin={(v) => saveOrigin(l.id, v)}
-                              onInterest={(v) => saveInterest(l.id, v)}
-                              onNextAction={(at, note) => saveNextAction(l.id, at, note)}
-                              onNotes={(v) => saveNotes(l.id, v)}
-                              onCommercial={(input) => saveCommercial(l.id, input)}
-                            />
+                            {/* Os campos comerciais saíram de dentro do card e passaram
+                                a abrir numa janela própria. O formulário é o MESMO
+                                `LeadEditor`, inteiro, com os mesmos campos e o mesmo
+                                "Salvar dados comerciais" — só deixou de ser lido de
+                                dentro de uma coluna estreita. */}
+                            <button
+                              type="button"
+                              className="kb-report"
+                              onClick={() => setCommercialId(l.id)}
+                            >
+                              Informações Adicionais
+                            </button>
                           </div>
                         )}
                       </article>
@@ -1049,8 +1087,101 @@ export function CrmSection() {
 
       {dataLead && <LeadDataModal lead={dataLead} onClose={() => setDataLead(null)} />}
 
+      {commercialLead && (
+        <CommercialInfoModal
+          lead={commercialLead}
+          products={products}
+          origins={origins}
+          busy={busyId === commercialLead.id}
+          onClose={() => setCommercialId(null)}
+          onOrigin={(v) => saveOrigin(commercialLead.id, v)}
+          onInterest={(v) => saveInterest(commercialLead.id, v)}
+          onNextAction={(at, note) => saveNextAction(commercialLead.id, at, note)}
+          onNotes={(v) => saveNotes(commercialLead.id, v)}
+          onCommercial={(input) => saveCommercial(commercialLead.id, input)}
+        />
+      )}
+
       {contractTenant && <ContractModal tenant={contractTenant} onClose={() => setContractTenant(null)} />}
     </>
+  );
+}
+
+/**
+ * Modal "Informações Adicionais" — a janela dos campos comerciais do lead: origem/canal,
+ * solução de interesse, responsável comercial, valor proposto, proposta enviada em,
+ * adicionais potenciais, follow-up e observações.
+ *
+ * O formulário aqui dentro é o MESMO `LeadEditor` que antes ficava dentro do card, com
+ * os mesmos campos, as mesmas gravações e o mesmo botão "Salvar dados comerciais". O
+ * modal não reimplementa nada: só empresta a ele uma janela larga, para o card do funil
+ * voltar a ser um cartão e não um formulário de dez campos espremido numa coluna.
+ *
+ * Fechar NÃO grava — quem grava continua sendo o "Salvar dados comerciais", exatamente
+ * como antes. Origem e solução de interesse seguem salvando na hora, no próprio select.
+ */
+function CommercialInfoModal({
+  lead,
+  products,
+  origins,
+  busy,
+  onClose,
+  onOrigin,
+  onInterest,
+  onNextAction,
+  onNotes,
+  onCommercial,
+}: {
+  lead: PlatformLeadSummary;
+  products: ProductSummary[];
+  /** Catálogo de Governança · Origens e Canais — repassado inteiro ao LeadEditor. */
+  origins: PlatformLeadOriginOption[];
+  busy: boolean;
+  onClose: () => void;
+  onOrigin: (v: string) => void | Promise<void>;
+  onInterest: (v: string) => void | Promise<void>;
+  onNextAction: (at: string, note: string) => void | Promise<void>;
+  onNotes: (v: string) => void | Promise<void>;
+  onCommercial: (input: {
+    commercialOwner?: string | null;
+    proposedValueCents?: number | null;
+    proposalSentAt?: string | null;
+    potentialAddons?: string[];
+  }) => void | Promise<void>;
+}) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <header className="modal__head">
+          <h2>Informações Adicionais</h2>
+          <button className="icon-btn" onClick={onClose} title="Fechar">✕</button>
+        </header>
+
+        <div className="modal__body">
+          {/* De qual lead são estes campos — no card isso era óbvio pelo contexto,
+              numa janela sobreposta deixa de ser. */}
+          <p className="convert-lead">
+            Lead: <strong>{lead.company || lead.name}</strong>
+            {lead.company && lead.name ? ` · ${lead.name}` : ""} · {lead.email ?? "sem e-mail"}
+          </p>
+          <LeadEditor
+            lead={lead}
+            products={products}
+            origins={origins}
+            busy={busy}
+            onOrigin={onOrigin}
+            onInterest={onInterest}
+            onNextAction={onNextAction}
+            onNotes={onNotes}
+            onCommercial={onCommercial}
+          />
+        </div>
+
+        <div className="modal__foot">
+          <button className="btn btn--outline-dark btn--sm" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

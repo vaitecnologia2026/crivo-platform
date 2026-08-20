@@ -28,6 +28,12 @@ class DimensionDto {
 
   @IsOptional() @IsIn(['MEDIA_PONDERADA', 'MEDIA_SIMPLES', 'SOMA_NORMALIZADA'])
   aggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA' | null;
+
+  // Severidade (1–5) da Matriz de Risco psicossocial. Só faz sentido na ESCALA
+  // (dimensão de topo). null/ausente = escala fora da matriz — ver o comentário
+  // da coluna no schema. Não entra em nenhum cálculo de média ou pontuação.
+  @IsOptional() @IsInt() @Min(1) @Max(5)
+  severity?: number | null;
 }
 
 class QuestionDto {

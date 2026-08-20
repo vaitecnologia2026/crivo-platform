@@ -202,7 +202,7 @@ export class MethodologyService {
         minValidCompletionPercent:
           active?.minValidCompletionPercent ?? cfg.defaultMinValidCompletionPercent,
         dimensions: active
-          ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation })) }
+          ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation, severity: d.severity })) }
           : undefined,
         questions: active
           ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, scored: qq.scored, showWhenQuestionId: qq.showWhenQuestionId, showWhenOperator: qq.showWhenOperator, showWhenValue: qq.showWhenValue, order: qq.order })) }
@@ -227,7 +227,7 @@ export class MethodologyService {
       // Motor v3.1: precisão do resultado e cobertura mínima do oficial.
       rounding?: number;
       minValidCompletionPercent?: number;
-      dimensions?: { slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
+      dimensions?: { slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null; severity?: number | null }[];
       questions?: {
         dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean;
         scored?: boolean;
@@ -267,7 +267,7 @@ export class MethodologyService {
       if (dto.dimensions) {
         await tx.methodologyDimension.deleteMany({ where: { versionId: id } });
         await tx.methodologyDimension.createMany({
-          data: dto.dimensions.map((d, i) => ({ versionId: id, slug: d.slug, label: d.label, weight: d.weight ?? 1, order: i, parentSlug: d.parentSlug ?? null, aggregation: d.aggregation ?? null })),
+          data: dto.dimensions.map((d, i) => ({ versionId: id, slug: d.slug, label: d.label, weight: d.weight ?? 1, order: i, parentSlug: d.parentSlug ?? null, aggregation: d.aggregation ?? null, severity: d.severity ?? null })),
         });
       }
       if (dto.questions) {
