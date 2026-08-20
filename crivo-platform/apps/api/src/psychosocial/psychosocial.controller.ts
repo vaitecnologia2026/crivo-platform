@@ -33,14 +33,20 @@ export class PsychosocialController {
   }
 
   /** Agregação por setor (com supressão §14) — só gestão/RH. */
+  // O Dashboard consome os resultados no ExecutiveKpiRow/Fatores Psicossociais;
+  // sem 'dashboard' aqui, um usuário com checklist só-dashboard tomava 403 e os
+  // KPIs sumiam sem aviso (o front engolia o erro).
   @Get('results')
+  @RequireScreen('psicossocial', 'dashboard')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
   results(@CurrentUser() user: SessionUser) {
     return this.psychosocial.results(user.tenantId);
   }
 
   /** Link público atual da empresa (null se não gerado) — só gestão/RH. */
+  // A tela Diagnósticos (essencial) também gera/lê o link psicossocial.
   @Get('link')
+  @RequireScreen('psicossocial', 'essencial')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   getLink(@CurrentUser() user: SessionUser) {
     return this.psychosocial.getLink(user.tenantId);
@@ -48,6 +54,7 @@ export class PsychosocialController {
 
   /** Gera (idempotente) o link público anônimo da empresa — só gestão/RH. */
   @Post('link')
+  @RequireScreen('psicossocial', 'essencial')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   ensureLink(@CurrentUser() user: SessionUser) {
     return this.psychosocial.ensureLink(user.tenantId);

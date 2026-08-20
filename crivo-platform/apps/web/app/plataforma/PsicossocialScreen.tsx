@@ -21,6 +21,13 @@ import {
   RISK_LEVELS_3,
   type RiskLevel3,
   type ActionPlanData,
+  PSYCHOSOCIAL_PROBABILITY_LABEL,
+  PSYCHOSOCIAL_SEVERITY_LABEL,
+  PSYCHOSOCIAL_RISK_CLASS_LABEL,
+  PSYCHOSOCIAL_RISK_CLASS_ACTION,
+  type PsychosocialProfileRow,
+  type PsychosocialRiskClass,
+  type PsychosocialRiskMatrixRow,
  } from "@crivo/types";
 import { ScaleHelpBox } from "@crivo/ui";
 import { publicOrigin } from "@/lib/share-url";
@@ -428,6 +435,9 @@ function ResultadosBody({
         </div>
       )}
 
+      {!data.overall.suppressed && <RiskMatrix rows={data.overall.riskMatrix} />}
+      {!data.overall.suppressed && <GroupProfile rows={data.overall.profile} />}
+
       <div className="card" style={{ marginTop: 20 }}>
         <div className="card__head">
           <div>
@@ -523,6 +533,129 @@ function SectorHeatmap({ data }: { data: PsychosocialResults }) {
                   const lvl = levelOf(v);
                   return <td key={d} className={`hm hm--${lvl.toLowerCase()}`} title={`${PSYCHOSOCIAL_DIMENSION_LABEL[d]}: ${v}`}>{v}</td>;
                 })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Cor da classificação — do verde (aceitável) ao vermelho (intolerável). */
+const RISK_CLASS_COLOR: Record<PsychosocialRiskClass, string> = {
+  ACEITAVEL: "#2E7D4F",
+  MODERADO: "#8A6D1F",
+  SIGNIFICATIVO: "#C4671D",
+  CRITICO: "#B3541E",
+  INTOLERAVEL: "#8E2F1B",
+};
+
+/**
+ * MATRIZ DE RISCO psicossocial — o resultado que o método prevê: para cada
+ * ESCALA, combina a exposição crítica do grupo (Probabilidade, do percentual de
+ * respondentes na faixa crítica) com a gravidade plausível (Severidade,
+ * parametrizada no Motor) → Risco = P × S, de 1 a 25.
+ *
+ * Derivada das RESPOSTAS, nunca digitada. É outra coisa da "Matriz de fatores de
+ * risco (classificação técnica)" logo abaixo, que vem do Plano de Evolução e usa
+ * 3 níveis preenchidos à mão — as duas convivem de propósito.
+ *
+ * Ausente quando a metodologia ativa não tem faixas ou nenhuma escala tem
+ * severidade parametrizada: nesse caso não há matriz a mostrar, e inventar um
+ * valor daria uma leitura falsa de "aceitável".
+ */
+function RiskMatrix({ rows }: { rows?: PsychosocialRiskMatrixRow[] }) {
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card__head">
+        <div>
+          <h3>Matriz de Risco psicossocial</h3>
+          <span className="card__sub">
+            Risco = Probabilidade × Severidade (1 a 25). A probabilidade vem do percentual de
+            respondentes na faixa crítica de cada escala; a severidade é a parametrização da empresa.
+            Recurso de apoio à gestão — não é diagnóstico clínico individual.
+          </span>
+        </div>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Escala</th>
+              <th>Na faixa crítica</th>
+              <th>Probabilidade</th>
+              <th>Severidade</th>
+              <th>Risco</th>
+              <th>Classificação</th>
+              <th>Conduta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.slug}>
+                <td><strong>{r.label}</strong></td>
+                <td className="cell-mute">
+                  {r.criticalCount} de {r.respondents} ({r.percentCritical}%)
+                </td>
+                <td title={PSYCHOSOCIAL_PROBABILITY_LABEL[r.probability]}>{r.probability}</td>
+                <td title={PSYCHOSOCIAL_SEVERITY_LABEL[r.severity]}>{r.severity}</td>
+                <td><strong>{r.risk}</strong></td>
+                <td>
+                  <span
+                    className="pattern-tag"
+                    style={{ background: `${RISK_CLASS_COLOR[r.riskClass]}1F`, color: RISK_CLASS_COLOR[r.riskClass] }}
+                  >
+                    {PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]}
+                  </span>
+                </td>
+                <td className="cell-mute">{PSYCHOSOCIAL_RISK_CLASS_ACTION[r.riskClass]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PERFIL DE GRUPO — quantas PESSOAS caem em cada faixa, dimensão a dimensão.
+ * Complementa a média: duas dimensões com a mesma média podem ter distribuições
+ * muito diferentes, e é a concentração na faixa crítica que move a matriz.
+ */
+function GroupProfile({ rows }: { rows?: PsychosocialProfileRow[] }) {
+  if (!rows || rows.length === 0) return null;
+  const bands = rows[0].byBand;
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card__head">
+        <div>
+          <h3>Perfil de grupo</h3>
+          <span className="card__sub">
+            Distribuição das pessoas por faixa, em cada dimensão. A primeira faixa é a crítica —
+            é dela que sai a probabilidade da matriz acima.
+          </span>
+        </div>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Dimensão</th>
+              {bands.map((b) => <th key={b.code}>{b.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.slug}>
+                <td><strong>{r.label}</strong></td>
+                {r.byBand.map((b) => (
+                  <td key={b.code}>
+                    {b.percent}% <span className="cell-mute">({b.count})</span>
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>

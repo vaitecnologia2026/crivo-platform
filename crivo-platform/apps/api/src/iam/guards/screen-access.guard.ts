@@ -23,11 +23,13 @@ export class ScreenAccessGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const screen = this.reflector.getAllAndOverride<string>(SCREEN_KEY, [
+    // Metadata é string[] (any-of). Aceita string legada por segurança.
+    const meta = this.reflector.getAllAndOverride<string | string[]>(SCREEN_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
     ]);
-    if (!screen) return true; // controller sem tela declarada → não restringe
+    const screens = Array.isArray(meta) ? meta : meta ? [meta] : [];
+    if (screens.length === 0) return true; // controller sem tela declarada → não restringe
 
     const req = ctx.switchToHttp().getRequest<Request & { user?: SessionUser }>();
     const userId = req.user?.id;
@@ -40,7 +42,8 @@ export class ScreenAccessGuard implements CanActivate {
     const allowed = Array.isArray(user?.screenAccess) ? (user!.screenAccess as string[]) : null;
     if (!allowed) return true; // sem restrição → vê tudo que papel/módulo permitem
 
-    if (!allowed.includes(screen)) {
+    // ANY-OF: basta o usuário ter acesso a UMA das telas que consomem este endpoint.
+    if (!screens.some((s) => allowed.includes(s))) {
       throw new ForbiddenException('Você não tem acesso a esta tela.');
     }
     return true;

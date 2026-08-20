@@ -47,7 +47,11 @@ import {
 // continua liberada pelo guard — o decorator é que define a exigência.
 @UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard, RolesGuard)
 @RequireModule('relatorios')
-@RequireScreen('relatorios')
+// As três telas irmãs do módulo 'relatorios' consomem este controller: Plano de
+// Evolução (relatorios), Evidências (evidencias) e Relatórios e Dossiês
+// (documentos). Any-of: liberar só uma delas na checklist do usuário não pode
+// dar 403 nas outras. O gate de PAPEL (RolesGuard/@Roles por rota) continua.
+@RequireScreen('relatorios', 'evidencias', 'documentos')
 // AUTORIZAÇÃO: sem @Roles o RolesGuard libera, e ScreenAccessGuard só barra
 // quem tem lista de telas explícita (nula por padrão). Resultado: COLABORADOR
 // baixava o Dossiê Técnico inteiro — mesmo dado que /psychosocial/results já

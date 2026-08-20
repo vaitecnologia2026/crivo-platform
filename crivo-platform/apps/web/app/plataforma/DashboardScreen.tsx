@@ -15,10 +15,65 @@ import {
   ICD_AXIS_LABEL,
   ICD_AXIS_DESCRIPTION,
   MIN_LEADERS_FOR_DISCLOSURE,
+  PSYCHOSOCIAL_RISK_LABEL,
+  PSYCHOSOCIAL_DIMENSION_LABEL,
   type ActionItemData,
   type ActionPlanData,
   type ActionStatus,
 } from "@crivo/types";
+
+/**
+ * Card "Fatores Psicossociais" do Dashboard. Antes exibia um texto fixo mesmo
+ * quando o diagnóstico organizacional já tinha respostas; agora lê os resultados
+ * (mesmo endpoint do ExecutiveKpiRow) e mostra a leitura real quando há dado,
+ * mantendo o texto de origem apenas como estado vazio/suprimido.
+ */
+function FatoresPsicossociaisCard() {
+  const [psy, setPsy] = useState<PsychosocialResults | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getPsychosocialResults().then((r) => { if (alive) setPsy(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const hasData = psy != null && psy.totalRespondents > 0;
+  const overall = psy && !psy.overall.suppressed ? psy.overall : null;
+
+  return (
+    <div className="card">
+      <div className="card__head">
+        <div>
+          <h3>Fatores Psicossociais</h3>
+          <span className="card__sub">Leitura estruturada dos riscos relacionados ao trabalho (NR-1).</span>
+        </div>
+      </div>
+      {hasData ? (
+        <div className="kpi-grid" style={{ marginTop: 4 }}>
+          <div className="kpi">
+            <span className="kpi__label">Participação</span>
+            <strong className="kpi__value">{psy!.totalRespondents}</strong>
+            <span className="kpi__delta">{psy!.sectors.length} setor(es) avaliado(s)</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi__label">Nível geral</span>
+            <strong className="kpi__value">
+              {overall ? (PSYCHOSOCIAL_RISK_LABEL[overall.level] ?? overall.level) : "Protegido"}
+            </strong>
+            <span className="kpi__delta">
+              {overall
+                ? `Maior atenção: ${PSYCHOSOCIAL_DIMENSION_LABEL[overall.topRisk] ?? overall.topRisk}`
+                : `Volume mínimo: ${psy!.minRespondents}+ respondentes por recorte`}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <p className="dash-state" style={{ margin: 0 }}>
+          Será habilitado quando o módulo <strong>Campanhas de Diagnóstico (NR-1)</strong> for aplicado.
+        </p>
+      )}
+    </div>
+  );
+}
 
 /**
  * Dashboard Executivo — Análise Preliminar Portal §7.
@@ -359,17 +414,7 @@ export function DashboardScreen() {
               </p>
             </div>
 
-            <div className="card">
-              <div className="card__head">
-                <div>
-                  <h3>Fatores Psicossociais</h3>
-                  <span className="card__sub">Leitura estruturada dos riscos relacionados ao trabalho (NR-1).</span>
-                </div>
-              </div>
-              <p className="dash-state" style={{ margin: 0 }}>
-                Será habilitado quando o módulo <strong>Campanhas de Diagnóstico (NR-1)</strong> for aplicado.
-              </p>
-            </div>
+            <FatoresPsicossociaisCard />
           </div>
 
           {/* ─── GOVERNANÇA E PLANO DE AÇÃO ──────────────────────────────── */}

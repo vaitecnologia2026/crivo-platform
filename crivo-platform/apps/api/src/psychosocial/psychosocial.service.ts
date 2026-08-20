@@ -4,9 +4,13 @@ import {
   computePsychosocial,
   scoreWithMethodology,
   psychosocialLevel,
+  psychosocialProbabilityLevel,
+  psychosocialRiskClass,
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_QUESTIONS,
+  type PsychosocialProfileRow,
+  type PsychosocialRiskMatrixRow,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { loadActiveMethodologyConfig, resolveActiveMethodology } from '../admin/methodology.service';
@@ -182,9 +186,30 @@ export class PsychosocialService {
     const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
     // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
     const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    // Severidade e hierarquia (escala × fator) vêm DIRETO da versão ativa, não do
+    // MethodologyConfig: o motor de score não usa severidade, e manter o contrato
+    // do cálculo intocado evita mexer em quem já pontua com ele.
+    // rls-allow: methodology_* é catálogo GLOBAL (control-plane), não é dado do tenant.
+    const activeVersion = await this.prisma.admin.methodologyVersion.findFirst({
+      where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
+      select: { dimensions: { select: { slug: true, severity: true, parentSlug: true } } },
+    });
+    const metaBySlug = new Map(
+      (activeVersion?.dimensions ?? []).map((d) => [d.slug, { severity: d.severity, parentSlug: d.parentSlug }]),
+    );
     const dims = cfg
-      ? cfg.dimensions.map((d) => ({ slug: d.slug, label: d.label }))
-      : PSYCHOSOCIAL_DIMENSIONS.map((d) => ({ slug: d as string, label: PSYCHOSOCIAL_DIMENSION_LABEL[d] }));
+      ? cfg.dimensions.map((d) => ({
+          slug: d.slug,
+          label: d.label,
+          severity: metaBySlug.get(d.slug)?.severity ?? null,
+          parentSlug: metaBySlug.get(d.slug)?.parentSlug ?? null,
+        }))
+      : PSYCHOSOCIAL_DIMENSIONS.map((d) => ({
+          slug: d as string,
+          label: PSYCHOSOCIAL_DIMENSION_LABEL[d],
+          severity: null,
+          parentSlug: null,
+        }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
@@ -237,10 +262,13 @@ export class PsychosocialService {
 }
 
 type Row = { score: number; byDimension: unknown };
-type AggDim = { slug: string; label: string };
+type AggDim = { slug: string; label: string; severity?: number | null; parentSlug?: string | null };
 type AggBand = { code: string; label: string; min: number; max: number };
 
-/** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven. */
+/** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
+ *  Acrescenta o Perfil de grupo (distribuição de pessoas por faixa) e a Matriz de
+ *  Risco (R = P × S) — ambos derivados do MESMO conjunto de respostas já agregado,
+ *  sem consulta extra e sem alterar nenhum dos campos que já saíam daqui. */
 function aggregate(
   rows: Row[],
   dims: AggDim[],
@@ -252,17 +280,78 @@ function aggregate(
   byDimension: Record<string, number>;
   dimensionLabels: Record<string, string>;
   topRisk: string;
+  profile: PsychosocialProfileRow[];
+  riskMatrix: PsychosocialRiskMatrixRow[];
 } {
   const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
   const byDimension: Record<string, number> = {};
   const dimensionLabels: Record<string, string> = {};
+  const valuesOf = (slug: string) =>
+    rows.map((r) => Number((r.byDimension as Record<string, number>)?.[slug] ?? 0));
   for (const d of dims) {
-    const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
+    const vals = valuesOf(d.slug);
     byDimension[d.slug] = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
     dimensionLabels[d.slug] = d.label;
   }
   const topRisk = dims.reduce((min, d) => (byDimension[d.slug] < byDimension[min] ? d.slug : min), dims[0]?.slug ?? '');
   const band = bands?.find((b) => score >= b.min && score <= b.max);
+
+  // Faixas em ordem crescente: a PRIMEIRA é a crítica (menor pontuação = maior
+  // risco, na régua de proteção). Sem faixas configuradas não há como dizer o que
+  // é crítico — então nem perfil nem matriz são produzidos, em vez de chutar.
+  const ordered = bands ? [...bands].sort((a, b) => a.min - b.min) : [];
+  const inBand = (v: number, b: AggBand) => v >= b.min && v <= b.max;
+
+  // Perfil de grupo: quantas PESSOAS caem em cada faixa, dimensão a dimensão.
+  const profile: PsychosocialProfileRow[] = ordered.length
+    ? dims.map((d) => {
+        const vals = valuesOf(d.slug);
+        return {
+          slug: d.slug,
+          label: d.label,
+          respondents: vals.length,
+          byBand: ordered.map((b) => {
+            const count = vals.filter((v) => inBand(v, b)).length;
+            return {
+              code: b.code,
+              label: b.label,
+              count,
+              percent: vals.length ? Math.round((count / vals.length) * 100) : 0,
+            };
+          }),
+        };
+      })
+    : [];
+
+  // Matriz de Risco: só ESCALAS (dimensão de topo) COM severidade parametrizada.
+  // Escala sem severidade fica de fora — entrar com 0 produziria "aceitável" falso.
+  const critical = ordered[0] ?? null;
+  const riskMatrix: PsychosocialRiskMatrixRow[] = critical
+    ? dims
+        .filter((d) => !d.parentSlug && d.severity != null)
+        .map((d) => {
+          const vals = valuesOf(d.slug);
+          const criticalCount = vals.filter((v) => inBand(v, critical)).length;
+          const percentCritical = vals.length ? (criticalCount / vals.length) * 100 : 0;
+          const probability = psychosocialProbabilityLevel(percentCritical);
+          const severity = d.severity as number;
+          const risk = probability * severity;
+          return {
+            slug: d.slug,
+            label: d.label,
+            criticalCount,
+            respondents: vals.length,
+            percentCritical: Math.round(percentCritical),
+            probability,
+            severity,
+            risk,
+            riskClass: psychosocialRiskClass(risk),
+          };
+        })
+        // Mesma ordenação do relatório de referência: maior risco primeiro.
+        .sort((a, b) => b.risk - a.risk)
+    : [];
+
   return {
     score,
     level: band?.code ?? psychosocialLevel(score),
@@ -270,5 +359,7 @@ function aggregate(
     byDimension,
     dimensionLabels,
     topRisk,
+    profile,
+    riskMatrix,
   };
 }

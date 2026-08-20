@@ -17,6 +17,24 @@ import {
   type OrganizationData,
 } from '@crivo/types';
 
+/**
+ * Diagnóstico built-in de cada MÉTODO do contrato. O mapa NÃO é convenção nova:
+ * sai do próprio código. A autoavaliação da jornada Inicial/Essencial roda sobre
+ * PRE_DIAGNOSTIC (`essencial.service.ts` → SELF_ASSESSMENT_INSTRUMENT) e o
+ * Organizacional é o psicossocial (`psychosocial.service.ts`, instrumento de
+ * nome "Diagnóstico Organizacional", régua de RISCO).
+ *
+ * Método não resolvido (empresa sem contrato, ou solução que não define método)
+ * cai fora do mapa e o filtro NÃO se aplica — os dois built-in continuam
+ * aparecendo, como antes. É proposital: sem contrato não há o que filtrar, e
+ * deixar a lista vazia tiraria a origem do plano de quem hoje a tem.
+ */
+const BUILTIN_BY_METHOD: Record<string, string> = {
+  INICIAL: 'PRE_DIAGNOSTIC',
+  ESSENCIAL: 'PRE_DIAGNOSTIC',
+  ORGANIZACIONAL: 'PSYCHOSOCIAL',
+};
+
 /** Converte a linha (ou ausência) no contrato compartilhado (nulls). */
 function toBrandingData(b: TenantBranding | null): TenantBrandingData {
   return {
@@ -116,7 +134,7 @@ export class MeController {
         : [];
 
     // A4 — instrumentos p/ o select "Diagnóstico de origem" do Plano de
-    // Evolução: os 2 built-in ativos + os que a empresa tem link de aplicação.
+    // Evolução: os built-in ativos + os que a empresa tem link de aplicação.
     // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
     const [builtIns, links] = await Promise.all([
       this.prisma.admin.diagnosticInstrument.findMany({
@@ -127,9 +145,16 @@ export class MeController {
         tx.diagnosticLink.findMany({ select: { instrument: { select: { slug: true, name: true, active: true } } } }),
       ),
     ]);
+    // O MÉTODO do contrato filtra os built-in: a empresa só enxerga o diagnóstico
+    // que ela contratou — antes os DOIS apareciam para todo mundo, então um
+    // cliente de Diagnóstico Essencial via o Organizacional na lista de origem.
+    // Os instrumentos com link de aplicação NÃO são filtrados: cada um foi
+    // escolhido para aquela empresa, um a um, no Motor → Aplicação.
+    const builtInDoMetodo = method ? BUILTIN_BY_METHOD[method] : null;
+    const doMetodo = builtIns.filter((i) => !builtInDoMetodo || i.slug === builtInDoMetodo);
     const seen = new Set<string>();
     const instruments: { slug: string; name: string }[] = [];
-    for (const i of [...builtIns, ...links.map((l) => l.instrument).filter((i) => i.active)]) {
+    for (const i of [...doMetodo, ...links.map((l) => l.instrument).filter((i) => i.active)]) {
       if (seen.has(i.slug)) continue;
       seen.add(i.slug);
       instruments.push({ slug: i.slug, name: i.name });

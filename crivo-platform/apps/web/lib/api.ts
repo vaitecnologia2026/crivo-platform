@@ -10,6 +10,8 @@ import type {
   CreateActionItemRequest,
   CreateActionPlanRequest,
   CreateCampaignRequest,
+  PsychosocialProfileRow,
+  PsychosocialRiskMatrixRow,
   DecisionData,
   DecisionInput,
   DecisionCategory,
@@ -613,6 +615,10 @@ type SectorAggregate = {
   level?: PsychosocialRiskLevel;
   byDimension?: Record<PsychosocialDimension, number>;
   topRisk?: PsychosocialDimension;
+  // Matriz de Risco e Perfil de grupo: opcionais porque só existem quando a
+  // metodologia ativa tem faixas (perfil) e severidade por escala (matriz).
+  profile?: PsychosocialProfileRow[];
+  riskMatrix?: PsychosocialRiskMatrixRow[];
 };
 export type PsychosocialResults = {
   minRespondents: number;
@@ -625,6 +631,8 @@ export type PsychosocialResults = {
         level: PsychosocialRiskLevel;
         byDimension: Record<PsychosocialDimension, number>;
         topRisk: PsychosocialDimension;
+        profile?: PsychosocialProfileRow[];
+        riskMatrix?: PsychosocialRiskMatrixRow[];
       };
   sectors: SectorAggregate[];
 };

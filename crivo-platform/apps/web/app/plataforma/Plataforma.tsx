@@ -4,7 +4,7 @@ import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
 import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
-import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, setToken, clearToken, logout } from "@/lib/api";
+import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, getMyOrganization, getDiagnosticContext, setToken, clearToken, logout } from "@/lib/api";
 import { registerPushForCurrentUser } from "@/lib/push";
 import { Capacitor } from "@capacitor/core";
 
@@ -36,6 +36,19 @@ function applyUserChip(name: string, role: string) {
   if (roleEl) roleEl.textContent = ROLE_LABELS[role as Role] ?? role;
   if (avatar && name) avatar.textContent = initialsOf(name);
 }
+/** Card da empresa no rodapé da sidebar: o markup traz "Empresa Exemplo S.A."
+ *  como placeholder pré-login; aqui entra o tenant real + a solução contratada.
+ *  Só sobrescreve o que veio preenchido (falha de fetch mantém o placeholder). */
+function applyOrgCard(orgName: string | null, productName: string | null) {
+  const card = document.querySelector(".org-card");
+  if (!card) return;
+  const nameEl = card.querySelector("strong");
+  const planEl = card.querySelector("span:not(.org-card__avatar)");
+  const avatar = card.querySelector(".org-card__avatar");
+  if (nameEl && orgName) nameEl.textContent = orgName;
+  if (avatar && orgName) avatar.textContent = initialsOf(orgName);
+  if (planEl && productName) planEl.textContent = productName;
+}
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
 import { DecisaoScreen } from "./DecisaoScreen";
@@ -66,7 +79,7 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
-import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta } from "./nav.config";
+import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta, routeMethods } from "./nav.config";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
 // interatividade do app.js (login, router SPA, likert, quiz, chat, animações de
@@ -148,19 +161,35 @@ export function Plataforma() {
     let permissions: Set<string> | null = null;
     // Telas liberadas para ESTE usuário (checklist por usuário). null = sem restrição.
     let allowedScreens: Set<string> | null = null;
+    // Método do diagnóstico CONTRATADO (/me/diagnostic-context). null = não
+    // resolvido → NENHUM item de diagnóstico é escondido (fail-open), que é o
+    // comportamento de hoje para empresa sem contrato ativo.
+    let contractedMethod: string | null = null;
+    // Nome da solução contratada — passa a rotular o item do diagnóstico no
+    // menu. null = mantém o rótulo estático da nav.config.
+    let contractedProductName: string | null = null;
     let removeBranding: (() => void) | null = null; // desfaz os overrides de tema (F5)
     cleanups.push(() => removeBranding?.());
     const routeVisible = (route: string) => {
       const access = routeAccess[route];
       if (!access) return true; // rota sem mapeamento (ex.: links soltos)
-      if (enabledModules && !enabledModules.has(access.module)) return false; // módulo/plano
+      if (access.module && enabledModules && !enabledModules.has(access.module)) return false; // módulo/plano
       if (access.perm && permissions && !permissions.has(access.perm)) return false; // papel/RBAC
+      // Diagnóstico NÃO contratado some do menu: o item declara para quais
+      // métodos ele existe (nav.config) e o contrato diz qual é o da empresa.
+      // Sem método resolvido, nada é escondido.
+      const methods = routeMethods[route];
+      if (contractedMethod && methods && !methods.includes(contractedMethod)) return false;
       // Acesso por tela por usuário: se houver restrição, só libera rotas na lista.
-      // 'usuarios'/'papeis' (gestão) seguem gateadas só por permissão, não pela lista.
+      // O grupo Administração (usuarios/papeis/historico) NÃO entra na checklist
+      // (SCREEN_OPTIONS o exclui) — segue gateado só por permissão/módulo. Sem
+      // 'historico' nesta isenção, todo usuário com checklist perdia o Histórico
+      // sem forma de liberar.
       if (
         allowedScreens &&
         route !== "usuarios" &&
         route !== "papeis" &&
+        route !== "historico" &&
         route !== "grupo" && // F3: gateado por autorização de grupo, não pela checklist
         !allowedScreens.has(route)
       )
@@ -197,6 +226,31 @@ export function Plataforma() {
         if (r) n.style.display = routeVisible(r) ? "" : "none";
       });
       hideEmptyGroups();
+    }
+
+    // Nome da SOLUÇÃO contratada como rótulo da rota — só para o item que
+    // corresponde ao método contratado. Sem método resolvido ou sem nome de
+    // solução, devolve null e o rótulo estático da nav.config prevalece.
+    function contractedLabelFor(route: string): string | null {
+      if (!contractedMethod || !contractedProductName) return null;
+      const methods = routeMethods[route];
+      if (!methods || !methods.includes(contractedMethod)) return null;
+      return contractedProductName;
+    }
+
+    function applyContractedDiagnosticLabel() {
+      navItems.forEach((n) => {
+        const r = n.dataset.route;
+        if (!r) return;
+        const label = contractedLabelFor(r);
+        if (!label) return;
+        // O rótulo é o nó de TEXTO ao lado do <span class="ni__ic"> (ver
+        // renderNavHtml): trocar só ele preserva ícone, classes e data-route.
+        const textNode = Array.from(n.childNodes).find(
+          (c) => c.nodeType === Node.TEXT_NODE && (c.textContent ?? "").trim() !== "",
+        );
+        if (textNode) textNode.textContent = label;
+      });
     }
 
     function setRoute(name: string) {
@@ -238,9 +292,12 @@ export function Plataforma() {
         mountIsland("contexto-root", <SoonScreen title="Contexto e Diretrizes" sub="Workspace da IA Contextualizada do Cliente — base segregada por CNPJ, contrato e finalidade." message="Programa em implantação. Aqui a sua empresa vai aprovar diretrizes, documentos e terminologia que a IA CRIVO pode usar — sempre em base segregada, sem uso cruzado entre clientes. Adicional premium do Motor de IA." />);
       const meta = routeMeta[name];
       if (meta) {
+        // O topo da tela usa o MESMO nome do menu. Sem solução contratada
+        // resolvida, cai no breadcrumb estático da nav.config (como hoje).
+        const current = contractedLabelFor(name) ?? meta.current;
         if (bcPath) bcPath.textContent = meta.path;
-        if (bcCurrent) bcCurrent.textContent = meta.current;
-        routerLog.info(`navegou → ${meta.path} / ${meta.current}`);
+        if (bcCurrent) bcCurrent.textContent = current;
+        routerLog.info(`navegou → ${meta.path} / ${current}`);
       } else {
         routerLog.warn(`rota desconhecida: ${name}`);
       }
@@ -276,19 +333,29 @@ export function Plataforma() {
       try {
         // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
         // o Promise.all inteiro e pular o applyUserChip / a visibilidade.
-        const [mods, perms, screens, branding, me] = await Promise.all([
+        const [mods, perms, screens, branding, me, diag, org] = await Promise.all([
           getMyModules().catch(() => [] as string[]),
           getMyPermissions().catch(() => [] as string[]),
           getMyScreens().catch(() => null),
           getMyBranding().catch(() => null),
           getMyRole().catch(() => null),
+          getDiagnosticContext().catch(() => null),
+          getMyOrganization().catch(() => null),
         ]);
         enabledModules = new Set(mods);
         permissions = new Set(perms);
         allowedScreens = screens && screens.length ? new Set(screens) : null;
+        // Diagnóstico contratado: esconde do menu o que a empresa não contratou
+        // e dá ao item que sobra o nome da solução. Falha na chamada → null →
+        // menu exatamente como era antes.
+        contractedMethod = diag?.method ?? null;
+        contractedProductName = diag?.productName ?? null;
         // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
         if (me) applyUserChip(me.name, me.role);
+        // Empresa real no card da sidebar (corrige "Empresa Exemplo S.A." fixo).
+        applyOrgCard(org?.name ?? null, diag?.productName ?? null);
         applyModuleVisibility();
+        applyContractedDiagnosticLabel();
         removeBranding?.();
         removeBranding = applyBranding(branding);
         accessLoaded = true;

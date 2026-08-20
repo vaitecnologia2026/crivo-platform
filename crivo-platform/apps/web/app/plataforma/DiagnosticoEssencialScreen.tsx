@@ -313,9 +313,25 @@ function EscutaDosEmpregados() {
       )}
       <p className="card__sub" style={{ marginTop: 12 }}>
         Precisa de prazo, lembrete ou recorte por setor?{" "}
-        <a href="#" data-route-link="campanhas" style={{ fontWeight: 600 }}>
+        {/* Navega pelo item real da sidebar: o binding de data-route-link roda no
+            boot do shell, antes desta ilha existir, então href="#" não navegava
+            (só jogava a página ao topo). Mesmo padrão do SuporteScreen. */}
+        <button
+          type="button"
+          onClick={() => document.querySelector<HTMLElement>('.nav-item[data-route="campanhas"]')?.click()}
+          style={{
+            fontWeight: 600,
+            background: "none",
+            border: "none",
+            padding: 0,
+            color: "inherit",
+            cursor: "pointer",
+            textDecoration: "underline",
+            font: "inherit",
+          }}
+        >
           Criar uma campanha de diagnóstico
-        </a>
+        </button>
         .
       </p>
     </div>

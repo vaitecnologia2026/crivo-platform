@@ -13,6 +13,22 @@ export interface NavItem {
   module?: string;
   /** Permissão de "ver" (F3) — esconde se o papel não pode. */
   perm?: string;
+  /**
+   * Métodos de diagnóstico (do CONTRATO) para os quais este item faz sentido —
+   * esconde no menu o diagnóstico que a empresa NÃO contratou. Ausente = o item
+   * vale para qualquer método.
+   *
+   * Método NÃO resolvido (empresa sem contrato ativo e sem solução no tenant)
+   * NÃO filtra nada: é o mesmo fail-open já adotado pelo BUILTIN_BY_METHOD em
+   * `me.controller.ts` — sem contrato não há o que esconder, e esconder tiraria
+   * do cliente uma tela que ele enxerga hoje.
+   */
+  methods?: string[];
+  /**
+   * Item fora do menu e da checklist de telas (programa ainda não lançado — V2).
+   * A rota continua existindo no router; só deixa de ser oferecida ao cliente.
+   */
+  hidden?: boolean;
   /** Breadcrumb exibido ao navegar (topo da tela). */
   breadcrumb?: { path: string; current: string };
 }
@@ -81,19 +97,28 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Portal', current: 'Minha Organização' },
       },
       {
+        // A jornada guiada é o diagnóstico de quem contratou INICIAL/ESSENCIAL.
+        // Espelha BUILTIN_BY_METHOD (me.controller.ts): INICIAL e ESSENCIAL →
+        // PRE_DIAGNOSTIC, que é esta tela.
         route: 'essencial',
         label: 'Diagnósticos',
         icon: '✦',
         module: 'campanhas',
+        methods: ['INICIAL', 'ESSENCIAL'],
         breadcrumb: { path: 'Portal', current: 'Diagnósticos' },
       },
       {
         // Mockup 22/07 (/diagnosticos/nr1): a tela psicossocial existia mas
         // estava FORA do menu — só alcançável por link interno.
+        // ORGANIZACIONAL → PSYCHOSOCIAL no BUILTIN_BY_METHOD: esta é a tela do
+        // Diagnóstico Organizacional.
         route: 'psicossocial',
         label: 'NR-1 · Riscos Psicossociais',
         icon: '◮',
         module: 'campanhas',
+        // ESSENCIAL também coleta pelo link psicossocial (/q/<slug>) — sem esta
+        // rota o tenant ESSENCIAL coletava e não via matriz/perfil completos.
+        methods: ['ORGANIZACIONAL', 'ESSENCIAL'],
         breadcrumb: { path: 'Portal', current: 'NR-1 · Riscos Psicossociais' },
       },
       {
@@ -182,15 +207,19 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Programas', current: 'Pocket CRIVO' },
       },
       {
+        // Programas V2 ("Em breve") saem do menu: todo cliente via 3 itens que
+        // não levavam a lugar nenhum (SoonScreen). Voltam quando lançarem.
         route: 'govia',
         label: 'Governança de IA',
         icon: '◎',
+        hidden: true,
         breadcrumb: { path: 'Programas', current: 'Governança de IA' },
       },
       {
         route: 'workforce',
         label: 'Workforce Intelligence',
         icon: '⌬',
+        hidden: true,
         breadcrumb: { path: 'Programas', current: 'Workforce Intelligence' },
       },
       {
@@ -211,6 +240,7 @@ export const NAV: NavGroup[] = [
         route: 'contexto',
         label: 'Contexto e Diretrizes',
         icon: '❈',
+        hidden: true,
         breadcrumb: { path: 'Programas', current: 'Contexto e Diretrizes (IA)' },
       },
       {
@@ -280,15 +310,31 @@ export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] =
       ? []
       : g.items
           // 'grupo' (F3) é liberado por autorização de grupo, não pela checklist por usuário.
-          .filter((i) => i.route && i.route !== 'grupo')
+          .filter((i) => i.route && i.route !== 'grupo' && !i.hidden)
           .map((i) => ({ route: i.route!, label: i.label, group: g.title })),
 );
 
-/** Acesso por rota (módulo + permissão de ver) — alimenta o filtro da nav. */
-export const routeAccess: Record<string, { module: string; perm?: string }> = Object.fromEntries(
+/**
+ * Acesso por rota (módulo e/ou permissão de ver) — alimenta o filtro da nav.
+ * Entram TODOS os itens que declaram gate (module OU perm): antes o filtro
+ * exigia module, e a perm declarada em itens sem módulo (organizacao, usuarios,
+ * papeis) nunca era avaliada — o menu aparecia para qualquer papel.
+ */
+export const routeAccess: Record<string, { module?: string; perm?: string }> = Object.fromEntries(
   NAV.flatMap((g) => g.items)
-    .filter((i) => i.route && i.module)
-    .map((i) => [i.route!, { module: i.module!, perm: i.perm }]),
+    .filter((i) => i.route && (i.module || i.perm))
+    .map((i) => [i.route!, { module: i.module, perm: i.perm }]),
+);
+
+/**
+ * Métodos contratados por rota — esconde do menu o diagnóstico que a empresa
+ * NÃO contratou. Só entram as rotas que declararam `methods`; as demais ficam
+ * fora do mapa e continuam sem qualquer filtro por método.
+ */
+export const routeMethods: Record<string, string[]> = Object.fromEntries(
+  NAV.flatMap((g) => g.items)
+    .filter((i) => i.route && i.methods && i.methods.length > 0)
+    .map((i) => [i.route!, i.methods!]),
 );
 
 /** Breadcrumb por rota (topo da tela ao navegar). */
@@ -302,6 +348,7 @@ export const routeMeta: Record<string, { path: string; current: string }> = Obje
 export function renderNavHtml(): string {
   const groups = NAV.map((group) => {
     const items = group.items
+      .filter((item) => !item.hidden)
       .map((item) => {
         const ic = `<span class="ni__ic">${item.icon}</span>`;
         if (!item.route) {
