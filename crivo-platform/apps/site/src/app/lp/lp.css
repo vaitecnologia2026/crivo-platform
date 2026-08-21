@@ -971,6 +971,11 @@ th.compare__crivo { color: var(--terra) !important; }
 .brand--footer .vertice { width: 40px; }
 .brand--footer .brand__name { font-size: 28px; }
 .brand--footer .brand__sub { font-size: 9.4px; }
+/* Ícones das redes na coluna Contato do rodapé (Instagram · WhatsApp · LinkedIn). */
+.footer__social { display: flex; gap: 12px; margin-top: 14px; }
+.footer__social a { width: 30px; height: 30px; display: inline-flex; transition: transform .2s var(--ease), opacity .2s var(--ease); }
+.footer__social a:hover { transform: translateY(-2px); opacity: 0.85; }
+.footer__social svg { width: 100%; height: 100%; display: block; }
 .footer__tag { font-family: var(--font-display); font-style: italic; font-size: 15px; line-height: 1.5; max-width: 290px; color: var(--prata); }
 .footer h5, .footer__col-title {
   color: var(--off-white); font-size: 11px; font-weight: 500;
