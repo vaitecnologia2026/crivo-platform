@@ -273,6 +273,13 @@ html, body { overflow-x: clip; }
   border-color: var(--terra);
 }
 .btn--outline-dark:hover { background: var(--azul-profundo); color: var(--off-white); }
+/* Botao outline claro (CTAs "Falar com a CRIVO", "Conhecer Solucoes", etc.).
+   Nao havia regra BASE — so a escopada `.cta-band .btn--outline-light` (terra).
+   Fora do cta-band a borda herdava `transparent` do .btn e sumia (ex.: o
+   "Falar com a CRIVO" do hero da LP ficava sem moldura). Da a moldura terracota
+   por padrao; a versao do cta-band continua igual (mesma cor). */
+.btn--outline-light { border-color: var(--terra); }
+.btn--outline-light:hover { border-color: var(--terra-claro); color: var(--terra-claro); }
 
 /* ===================== EYEBROW / DISPLAY ===================== */
 .eyebrow {
