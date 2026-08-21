@@ -963,6 +963,12 @@ th.compare__crivo { color: var(--terra) !important; }
 @media (max-width: 760px) { .footer__grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 520px) { .footer__grid { grid-template-columns: 1fr; } }
 .brand--footer { margin-bottom: 18px; }
+/* Logo do rodape no MESMO tamanho do menu (desktop): 40 / 28 / 9.4, iguais a
+   `.nav .vertice | .brand__name | .brand__sub`. Antes usava os tamanhos base
+   (34 / 24 / 8) e ficava menor. Mesmo SVG (VerticeMark) => mesma nitidez. */
+.brand--footer .vertice { width: 40px; }
+.brand--footer .brand__name { font-size: 28px; }
+.brand--footer .brand__sub { font-size: 9.4px; }
 .footer__tag { font-family: var(--font-display); font-style: italic; font-size: 15px; line-height: 1.5; max-width: 290px; color: var(--prata); }
 .footer h5, .footer__col-title {
   color: var(--off-white); font-size: 11px; font-weight: 500;
