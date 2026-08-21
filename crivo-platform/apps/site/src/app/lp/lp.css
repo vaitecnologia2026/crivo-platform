@@ -2899,6 +2899,22 @@ button:focus-visible,
   background-size: cover; background-position: center top;
   box-shadow: var(--shadow-2);
 }
+/* Suaviza a foto no fundo: um vignette interno na cor bege da secao esmaece as
+   4 bordas da foto para o fundo, tirando o aspecto de "recorte" com borda dura.
+   Feito num ::after (inset:0) em vez de mask no .nr1-photo porque, no desktop, o
+   card de texto (.nr1-dark) fica posicionado FORA da foto (left:100%) — uma mask
+   no elemento o clipparia. O overlay so cobre a caixa da foto e nao intercepta
+   cliques. #F1ECE4 = tom inferior do gradiente de .section--light. */
+.nr1-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 22px 4px #F1ECE4,
+    inset 0 0 52px 16px rgba(241, 236, 228, 0.55);
+}
 .nr1-photo .nr1-dark {
   position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
   max-width: 330px;
