@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
+import { PSYCHOSOCIAL_ACTION_LIBRARY } from './psychosocial-action-library';
 
 type DiagnosticMethodLike = string | null;
 type ReportTemplateSectionRow = { heading?: string; body?: string };
@@ -1067,6 +1068,45 @@ export class DocumentsService {
           'A matriz será exibida quando a severidade das dimensões estiver parametrizada no Motor de ' +
           'Diagnósticos e houver respondentes suficientes por grupo (respeitando a supressão de anonimato).',
       });
+    }
+
+    // ── Plano de Ação para Controle dos Riscos Psicossociais, por dimensão ──
+    // Preenche automaticamente o plano de ação (biblioteca Mapa HDS) para as
+    // dimensões presentes na matriz do CONSOLIDADO; se não houver consolidado,
+    // usa a primeira seção (setor) não suprimida com matriz. A matriz já vem
+    // ordenada por risco desc — então o plano sai priorizado pela classificação.
+    let planMatrix: PsychosocialRiskMatrixRow[] = [];
+    if (overall && 'riskMatrix' in overall && overall.riskMatrix.length) {
+      planMatrix = overall.riskMatrix;
+    } else {
+      for (const s of res.sectors) {
+        if (s.suppressed || !('riskMatrix' in s) || !s.riskMatrix || !s.riskMatrix.length) continue;
+        planMatrix = s.riskMatrix;
+        break;
+      }
+    }
+    if (planMatrix.length) {
+      sections.push({
+        heading: 'Plano de Ação para Controle dos Riscos Psicossociais',
+        body:
+          'Ações recomendadas por dimensão, priorizadas pela classificação de risco ' +
+          '(R = Probabilidade × Severidade).',
+      });
+      for (const r of planMatrix) {
+        const entry = PSYCHOSOCIAL_ACTION_LIBRARY[r.slug];
+        if (!entry) continue;
+        sections.push({
+          heading: `Plano de Ação — ${r.label} (Classificação: ${r.riskClass})`,
+          body: `${entry.descricao}\n\nObjetivo do plano de ação: ${entry.objetivo}`,
+        });
+        sections.push({
+          heading: 'Ações',
+          table: {
+            columns: ['Ação', 'Prazo', 'Objetivo', 'Etapas', 'Indicadores'],
+            data: entry.acoes.map((a) => [a.titulo, a.prazo, a.objetivo, a.etapas, a.indicadores]),
+          },
+        });
+      }
     }
     return sections;
   }
