@@ -15,7 +15,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
-import { PSYCHOSOCIAL_ACTION_LIBRARY } from './psychosocial-action-library';
+import { AiSettingsService } from '../admin/ai-settings.service';
+import {
+  PSYCHOSOCIAL_ACTION_LIBRARY,
+  type PsychosocialActionLibraryEntry,
+} from './psychosocial-action-library';
 
 type DiagnosticMethodLike = string | null;
 type ReportTemplateSectionRow = { heading?: string; body?: string };
@@ -294,6 +298,7 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly psychosocial: PsychosocialService,
+    private readonly aiSettings: AiSettingsService,
   ) {}
 
   private async context(tenantId: string) {
@@ -1023,6 +1028,113 @@ export class DocumentsService {
     };
   }
 
+  /**
+   * Planos de ação psicossociais GERADOS pela IA da plataforma (OpenAI), por
+   * dimensão da matriz. Aditivo e à prova de falhas: devolve `null` sempre que a
+   * IA está desligada, sem chave, indisponível ou retorna algo inválido — e o
+   * chamador cai no fallback da biblioteca fixa (PSYCHOSOCIAL_ACTION_LIBRARY),
+   * sem alterar o layout de saída do Dossiê.
+   */
+  private async psychosocialActionPlansFromAI(
+    tenantId: string,
+    matrix: PsychosocialRiskMatrixRow[],
+  ): Promise<Record<string, PsychosocialActionLibraryEntry> | null> {
+    const s = await this.aiSettings.get();
+    if (!s.enabled || !s.enabledModules.includes('relatorios') || matrix.length === 0) return null;
+
+    const dimensoes = matrix
+      .map(
+        (r) =>
+          `- ${r.label} (slug: ${r.slug}) — Classificação: ${r.riskClass}; ` +
+          `Risco R = ${r.risk} (Probabilidade ${r.probability} × Severidade ${r.severity})`,
+      )
+      .join('\n');
+    const slugs = matrix.map((r) => r.slug);
+
+    const system =
+      'Você é um especialista em riscos psicossociais ocupacionais no contexto da NR-1 brasileira ' +
+      '(Gerenciamento de Riscos Ocupacionais). Sua tarefa é elaborar planos de ação de CONTROLE dos ' +
+      'riscos psicossociais por dimensão avaliada, com linguagem técnica, objetiva e prática, aplicável à ' +
+      'realidade de uma organização. Responda ESTRITAMENTE em JSON válido no schema pedido, sem nenhum ' +
+      'texto fora do JSON. NUNCA invente diagnóstico clínico individual nem faça referência a respondentes ' +
+      'específicos; trate os riscos sempre de forma coletiva e organizacional.';
+    const user =
+      'Dimensões psicossociais avaliadas nesta organização, com a classificação de risco derivada da ' +
+      `matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +
+      'Gere um plano de ação de controle para CADA dimensão listada, retornando um JSON EXATAMENTE neste ' +
+      'formato:\n' +
+      '{"planos": { "<slug>": { "descricao": string, "objetivo": string, "acoes": [ ' +
+      '{ "titulo": string, "prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
+      '"objetivo": string, "etapas": string, "indicadores": string } ] } } }\n\n' +
+      'Regras: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para CADA slug ' +
+      `desta lista: ${slugs.join(', ')}. Cada dimensão deve ter de 3 a 4 ações. "descricao" resume o que a ` +
+      'dimensão avalia; "objetivo" indica o propósito do plano; cada ação traz "etapas" concretas e ' +
+      '"indicadores" mensuráveis de acompanhamento. Priorize ações mais estruturantes nas dimensões de ' +
+      'classificação de risco mais alta.';
+
+    const r = await this.aiSettings.chat({
+      useCase: 'dossie_action_plan',
+      tenantId,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      responseFormat: 'json_object',
+      temperature: 0.3,
+      maxTokens: 3500,
+      timeoutMs: 45000,
+    });
+    if (!r.ok) return null;
+
+    try {
+      const parsed: unknown = JSON.parse(r.content);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const container = parsed as Record<string, unknown>;
+      const planosRaw = (container.planos ?? container) as unknown;
+      if (!planosRaw || typeof planosRaw !== 'object' || Array.isArray(planosRaw)) return null;
+      const planos = planosRaw as Record<string, unknown>;
+
+      const isString = (v: unknown): v is string => typeof v === 'string';
+      const isNonEmpty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
+
+      // Normaliza APENAS os slugs presentes na matriz que vieram válidos da IA.
+      const out: Record<string, PsychosocialActionLibraryEntry> = {};
+      for (const row of matrix) {
+        const raw = planos[row.slug];
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+        const entry = raw as Record<string, unknown>;
+        if (!isNonEmpty(entry.descricao) || !isString(entry.objetivo)) continue;
+        const descricao = entry.descricao;
+        const objetivo = entry.objetivo;
+        if (!Array.isArray(entry.acoes)) continue;
+        const acoes = entry.acoes
+          .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object' && !Array.isArray(a))
+          .filter(
+            (a) =>
+              isString(a.titulo) &&
+              isString(a.prazo) &&
+              isString(a.objetivo) &&
+              isString(a.etapas) &&
+              isString(a.indicadores),
+          )
+          .map((a) => ({
+            titulo: a.titulo as string,
+            prazo: a.prazo as string,
+            objetivo: a.objetivo as string,
+            etapas: a.etapas as string,
+            indicadores: a.indicadores as string,
+          }));
+        if (acoes.length < 1) continue;
+        out[row.slug] = { descricao, objetivo, acoes };
+      }
+      // Nenhuma dimensão válida no conjunto → fallback para a biblioteca fixa.
+      if (Object.keys(out).length === 0) return null;
+      return out;
+    } catch {
+      return null;
+    }
+  }
+
   /** Seções do Dossiê com a Matriz de Risco Psicossocial vinda do DIAGNÓSTICO
    *  organizacional (P × S por dimensão, por GHE/setor), no formato do relatório
    *  de referência. Reusa o MESMO cálculo da tela de resultados (results()). */
@@ -1086,14 +1198,23 @@ export class DocumentsService {
       }
     }
     if (planMatrix.length) {
+      // Resolve o MAPA de planos por dimensão: IA da plataforma quando disponível
+      // e válida, senão a biblioteca técnica fixa (fallback automático). O layout
+      // de saída é IDÊNTICO nos dois casos — muda só a ORIGEM do conteúdo.
+      const aiPlans = await this.psychosocialActionPlansFromAI(tenantId, planMatrix);
+      const plans = aiPlans ?? PSYCHOSOCIAL_ACTION_LIBRARY;
+      const originNote =
+        aiPlans != null
+          ? 'Planos elaborados com apoio da IA da plataforma.'
+          : 'Planos da biblioteca técnica CRIVO (referência Mapa HDS).';
       sections.push({
         heading: 'Plano de Ação para Controle dos Riscos Psicossociais',
         body:
           'Ações recomendadas por dimensão, priorizadas pela classificação de risco ' +
-          '(R = Probabilidade × Severidade).',
+          `(R = Probabilidade × Severidade). ${originNote}`,
       });
       for (const r of planMatrix) {
-        const entry = PSYCHOSOCIAL_ACTION_LIBRARY[r.slug];
+        const entry = plans[r.slug];
         if (!entry) continue;
         sections.push({
           heading: `Plano de Ação — ${r.label} (Classificação: ${r.riskClass})`,
