@@ -65,6 +65,11 @@ export function DocumentsPanel({ onEmitted }: { onEmitted?: () => void } = {}) {
             <span className="lib-ic"><IconGrid size={14} /></span>
             <div>
               <strong>{d.title}</strong>
+              {d.subtitle && (
+                <span style={{ display: "block", color: "var(--terra)", fontWeight: 600, fontSize: 12, margin: "2px 0" }}>
+                  Diagnóstico: {d.subtitle}
+                </span>
+              )}
               <span>{d.available ? "Pronto para gerar" : d.reason ?? "Indisponível"}</span>
             </div>
             <span style={{ display: "inline-flex", gap: 8 }}>

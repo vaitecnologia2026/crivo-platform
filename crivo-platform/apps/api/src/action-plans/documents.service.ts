@@ -455,8 +455,8 @@ export class DocumentsService {
         ? blockers.join(' ')
         : undefined;
     const docs: DocumentDescriptor[] = [];
-    const add = (type: string, available: boolean, reason?: string) =>
-      docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason });
+    const add = (type: string, available: boolean, reason?: string, subtitle?: string) =>
+      docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason, subtitle });
 
     if (method === 'INICIAL' || !contract) add('relatorio_preliminar', true);
     // TPL-001 — Relatório Executivo do MAPA CRIVO™: evento de geração é "MAPA
@@ -480,14 +480,17 @@ export class DocumentsService {
     // aprovados, cadastro completo); aqui é a disponibilidade para gerar/ver.
     const psy = await this.psychosocial.results(tenantId).catch(() => null);
     const diagOk = !!psy && psy.totalRespondents >= psy.minRespondents;
+    // Nome do diagnóstico que origina o Dossiê (aparece na lista de Documentos).
+    const dossieDiag = 'Diagnóstico Organizacional (NR-1)';
     if (output === 'AEP' || output === 'AEP_PGR') {
       const ok = dossieOk || diagOk;
-      add('dossie_tecnico', ok, ok ? undefined : dossieReason);
+      add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag);
     } else if (method === 'ORGANIZACIONAL' || diagOk) {
       add(
         'dossie_tecnico',
         diagOk,
         diagOk ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
+        dossieDiag,
       );
     }
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);

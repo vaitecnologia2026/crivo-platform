@@ -1931,6 +1931,8 @@ export interface DocumentDescriptor {
   title: string;
   available: boolean;
   reason?: string; // por que não está disponível (ex.: requer plano validado)
+  /** Nome do diagnóstico que origina o relatório (ex.: "Diagnóstico Organizacional (NR-1)"). */
+  subtitle?: string;
 }
 
 export interface DocumentSection {
