@@ -3173,7 +3173,25 @@ button:focus-visible,
 /* — Tela 17 · formulário Gerar MAPA em 2 colunas dentro do modal — */
 .diag-modal__card:has(.diag-2col) { max-width: 1100px; }
 .diag-2col { display: grid; grid-template-columns: 0.9fr 1.15fr; gap: 44px; align-items: start; }
-.diag-skyline { width: 100%; margin-top: 26px; mix-blend-mode: multiply; opacity: 0.9; }
+/* A skyline é um JPG de fundo quase-branco: sozinho, o retângulo do arquivo
+   destoa do creme do card e parece "recorte colado". O multiply já funde o
+   branco no fundo; a máscara com gradiente esmaece as 4 bordas até transparente
+   para dissolver o contorno (preserva o triângulo no topo ~8% e o caminho até
+   ~85%). As duas máscaras se cruzam (intersect) arredondando os cantos. */
+.diag-skyline {
+  width: 100%;
+  margin-top: 26px;
+  mix-blend-mode: multiply;
+  opacity: 0.85;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 85%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 85%, transparent 100%);
+  mask-composite: intersect;
+}
 .diag-dados-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; }
 .diag-dados-head > svg { width: 32px; height: 32px; color: var(--terra); flex-shrink: 0; }
 .diag-dados-head strong {
