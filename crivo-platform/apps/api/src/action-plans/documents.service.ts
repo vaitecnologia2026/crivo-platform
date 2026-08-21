@@ -470,20 +470,24 @@ export class DocumentsService {
     );
     // TPL-004 — Extrato do Plano de Ação Preventivo: quando há plano.
     if (hasPlan) add('plano_acao', true);
-    // TPL-002 — Dossiê Técnico (template ÚNICO, Pacote §3): sai com saída técnica
-    // AEP ou AEP+PGR; os blocos por método/saída são resolvidos na geração.
+    // TPL-002 — Dossiê Técnico (template ÚNICO, Pacote §3).
+    // REGRA: concluir o Diagnóstico Organizacional (respondentes >= mínimo) já
+    // libera o Dossiê para leitura (Matriz de Risco Psicossocial) — INDEPENDENTE
+    // da saída técnica (AEP/AEP+PGR/sem integração) e de haver Plano de Evolução
+    // validado. Antes, com saída AEP/AEP+PGR o Dossiê ficava preso em "Requer
+    // plano validado" mesmo com o diagnóstico feito — por isso não aparecia.
+    // A EMISSÃO oficial (emit) mantém as exigências (plano validado, textos
+    // aprovados, cadastro completo); aqui é a disponibilidade para gerar/ver.
+    const psy = await this.psychosocial.results(tenantId).catch(() => null);
+    const diagOk = !!psy && psy.totalRespondents >= psy.minRespondents;
     if (output === 'AEP' || output === 'AEP_PGR') {
-      add('dossie_tecnico', dossieOk, dossieReason);
-    } else if (method === 'ORGANIZACIONAL') {
-      // Sem saída técnica formal, o Dossiê ainda sai como leitura do Diagnóstico
-      // Organizacional (Matriz de Risco Psicossocial), assim que houver respondentes
-      // suficientes — resolve "não sai relatório após o diagnóstico".
-      const psy = await this.psychosocial.results(tenantId).catch(() => null);
-      const ok = !!psy && psy.totalRespondents >= psy.minRespondents;
+      const ok = dossieOk || diagOk;
+      add('dossie_tecnico', ok, ok ? undefined : dossieReason);
+    } else if (method === 'ORGANIZACIONAL' || diagOk) {
       add(
         'dossie_tecnico',
-        ok,
-        ok ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
+        diagOk,
+        diagOk ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
       );
     }
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
