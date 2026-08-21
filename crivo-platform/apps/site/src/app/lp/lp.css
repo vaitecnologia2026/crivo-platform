@@ -267,7 +267,10 @@ html, body { overflow-x: clip; }
 .btn--outline-dark {
   background: transparent;
   color: var(--azul-profundo);
-  border-color: var(--azul-profundo);
+  /* Moldura terracota, igual ao botao de referencia (.cta-band .btn--outline-light).
+     Antes era var(--azul-profundo): sobre as secoes navy a borda ficava invisivel
+     (navy sobre navy). Esta classe e usada so pelos botoes "Falar com a CRIVO". */
+  border-color: var(--terra);
 }
 .btn--outline-dark:hover { background: var(--azul-profundo); color: var(--off-white); }
 
