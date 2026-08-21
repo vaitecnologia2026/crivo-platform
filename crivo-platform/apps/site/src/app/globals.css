@@ -49,7 +49,17 @@ body {
 .cc-mini-card,
 .deliver-card,
 .strip-card,
-.risco-card {
+.risco-card,
+/* Cards de conteudo que NAO tem "card" no nome (achados vasculhando o site):
+   pilares "Futuro do Trabalho" (qs-callout), card navy da NR-1 (nr1-dark),
+   paineis navy das Solucoes (sol-side), sub-card NR-1 do Diagnostico (sol-nr1)
+   e os paineis brancos de Missao-Visao-Valores (mvv / sobre-mvv). */
+.qs-callout,
+.nr1-dark,
+.sol-side,
+.sol-nr1,
+.mvv,
+.sobre-mvv {
   /* A moldura visivel de referencia e a do journey-card: 1.5px terracota
      (var(--terra)). O 1px var(--line) e claro demais e "sumia" contra o fundo
      bege — foi por isso que estes cards pareciam sem moldura. !important porque
