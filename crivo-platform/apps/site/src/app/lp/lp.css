@@ -3029,7 +3029,11 @@ button:focus-visible,
 #ia-vantagem-humana .display { font-size: clamp(28px, 3.3vw, 46px); line-height: 1.24; margin-bottom: 20px; }
 #ia-vantagem-humana .eyebrow { padding-left: 0; letter-spacing: 0.18em; }
 #ia-vantagem-humana .eyebrow::before { display: none; }
-#ia-vantagem-humana .hero__bleed { width: 55%; }
+/* A marca CRIVO fica na borda DIREITA da foto (ia-boardroom.jpg). Com o bleed de
+   55% + cover, o `center` (padrao) cortava as laterais e comia o logo no desktop.
+   Ancorar a direita mantem o logo inteiro; o corte cai na esquerda, que fica atras
+   do painel de texto. */
+#ia-vantagem-humana .hero__bleed { width: 55%; background-position: right center; }
 .btn--ghost-terra {
   background: transparent;
   color: var(--off-white);
