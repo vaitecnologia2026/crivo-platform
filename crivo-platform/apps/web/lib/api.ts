@@ -454,7 +454,9 @@ export function listDocuments(): Promise<DocumentDescriptor[]> {
   return apiFetch<DocumentDescriptor[]>('/action-plans/documents');
 }
 export function generateDocument(type: string): Promise<GeneratedDocument> {
-  return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`);
+  // Timeout maior (60s): a geração pode chamar a IA da plataforma para montar os
+  // planos de ação do Dossiê. O padrão de 15s do apiFetch dava "Serviço indisponível".
+  return apiFetch<GeneratedDocument>(`/action-plans/documents/${type}`, { signal: AbortSignal.timeout(60000) });
 }
 
 // ── Emissões oficiais (Motor 4 — R-001): versão congelada + numerada ──
@@ -480,7 +482,7 @@ export function getReportEmission(id: string): Promise<ReportEmissionMeta & { co
   return apiFetch(`/action-plans/documents/emissions/${id}`);
 }
 export function emitReportDocument(type: string): Promise<{ emission: ReportEmissionMeta & { content: GeneratedDocument }; reused: boolean }> {
-  return apiFetch(`/action-plans/documents/${type}/emit`, { method: 'POST' });
+  return apiFetch(`/action-plans/documents/${type}/emit`, { method: 'POST', signal: AbortSignal.timeout(60000) });
 }
 
 // ── Parecer Consultivo CRIVO (Briefing §6 — autoria do consultor) ──

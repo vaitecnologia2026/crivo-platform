@@ -1081,8 +1081,12 @@ export class DocumentsService {
       ],
       responseFormat: 'json_object',
       temperature: 0.3,
-      maxTokens: 3500,
-      timeoutMs: 45000,
+      maxTokens: 2800,
+      // gpt-4o-mini + timeout curto: a geração do documento é síncrona (o portal
+      // espera até 60s). Modelo rápido cabe folgado nesse tempo; se a IA demorar
+      // além disto, o fallback para a biblioteca entra bem antes de estourar o front.
+      model: 'gpt-4o-mini',
+      timeoutMs: 22000,
     });
     if (!r.ok) return null;
 
