@@ -20,3 +20,36 @@ body {
   background: var(--color-off-white);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Moldura padrao dos cards (pedido do cliente) ─────────────────────────────
+   Todo card de conteudo do site/LP ganha a mesma moldura fina do journey-card:
+   borda + cantos arredondados. Fica em globals.css (carrega ANTES do CSS de cada
+   pagina), com especificidade baixa (uma classe), de proposito: variantes com
+   borda de destaque (ex.: .product-card--featured, .diag-card--free) estao no CSS
+   de pagina, carregado depois, e continuam vencendo. Tokens com fallback para
+   funcionar mesmo nas paginas que nao definem o :root do lp.css.
+   EXCLUIDOS de proposito: cards escuros/mockup (hero-card, phone__card, dash-card),
+   ilustracoes (sol-illus__card), demos do design-system (ds*, dsx*), grades
+   (*-cards) e sub-elementos BEM (__ic/__num/__tag/...). */
+.diag-card,
+.product-card,
+.sol-card,
+.solu-card,
+.nr1-card,
+.pain-card,
+.eco-card,
+.mvv-card,
+.ebook-card,
+.founder-card,
+.sobre-card,
+.sobre-founder-card,
+.metodo-card,
+.arch-card,
+.cc-card,
+.cc-mini-card,
+.deliver-card,
+.strip-card,
+.risco-card {
+  border: 1px solid var(--line, #DCD7CE);
+  border-radius: var(--r-lg, 6px);
+}
