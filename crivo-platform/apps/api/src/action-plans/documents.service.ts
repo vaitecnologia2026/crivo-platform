@@ -8,11 +8,13 @@ import {
   type DocumentDescriptor,
   type DocumentSection,
   type GeneratedDocument,
+  type PsychosocialRiskMatrixRow,
   type RiskLevel3,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
+import { PsychosocialService } from '../psychosocial/psychosocial.service';
 
 type DiagnosticMethodLike = string | null;
 type ReportTemplateSectionRow = { heading?: string; body?: string };
@@ -288,7 +290,10 @@ function docControlSection(): DocumentSection {
  */
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly psychosocial: PsychosocialService,
+  ) {}
 
   private async context(tenantId: string) {
     // rls-allow: contract é control-plane (owner-only); self-scoped por organizationId = tenantId.
@@ -467,7 +472,20 @@ export class DocumentsService {
     if (hasPlan) add('plano_acao', true);
     // TPL-002 — Dossiê Técnico (template ÚNICO, Pacote §3): sai com saída técnica
     // AEP ou AEP+PGR; os blocos por método/saída são resolvidos na geração.
-    if (output === 'AEP' || output === 'AEP_PGR') add('dossie_tecnico', dossieOk, dossieReason);
+    if (output === 'AEP' || output === 'AEP_PGR') {
+      add('dossie_tecnico', dossieOk, dossieReason);
+    } else if (method === 'ORGANIZACIONAL') {
+      // Sem saída técnica formal, o Dossiê ainda sai como leitura do Diagnóstico
+      // Organizacional (Matriz de Risco Psicossocial), assim que houver respondentes
+      // suficientes — resolve "não sai relatório após o diagnóstico".
+      const psy = await this.psychosocial.results(tenantId).catch(() => null);
+      const ok = !!psy && psy.totalRespondents >= psy.minRespondents;
+      add(
+        'dossie_tecnico',
+        ok,
+        ok ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
+      );
+    }
     if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
     // TPL-003 — Relatório de Evolução e Efetividade: compara os DOIS últimos
     // CICLOS FORMAIS encerrados (definição do cliente 27/07: ciclo = aplicação
@@ -997,6 +1015,55 @@ export class DocumentsService {
     };
   }
 
+  /** Seções do Dossiê com a Matriz de Risco Psicossocial vinda do DIAGNÓSTICO
+   *  organizacional (P × S por dimensão, por GHE/setor), no formato do relatório
+   *  de referência. Reusa o MESMO cálculo da tela de resultados (results()). */
+  private async psychosocialMatrixSections(tenantId: string): Promise<DocumentSection[]> {
+    let res: Awaited<ReturnType<PsychosocialService['results']>> | null = null;
+    try {
+      res = await this.psychosocial.results(tenantId);
+    } catch {
+      return [];
+    }
+    if (!res || res.totalRespondents < res.minRespondents) return [];
+    const table = (rows: PsychosocialRiskMatrixRow[]) => ({
+      columns: ['Escala', 'Probabilidade', 'Severidade', 'Risco', 'Classificação'],
+      data: rows.map((r) => [r.label, String(r.probability), String(r.severity), String(r.risk), r.riskClass]),
+    });
+    const sections: DocumentSection[] = [];
+    sections.push({
+      heading: 'Matriz de Risco Psicossocial — leitura',
+      body:
+        'Probabilidade (1–3): chance de a condição psicossocial estar presente de forma crítica no grupo, ' +
+        'estimada pelo percentual de respondentes na faixa crítica. Severidade (1–5): gravidade plausível ' +
+        'do fator, parametrizada na metodologia. Risco = Probabilidade × Severidade (1–25): 1–5 Aceitável · ' +
+        '6–10 Moderado · 11–15 Significativo · 16–20 Crítico · 21–25 Intolerável.',
+    });
+    const overall = res.overall && !res.overall.suppressed ? res.overall : null;
+    if (overall && 'riskMatrix' in overall && overall.riskMatrix.length) {
+      sections.push({
+        heading: `Matriz de Risco — Consolidado da organização (${res.totalRespondents} avaliados)`,
+        table: table(overall.riskMatrix),
+      });
+    }
+    for (const s of res.sectors) {
+      if (s.suppressed || !('riskMatrix' in s) || !s.riskMatrix || !s.riskMatrix.length) continue;
+      sections.push({
+        heading: `Matriz de Risco — Grupo: ${s.sector} (${s.respondents} avaliados)`,
+        table: table(s.riskMatrix),
+      });
+    }
+    if (sections.length === 1) {
+      sections.push({
+        heading: 'Matriz de Risco Psicossocial',
+        body:
+          'A matriz será exibida quando a severidade das dimensões estiver parametrizada no Motor de ' +
+          'Diagnósticos e houver respondentes suficientes por grupo (respeitando a supressão de anonimato).',
+      });
+    }
+    return sections;
+  }
+
   // ── TPL-002 · Dossiê Técnico (template ÚNICO, 14 seções na ordem oficial) ──
   private async generateDossieTecnico(
     tenantId: string,
@@ -1199,6 +1266,8 @@ export class DocumentsService {
           'técnica oficial vem da matriz Severidade × Probabilidade (Baixo/Moderado/Alto).',
       });
     }
+    // 6b. Matriz de Risco Psicossocial vinda do diagnóstico organizacional (P × S por GHE).
+    for (const sec of await this.psychosocialMatrixSections(tenantId)) sections.push(sec);
     // 7. Medidas existentes — SÓ quando a empresa informou (bloco opcional do
     // dicionário: sem dado, oculta; nunca inventado pelo sistema).
     const withMeasure = items.filter((i) => i.existingMeasure?.trim());

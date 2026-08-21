@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { IamModule } from '../iam/iam.module';
+import { PsychosocialModule } from '../psychosocial/psychosocial.module';
 import { ActionPlansController } from './action-plans.controller';
 import { ActionPlansService } from './action-plans.service';
 import { CyclesService } from './cycles.service';
@@ -7,7 +8,7 @@ import { DocumentsService } from './documents.service';
 
 /** Plano de Ação + Evidências + Documentos + Ciclos do tenant (Briefing §8/§9/§15 + F4). */
 @Module({
-  imports: [IamModule],
+  imports: [IamModule, PsychosocialModule],
   controllers: [ActionPlansController],
   providers: [ActionPlansService, DocumentsService, CyclesService],
 })
