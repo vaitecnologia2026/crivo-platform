@@ -956,7 +956,9 @@ th.compare__crivo { color: var(--terra) !important; }
 /* ===================== FOOTER ===================== */
 .footer { background: var(--preto-tecnico); color: var(--text-light-sec); padding: 80px 0 0; }
 .footer__grid {
-  display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.1fr; gap: 36px;
+  /* 5 colunas: marca · Soluções · Plataforma · Sobre · Contato (a coluna
+     "Conteúdos" foi removida a pedido do cliente). */
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1.1fr; gap: 36px;
   padding-bottom: 52px; border-bottom: 1px solid var(--line-dark);
 }
 @media (max-width: 1100px) { .footer__grid { grid-template-columns: 1.4fr 1fr 1fr; gap: 32px; } }

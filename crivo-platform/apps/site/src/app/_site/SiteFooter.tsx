@@ -50,17 +50,7 @@ export function SiteFooter() {
             <li><a href={PLATAFORMA_URL}>Área logada</a></li>
           </ul>
         </div>
-        <div>
-          <h2 className="footer__col-title">Conteúdos</h2>
-          <ul>
-            <li><Link href="/conteudos">E-book</Link></li>
-            <li><Link href="/conteudos">Materiais gratuitos</Link></li>
-            <li><Link href="/conteudos">Artigos e eventos</Link></li>
-            {/* Movido da coluna Sobre — o cliente apontou que não pertence lá
-                (Ajustes, item 22); a âncora segue a seção de IA da LP. */}
-            <li><Link href="/lp#ia-vantagem-humana">Governança de IA e Pessoas</Link></li>
-          </ul>
-        </div>
+        {/* Coluna "Conteúdos" removida a pedido do cliente. */}
         <div>
           <h2 className="footer__col-title">Sobre</h2>
           <ul>
