@@ -1,0 +1,9 @@
+/var/log/crivo-api.log /var/log/crivo-web.log /var/log/crivo-lp.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
