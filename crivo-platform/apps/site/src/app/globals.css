@@ -50,6 +50,11 @@ body {
 .deliver-card,
 .strip-card,
 .risco-card {
-  border: 1px solid var(--line, #DCD7CE);
+  /* A moldura visivel de referencia e a do journey-card: 1.5px terracota
+     (var(--terra)). O 1px var(--line) e claro demais e "sumia" contra o fundo
+     bege — foi por isso que estes cards pareciam sem moldura. !important porque
+     varios cards definem a propria borda --line no CSS de pagina, que carrega
+     depois do globals e venceria por ordem de cascade. */
+  border: 1.5px solid var(--terra, #A8693D) !important;
   border-radius: var(--r-lg, 6px);
 }
