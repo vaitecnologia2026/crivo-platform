@@ -306,8 +306,11 @@ export function MethodologySection() {
         {contentOpen && active && <VersionContent version={active} bandWord={meta.bandWord} />}
       </div>
 
-      {/* Aplicação (motor dinâmico): link público /d/<slug> por empresa */}
-      {!inst.builtIn && active && <ApplicationPanel instrumentSlug={inst.slug} />}
+      {/* Aplicação por empresa REMOVIDA aqui: o diagnóstico é GLOBAL. A empresa e a
+          geração do link são definidas no momento da compra, no CRM-Funil (o cliente
+          escolhe qual diagnóstico vai realizar). O ApplicationPanel fica no código,
+          mas não é mais renderizado nesta tela. */}
+      {false && !inst.builtIn && active && <ApplicationPanel instrumentSlug={inst.slug} />}
 
       {demoOpen && active && (
         <InstrumentDemo version={active} instrumentLabel={meta.label} onClose={() => setDemoOpen(false)} />
