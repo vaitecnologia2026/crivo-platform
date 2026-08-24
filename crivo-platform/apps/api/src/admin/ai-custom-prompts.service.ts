@@ -3,7 +3,6 @@ import { MODULES, type AiCustomPromptData, type AiCustomPromptFileMeta, type AiP
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, type AuditActor } from './audit.service';
 import { AiSettingsService } from './ai-settings.service';
-import { ReportsAdminService } from './reports.service';
 import { extractTextFromFile, PROMPT_FILE_EXTENSIONS } from './prompt-file-extract';
 
 type Actor = AuditActor & { id: string; email: string };
@@ -67,7 +66,6 @@ export class AiCustomPromptsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly aiSettings: AiSettingsService,
-    private readonly reports: ReportsAdminService,
   ) {}
 
   async list(): Promise<AiCustomPromptData[]> {
@@ -85,7 +83,16 @@ export class AiCustomPromptsService {
    *  catálogo do Motor (deduplicados por slug). Decisão D3. */
   async instrumentOptions(): Promise<AiPromptInstrumentOption[]> {
     const builtinSlugs = new Set(BUILTIN_INSTRUMENTS.map((b) => b.slug));
-    const custom = (await this.reports.listInstrumentOptions())
+    // Query direta (não injeta ReportsAdminService): esse service estava num ciclo
+    // de import (reports.service → documents.service → admin), que deixava a
+    // dependência undefined e derrubava o boot do Nest.
+    // rls-allow: catálogo control-plane global (instrumentos do Motor de Diagnósticos)
+    const rows = await this.prisma.admin.diagnosticInstrument.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: { slug: true, name: true },
+    });
+    const custom = rows
       .filter((o) => !builtinSlugs.has(o.slug))
       .map((o) => ({ slug: o.slug, label: o.name }));
     return [...BUILTIN_INSTRUMENTS, ...custom];
