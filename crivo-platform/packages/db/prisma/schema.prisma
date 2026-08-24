@@ -972,6 +972,43 @@ model AiPrompt {
   @@map("ai_prompts")
 }
 
+// IA — PROMPTS PERSONALIZADOS do super admin (aba Prompts e Políticas). Prompt
+// livre, opcionalmente vinculado a um diagnóstico do Motor (instrumentSlug) e a
+// adicionais contratados. `addonIds` guarda moduleCode[] (não Addon.id): é o
+// único identificador que o catálogo do front expõe e o único que existe para
+// adicionais ainda não configurados no banco. Control plane (owner-only).
+model AiCustomPrompt {
+  id             String  @id @default(uuid()) @db.Uuid
+  name           String
+  body           String  @db.Text
+  instrumentSlug String? @map("instrument_slug") // PRE_DIAGNOSTIC | PSYCHOSOCIAL | slug custom
+  addonIds       Json    @default("[]") @map("addon_ids") // moduleCode[] dos adicionais
+  active         Boolean @default(true)
+  updatedBy      String? @map("updated_by")
+
+  files AiCustomPromptFile[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ai_custom_prompts")
+}
+
+// Material de referência anexado a um prompt personalizado. Guarda só o TEXTO
+// extraído (pdf/docx/xlsx/txt/md/csv) — o binário original não é persistido.
+model AiCustomPromptFile {
+  id            String         @id @default(uuid()) @db.Uuid
+  promptId      String         @map("prompt_id") @db.Uuid
+  prompt        AiCustomPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  filename      String
+  mimeType      String         @map("mime_type")
+  sizeBytes     Int            @map("size_bytes")
+  extractedText String         @db.Text @map("extracted_text")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@map("ai_custom_prompt_files")
+}
+
 // =====================================================================
 // RBAC DINÂMICO (F3) — catálogo GLOBAL de permissões (módulo:ação) e papéis
 // de sistema. Sem RLS por tenant (catálogo compartilhado entre todas as

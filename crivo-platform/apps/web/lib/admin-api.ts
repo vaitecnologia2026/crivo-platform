@@ -3,6 +3,9 @@
 // as duas sessões (plataforma vs. painel global) nunca se misturem.
 import type {
   ActionTemplateData,
+  AiCustomPromptData,
+  AiCustomPromptFileMeta,
+  AiPromptInstrumentOption,
   AiSettingsData,
   AiTestResult,
   ContractData,
@@ -40,6 +43,7 @@ import type {
   UpdateUserRequest,
   UserSummary,
   UpsertActionTemplateRequest,
+  UpsertAiCustomPromptRequest,
   UpsertAiSettingsRequest,
   UpsertContractRequest,
   UpsertEditableTextRequest,
@@ -658,6 +662,69 @@ export function updateAiPrompt(useCase: string, content: string): Promise<AiProm
 
 export function resetAiPrompt(useCase: string): Promise<AiPromptItem> {
   return adminFetch<AiPromptItem>(`/admin/ai/prompts/${useCase}`, { method: "DELETE" });
+}
+
+// ── Prompts personalizados da IA (Super Admin · Prompts e Políticas) ──
+
+export function listAiCustomPrompts(): Promise<AiCustomPromptData[]> {
+  return adminFetch<AiCustomPromptData[]>("/admin/ai/custom-prompts");
+}
+
+export function createAiCustomPrompt(input: UpsertAiCustomPromptRequest): Promise<AiCustomPromptData> {
+  return adminFetch<AiCustomPromptData>("/admin/ai/custom-prompts", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAiCustomPrompt(id: string, input: UpsertAiCustomPromptRequest): Promise<AiCustomPromptData> {
+  return adminFetch<AiCustomPromptData>(`/admin/ai/custom-prompts/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteAiCustomPrompt(id: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/ai/custom-prompts/${id}`, { method: "DELETE" });
+}
+
+export function listAiPromptInstrumentOptions(): Promise<AiPromptInstrumentOption[]> {
+  return adminFetch<AiPromptInstrumentOption[]>("/admin/ai/custom-prompts/instrument-options");
+}
+
+/** Upload do material de referência — extração de texto no servidor pode
+ *  demorar (PDF grande): timeout próprio de 60s, acima dos 15s padrão. */
+export function uploadAiCustomPromptFile(
+  id: string,
+  input: { filename: string; mimeType: string; dataBase64: string },
+): Promise<AiCustomPromptFileMeta> {
+  return adminFetch<AiCustomPromptFileMeta>(`/admin/ai/custom-prompts/${id}/files`, {
+    method: "POST",
+    body: JSON.stringify(input),
+    signal: AbortSignal.timeout(60000),
+  });
+}
+
+export function deleteAiCustomPromptFile(id: string, fileId: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`/admin/ai/custom-prompts/${id}/files/${fileId}`, {
+    method: "DELETE",
+  });
+}
+
+/** Testa o prompt na IA real (motor central) — a chamada ao provedor pode
+ *  levar até 30s no servidor: timeout próprio de 60s. */
+export function testAiCustomPrompt(
+  id: string,
+  question?: string,
+): Promise<{ ok: boolean; content?: string; error?: string }> {
+  return adminFetch<{ ok: boolean; content?: string; error?: string }>(
+    `/admin/ai/custom-prompts/${id}/test`,
+    {
+      method: "POST",
+      body: JSON.stringify(question ? { question } : {}),
+      signal: AbortSignal.timeout(60000),
+    },
+  );
 }
 
 // ── Configuração de Notificações (push FCM + gates por gatilho) ──

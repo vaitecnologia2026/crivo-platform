@@ -1873,6 +1873,47 @@ export interface AiTestResult {
   message?: string;
 }
 
+// ── Prompts personalizados da IA (Super Admin · Prompts e Políticas) ──
+
+/** Metadados de um material de referência anexado a um prompt personalizado.
+ *  O texto extraído fica só no banco — nunca trafega na listagem. */
+export interface AiCustomPromptFileMeta {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+/** Prompt personalizado do super admin, opcionalmente vinculado a um
+ *  diagnóstico do Motor (instrumentSlug) e a adicionais (moduleCode[]). */
+export interface AiCustomPromptData {
+  id: string;
+  name: string;
+  body: string;
+  instrumentSlug: string | null;
+  addonIds: string[];
+  active: boolean;
+  updatedAt: string;
+  files: AiCustomPromptFileMeta[];
+}
+
+/** Opção do seletor "Diagnóstico do Motor" (built-ins + ativos do catálogo). */
+export interface AiPromptInstrumentOption {
+  slug: string;
+  label: string;
+}
+
+/** Criação/edição de prompt personalizado. `instrumentSlug: null` (ou '') na
+ *  atualização = limpar o vínculo com o diagnóstico. */
+export interface UpsertAiCustomPromptRequest {
+  name?: string;
+  body?: string;
+  instrumentSlug?: string | null;
+  addonIds?: string[];
+  active?: boolean;
+}
+
 // ── Notificações (push FCM + gates por gatilho) ──
 
 /** Canais possíveis de uma notificação. */

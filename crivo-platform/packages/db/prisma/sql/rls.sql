@@ -140,7 +140,14 @@ DECLARE
                               -- Admin via prisma.admin. A migration 20260819230000_mail_settings
                               -- já aplica o mesmo par ENABLE RLS + REVOKE; repetido aqui para que
                               -- um setup:prod completo não deixe a tabela de fora do control plane.
-                              'mail_settings'];
+                              'mail_settings',
+                              -- Prompts personalizados da IA (Super Admin · Prompts e Políticas):
+                              -- catálogo global da CRIVO + material de referência extraído, tocado
+                              -- só pelo módulo Admin via prisma.admin (e lido pelo Dossiê via
+                              -- owner). A migration 20260824120000_ai_custom_prompts já aplica o
+                              -- mesmo par ENABLE RLS + REVOKE; repetido aqui para que um
+                              -- setup:prod completo não deixe as tabelas de fora do control plane.
+                              'ai_custom_prompts','ai_custom_prompt_files'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);

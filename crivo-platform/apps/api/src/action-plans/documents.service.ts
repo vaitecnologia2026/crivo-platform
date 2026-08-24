@@ -16,6 +16,7 @@ import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
+import { buildPromptReferenceBlocks } from '../admin/ai-custom-prompts.service';
 import {
   PSYCHOSOCIAL_ACTION_LIBRARY,
   type PsychosocialActionLibraryEntry,
@@ -41,6 +42,17 @@ const ACTION_LABEL: Record<string, string> = {
 const CNAE_RISK_LABEL: Record<string, string> = {
   BAIXO: 'Baixo', BAIXO_MEDIO: 'Baixo/Médio', MEDIO: 'Médio', MEDIO_ALTO: 'Médio/Alto', ALTO: 'Alto',
 };
+
+/**
+ * Obrigação de FORMATO do gerador de planos psicossociais por IA. Extraída do
+ * prompt de sistema fixo para ser anexada SEMPRE — inclusive quando um prompt
+ * PERSONALIZADO (ai_custom_prompts) substitui o corpo do system: o schema
+ * {"planos":{...}} vive na mensagem `user` e o parse depende desta garantia.
+ */
+const PSY_JSON_FORMAT_GUARD =
+  'Responda ESTRITAMENTE em JSON válido no schema pedido, sem nenhum ' +
+  'texto fora do JSON. NUNCA invente diagnóstico clínico individual nem faça referência a respondentes ' +
+  'específicos; trate os riscos sempre de forma coletiva e organizacional.';
 
 const RISK3 = ['Baixa', 'Moderada', 'Alta'] as const;
 const asRisk3 = (v: string | null | undefined): RiskLevel3 | null =>
@@ -1051,13 +1063,34 @@ export class DocumentsService {
       .join('\n');
     const slugs = matrix.map((r) => r.slug);
 
-    const system =
-      'Você é um especialista em riscos psicossociais ocupacionais no contexto da NR-1 brasileira ' +
-      '(Gerenciamento de Riscos Ocupacionais). Sua tarefa é elaborar planos de ação de CONTROLE dos ' +
-      'riscos psicossociais por dimensão avaliada, com linguagem técnica, objetiva e prática, aplicável à ' +
-      'realidade de uma organização. Responda ESTRITAMENTE em JSON válido no schema pedido, sem nenhum ' +
-      'texto fora do JSON. NUNCA invente diagnóstico clínico individual nem faça referência a respondentes ' +
-      'específicos; trate os riscos sempre de forma coletiva e organizacional.';
+    // Prompt PERSONALIZADO do super admin (IA da Plataforma · Prompts e
+    // Políticas) vinculado ao diagnóstico PSYCHOSOCIAL: quando existir um
+    // ativo, o corpo dele (+ material de referência anexado) substitui o
+    // system fixo. O guard de JSON é anexado SEMPRE (D6) e a mensagem `user`
+    // (schema {"planos":{...}} + slugs) fica intacta → o parse nunca quebra.
+    // Permissivo: qualquer falha na consulta cai no prompt fixo.
+    // rls-allow: catálogo control-plane global (prompts personalizados da IA)
+    const custom = await this.prisma.admin.aiCustomPrompt
+      .findFirst({
+        where: { active: true, instrumentSlug: 'PSYCHOSOCIAL' },
+        orderBy: { updatedAt: 'desc' },
+        include: { files: true },
+      })
+      .catch(() => null);
+
+    let system: string;
+    if (custom) {
+      const refs = buildPromptReferenceBlocks(
+        custom.files.map((f) => ({ filename: f.filename, extractedText: f.extractedText })),
+      );
+      system = `${custom.body}${refs ? `\n\n${refs}` : ''}\n\n${PSY_JSON_FORMAT_GUARD}`;
+    } else {
+      system =
+        'Você é um especialista em riscos psicossociais ocupacionais no contexto da NR-1 brasileira ' +
+        '(Gerenciamento de Riscos Ocupacionais). Sua tarefa é elaborar planos de ação de CONTROLE dos ' +
+        'riscos psicossociais por dimensão avaliada, com linguagem técnica, objetiva e prática, aplicável à ' +
+        `realidade de uma organização. ${PSY_JSON_FORMAT_GUARD}`;
+    }
     const user =
       'Dimensões psicossociais avaliadas nesta organização, com a classificação de risco derivada da ' +
       `matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +

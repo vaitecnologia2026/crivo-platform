@@ -22,8 +22,9 @@ import {
   type AiLogRow,
   type AiContextRow,
 } from "@/lib/admin-api";
+import { CustomPromptsPanel } from "./CustomPromptsPanel";
 
-/** Casos de uso REAIS do motor de IA e o módulo que os libera (gate). */
+/** Casos de uso REAIS do motor de IA (o AiLogsPanel usa como fallback do filtro). */
 const USE_CASES: { useCase: string; where: string; gateModules: string[] }[] = [
   { useCase: "copiloto", where: "Portal do Cliente · Área do Líder (Copiloto)", gateModules: ["copiloto", "lider"] },
   { useCase: "preliminary_report", where: "LP / CRM · Relatório Preliminar do lead (e-mail)", gateModules: ["relatorios"] },
@@ -34,10 +35,9 @@ const USE_CASES: { useCase: string; where: string; gateModules: string[] }[] = [
   { useCase: "document_texts", where: "Super Admin · Textos aprovados dos documentos (Motor de Relatórios)", gateModules: [] },
 ];
 
-type Tab = "provedores" | "casos" | "prompts" | "contextos" | "consumo" | "logs";
+type Tab = "provedores" | "prompts" | "contextos" | "consumo" | "logs";
 const TABS: { key: Tab; label: string }[] = [
   { key: "provedores", label: "Provedores e Modelos" },
-  { key: "casos", label: "Casos de Uso" },
   { key: "prompts", label: "Prompts e Políticas" },
   { key: "contextos", label: "Contextos por Cliente" },
   { key: "consumo", label: "Consumo e Limites" },
@@ -208,73 +208,26 @@ export function AiSettingsSection() {
               {testMsg && <span className="prod-note" style={{ margin: 0 }}>{testMsg}</span>}
             </div>
           </fieldset>
+          {/* Ativação — vivia na antiga aba "Casos de Uso" (removida): é o ÚNICO
+              lugar da UI que liga a IA e libera módulos, então mudou para cá. */}
+          <fieldset className="prod-fs" style={{ marginTop: 14 }}>
+            <legend>Ativação</legend>
+            <label className="prod-check" style={{ marginBottom: 12 }}>
+              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+              IA ativada no sistema
+            </label>
+            <span className="prod-note" style={{ margin: "0 0 8px" }}>Módulos que podem usar IA (vazio = todos liberados):</span>
+            <div className="prod-modules">
+              {MODULES.map((m) => (
+                <label key={m.code} className="prod-check">
+                  <input type="checkbox" checked={mods.includes(m.code)} onChange={() => toggleMod(m.code)} disabled={!enabled} />
+                  {m.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {saveRow}
         </div>
-      )}
-
-      {status === "ok" && data && tab === "casos" && (
-        <>
-          <div className="card" style={{ maxWidth: 720 }}>
-            <fieldset className="prod-fs">
-              <legend>Ativação</legend>
-              <label className="prod-check" style={{ marginBottom: 12 }}>
-                <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-                IA ativada no sistema
-              </label>
-              <span className="prod-note" style={{ margin: "0 0 8px" }}>Módulos que podem usar IA (vazio = todos liberados):</span>
-              <div className="prod-modules">
-                {MODULES.map((m) => (
-                  <label key={m.code} className="prod-check">
-                    <input type="checkbox" checked={mods.includes(m.code)} onChange={() => toggleMod(m.code)} disabled={!enabled} />
-                    {m.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {saveRow}
-          </div>
-
-          <div className="addx-wrap" style={{ marginTop: 18 }}>
-            <table className="addx-table">
-              <thead>
-                <tr>
-                  <th>Caso de uso</th>
-                  <th>Onde roda</th>
-                  <th>Módulo que libera</th>
-                  <th>Situação agora</th>
-                </tr>
-              </thead>
-              <tbody>
-                {USE_CASES.map((u) => {
-                  // Mesmo gate do backend: sem token configurado, nenhum caso roda
-                  // (copiloto/pocket/relatórios checam `!enabled || !hasKey`).
-                  // gateModules vazio = caso INTERNO da CRIVO (sem gate por
-                  // módulo do cliente) — nunca bloqueia por módulo.
-                  const blockedBy = !enabled
-                    ? "IA desativada no sistema"
-                    : !data.hasKey
-                      ? "Sem token configurado"
-                      : u.gateModules.length > 0 && mods.length > 0 && !u.gateModules.some((g) => mods.includes(g))
-                        ? "Módulo não liberado acima"
-                        : null;
-                  return (
-                    <tr key={u.useCase}>
-                      <td className="cell-code"><code>{u.useCase}</code></td>
-                      <td>{u.where}</td>
-                      <td>{u.gateModules.length ? u.gateModules.join(" ou ") : "— (interno CRIVO)"}</td>
-                      <td>
-                        <span className={`addx-status ${blockedBy ? "addx-status--AGUARDANDO_DADOS" : "addx-status--ATIVO"}`}>
-                          {blockedBy ? "Bloqueado" : "Liberado"}
-                        </span>
-                        {blockedBy && <p className="evd-reason">{blockedBy}</p>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
       )}
 
       {status === "ok" && tab === "prompts" && (
@@ -285,6 +238,7 @@ export function AiSettingsSection() {
             em <em>Soluções → IA personalizada</em>) são <strong>injetadas como contexto</strong> quando o produto
             contratado permite — veja a aba <em>Contextos por Cliente</em>.
           </div>
+          <CustomPromptsPanel />
           <AiPromptsManager />
         </>
       )}

@@ -67,6 +67,8 @@ import { EbookController, PublicEbookController } from './ebook.controller';
 import { EbookService } from './ebook.service';
 import { MailSettingsController } from './mail-settings.controller';
 import { MailSettingsService } from './mail-settings.service';
+import { AiCustomPromptsController } from './ai-custom-prompts.controller';
+import { AiCustomPromptsService } from './ai-custom-prompts.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -108,6 +110,7 @@ import { MailSettingsService } from './mail-settings.service';
     EbookController,
     PublicEbookController,
     MailSettingsController,
+    AiCustomPromptsController,
   ],
   providers: [
     AdminAuthService,
@@ -144,6 +147,7 @@ import { MailSettingsService } from './mail-settings.service';
     AiInsightsService,
     EbookService,
     MailSettingsService,
+    AiCustomPromptsService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })
