@@ -114,18 +114,6 @@ export function CustomPromptsPanel() {
     setFileMsg(null);
   }
 
-  function toggleAddon(code: string) {
-    setEditor((e) =>
-      e
-        ? {
-            ...e,
-            addonIds: e.addonIds.includes(code)
-              ? e.addonIds.filter((c) => c !== code)
-              : [...e.addonIds, code],
-          }
-        : e,
-    );
-  }
 
   async function save() {
     if (!editor) return;
@@ -331,15 +319,12 @@ export function CustomPromptsPanel() {
               </label>
               <label className="prod-field">
                 <span>Diagnóstico do Motor</span>
-                <select
-                  value={editor.instrumentSlug}
-                  onChange={(e) => setEditor((s) => (s ? { ...s, instrumentSlug: e.target.value } : s))}
-                >
-                  <option value="">— Nenhum —</option>
-                  {options.map((o) => (
-                    <option key={o.slug} value={o.slug}>{o.label}</option>
-                  ))}
-                </select>
+                <SearchSelect
+                  placeholder="— Nenhum —"
+                  options={options.map((o) => ({ value: o.slug, label: o.label }))}
+                  value={editor.instrumentSlug ? [editor.instrumentSlug] : []}
+                  onChange={(v) => setEditor((s) => (s ? { ...s, instrumentSlug: v[0] ?? "" } : s))}
+                />
               </label>
             </div>
 
@@ -355,19 +340,14 @@ export function CustomPromptsPanel() {
             <span className="prod-note" style={{ display: "block", margin: "12px 0 6px" }}>
               Adicionais contratados vinculados a este prompt:
             </span>
-            <div className="prod-modules">
-              {addons.map((a) => (
-                <label key={a.moduleCode} className="prod-check">
-                  <input
-                    type="checkbox"
-                    checked={editor.addonIds.includes(a.moduleCode)}
-                    onChange={() => toggleAddon(a.moduleCode)}
-                  />
-                  {a.label}
-                </label>
-              ))}
-              {addons.length === 0 && <span className="cell-mute">Nenhum adicional no catálogo.</span>}
-            </div>
+            <SearchSelect
+              multiple
+              placeholder="Selecionar adicionais…"
+              emptyLabel="Nenhum adicional no catálogo."
+              options={addons.map((a) => ({ value: a.moduleCode, label: a.label }))}
+              value={editor.addonIds}
+              onChange={(v) => setEditor((s) => (s ? { ...s, addonIds: v } : s))}
+            />
           </fieldset>
 
           <fieldset className="prod-fs" style={{ marginTop: 14 }}>
@@ -457,5 +437,195 @@ export function CustomPromptsPanel() {
         </div>
       )}
     </>
+  );
+}
+
+/** Dropdown com busca (único ou multi). Substitui o <select>/checkbox-grid:
+ *  filtra por texto, chips no modo multi, fecha ao clicar fora. Estilos inline
+ *  para não depender de CSS novo, usando os tokens do tema. */
+function SearchSelect({
+  options,
+  value,
+  onChange,
+  placeholder,
+  multiple = false,
+  emptyLabel = "Nada encontrado.",
+}: {
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+  multiple?: boolean;
+  emptyLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const term = q.trim().toLowerCase();
+  const filtered = term ? options.filter((o) => o.label.toLowerCase().includes(term)) : options;
+  const selected = options.filter((o) => value.includes(o.value));
+  const summary = multiple
+    ? value.length
+      ? `${value.length} selecionado(s)`
+      : placeholder
+    : selected[0]?.label ?? placeholder;
+  const pick = (v: string) => {
+    if (multiple) onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+    else {
+      onChange([v]);
+      setOpen(false);
+      setQ("");
+    }
+  };
+  const hasSel = multiple ? value.length > 0 : selected.length > 0;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          padding: "8px 12px",
+          border: "1px solid var(--line, #DCD7CE)",
+          borderRadius: "var(--r-lg, 6px)",
+          background: "#fff",
+          cursor: "pointer",
+          font: "inherit",
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            color: hasSel ? "var(--azul-profundo, #0D1F3C)" : "#8a8174",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {summary}
+        </span>
+        <span aria-hidden style={{ color: "#8a8174", flexShrink: 0 }}>▾</span>
+      </button>
+      {multiple && selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+          {selected.map((o) => (
+            <span
+              key={o.value}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                background: "rgba(168,105,61,0.10)",
+                color: "var(--terra, #A8693D)",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {o.label}
+              <button
+                type="button"
+                onClick={() => pick(o.value)}
+                style={{ border: "none", background: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 30,
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: "1px solid var(--line, #DCD7CE)",
+            borderRadius: "var(--r-lg, 6px)",
+            boxShadow: "0 8px 24px rgba(13,31,60,0.12)",
+            overflow: "hidden",
+          }}
+        >
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Pesquisar…"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 12px",
+              border: "none",
+              borderBottom: "1px solid var(--line, #DCD7CE)",
+              font: "inherit",
+              outline: "none",
+            }}
+          />
+          <div style={{ maxHeight: 220, overflowY: "auto", padding: 4 }}>
+            {!multiple && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange([]);
+                  setOpen(false);
+                  setQ("");
+                }}
+                style={{ width: "100%", textAlign: "left", padding: "7px 10px", border: "none", background: "none", cursor: "pointer", font: "inherit", color: "#8a8174", borderRadius: 4 }}
+              >
+                — Nenhum —
+              </button>
+            )}
+            {filtered.map((o) => {
+              const on = value.includes(o.value);
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => pick(o.value)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    textAlign: "left",
+                    padding: "7px 10px",
+                    border: "none",
+                    background: on ? "rgba(168,105,61,0.08)" : "none",
+                    cursor: "pointer",
+                    font: "inherit",
+                    color: "var(--azul-profundo, #0D1F3C)",
+                    borderRadius: 4,
+                  }}
+                >
+                  {multiple && <input type="checkbox" readOnly checked={on} style={{ pointerEvents: "none" }} />}
+                  {o.label}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: "8px 10px", color: "#8a8174", fontSize: 13 }}>
+                {options.length === 0 ? emptyLabel : "Nada encontrado."}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
