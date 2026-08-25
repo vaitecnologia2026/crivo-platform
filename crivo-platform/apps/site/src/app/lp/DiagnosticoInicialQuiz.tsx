@@ -316,12 +316,10 @@ export function DiagnosticoInicialQuiz() {
 
         <ul className="diag-quiz__dims">
           {result.byDimension.map((dim) => {
-            const attention = result.topAttentions.includes(dim.slug);
             return (
               <li key={dim.slug} className="diag-quiz__dim">
                 <span className="diag-quiz__dim-label">
                   {dim.label}
-                  {attention && <em className="diag-quiz__flag"> · ponto de atenção</em>}
                 </span>
                 <span className="diag-quiz__bar">
                   <span className="diag-quiz__bar-fill" style={{ width: `${dim.value}%`, ...(dim.color ? { background: dim.color } : {}) }} />
