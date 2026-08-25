@@ -79,7 +79,7 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
-import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta, routeMethods } from "./nav.config";
+import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta, routeMethods, routeOwnerMethods } from "./nav.config";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
 // interatividade do app.js (login, router SPA, likert, quiz, chat, animações de
@@ -168,6 +168,9 @@ export function Plataforma() {
     // Nome da solução contratada — passa a rotular o item do diagnóstico no
     // menu. null = mantém o rótulo estático da nav.config.
     let contractedProductName: string | null = null;
+    // TODAS as soluções contratadas (com método) — 1 por item de diagnóstico.
+    // Vazio = fail-open (nenhum filtro/rename por método), como antes.
+    let contractedList: { method: string; productName: string }[] = [];
     let removeBranding: (() => void) | null = null; // desfaz os overrides de tema (F5)
     cleanups.push(() => removeBranding?.());
     const routeVisible = (route: string) => {
@@ -179,7 +182,14 @@ export function Plataforma() {
       // métodos ele existe (nav.config) e o contrato diz qual é o da empresa.
       // Sem método resolvido, nada é escondido.
       const methods = routeMethods[route];
-      if (contractedMethod && methods && !methods.includes(contractedMethod)) return false;
+      // Considera TODOS os métodos contratados (várias soluções); fallback ao
+      // método principal quando a lista não veio (contrato/endpoint legado).
+      const contractedMethods = contractedList.length
+        ? contractedList.map((c) => c.method)
+        : contractedMethod
+          ? [contractedMethod]
+          : [];
+      if (contractedMethods.length && methods && !methods.some((m) => contractedMethods.includes(m))) return false;
       // Acesso por tela por usuário: se houver restrição, só libera rotas na lista.
       // O grupo Administração (usuarios/papeis/historico) NÃO entra na checklist
       // (SCREEN_OPTIONS o exclui) — segue gateado só por permissão/módulo. Sem
@@ -228,14 +238,21 @@ export function Plataforma() {
       hideEmptyGroups();
     }
 
-    // Nome da SOLUÇÃO contratada como rótulo da rota — só para o item que
-    // corresponde ao método contratado. Sem método resolvido ou sem nome de
-    // solução, devolve null e o rótulo estático da nav.config prevalece.
+    // Nome da SOLUÇÃO contratada como rótulo da rota — SÓ para o item DONO do
+    // método (routeOwnerMethods), não para todo item visível àquele método. Sem
+    // isso, o psicossocial (visível p/ ESSENCIAL) herdava o nome do Essencial e
+    // apareciam dois "CRIVO Diagnóstico Essencial". Devolve o nome da solução
+    // contratada cujo método este item é dono; senão null (rótulo estático).
     function contractedLabelFor(route: string): string | null {
-      if (!contractedMethod || !contractedProductName) return null;
-      const methods = routeMethods[route];
-      if (!methods || !methods.includes(contractedMethod)) return null;
-      return contractedProductName;
+      const owners = routeOwnerMethods[route];
+      if (!owners) return null;
+      const hit = contractedList.find((c) => owners.includes(c.method));
+      if (hit) return hit.productName;
+      // Fallback legado (lista vazia): usa o par principal se o item é dono dele.
+      if (!contractedList.length && contractedMethod && contractedProductName && owners.includes(contractedMethod)) {
+        return contractedProductName;
+      }
+      return null;
     }
 
     function applyContractedDiagnosticLabel() {
@@ -350,6 +367,13 @@ export function Plataforma() {
         // menu exatamente como era antes.
         contractedMethod = diag?.method ?? null;
         contractedProductName = diag?.productName ?? null;
+        // Lista por solução (novo campo). Fallback: par principal (endpoint antigo).
+        contractedList =
+          diag?.contracted && diag.contracted.length
+            ? diag.contracted
+            : diag?.method && diag?.productName
+              ? [{ method: diag.method, productName: diag.productName }]
+              : [];
         // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
         if (me) applyUserChip(me.name, me.role);
         // Empresa real no card da sidebar (corrige "Empresa Exemplo S.A." fixo).

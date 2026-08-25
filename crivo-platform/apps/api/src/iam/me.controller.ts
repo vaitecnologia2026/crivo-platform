@@ -98,6 +98,10 @@ export class MeController {
     method: string | null;
     technicalOutputs: string[];
     productName: string | null;
+    /** Uma entrada por SOLUÇÃO contratada com método (dedupe por método, 1ª vence).
+     *  Permite o portal nomear CADA item de diagnóstico com a sua própria solução —
+     *  antes, com 2 soluções, os dois itens herdavam o nome da solução principal. */
+    contracted: { method: string; productName: string }[];
     /** A4 — instrumentos do Motor relevantes p/ o tenant (proveniência do plano). */
     instruments: { slug: string; name: string }[];
   }> {
@@ -111,7 +115,7 @@ export class MeController {
     const contract = await this.prisma.admin.contract.findFirst({
       where: { organizationId: user.tenantId, status: 'ATIVO' },
       orderBy: { updatedAt: 'desc' },
-      select: { method: true, technicalOutput: true, productId: true },
+      select: { method: true, technicalOutput: true, productId: true, solutionIds: true },
     });
 
     const productId = contract?.productId ?? tenant?.productId ?? null;
@@ -133,6 +137,31 @@ export class MeController {
         ? (product!.supportedOutputs as string[])
         : [];
 
+    // TODAS as soluções contratadas (Tela 05: várias por contrato) → nome próprio
+    // por método. rls-allow: products é catálogo GLOBAL (control-plane).
+    const solutionIds = contract?.solutionIds ?? [];
+    const solProducts = solutionIds.length
+      ? await this.prisma.admin.product.findMany({
+          where: { id: { in: solutionIds } },
+          select: { id: true, method: true, name: true },
+        })
+      : [];
+    const byId = new Map(solProducts.map((p) => [p.id, p]));
+    const contracted: { method: string; productName: string }[] = [];
+    const seenMethod = new Set<string>();
+    // Preserva a ordem em que as soluções foram marcadas (solutionIds).
+    for (const id of solutionIds) {
+      const p = byId.get(id);
+      if (p?.method && p.name && !seenMethod.has(p.method)) {
+        seenMethod.add(p.method);
+        contracted.push({ method: p.method, productName: p.name });
+      }
+    }
+    // Fallback: sem solutionIds (contrato legado) usa o par principal já calculado.
+    if (contracted.length === 0 && method && product?.name) {
+      contracted.push({ method, productName: product.name });
+    }
+
     // A4 — instrumentos p/ o select "Diagnóstico de origem" do Plano de
     // Evolução: os built-in ativos + os que a empresa tem link de aplicação.
     // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
@@ -145,13 +174,14 @@ export class MeController {
         tx.diagnosticLink.findMany({ select: { instrument: { select: { slug: true, name: true, active: true } } } }),
       ),
     ]);
-    // O MÉTODO do contrato filtra os built-in: a empresa só enxerga o diagnóstico
-    // que ela contratou — antes os DOIS apareciam para todo mundo, então um
-    // cliente de Diagnóstico Essencial via o Organizacional na lista de origem.
-    // Os instrumentos com link de aplicação NÃO são filtrados: cada um foi
-    // escolhido para aquela empresa, um a um, no Motor → Aplicação.
-    const builtInDoMetodo = method ? BUILTIN_BY_METHOD[method] : null;
-    const doMetodo = builtIns.filter((i) => !builtInDoMetodo || i.slug === builtInDoMetodo);
+    // Os MÉTODOS contratados filtram os built-in: a empresa só enxerga os
+    // diagnósticos que contratou — agora considerando TODAS as soluções (antes,
+    // um cliente com 2 soluções via só o built-in da principal). Sem método
+    // resolvido, mantém os dois (fallback histórico). Os instrumentos com link de
+    // aplicação NÃO são filtrados: cada um foi escolhido para aquela empresa.
+    const methodsContratados = contracted.length ? contracted.map((c) => c.method) : method ? [method] : [];
+    const builtInSlugs = new Set(methodsContratados.map((m) => BUILTIN_BY_METHOD[m]).filter(Boolean));
+    const doMetodo = builtIns.filter((i) => builtInSlugs.size === 0 || builtInSlugs.has(i.slug));
     const seen = new Set<string>();
     const instruments: { slug: string; name: string }[] = [];
     for (const i of [...doMetodo, ...links.map((l) => l.instrument).filter((i) => i.active)]) {
@@ -160,7 +190,7 @@ export class MeController {
       instruments.push({ slug: i.slug, name: i.name });
     }
 
-    return { method, technicalOutputs, productName: product?.name ?? null, instruments };
+    return { method, technicalOutputs, productName: product?.name ?? null, contracted, instruments };
   }
 
   /** Telas liberadas para o usuário (null = sem restrição) — filtra o menu por usuário. */

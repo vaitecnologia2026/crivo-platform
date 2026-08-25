@@ -25,6 +25,13 @@ export interface NavItem {
    */
   methods?: string[];
   /**
+   * Métodos dos quais este item é o DONO (1:1 com o built-in do método). Diferente
+   * de `methods` (que é só VISIBILIDADE e pode ser mais amplo): o rename do item
+   * com o nome da solução contratada usa ESTE conjunto, para o psicossocial não
+   * herdar o nome do Essencial só porque também é visível para ele.
+   */
+  ownerMethods?: string[];
+  /**
    * Item fora do menu e da checklist de telas (programa ainda não lançado — V2).
    * A rota continua existindo no router; só deixa de ser oferecida ao cliente.
    */
@@ -105,6 +112,7 @@ export const NAV: NavGroup[] = [
         icon: '✦',
         module: 'campanhas',
         methods: ['INICIAL', 'ESSENCIAL'],
+        ownerMethods: ['INICIAL', 'ESSENCIAL'],
         breadcrumb: { path: 'Portal', current: 'Diagnósticos' },
       },
       {
@@ -119,6 +127,9 @@ export const NAV: NavGroup[] = [
         // ESSENCIAL também coleta pelo link psicossocial (/q/<slug>) — sem esta
         // rota o tenant ESSENCIAL coletava e não via matriz/perfil completos.
         methods: ['ORGANIZACIONAL', 'ESSENCIAL'],
+        // Mas o DONO é só ORGANIZACIONAL — o rename não deve usar o nome do
+        // Essencial aqui (senão o item aparece "CRIVO Diagnóstico Essencial" 2×).
+        ownerMethods: ['ORGANIZACIONAL'],
         breadcrumb: { path: 'Portal', current: 'NR-1 · Riscos Psicossociais' },
       },
       {
@@ -335,6 +346,16 @@ export const routeMethods: Record<string, string[]> = Object.fromEntries(
   NAV.flatMap((g) => g.items)
     .filter((i) => i.route && i.methods && i.methods.length > 0)
     .map((i) => [i.route!, i.methods!]),
+);
+
+/**
+ * Métodos DONOS por rota — usado no rename do item com o nome da solução
+ * contratada (só o item dono do método é renomeado). Ver NavItem.ownerMethods.
+ */
+export const routeOwnerMethods: Record<string, string[]> = Object.fromEntries(
+  NAV.flatMap((g) => g.items)
+    .filter((i) => i.route && i.ownerMethods && i.ownerMethods.length > 0)
+    .map((i) => [i.route!, i.ownerMethods!]),
 );
 
 /** Breadcrumb por rota (topo da tela ao navegar). */

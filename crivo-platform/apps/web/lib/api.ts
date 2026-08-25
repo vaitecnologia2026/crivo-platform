@@ -208,6 +208,9 @@ export interface DiagnosticContext {
   method: string | null;
   technicalOutputs: string[];
   productName: string | null;
+  /** Uma entrada por solução contratada com método (dedupe por método). Permite
+   *  nomear CADA item de diagnóstico do menu com a sua própria solução. */
+  contracted?: { method: string; productName: string }[];
   /** A4 — instrumentos do Motor p/ o select "Diagnóstico de origem". */
   instruments: { slug: string; name: string }[];
 }
