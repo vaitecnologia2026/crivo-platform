@@ -29,7 +29,7 @@ type VersionWithContent = {
     showWhenOperator?: string | null;
     showWhenValue?: number | null;
   }[];
-  bands: { code: string; label: string; min: number; max: number }[];
+  bands: { code: string; label: string; min: number; max: number; color?: string | null }[];
 };
 
 const SHOW_WHEN_OPS = ['>=', '>', '<=', '<', '==', '!='] as const;
@@ -62,7 +62,7 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
           : {}),
       };
     }),
-    bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max })),
+    bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max, color: b.color ?? null })),
     ...(aggregation ? { aggregation } : {}),
     ...(v.scaleLabels && v.scaleLabels.length ? { scaleLabels: v.scaleLabels } : {}),
     ...(v.rounding != null ? { rounding: v.rounding } : {}),

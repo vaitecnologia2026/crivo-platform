@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { scoreWithMethodology } from '@crivo/types';
+import { scoreWithMethodology, findBandForScore } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
@@ -156,16 +156,22 @@ export class DiagnosticsService {
       const s = scoreWithMethodology(dto.answers ?? [], active.config);
       const byDimension: Record<string, number> = {};
       const dimensionLabels: Record<string, string> = {};
+      // Faixa (com cor) em que cada dimensão caiu — alimenta a cor da barra no relatório.
+      const dimensionBands: Record<string, { code: string; label: string; color: string | null }> = {};
       for (const d of s.byDimension) {
         byDimension[d.slug] = d.value;
         dimensionLabels[d.slug] = d.label;
+        const b = findBandForScore(active.config.bands, d.value);
+        if (b) dimensionBands[d.slug] = { code: b.code, label: b.label, color: b.color ?? null };
       }
       result = {
         score: s.score,
         level: s.levelCode,
         levelLabel: s.levelLabel,
+        levelColor: findBandForScore(active.config.bands, s.score)?.color ?? null,
         byDimension,
         dimensionLabels,
+        dimensionBands,
         topAttention: s.topAttentions[0] ?? '',
       };
     } catch (e) {
@@ -209,12 +215,16 @@ export class DiagnosticsService {
       const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / total);
       const byDimension: Record<string, number> = {};
       const dimensionLabels: Record<string, string> = {};
+      const dimensionBands: Record<string, { code: string; label: string; color: string | null }> = {};
       for (const d of dims) {
         const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
-        byDimension[d.slug] = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+        const dv = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+        byDimension[d.slug] = dv;
         dimensionLabels[d.slug] = d.label;
+        const db = findBandForScore(bands, dv);
+        if (db) dimensionBands[d.slug] = { code: db.code, label: db.label, color: db.color ?? null };
       }
-      const band = bands.find((b) => score >= b.min && score <= b.max);
+      const band = findBandForScore(bands, score);
       const versions = Array.from(new Set(rows.map((r) => r.methodologyVersionId).filter(Boolean)));
       return {
         minRespondents,
@@ -223,8 +233,10 @@ export class DiagnosticsService {
         score,
         level: band?.code ?? '',
         levelLabel: band?.label ?? '',
+        levelColor: band?.color ?? null,
         byDimension,
         dimensionLabels,
+        dimensionBands,
         methodologyMixed: versions.length > 1,
       };
     });

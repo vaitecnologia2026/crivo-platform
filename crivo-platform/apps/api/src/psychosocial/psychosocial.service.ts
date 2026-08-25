@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import {
   computePsychosocial,
   scoreWithMethodology,
+  findBandForScore,
   psychosocialLevel,
   psychosocialProbabilityLevel,
   psychosocialRiskClass,
@@ -19,12 +20,15 @@ import { SubmitPsychosocialDto } from './dto';
 
 // Resultado psicossocial em formato "superset" — compatível com o storage/telas
 // antigos (level/byDimension) + rótulos da metodologia ATIVA (Fase 1C).
+type DimensionBandMap = Record<string, { code: string; label: string; color: string | null }>;
 type PsyResult = {
   score: number;
   level: string;
   levelLabel?: string;
+  levelColor?: string | null;
   byDimension: Record<string, number>;
   dimensionLabels?: Record<string, string>;
+  dimensionBands?: DimensionBandMap;
   topRisk: string;
 };
 
@@ -69,11 +73,18 @@ export class PsychosocialService {
         const s = scoreWithMethodology(dto.answers ?? [], active.config);
         const byDimension: Record<string, number> = {};
         const dimensionLabels: Record<string, string> = {};
+        const dimensionBands: DimensionBandMap = {};
         for (const d of s.byDimension) {
           byDimension[d.slug] = d.value;
           dimensionLabels[d.slug] = d.label;
+          const b = findBandForScore(active.config.bands, d.value);
+          if (b) dimensionBands[d.slug] = { code: b.code, label: b.label, color: b.color ?? null };
         }
-        result = { score: s.score, level: s.levelCode, levelLabel: s.levelLabel, byDimension, dimensionLabels, topRisk: s.topAttentions[0] ?? '' };
+        result = {
+          score: s.score, level: s.levelCode, levelLabel: s.levelLabel,
+          levelColor: findBandForScore(active.config.bands, s.score)?.color ?? null,
+          byDimension, dimensionLabels, dimensionBands, topRisk: s.topAttentions[0] ?? '',
+        };
       } else {
         const r = computePsychosocial(dto.answers ?? []);
         result = { score: r.score, level: r.level, byDimension: r.byDimension as Record<string, number>, topRisk: r.topRisk };
@@ -263,7 +274,7 @@ export class PsychosocialService {
 
 type Row = { score: number; byDimension: unknown };
 type AggDim = { slug: string; label: string; severity?: number | null; parentSlug?: string | null };
-type AggBand = { code: string; label: string; min: number; max: number };
+type AggBand = { code: string; label: string; min: number; max: number; color?: string | null };
 
 /** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
  *  Acrescenta o Perfil de grupo (distribuição de pessoas por faixa) e a Matriz de
@@ -277,8 +288,10 @@ function aggregate(
   score: number;
   level: string;
   levelLabel?: string;
+  levelColor?: string | null;
   byDimension: Record<string, number>;
   dimensionLabels: Record<string, string>;
+  dimensionBands: DimensionBandMap;
   topRisk: string;
   profile: PsychosocialProfileRow[];
   riskMatrix: PsychosocialRiskMatrixRow[];
@@ -286,15 +299,19 @@ function aggregate(
   const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
   const byDimension: Record<string, number> = {};
   const dimensionLabels: Record<string, string> = {};
+  const dimensionBands: DimensionBandMap = {};
   const valuesOf = (slug: string) =>
     rows.map((r) => Number((r.byDimension as Record<string, number>)?.[slug] ?? 0));
   for (const d of dims) {
     const vals = valuesOf(d.slug);
-    byDimension[d.slug] = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+    const dv = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+    byDimension[d.slug] = dv;
     dimensionLabels[d.slug] = d.label;
+    const db = findBandForScore(bands ?? undefined, dv);
+    if (db) dimensionBands[d.slug] = { code: db.code, label: db.label, color: db.color ?? null };
   }
   const topRisk = dims.reduce((min, d) => (byDimension[d.slug] < byDimension[min] ? d.slug : min), dims[0]?.slug ?? '');
-  const band = bands?.find((b) => score >= b.min && score <= b.max);
+  const band = findBandForScore(bands ?? undefined, score);
 
   // Faixas em ordem crescente: a PRIMEIRA é a crítica (menor pontuação = maior
   // risco, na régua de proteção). Sem faixas configuradas não há como dizer o que
@@ -356,8 +373,10 @@ function aggregate(
     score,
     level: band?.code ?? psychosocialLevel(score),
     levelLabel: band?.label,
+    levelColor: band?.color ?? null,
     byDimension,
     dimensionLabels,
+    dimensionBands,
     topRisk,
     profile,
     riskMatrix,

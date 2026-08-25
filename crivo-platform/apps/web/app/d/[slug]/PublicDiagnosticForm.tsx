@@ -98,14 +98,26 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
               <small>/100</small>
             </div>
             <p className={s.sub} style={{ marginTop: 6 }}>
-              {info?.instrumentName} · <strong>{result.levelLabel ?? result.level}</strong>
+              {info?.instrumentName} ·{" "}
+              <strong style={result.levelColor ? { color: result.levelColor } : undefined}>
+                {result.levelLabel ?? result.level}
+              </strong>
             </p>
-            <div className={s.dims}>
-              {Object.entries(result.byDimension).map(([k, v]) => (
-                <span className={s.dim} key={k}>
-                  {result.dimensionLabels[k] ?? k}: <strong>{v}</strong>
-                </span>
-              ))}
+            <div className={s.dimBars}>
+              {Object.entries(result.byDimension).map(([k, v]) => {
+                const c = result.dimensionBands?.[k]?.color;
+                return (
+                  <div className={s.dimRow} key={k}>
+                    <div className={s.dimHead}>
+                      <span>{result.dimensionLabels[k] ?? k}</span>
+                      <strong>{v}</strong>
+                    </div>
+                    <div className={s.bar}>
+                      <i className={s.barFill} style={{ width: `${v}%`, ...(c ? { background: c } : {}) }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <p className={s.sub} style={{ marginTop: 16, fontSize: 12.5 }}>
               Obrigado por participar. Sua resposta é <strong>anônima</strong> — nenhum dado pessoal é

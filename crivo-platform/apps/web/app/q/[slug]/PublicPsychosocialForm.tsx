@@ -141,13 +141,22 @@ export function PublicPsychosocialForm({
                 {PSYCHOSOCIAL_RISK_LABEL[result.level]}
               </strong>
             </p>
-            <div className={s.dims}>
+            <div className={s.dimBars}>
               {(Object.entries(result.byDimension) as [PsychosocialDimension, number][]).map(
-                ([k, v]) => (
-                  <span className={s.dim} key={k}>
-                    {PSYCHOSOCIAL_DIMENSION_LABEL[k]}: <strong>{v}</strong>
-                  </span>
-                ),
+                ([k, v]) => {
+                  const c = result.dimensionBands?.[k]?.color;
+                  return (
+                    <div className={s.dimRow} key={k}>
+                      <div className={s.dimHead}>
+                        <span>{PSYCHOSOCIAL_DIMENSION_LABEL[k]}</span>
+                        <strong>{v}</strong>
+                      </div>
+                      <div className={s.bar}>
+                        <i className={s.barFill} style={{ width: `${v}%`, ...(c ? { background: c } : {}) }} />
+                      </div>
+                    </div>
+                  );
+                },
               )}
             </div>
             <p className={s.sub} style={{ marginTop: 16, fontSize: 12.5 }}>

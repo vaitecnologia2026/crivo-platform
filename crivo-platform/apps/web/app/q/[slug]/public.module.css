@@ -108,3 +108,10 @@
 .bignum small { font-size: 22px; color: var(--ink-soft); font-weight: 600; }
 .dims { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 18px 0 6px; }
 .dim { font-size: 12px; background: var(--cream); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; }
+/* Barras por dimensão (relatório final) — cor vem da faixa configurada no Motor */
+.dimBars { display: flex; flex-direction: column; gap: 10px; margin: 18px 0 6px; text-align: left; }
+.dimRow { display: flex; flex-direction: column; gap: 4px; }
+.dimHead { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; gap: 10px; }
+.dimHead strong { font-variant-numeric: tabular-nums; }
+.bar { height: 9px; background: var(--line, #e6e0d4); border-radius: 999px; overflow: hidden; }
+.barFill { display: block; height: 100%; border-radius: 999px; background: var(--terra-dourado, #a8693d); transition: width .3s ease; }

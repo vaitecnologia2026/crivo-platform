@@ -114,7 +114,7 @@ const CHALLENGE_ICONS: Record<string, React.ReactNode> = {
 type RenderResult = {
   score: number;
   levelLabel: string;
-  byDimension: { slug: string; label: string; value: number }[];
+  byDimension: { slug: string; label: string; value: number; color?: string | null }[];
   topAttentions: string[];
 };
 
@@ -315,7 +315,7 @@ export function DiagnosticoInicialQuiz() {
                   {attention && <em className="diag-quiz__flag"> · ponto de atenção</em>}
                 </span>
                 <span className="diag-quiz__bar">
-                  <span className="diag-quiz__bar-fill" style={{ width: `${dim.value}%` }} />
+                  <span className="diag-quiz__bar-fill" style={{ width: `${dim.value}%`, ...(dim.color ? { background: dim.color } : {}) }} />
                 </span>
                 <span className="diag-quiz__dim-val">{dim.value}</span>
               </li>

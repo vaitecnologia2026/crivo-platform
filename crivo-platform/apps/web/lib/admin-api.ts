@@ -1442,8 +1442,10 @@ export function getDiagnosticResults(tenantId: string, instrumentSlug: string): 
   score?: number;
   level?: string;
   levelLabel?: string;
+  levelColor?: string | null;
   byDimension?: Record<string, number>;
   dimensionLabels?: Record<string, string>;
+  dimensionBands?: Record<string, { code: string; label: string; color: string | null }>;
   methodologyMixed?: boolean;
 }> {
   return adminFetch(`/admin/diagnostics/results/${tenantId}/${encodeURIComponent(instrumentSlug)}`);
@@ -1538,7 +1540,7 @@ export function updateMethodologyDraft(
     minValidCompletionPercent?: number;
     dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null }>;
     questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null }>;
-    bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string }>;
+    bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string | null }>;
   },
 ) {
   return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}`, {

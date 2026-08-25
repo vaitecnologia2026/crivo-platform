@@ -609,13 +609,16 @@ export function removePocketSession(id: string): Promise<{ ok: true }> {
 
 // ── Questionário Psicossocial Organizacional (Briefing §6 — diagnóstico amplo) ──
 
+type DimensionBandMap = Record<string, { code: string; label: string; color: string | null }>;
 type SectorAggregate = {
   sector: string;
   respondents: number;
   suppressed: boolean;
   score?: number;
   level?: PsychosocialRiskLevel;
+  levelColor?: string | null;
   byDimension?: Record<PsychosocialDimension, number>;
+  dimensionBands?: DimensionBandMap;
   topRisk?: PsychosocialDimension;
   // Matriz de Risco e Perfil de grupo: opcionais porque só existem quando a
   // metodologia ativa tem faixas (perfil) e severidade por escala (matriz).
@@ -631,7 +634,9 @@ export type PsychosocialResults = {
         suppressed: false;
         score: number;
         level: PsychosocialRiskLevel;
+        levelColor?: string | null;
         byDimension: Record<PsychosocialDimension, number>;
+        dimensionBands?: DimensionBandMap;
         topRisk: PsychosocialDimension;
         profile?: PsychosocialProfileRow[];
         riskMatrix?: PsychosocialRiskMatrixRow[];
@@ -784,8 +789,10 @@ export interface PublicDiagnosticResult {
   score: number;
   level: string;
   levelLabel?: string;
+  levelColor?: string | null;
   byDimension: Record<string, number>;
   dimensionLabels: Record<string, string>;
+  dimensionBands?: Record<string, { code: string; label: string; color: string | null }>;
   topAttention: string;
 }
 export async function getPublicDiagnostic(slug: string): Promise<PublicDiagnosticInfo> {

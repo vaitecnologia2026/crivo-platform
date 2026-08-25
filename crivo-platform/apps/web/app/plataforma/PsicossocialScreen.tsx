@@ -424,7 +424,7 @@ function ResultadosBody({
                   <div className="bar">
                     <div
                       className="bar__fill"
-                      style={{ width: `${v}%`, background: RISK_COLOR[levelOf(v)] }}
+                      style={{ width: `${v}%`, background: (data.overall as { dimensionBands?: Record<string, { color: string | null }> }).dimensionBands?.[k]?.color ?? RISK_COLOR[levelOf(v)] }}
                     />
                   </div>
                   <span className="bar-row__value">{v}</span>

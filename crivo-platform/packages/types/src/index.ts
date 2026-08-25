@@ -708,6 +708,20 @@ export interface MethodologyConfigBand {
   label: string;
   min: number;
   max: number;
+  /** Cor da faixa (hex, ex.: "#1d9e75") usada na barra de progresso do relatório.
+   *  Ausente/null = a superfície usa sua cor de fallback (zero regressão). */
+  color?: string | null;
+}
+
+/** Faixa em que uma pontuação (0–100) cai — MESMA regra do scoreWithMethodology
+ *  (linha do `band` abaixo): a 1ª faixa cujo [min,max] contém o score; se nenhuma,
+ *  a última (teto superior). Reusado no back (band por dimensão) e no front (LP). */
+export function findBandForScore(
+  bands: MethodologyConfigBand[] | undefined,
+  score: number,
+): MethodologyConfigBand | undefined {
+  if (!bands || bands.length === 0) return undefined;
+  return bands.find((b) => score >= b.min && score <= b.max) ?? bands[bands.length - 1];
 }
 /** Modos de agregação do motor (call 14/07): a estrutura da fórmula passa a ser
  *  escolhida por instrumento. Default = MEDIA_PONDERADA (comportamento atual). */
@@ -776,7 +790,9 @@ export interface MethodologyScoreResult {
   score: number; // 0–100
   levelCode: string; // código da faixa (ex.: AVANCADO / BAIXO)
   levelLabel: string; // rótulo da faixa
-  byDimension: { slug: string; label: string; value: number }[]; // 0–100 por dimensão
+  levelColor: string | null; // cor da faixa do score geral (hex) ou null
+  /** 0–100 por dimensão + a faixa (code/cor) em que a dimensão caiu, para a barra. */
+  byDimension: { slug: string; label: string; value: number; band: string | null; color: string | null }[];
   topAttentions: string[]; // slugs das dimensões de menor valor (pontos de atenção)
   /** % de itens pontuáveis APLICÁVEIS que foram respondidos (0–100). */
   coverage: number;
@@ -915,7 +931,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
     }), mode);
   }
 
-  const band = cfg.bands.find((b) => score >= b.min && score <= b.max) ?? cfg.bands[cfg.bands.length - 1];
+  const band = findBandForScore(cfg.bands, score);
   // "Ponto de atenção" é DESTAQUE RELATIVO: só existe quando alguma dimensão fica
   // ABAIXO das outras. Com todas empatadas (ex.: mesma resposta em tudo) nada se
   // destaca — marcar 100% das dimensões como atenção não informa nada; nesse caso
@@ -930,7 +946,11 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
     score,
     levelCode: band?.code ?? '',
     levelLabel: band?.label ?? '',
-    byDimension,
+    levelColor: band?.color ?? null,
+    byDimension: byDimension.map((d) => {
+      const b = findBandForScore(cfg.bands, d.value);
+      return { ...d, band: b?.code ?? null, color: b?.color ?? null };
+    }),
     topAttentions,
     coverage: roundTo(coverage),
     officialResultBlocked,
@@ -998,7 +1018,12 @@ export const PSYCHOSOCIAL_RISK_LABEL: Record<PsychosocialRiskLevel, string> = {
 export interface PsychosocialResult {
   score: number; // 0–100 (proteção geral; MAIOR = melhor / menor risco)
   level: PsychosocialRiskLevel;
+  levelLabel?: string; // rótulo da faixa da metodologia ativa (quando houver)
+  levelColor?: string | null; // cor da faixa do score geral (hex) ou null
   byDimension: Record<PsychosocialDimension, number>; // 0–100 por dimensão
+  dimensionLabels?: Record<string, string>;
+  /** Faixa (code/cor) em que cada dimensão caiu — alimenta a cor da barra. */
+  dimensionBands?: Record<string, { code: string; label: string; color: string | null }>;
   topRisk: PsychosocialDimension; // dimensão de menor proteção (maior risco)
 }
 

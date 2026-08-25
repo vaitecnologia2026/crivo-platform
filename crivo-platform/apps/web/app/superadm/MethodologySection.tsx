@@ -42,7 +42,7 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
 
 type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null };
 type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
-type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number };
+type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number; color?: string | null };
 
 export function MethodologySection() {
   const [catalog, setCatalog] = useState<InstrumentSummary[]>(BUILTIN_TABS);
@@ -112,7 +112,7 @@ export function MethodologySection() {
       showWhenOperator: x.showWhenOperator ?? null,
       showWhenValue: x.showWhenValue ?? null,
     })));
-    setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max })));
+    setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max, color: x.color ?? null })));
     setScaleLabels(d.scaleLabels && d.scaleLabels.length === 5 ? d.scaleLabels : [...DEFAULT_SCALE_LABELS]);
     setRounding(d.rounding ?? 1);
     setMinCoverage(d.minValidCompletionPercent ?? 70);
@@ -457,7 +457,7 @@ function VersionContent({ version, bandWord }: { version: MethodologyVersion; ba
         <span className="meth-view__title">{bandWord}</span>
         <table>
           <thead>
-            <tr><th>Faixa</th><th>Rótulo</th><th>Intervalo</th></tr>
+            <tr><th>Faixa</th><th>Rótulo</th><th>Intervalo</th><th>Cor</th></tr>
           </thead>
           <tbody>
             {version.bands.map((b) => (
@@ -465,6 +465,12 @@ function VersionContent({ version, bandWord }: { version: MethodologyVersion; ba
                 <td><code>{b.code}</code></td>
                 <td>{b.label}</td>
                 <td>{b.min}–{b.max}</td>
+                <td>
+                  <span
+                    title={b.color ?? "sem cor"}
+                    style={{ display: "inline-block", width: 16, height: 16, borderRadius: 3, verticalAlign: "middle", border: "1px solid var(--line,#DCD7CE)", background: b.color ?? "transparent" }}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -867,13 +873,16 @@ function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
                 <em>{results.data.levelLabel || results.data.level}</em>
               </div>
               <div className="demo-result__dims">
-                {Object.entries(results.data.byDimension ?? {}).map(([slug, v]) => (
-                  <div key={slug} className="demo-result__dim">
-                    <span>{results.data.dimensionLabels?.[slug] ?? slug}</span>
-                    <div className="demo-bar"><i style={{ width: `${v}%` }} /></div>
-                    <b>{v}</b>
-                  </div>
-                ))}
+                {Object.entries(results.data.byDimension ?? {}).map(([slug, v]) => {
+                  const barColor = results.data.dimensionBands?.[slug]?.color;
+                  return (
+                    <div key={slug} className="demo-result__dim">
+                      <span>{results.data.dimensionLabels?.[slug] ?? slug}</span>
+                      <div className="demo-bar"><i style={{ width: `${v}%`, ...(barColor ? { background: barColor } : {}) }} /></div>
+                      <b>{v}</b>
+                    </div>
+                  );
+                })}
               </div>
               {results.data.methodologyMixed && (
                 <p className="demo-result__hint">
@@ -1201,6 +1210,13 @@ function DraftEditor({
                 <input className="meth-in" value={b.label} placeholder="Rótulo" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
                 <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.min} title="mín" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, min: Number(e.target.value) } : x)))} />
                 <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.max} title="máx" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, max: Number(e.target.value) } : x)))} />
+                <input
+                  type="color"
+                  title="Cor da faixa (barra do relatório)"
+                  value={b.color ?? "#999999"}
+                  onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)))}
+                  style={{ width: 34, height: 30, padding: 0, border: "1px solid var(--line,#DCD7CE)", borderRadius: 4, background: "none", cursor: "pointer", flexShrink: 0 }}
+                />
                 <button className="meth-del" title="Remover" onClick={() => setBands(bands.filter((_, j) => j !== i))}>✕</button>
               </div>
             ))}
