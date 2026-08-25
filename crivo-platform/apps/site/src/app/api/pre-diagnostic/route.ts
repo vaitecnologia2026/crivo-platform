@@ -10,16 +10,25 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const apiUrl = process.env.PLATFORM_API_URL;
-  if (!apiUrl) return NextResponse.json({ questions: null, source: "default" });
+  if (!apiUrl) {
+    // Sem esta env a LP fica ETERNAMENTE nas perguntas padrão — editar o MAPA no
+    // Motor nunca reflete. Loga alto para não ser um fallback silencioso.
+    console.warn("[pre-diagnostic] PLATFORM_API_URL ausente — LP usará perguntas padrão embutidas.");
+    return NextResponse.json({ questions: null, source: "default" });
+  }
   try {
     const r = await fetch(`${apiUrl}/public/pre-diagnostic`, {
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(6000),
       cache: "no-store",
     });
-    if (!r.ok) return NextResponse.json({ questions: null, source: "default" });
+    if (!r.ok) {
+      console.warn(`[pre-diagnostic] API ${r.status} — LP usará perguntas padrão embutidas.`);
+      return NextResponse.json({ questions: null, source: "default" });
+    }
     return NextResponse.json(await r.json());
-  } catch {
+  } catch (e) {
+    console.warn("[pre-diagnostic] falha ao buscar a metodologia:", e instanceof Error ? e.message : e);
     return NextResponse.json({ questions: null, source: "default" });
   }
 }

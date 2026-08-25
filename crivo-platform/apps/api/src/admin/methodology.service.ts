@@ -178,6 +178,14 @@ export class MethodologyService {
   /** Cria um RASCUNHO clonando a versão ativa (próximo número de versão). */
   async createDraft(instrument: string, actor: Actor) {
     await this.resolveInstrument(instrument);
+    // Idempotente: se já existe rascunho deste instrumento, reabre ELE em vez de
+    // criar outro. Múltiplos DRAFTs faziam o editor "voltar" para o de versão
+    // maior no reload — o usuário via as edições recém-salvas sumirem da tela.
+    const existingDraft = await this.prisma.admin.methodologyVersion.findFirst({
+      where: { instrument, status: 'DRAFT' },
+      orderBy: { version: 'desc' },
+    });
+    if (existingDraft) return this.getVersion(existingDraft.id);
     const active = await this.getActive(instrument);
     // Escala padrão DEFINIDA na Configuração do Motor semeia a 1ª versão de um
     // diagnóstico novo (sem versão ativa da qual clonar). Só se for válida (5 âncoras).

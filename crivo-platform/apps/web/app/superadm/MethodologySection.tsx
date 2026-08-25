@@ -146,8 +146,10 @@ export function MethodologySection() {
     setMsg(null);
     try {
       await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
-      setMsg("Rascunho salvo.");
+      // load() zera msg/err (:82) — por isso a mensagem vem DEPOIS do await, senão
+      // sumia no mesmo batch do React e o usuário achava que não tinha salvo.
       await load();
+      setMsg("Rascunho salvo. As alterações só vão ao ar quando você clicar em “Salvar e publicar”.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao salvar.");
     } finally {
@@ -164,8 +166,8 @@ export function MethodologySection() {
     try {
       await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
       await publishMethodology(draftId);
-      setMsg("Publicado! Esta é a nova versão ativa.");
       await load();
+      setMsg("Publicado! Esta é a nova versão ativa — o MAPA no site e o portal já refletem as mudanças.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao publicar.");
     } finally {
@@ -346,6 +348,8 @@ export function MethodologySection() {
           onSave={save}
           onPublish={publish}
           onDiscard={discard}
+          errText={err}
+          okText={msg}
         />
       )}
 
@@ -971,7 +975,7 @@ const AGG_SHORT: Record<ScoreAggregation, string> = {
 function DraftEditor({
   label, setLabel, scaleLabels, setScaleLabels, rounding, setRounding, minCoverage, setMinCoverage,
   dims, setDims, questions, setQuestions, bands, setBands,
-  bandKind, bandWord, busy, onSave, onPublish, onDiscard,
+  bandKind, bandWord, busy, onSave, onPublish, onDiscard, errText, okText,
 }: {
   label: string;
   setLabel: (v: string) => void;
@@ -993,6 +997,8 @@ function DraftEditor({
   onSave: () => void;
   onPublish: () => void;
   onDiscard: () => void;
+  errText: string | null;
+  okText: string | null;
 }) {
   const [tab, setTab] = useState<"estrutura" | "escalas" | "faixas" | "calculo" | "biblioteca">("estrutura");
   const scale = scaleLabels.length === 5 ? scaleLabels : [...DEFAULT_SCALE_LABELS];
@@ -1331,6 +1337,16 @@ function DraftEditor({
           Descartar
         </button>
       </div>
+      {/* Mensagem AO LADO dos botões — o banner do topo fica ~1000px acima e
+          passava despercebido (um 400 parecia "não salvou"). */}
+      {errText && <div className="cnae-note cnae-block--warn" style={{ marginTop: 10 }}>{errText}</div>}
+      {okText && <div className="cnae-note cnae-note--ok" style={{ marginTop: 10 }}>{okText}</div>}
+      {!errText && !okText && (
+        <p className="cnae-muted" style={{ fontSize: 12, marginTop: 10 }}>
+          <strong>Salvar rascunho</strong> guarda as alterações sem publicar. O MAPA no site e o portal só
+          mudam quando você clica em <strong>Salvar e publicar</strong>.
+        </p>
+      )}
     </div>
   );
 }

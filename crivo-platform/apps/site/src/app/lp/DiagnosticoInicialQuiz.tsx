@@ -137,7 +137,9 @@ export function DiagnosticoInicialQuiz() {
   // com fallback para as perguntas padrão. Só o TEXTO muda; ids/dimensões/score seguem fixos.
   const [questions, setQuestions] = useState<typeof PRE_DIAGNOSTIC_QUESTIONS>(PRE_DIAGNOSTIC_QUESTIONS);
   useEffect(() => {
-    fetch("/api/pre-diagnostic")
+    // no-store: a metodologia ativa muda no Motor (super admin) e a LP tem que
+    // refletir na próxima abertura do modal, sem cache do browser no meio.
+    fetch("/api/pre-diagnostic", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (Array.isArray(d?.questions) && d.questions.length) setQuestions(d.questions);
@@ -147,6 +149,13 @@ export function DiagnosticoInicialQuiz() {
   }, []);
 
   const total = questions.length;
+  // Rótulos da escala: a metodologia ATIVA manda (aba "Escalas e regras" do
+  // Motor); senão, a escala padrão embutida. `scaleLabels` é string[] — vira
+  // {value,label} para casar com o formato de PRE_DIAGNOSTIC_SCALE.
+  const scale =
+    methodology?.scaleLabels?.length === 5
+      ? methodology.scaleLabels.map((label, i) => ({ value: i + 1, label }))
+      : PRE_DIAGNOSTIC_SCALE;
   // §11 — Etapa 1: Nome, E-mail, Telefone/WhatsApp, Empresa e ate 3 temas.
   const etapa1Valida =
     contact.name.trim() && contact.email.trim() && contact.phone.trim() && contact.company.trim();
@@ -387,7 +396,7 @@ export function DiagnosticoInicialQuiz() {
           <span className="diag-rules__h">Como responder</span>
           <p className="diag-rules__p">Use a escala abaixo para avaliar a realidade atual da sua empresa.</p>
           <ul className="diag-rules__scale">
-            {PRE_DIAGNOSTIC_SCALE.map((s) => (
+            {scale.map((s) => (
               <li key={s.value} className="diag-rules__item">
                 <span className="diag-rules__n">{s.value}</span>
                 <span className="diag-rules__l">{s.label}</span>
@@ -423,7 +432,7 @@ export function DiagnosticoInicialQuiz() {
         <div className="diag-single" key={idx}>
           <p className="diag-single__q">{q.text}</p>
           <div className="diag-single__scale" role="radiogroup" aria-label={q.text}>
-            {PRE_DIAGNOSTIC_SCALE.map((opt) => (
+            {scale.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
@@ -439,7 +448,7 @@ export function DiagnosticoInicialQuiz() {
           </div>
           {/* observação sobre a avaliação dos números — sempre embaixo */}
           <ul className="diag-single__legend" aria-hidden="true">
-            {PRE_DIAGNOSTIC_SCALE.map((s) => (
+            {scale.map((s) => (
               <li key={s.value}>
                 <b>{s.value}</b> {s.label}
               </li>
