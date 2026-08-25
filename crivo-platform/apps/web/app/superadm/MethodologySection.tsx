@@ -25,6 +25,7 @@ import {
   type ScoreAggregation,
 } from "../../lib/admin-api";
 import { DEFAULT_SCALE_LABELS } from "@crivo/types";
+import { SearchSelect } from "./SearchSelect";
 import "./cnae.css";
 
 // Fallback enquanto o catálogo carrega (os 2 built-in existem sempre).
@@ -194,35 +195,19 @@ export function MethodologySection() {
         desenvolvimento. Edita-se um <strong>rascunho</strong> e publica-se: vira a versão ativa, a anterior é arquivada.
       </p>
 
-      {/* Catálogo oficial e diagnósticos criados à mão ficavam na MESMA faixa, com
-          a mesma aparência — e o backend ainda ordena builtIn primeiro, então um
-          rascunho de teste aparecia colado nos oficiais e passava por metodologia
-          CRIVO. A flag builtIn já vinha no payload e não era usada aqui. */}
-      <div className="cnae-tabs" style={{ marginBottom: 8, flexWrap: "wrap" }}>
-        {catalog.filter((i) => i.active && i.builtIn).map((i) => (
-          <button
-            key={i.slug}
-            className={`cnae-tab${instrument === i.slug ? " is-active" : ""}`}
-            onClick={() => setInstrument(i.slug)}
-          >
-            {i.name}
-          </button>
-        ))}
-      </div>
-      {catalog.some((i) => i.active && !i.builtIn) && (
-        <div className="cnae-tabs" style={{ marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {catalog.filter((i) => i.active && !i.builtIn).map((i) => (
-            <button
-              key={i.slug}
-              className={`cnae-tab${instrument === i.slug ? " is-active" : ""}`}
-              onClick={() => setInstrument(i.slug)}
-            >
-              {i.name}
-            </button>
-          ))}
+      {/* Todos os diagnósticos (oficiais da metodologia CRIVO + personalizados)
+          num único seletor com busca — a lista de abas ficou grande demais.
+          O catálogo já vem ordenado com os built-in primeiro. */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ flex: "1 1 320px", minWidth: 260, maxWidth: 460 }}>
+          <SearchSelect
+            options={catalog.filter((i) => i.active).map((i) => ({ value: i.slug, label: i.name }))}
+            value={[instrument]}
+            onChange={(v) => { if (v[0]) setInstrument(v[0]); }}
+            placeholder="Selecione o diagnóstico"
+            clearable={false}
+          />
         </div>
-      )}
-      <div className="cnae-tabs" style={{ marginBottom: 14, flexWrap: "wrap" }}>
         <button className="cnae-tab meth-newtab" onClick={() => setNewOpen(true)}>
           + Novo diagnóstico
         </button>
