@@ -11,7 +11,8 @@ import {
   type ReportsOverview,
 } from "@/lib/admin-api";
 import { printDocument } from "../plataforma/DocumentsPanel";
-import { ReportTemplatesPanel } from "./ReportTemplatesPanel";
+// "Modelos de relatório" migrou para o Motor de Diagnósticos (edita-se o relatório
+// junto do diagnóstico). O painel continua em ReportTemplatesPanel.tsx.
 import { ApprovedTextsPanel } from "./ApprovedTextsPanel";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -29,7 +30,7 @@ const STATUS_CLASS: Record<string, string> = {
  * fila de revisão técnica da CRIVO. A emissão acontece no Portal do Cliente;
  * aqui o Super Admin consulta a versão exata emitida e a marca como revisada.
  */
-type Tab = "emissoes" | "modelos" | "textos";
+type Tab = "emissoes" | "textos";
 
 export function ReportsSection() {
   const [tab, setTab] = useState<Tab>("emissoes");
@@ -96,15 +97,11 @@ export function ReportsSection() {
         <button className={`adm-tab${tab === "emissoes" ? " is-active" : ""}`} onClick={() => setTab("emissoes")}>
           Emissões e revisão
         </button>
-        <button className={`adm-tab${tab === "modelos" ? " is-active" : ""}`} onClick={() => setTab("modelos")}>
-          Modelos de relatório
-        </button>
         <button className={`adm-tab${tab === "textos" ? " is-active" : ""}`} onClick={() => setTab("textos")}>
           Textos aprovados
         </button>
       </div>
 
-      {tab === "modelos" && <ReportTemplatesPanel />}
       {tab === "textos" && <ApprovedTextsPanel />}
 
       {tab === "emissoes" && status === "loading" && <p className="dash-state">Carregando emissões…</p>}

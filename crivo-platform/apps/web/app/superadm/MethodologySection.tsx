@@ -27,6 +27,7 @@ import {
 } from "../../lib/admin-api";
 import { DEFAULT_SCALE_LABELS } from "@crivo/types";
 import { SearchSelect } from "./SearchSelect";
+import { ReportTemplatesPanel } from "./ReportTemplatesPanel";
 import "./cnae.css";
 
 // Fallback enquanto o catálogo carrega (os 2 built-in existem sempre).
@@ -387,6 +388,16 @@ export function MethodologySection() {
           </ul>
         </div>
       )}
+
+      {/* Modelos de relatório — movido de "Relatórios e Dossiês" para editar o
+          relatório junto do diagnóstico. Reage ao diagnóstico do dropdown acima. */}
+      <div style={{ marginTop: 24, borderTop: "1px solid var(--line,#DCD7CE)", paddingTop: 18 }}>
+        <h4 className="meth-h">Modelos de relatório · {inst.name}</h4>
+        <p className="cnae-muted" style={{ marginTop: 0 }}>
+          Modelos de relatório vinculados a este diagnóstico. Novos modelos já nascem ligados a ele.
+        </p>
+        <ReportTemplatesPanel instrumentSlug={instrument} />
+      </div>
     </div>
   );
 }

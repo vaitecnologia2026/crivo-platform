@@ -83,7 +83,7 @@ const EMPTY: FormState = {
  * passa a aparecer no Portal do Cliente das empresas que aplicaram aquele
  * diagnóstico, e o conteúdo é montado com o resultado real do motor.
  */
-export function ReportTemplatesPanel() {
+export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: string } = {}) {
   const [rows, setRows] = useState<ReportTemplateRow[] | null>(null);
   const [instruments, setInstruments] = useState<ReportInstrumentOption[]>([]);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
@@ -105,7 +105,8 @@ export function ReportTemplatesPanel() {
   useEffect(() => { void load(); }, []);
 
   function openNew() {
-    setForm({ ...EMPTY, instrumentSlug: instruments[0]?.slug ?? "" });
+    // No Motor de Diagnósticos o modelo já nasce vinculado ao diagnóstico selecionado.
+    setForm({ ...EMPTY, instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "" });
   }
   function openEdit(r: ReportTemplateRow) {
     setForm({
@@ -348,7 +349,7 @@ export function ReportTemplatesPanel() {
             </tr>
           </thead>
           <tbody>
-            {(rows ?? []).map((r) => (
+            {(rows ?? []).filter((r) => !instrumentSlug || r.instrumentSlug === instrumentSlug).map((r) => (
               <tr key={r.id}>
                 <td className="addx-name">
                   <strong>{r.name}</strong>
