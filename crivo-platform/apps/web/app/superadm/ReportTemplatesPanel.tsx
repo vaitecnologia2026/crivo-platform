@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createReportTemplate,
   deleteReportTemplate,
+  importReportTemplateDocx,
   listReportInstrumentOptions,
   listReportTemplates,
   updateReportTemplate,
@@ -12,6 +13,21 @@ import {
   type ReportTemplateSection,
   type UpsertReportTemplateRequest,
 } from "@/lib/admin-api";
+
+/** Lê um arquivo como base64 puro (sem o prefixo data:). Padrão do CustomPromptsPanel. */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result ?? "");
+      const c = url.indexOf(",");
+      resolve(c >= 0 ? url.slice(c + 1) : url);
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
+    reader.readAsDataURL(file);
+  });
+}
+const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 
 type FormState = {
   id: string | null;
@@ -90,6 +106,9 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function load() {
     setStatus("loading");
@@ -120,6 +139,39 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
       includePlan: r.includePlan,
       active: r.active,
     });
+  }
+
+  async function onImportFile(file: File | null) {
+    if (!file) return;
+    setImportMsg(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setImportMsg(`✕ "${file.name}" excede 8 MB.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setImporting(true);
+    try {
+      const dataBase64 = await fileToBase64(file);
+      const res = await importReportTemplateDocx({
+        filename: file.name,
+        mimeType: file.type || "application/octet-stream",
+        dataBase64,
+      });
+      // Abre o editor pré-preenchido (vínculo do diagnóstico do Motor é mantido).
+      setForm({
+        ...EMPTY,
+        instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "",
+        name: res.name,
+        sections: res.sections.length ? res.sections : [{ heading: "", body: "" }],
+      });
+      const warn = res.warnings.length ? ` Avisos: ${res.warnings.join(" ")}` : "";
+      setImportMsg(`✓ Importado de "${file.name}". Revise as seções (dados de exemplo como empresa/scores podem ser apagados — os números reais entram pelas opções "Incluir resultado/dimensões") e salve.${warn}`);
+    } catch (e) {
+      setImportMsg(`✕ ${e instanceof Error ? e.message : "Falha ao importar o documento."}`);
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   function setField<K extends keyof FormState>(k: K, v: FormState[K]) {
@@ -221,11 +273,29 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
       </div>
 
       {!form && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 14 }}>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={instruments.length === 0 || importing}
+            title="Importar um modelo do Word (.docx) e criar o relatório a partir dele"
+          >
+            {importing ? "Importando…" : "Importar modelo (.docx)"}
+          </button>
           <button className="btn btn--terra btn--sm" onClick={openNew} disabled={instruments.length === 0}>
             + Novo relatório
           </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".docx,.doc"
+            style={{ display: "none" }}
+            onChange={(e) => onImportFile(e.target.files?.[0] ?? null)}
+          />
         </div>
+      )}
+      {importMsg && (
+        <div className="adm-callout" style={{ marginBottom: 12 }}>{importMsg}</div>
       )}
       {instruments.length === 0 && (
         <div className="dash-state dash-state--error">

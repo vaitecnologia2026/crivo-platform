@@ -6,8 +6,12 @@ import { AiSettingsService } from './ai-settings.service';
 import { AiPromptsService } from './ai-prompts.service';
 import { ME_CODE } from '../action-plans/documents.service';
 import { resolveActiveMethodology } from './methodology.service';
+import { extractReportSectionsFromDocx, type ReportImportResult } from './report-docx-import';
 
 type Actor = { id: string; email: string };
+
+/** Teto do upload em base64 (~8 MiB), igual ao dos anexos de prompt. */
+const MAX_IMPORT_BASE64 = 11_184_812;
 
 /**
  * F3 — Catálogo dos TEXTOS APROVADOS por documento (Pacote Final de Templates,
@@ -239,6 +243,19 @@ export class ReportsAdminService {
       select: { slug: true, name: true, _count: { select: { versions: true } } },
     });
     return rows.map((r) => ({ slug: r.slug, name: r.name, versions: r._count.versions }));
+  }
+
+  /**
+   * Importa um modelo de relatório a partir de um .docx: extrai o texto em
+   * seções {heading, body}. STATELESS — não cria o template; devolve os dados
+   * para o admin revisar no editor e salvar com createTemplate.
+   */
+  async importTemplateDocx(dto: { filename: string; mimeType: string; dataBase64: string }): Promise<ReportImportResult> {
+    if (!dto.dataBase64) throw new BadRequestException('Arquivo vazio.');
+    if (dto.dataBase64.length > MAX_IMPORT_BASE64) throw new BadRequestException('Arquivo excede 8 MB.');
+    const buf = Buffer.from(dto.dataBase64, 'base64');
+    if (buf.length === 0) throw new BadRequestException('Arquivo inválido.');
+    return extractReportSectionsFromDocx(dto.filename, buf);
   }
 
   async createTemplate(dto: UpsertReportTemplate, actor: Actor) {

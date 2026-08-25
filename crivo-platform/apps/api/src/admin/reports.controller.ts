@@ -1,8 +1,21 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { IsString, MaxLength } from 'class-validator';
 import type { PlatformAdmin } from '@crivo/types';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
 import { ReportsAdminService, type UpsertReportTemplate } from './reports.service';
+
+/** Upload de um .docx para importar como modelo (base64, padrão dos anexos). */
+class ImportReportTemplateDto {
+  @IsString() @MaxLength(240)
+  filename!: string;
+
+  @IsString() @MaxLength(120)
+  mimeType!: string;
+
+  @IsString()
+  dataBase64!: string;
+}
 
 /** Motor 4 — Relatórios e Dossiês (R-001). Repositório + revisão. Super admin. */
 @Controller('admin/reports')
@@ -38,6 +51,12 @@ export class ReportsAdminController {
   @Post('templates')
   createTemplate(@Body() dto: UpsertReportTemplate, @CurrentAdmin() admin: PlatformAdmin) {
     return this.svc.createTemplate(dto, { id: admin.id, email: admin.email });
+  }
+
+  /** Importa um .docx → seções {heading, body} (não persiste; o admin salva depois). */
+  @Post('templates/import')
+  importTemplate(@Body() dto: ImportReportTemplateDto) {
+    return this.svc.importTemplateDocx(dto);
   }
 
   @Put('templates/:id')
