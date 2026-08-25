@@ -211,9 +211,6 @@ export function MethodologySection() {
       </div>
       {catalog.some((i) => i.active && !i.builtIn) && (
         <div className="cnae-tabs" style={{ marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <span className="cnae-muted" style={{ fontSize: 12, marginRight: 4 }}>
-            Personalizados (não fazem parte da metodologia CRIVO):
-          </span>
           {catalog.filter((i) => i.active && !i.builtIn).map((i) => (
             <button
               key={i.slug}
