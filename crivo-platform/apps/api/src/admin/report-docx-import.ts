@@ -1,14 +1,16 @@
 import { BadRequestException } from '@nestjs/common';
 import mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
 
 /**
- * Importação de um modelo de relatório a partir de um .docx (Word). Extrai o
- * texto em SEÇÕES editáveis {heading, body} para o admin revisar e salvar como
- * ReportTemplate. O binário nunca é persistido — só o texto.
+ * Importação de um modelo de relatório a partir de um .docx (Word) ou .pdf.
+ * Extrai o texto em SEÇÕES editáveis {heading, body} para o admin revisar e
+ * salvar como ReportTemplate. O binário nunca é persistido — só o texto.
  *
  * O documento do cliente pode vir sem estilos de heading (só texto corrido); por
- * isso usamos `convertToHtml` (que preserva h1–h6/p/li/table quando existem) e,
- * como fallback, uma heurística de "linha curta = título".
+ * isso usamos `convertToHtml` no Word (preserva h1–h6/p/li/table quando existem)
+ * e, como fallback — único caminho no PDF, que não tem marcação —, uma
+ * heurística de "linha curta = título".
  */
 
 export type ReportImportSection = { heading: string; body: string };
@@ -159,29 +161,75 @@ function clampSections(sections: ReportImportSection[]): { sections: ReportImpor
   return { sections: out, warnings };
 }
 
+/** Texto puro do PDF vira blocos: linhas curtas ficam isoladas (candidatas a
+ *  título pela heurística) e linhas seguidas se juntam num parágrafo. */
+function pdfTextToBlocks(text: string): Block[] {
+  const blocks: Block[] = [];
+  let para: string[] = [];
+  const flush = () => {
+    if (!para.length) return;
+    const joined = para.join(' ').replace(/\s+/g, ' ').trim();
+    if (joined) blocks.push({ kind: 'text', text: joined });
+    para = [];
+  };
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+    if (looksLikeHeading(line)) {
+      flush();
+      blocks.push({ kind: 'text', text: line });
+      continue;
+    }
+    para.push(line);
+  }
+  flush();
+  return blocks;
+}
+
 /**
- * Extrai seções de um .docx. Aceita `.doc` apenas quando o conteúdo é, na
- * verdade, um OOXML (assinatura "PK") renomeado — caso comum de "Salvar como".
+ * Extrai seções de um .docx ou .pdf. Aceita `.doc` apenas quando o conteúdo é,
+ * na verdade, um OOXML (assinatura "PK") renomeado — caso comum de "Salvar como".
  */
-export async function extractReportSectionsFromDocx(filename: string, buf: Buffer): Promise<ReportImportResult> {
+export async function extractReportSections(filename: string, buf: Buffer): Promise<ReportImportResult> {
   const ext = extOf(filename);
-  const isZip = buf.length >= 2 && buf[0] === 0x50 && buf[1] === 0x4b; // "PK"
-  if (ext !== 'docx' && !(ext === 'doc' && isZip)) {
-    throw new BadRequestException('Envie um arquivo .docx (Word). Se for um .doc antigo, salve como .docx e tente de novo.');
-  }
-  if (!isZip) {
-    throw new BadRequestException('Arquivo .doc no formato antigo não é suportado. Salve como .docx e tente de novo.');
+  let blocks: Block[];
+
+  if (ext === 'pdf') {
+    const isPdf = buf.length >= 4 && buf.toString('latin1', 0, 4) === '%PDF';
+    if (!isPdf) throw new BadRequestException('O arquivo não parece ser um PDF válido.');
+    // pdf-parse v2: API de classe; destroy() libera o documento mesmo em falha.
+    const parser = new PDFParse({ data: buf });
+    let text: string;
+    try {
+      const result = await parser.getText();
+      text = result.text ?? '';
+    } catch {
+      throw new BadRequestException('Não foi possível ler o PDF. Confirme que não está protegido por senha.');
+    } finally {
+      await parser.destroy().catch(() => undefined);
+    }
+    blocks = pdfTextToBlocks(text.slice(0, 200_000));
+  } else {
+    const isZip = buf.length >= 2 && buf[0] === 0x50 && buf[1] === 0x4b; // "PK"
+    if (ext !== 'docx' && !(ext === 'doc' && isZip)) {
+      throw new BadRequestException('Envie um arquivo .docx (Word) ou .pdf. Se for um .doc antigo, salve como .docx e tente de novo.');
+    }
+    if (!isZip) {
+      throw new BadRequestException('Arquivo .doc no formato antigo não é suportado. Salve como .docx e tente de novo.');
+    }
+    let html: string;
+    try {
+      const result = await mammoth.convertToHtml({ buffer: buf });
+      html = result.value ?? '';
+    } catch {
+      throw new BadRequestException('Não foi possível ler o documento. Confirme que é um .docx válido.');
+    }
+    blocks = htmlToBlocks(html);
   }
 
-  let html: string;
-  try {
-    const result = await mammoth.convertToHtml({ buffer: buf });
-    html = result.value ?? '';
-  } catch {
-    throw new BadRequestException('Não foi possível ler o documento. Confirme que é um .docx válido.');
-  }
-
-  const blocks = htmlToBlocks(html);
   if (blocks.length === 0) {
     throw new BadRequestException('O documento não tem texto que possa ser importado.');
   }

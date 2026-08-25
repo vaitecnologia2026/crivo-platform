@@ -97,8 +97,9 @@ export function DocumentsPanel({ onEmitted }: { onEmitted?: () => void } = {}) {
   );
 }
 
-/** Abre o documento em uma janela imprimível (Salvar como PDF pelo navegador). */
-export function printDocument(doc: GeneratedDocument) {
+/** Monta o HTML completo do documento — usado pelo print E pela pré-visualização
+ *  dos Modelos de relatório no super admin (iframe), para o preview ser fiel. */
+export function renderDocumentHtml(doc: GeneratedDocument): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -153,6 +154,13 @@ export function printDocument(doc: GeneratedDocument) {
   <div class="foot">CRIVO™ — Decision Intelligence · documento de apoio técnico, gerencial e documental.</div>
   <button onclick="window.print()" style="margin-top:24px;padding:10px 18px;background:#a8693d;color:#fff;border:0;border-radius:4px;cursor:pointer;font-family:sans-serif">Imprimir / Salvar PDF</button>
 </body></html>`;
+
+  return html;
+}
+
+/** Abre o documento em uma janela imprimível (Salvar como PDF pelo navegador). */
+export function printDocument(doc: GeneratedDocument) {
+  const html = renderDocumentHtml(doc);
 
   // O documento precisa SEMPRE sair. Bloqueio de pop-up é o padrão de muitos
   // navegadores: quando window.open volta null, em vez de só avisar, baixamos o

@@ -1845,7 +1845,7 @@ export function updateReportTemplate(id: string, dto: UpsertReportTemplateReques
 export function deleteReportTemplate(id: string): Promise<{ deactivatedInsteadOfDeleted: boolean; emitted: number }> {
   return adminFetch(`/admin/reports/templates/${id}`, { method: "DELETE" });
 }
-/** Importa um .docx → seções {heading, body} (não persiste; abre no editor).
+/** Importa um .docx ou .pdf → seções {heading, body} (não persiste; abre no editor).
  *  Extração no servidor pode demorar: timeout de 60s, acima dos 15s padrão. */
 export function importReportTemplateDocx(
   input: { filename: string; mimeType: string; dataBase64: string },

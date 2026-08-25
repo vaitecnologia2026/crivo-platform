@@ -13,6 +13,8 @@ import {
   type ReportTemplateSection,
   type UpsertReportTemplateRequest,
 } from "@/lib/admin-api";
+import { renderDocumentHtml } from "../plataforma/DocumentsPanel";
+import { RESPONSIBILITY_NOTE, type GeneratedDocument } from "@crivo/types";
 
 /** Lê um arquivo como base64 puro (sem o prefixo data:). Padrão do CustomPromptsPanel. */
 function fileToBase64(file: File): Promise<string> {
@@ -108,7 +110,97 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
   const [busyId, setBusyId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  /** Monta um GeneratedDocument de EXEMPLO fiel ao gerador real do portal
+   *  (generateFromTemplate): seções do form + blocos dinâmicos com valores de
+   *  amostra + conclusão/controle documental. Renderizado com o MESMO
+   *  renderDocumentHtml do portal — o preview é o documento de verdade. */
+  function buildPreviewDoc(f: FormState): GeneratedDocument {
+    const instrumentName = instruments.find((i) => i.slug === f.instrumentSlug)?.name ?? f.instrumentSlug;
+    const sections: GeneratedDocument["sections"] = f.sections
+      .filter((s) => s.heading.trim() || s.body.trim())
+      .map((s) => ({ heading: s.heading.trim() || "Contexto", body: s.body }));
+    if (f.includeResults) {
+      sections.push({
+        heading: "Resultado do diagnóstico",
+        body:
+          `Resultado agregado de "${instrumentName}" com base em 12 respondente(s) em 3 setor(es). ` +
+          "Resultado coletivo — nenhuma resposta individual é exibida ou identificável. (valores de exemplo)",
+        rows: [
+          { label: "Índice do diagnóstico (0–100)", value: "62,5" },
+          { label: "Faixa", value: "Faixa de exemplo" },
+          { label: "Respondentes", value: "12" },
+          { label: "Última resposta", value: new Date().toLocaleDateString("pt-BR") },
+        ],
+      });
+    }
+    if (f.includeDimensions) {
+      sections.push({
+        heading: "Resultado por dimensão",
+        body: "Média por dimensão da versão da metodologia ativa no período. (valores de exemplo)",
+        table: {
+          columns: ["Dimensão", "Índice (0–100)"],
+          data: [
+            ["Dimensão exemplo A", "58,3"],
+            ["Dimensão exemplo B", "71,0"],
+            ["Dimensão exemplo C", "45,8"],
+          ],
+        },
+      });
+    }
+    if (f.includePlan) {
+      sections.push({
+        heading: "Plano de Evolução vinculado",
+        body: 'Ações registradas em "Plano de Evolução" (exemplo).',
+        table: {
+          columns: ["Ponto de atenção", "Ação", "Responsável", "Prazo", "Risco", "Status"],
+          data: [["Exemplo de ponto", "Ação de exemplo", "RH", "30 dias", "Moderado", "Em andamento"]],
+        },
+      });
+    }
+    sections.push({
+      heading: "Conclusão e validação",
+      body:
+        "A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de " +
+        "responsabilidade da empresa contratante e/ou do responsável técnico/designado.",
+      table: {
+        columns: ["Responsável", "Nome", "Cargo", "Registro profissional", "Data", "Assinatura"],
+        data: [
+          ["Empresa", "", "", "", "", ""],
+          ["Responsável técnico/designado", "", "", "", "", ""],
+        ],
+      },
+    });
+    sections.push({
+      heading: "Controle documental",
+      rows: [
+        { label: "Status do documento", value: "Rascunho (pré-visualização)" },
+        { label: "Versão do documento", value: "Atribuída na emissão oficial" },
+        { label: "Data de emissão", value: "—" },
+        { label: "Validação", value: "Assinatura fora do sistema (empresa e responsável técnico)" },
+        { label: "Hash/Identificador", value: "Atribuído na emissão oficial" },
+      ],
+    });
+    return {
+      type: "preview",
+      title: f.name.trim() || "Relatório sem nome",
+      subtitle: f.description.trim() || `Relatório vinculado ao diagnóstico ${instrumentName}`,
+      company: "Empresa Exemplo S.A.",
+      generatedAt: new Date().toISOString(),
+      meta: [
+        { label: "Empresa", value: "Empresa Exemplo S.A. (exemplo)" },
+        { label: "Diagnóstico aplicado", value: instrumentName },
+        { label: "Método", value: "—" },
+        { label: "Saída técnica", value: "—" },
+        { label: "Respondentes", value: "12 (exemplo)" },
+        { label: "Responsável CRIVO", value: "—" },
+      ],
+      sections,
+      responsibilityNote: RESPONSIBILITY_NOTE,
+    };
+  }
 
   async function load() {
     setStatus("loading");
@@ -157,13 +249,16 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
         mimeType: file.type || "application/octet-stream",
         dataBase64,
       });
-      // Abre o editor pré-preenchido (vínculo do diagnóstico do Motor é mantido).
-      setForm({
+      // Abre o editor pré-preenchido (vínculo do diagnóstico do Motor é mantido)
+      // e já mostra a pré-visualização de como o relatório vai ficar.
+      const imported: FormState = {
         ...EMPTY,
         instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "",
         name: res.name,
         sections: res.sections.length ? res.sections : [{ heading: "", body: "" }],
-      });
+      };
+      setForm(imported);
+      setPreviewHtml(renderDocumentHtml(buildPreviewDoc(imported)));
       const warn = res.warnings.length ? ` Avisos: ${res.warnings.join(" ")}` : "";
       setImportMsg(`✓ Importado de "${file.name}". Revise as seções (dados de exemplo como empresa/scores podem ser apagados — os números reais entram pelas opções "Incluir resultado/dimensões") e salve.${warn}`);
     } catch (e) {
@@ -278,9 +373,9 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
             className="btn btn--ghost btn--sm"
             onClick={() => fileRef.current?.click()}
             disabled={instruments.length === 0 || importing}
-            title="Importar um modelo do Word (.docx) e criar o relatório a partir dele"
+            title="Importar um modelo do Word (.docx) ou PDF e criar o relatório a partir dele"
           >
-            {importing ? "Importando…" : "Importar modelo (.docx)"}
+            {importing ? "Importando…" : "Importar modelo (Word/PDF)"}
           </button>
           <button className="btn btn--terra btn--sm" onClick={openNew} disabled={instruments.length === 0}>
             + Novo relatório
@@ -288,7 +383,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
           <input
             ref={fileRef}
             type="file"
-            accept=".docx,.doc"
+            accept=".docx,.doc,.pdf"
             style={{ display: "none" }}
             onChange={(e) => onImportFile(e.target.files?.[0] ?? null)}
           />
@@ -400,9 +495,45 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
             <button className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
               {saving ? "Salvando…" : form.id ? "Salvar alterações" : "Criar relatório"}
             </button>
+            <button
+              className="btn btn--outline-dark btn--sm"
+              disabled={saving}
+              onClick={() => setPreviewHtml(renderDocumentHtml(buildPreviewDoc(form)))}
+              title="Ver como o relatório vai ficar no Portal do Cliente (com dados de exemplo)"
+            >
+              Pré-visualizar
+            </button>
             <button className="btn btn--ghost btn--sm" disabled={saving} onClick={() => setForm(null)}>
               Cancelar
             </button>
+          </div>
+        </div>
+      )}
+
+      {previewHtml && (
+        <div className="modal-backdrop" onClick={() => setPreviewHtml(null)}>
+          <div className="modal modal--wide" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
+            <header className="modal__head">
+              <h2>Pré-visualização do relatório</h2>
+              <button className="icon-btn" onClick={() => setPreviewHtml(null)} title="Fechar">✕</button>
+            </header>
+            <div className="modal__body" style={{ padding: 0 }}>
+              {/* iframe isola o CSS do documento (Georgia/serif) do CSS do painel —
+                  é o MESMO HTML que o portal imprime, com valores de exemplo. */}
+              <iframe
+                title="Pré-visualização do relatório"
+                srcDoc={previewHtml}
+                style={{ width: "100%", height: "68vh", border: 0, background: "#fff", display: "block" }}
+              />
+            </div>
+            <div className="modal__foot">
+              <span className="prod-note" style={{ marginRight: "auto" }}>
+                Números e empresa são de exemplo — no portal entram os dados reais do diagnóstico.
+              </span>
+              <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => setPreviewHtml(null)}>
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

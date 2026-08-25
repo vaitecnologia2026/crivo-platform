@@ -6,7 +6,7 @@ import { AiSettingsService } from './ai-settings.service';
 import { AiPromptsService } from './ai-prompts.service';
 import { ME_CODE } from '../action-plans/documents.service';
 import { resolveActiveMethodology } from './methodology.service';
-import { extractReportSectionsFromDocx, type ReportImportResult } from './report-docx-import';
+import { extractReportSections, type ReportImportResult } from './report-docx-import';
 
 type Actor = { id: string; email: string };
 
@@ -246,8 +246,8 @@ export class ReportsAdminService {
   }
 
   /**
-   * Importa um modelo de relatório a partir de um .docx: extrai o texto em
-   * seções {heading, body}. STATELESS — não cria o template; devolve os dados
+   * Importa um modelo de relatório a partir de um .docx ou .pdf: extrai o texto
+   * em seções {heading, body}. STATELESS — não cria o template; devolve os dados
    * para o admin revisar no editor e salvar com createTemplate.
    */
   async importTemplateDocx(dto: { filename: string; mimeType: string; dataBase64: string }): Promise<ReportImportResult> {
@@ -255,7 +255,7 @@ export class ReportsAdminService {
     if (dto.dataBase64.length > MAX_IMPORT_BASE64) throw new BadRequestException('Arquivo excede 8 MB.');
     const buf = Buffer.from(dto.dataBase64, 'base64');
     if (buf.length === 0) throw new BadRequestException('Arquivo inválido.');
-    return extractReportSectionsFromDocx(dto.filename, buf);
+    return extractReportSections(dto.filename, buf);
   }
 
   async createTemplate(dto: UpsertReportTemplate, actor: Actor) {
