@@ -72,6 +72,7 @@ import { MentoriasScreen } from "./MentoriasScreen";
 import { AnalyticsScreen } from "./AnalyticsScreen";
 import { CustoScreen } from "./CustoScreen";
 import { PsicossocialScreen } from "./PsicossocialScreen";
+import { ColaboradoresScreen } from "./ColaboradoresScreen";
 import { UsuariosScreen } from "./UsuariosScreen";
 import { OrganizacaoScreen } from "./OrganizacaoScreen";
 import { RolesScreen } from "./RolesScreen";
@@ -285,6 +286,7 @@ export function Plataforma() {
       if (name === "essencial") mountIsland("essencial-root", <DiagnosticoEssencialScreen />);
       if (name === "parecer") mountIsland("parecer-root", <ParecerScreen />);
       if (name === "psicossocial") mountIsland("psicossocial-root", <PsicossocialScreen />);
+      if (name === "colaboradores") mountIsland("colaboradores-root", <ColaboradoresScreen />);
       if (name === "questionario") mountIsland("quiz-root", <QuestionarioScreen />);
       if (name === "pocket") mountIsland("pocket-root", <PocketScreen />);
       if (name === "mentorias") mountIsland("mentorias-root", <MentoriasScreen />);

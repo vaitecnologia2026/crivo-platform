@@ -1183,6 +1183,7 @@ model Organization {
   psychosocialSlug    String?              @unique
   diagnosticLinks     DiagnosticLink[]
   diagnosticResponses DiagnosticResponse[]
+  collaborators       Collaborator[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -2252,6 +2253,32 @@ model DiagnosticResponse {
   @@index([instrumentSlug])
   @@index([methodologyVersionId])
   @@map("diagnostic_responses")
+}
+
+/// Funcionário cadastrado pelo cliente para responder o diagnóstico contratado.
+/// Cada colaborador tem um TOKEN de link único (/r/<token>); no acesso valida o
+/// CPF cadastrado e, ao concluir, grava `respondedAt` — a resposta em si continua
+/// ANÔNIMA (psychosocial_responses/diagnostic_responses) e NÃO referencia esta
+/// linha, preservando a agregação com supressão (NR-1/LGPD).
+model Collaborator {
+  id               String       @id @default(uuid()) @db.Uuid
+  tenantId         String       @db.Uuid
+  org              Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  phone            String? // WhatsApp (dígitos; envio via API VAI)
+  sector           String?
+  email            String?
+  cpf              String // normalizado (11 dígitos) — valida o acesso ao link
+  token            String       @unique // /r/<token> — 128 bits de entropia
+  inviteEmailAt    DateTime?    @map("invite_email_at")
+  inviteWhatsappAt DateTime?    @map("invite_whatsapp_at")
+  respondedAt      DateTime?    @map("responded_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@unique([tenantId, cpf])
+  @@index([tenantId])
+  @@map("collaborators")
 }
 
 enum MethodologyStatus {

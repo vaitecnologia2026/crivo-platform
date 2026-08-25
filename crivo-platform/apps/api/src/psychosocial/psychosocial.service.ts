@@ -59,8 +59,16 @@ function makeSlug(orgName: string): string {
 export class PsychosocialService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Submete uma resposta anônima. Retorna o resultado individual ao respondente. */
-  async submit(tenantId: string, dto: SubmitPsychosocialDto) {
+  /** Submete uma resposta anônima. Retorna o resultado individual ao respondente.
+   *  `beforeCreate` roda na MESMA transação, ANTES do create — usado pelo fluxo de
+   *  colaboradores para marcar participação (respondedAt) de forma atômica sem
+   *  gravar nenhum identificador na resposta (mantém o anonimato). Se lançar,
+   *  nada é gravado. */
+  async submit(
+    tenantId: string,
+    dto: SubmitPsychosocialDto,
+    beforeCreate?: (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => Promise<void>,
+  ) {
     // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
     // MET1: capturamos o versionId da metodologia que pontuou, para pinar a trilha
     // na resposta — republicar depois não re-pontua o que já foi respondido.
@@ -94,6 +102,10 @@ export class PsychosocialService {
     }
     const sector = dto.sector?.trim() || null;
     return this.prisma.forTenant(tenantId, async (tx) => {
+      // Gate atômico (colaboradores): marca respondedAt e aborta se já respondeu,
+      // ANTES de criar a resposta — na mesma transação, então ou grava os dois ou
+      // nenhum. A resposta em si NÃO recebe nenhum identificador do colaborador.
+      if (beforeCreate) await beforeCreate(tx);
       await tx.psychosocialResponse.create({
         data: {
           tenantId,

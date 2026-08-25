@@ -3535,3 +3535,32 @@ export function computeOperationalAlerts(s: AlertsSnapshot, nowMs: number): Oper
 
   return { alerts, locks };
 }
+
+// ── CPF (cadastro de colaboradores) ───────────────────────────────────────────
+/** Só os 11 dígitos do CPF (remove pontuação/espaços). */
+export function normalizeCpf(input: string | null | undefined): string {
+  return (input ?? '').replace(/\D/g, '').slice(0, 11);
+}
+
+/** Valida CPF pelos dígitos verificadores. Rejeita tamanho ≠ 11 e sequências
+ *  repetidas (000... / 111...). Puro — usável no front e no back. */
+export function isValidCpf(input: string | null | undefined): boolean {
+  const cpf = normalizeCpf(input);
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  const digits = cpf.split('').map(Number);
+  const calc = (len: number): number => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += digits[i] * (len + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(9) === digits[9] && calc(10) === digits[10];
+}
+
+/** Máscara de exibição: 123.456.789-09 (parcial se incompleto). */
+export function formatCpf(input: string | null | undefined): string {
+  const cpf = normalizeCpf(input);
+  if (cpf.length !== 11) return cpf;
+  return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
+}

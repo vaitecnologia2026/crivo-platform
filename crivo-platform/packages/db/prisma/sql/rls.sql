@@ -53,7 +53,9 @@ DECLARE
                          -- F2 Pacote de Templates: trilha por ação + devolutiva.
                          'action_item_history','devolutiva_records',
                          -- F4: ciclos formais de diagnóstico (snapshot p/ TPL-003).
-                         'diagnostic_cycles'];
+                         'diagnostic_cycles',
+                         -- Colaboradores: cadastro de funcionários por tenant (link único).
+                         'collaborators'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

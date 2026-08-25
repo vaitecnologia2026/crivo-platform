@@ -173,6 +173,10 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="psicossocial-root"></div>
       </section>
 
+      <section class="route" data-route="colaboradores">
+        <div id="colaboradores-root"></div>
+      </section>
+
       <!-- ============ POCKET CRIVO ============ -->
       <section class="route" data-route="pocket">
         <div id="pocket-root"></div>

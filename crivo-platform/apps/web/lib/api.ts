@@ -854,6 +854,77 @@ export async function submitPublicPsychosocial(
   return res.json();
 }
 
+// ── Colaboradores (cadastro por tenant + link único do diagnóstico) ──
+export interface CollaboratorView {
+  id: string;
+  name: string;
+  phone: string | null;
+  sector: string | null;
+  email: string | null;
+  cpfMasked: string;
+  link: string;
+  status: "pending" | "invited" | "responded";
+  inviteEmailAt: string | null;
+  inviteWhatsappAt: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+}
+export interface CollaboratorInput {
+  name: string;
+  phone?: string;
+  sector?: string;
+  email?: string;
+  cpf: string;
+}
+export function listCollaborators(): Promise<CollaboratorView[]> {
+  return apiFetch<CollaboratorView[]>("/collaborators");
+}
+export function createCollaborator(dto: CollaboratorInput): Promise<CollaboratorView> {
+  return apiFetch<CollaboratorView>("/collaborators", { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateCollaborator(id: string, dto: Partial<CollaboratorInput>): Promise<CollaboratorView> {
+  return apiFetch<CollaboratorView>(`/collaborators/${id}`, { method: "PATCH", body: JSON.stringify(dto) });
+}
+export function deleteCollaborator(id: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/collaborators/${id}`, { method: "DELETE" });
+}
+export function importCollaborators(rows: CollaboratorInput[]): Promise<{ created: number; errors: { line: number; reason: string }[] }> {
+  return apiFetch("/collaborators/import", { method: "POST", body: JSON.stringify({ rows }) });
+}
+export function sendCollaboratorEmail(id: string): Promise<{ ok: boolean; provider: string }> {
+  return apiFetch(`/collaborators/${id}/send-email`, { method: "POST" });
+}
+export function sendCollaboratorWhatsapp(id: string): Promise<{ ok: boolean; provider: string }> {
+  return apiFetch(`/collaborators/${id}/send-whatsapp`, { method: "POST" });
+}
+
+// Públicos (link /r/<token> — sem auth)
+export async function getCollabInfo(token: string): Promise<{ tenantName: string; answered: boolean }> {
+  const res = await fetch(`${apiBase()}/public/collab/${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message ?? "Link inválido"); }
+  return res.json();
+}
+export async function verifyCollab(
+  token: string,
+  cpf: string,
+): Promise<{ answered: boolean; name?: string; sector?: string | null; tenantName?: string; questions?: PsychosocialQuestion[] }> {
+  const res = await fetch(`${apiBase()}/public/collab/${encodeURIComponent(token)}/verify`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cpf }), signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message ?? "CPF não confere"); }
+  return res.json();
+}
+export async function submitCollab(
+  token: string,
+  dto: { cpf: string; answers: { questionId: number; value: number }[] },
+): Promise<{ ok: true; result: PsychosocialResult }> {
+  const res = await fetch(`${apiBase()}/public/collab/${encodeURIComponent(token)}/submit`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dto), signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({ message: res.statusText })); throw new Error(e.message ?? "Falha ao enviar"); }
+  return res.json();
+}
+
 // ── Registro de Decisões (Anexo ICD §5–§9) — front door dos 4 Eixos ──
 export function listDecisions(): Promise<DecisionData[]> {
   return apiFetch<DecisionData[]>('/decisions');

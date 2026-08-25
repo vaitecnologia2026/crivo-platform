@@ -133,6 +133,16 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Portal', current: 'NR-1 · Riscos Psicossociais' },
       },
       {
+        // Cadastro de funcionários que vão responder o diagnóstico contratado
+        // (link único por CPF, envio por e-mail/WhatsApp). Módulo 'campanhas'
+        // (mesmo dos diagnósticos); SEM methods (serve qualquer diagnóstico).
+        route: 'colaboradores',
+        label: 'Colaboradores',
+        icon: '❖',
+        module: 'campanhas',
+        breadcrumb: { path: 'Portal', current: 'Colaboradores' },
+      },
+      {
         route: 'campanhas',
         label: 'Campanhas de Diagnóstico',
         icon: '◭',
