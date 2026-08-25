@@ -287,6 +287,24 @@ export class MethodologyService {
     return this.getVersion(id);
   }
 
+  /** Edita SÓ a COR das faixas de uma versão ATIVA, sem republicar. Cor é
+   *  apresentação (barras do relatório) — NÃO altera min/max/código/pontuação.
+   *  Restrito à ATIVA: rascunho tem o editor próprio e arquivada é imutável. */
+  async updateBandColors(id: string, dto: { bands: { id: string; color: string }[] }, actor: Actor) {
+    const v = await this.prisma.admin.methodologyVersion.findUnique({ where: { id } });
+    if (!v) throw new NotFoundException('Versão não encontrada.');
+    if (v.status !== 'ACTIVE') throw new BadRequestException('Só a versão ativa pode ter as cores ajustadas aqui.');
+    // versionId no where: um id de faixa de OUTRA versão simplesmente não casa (0 linhas).
+    for (const b of dto.bands) {
+      await this.prisma.admin.methodologyBand.updateMany({
+        where: { id: b.id, versionId: id },
+        data: { color: b.color },
+      });
+    }
+    await this.audit.record({ action: 'methodology.band-colors', actor, target: `${v.instrument} v${v.version}` });
+    return this.getVersion(id);
+  }
+
   /** Publica um RASCUNHO → ATIVA (arquiva a ativa anterior do mesmo instrumento). */
   async publish(id: string, actor: Actor) {
     const v = await this.prisma.admin.methodologyVersion.findUnique({

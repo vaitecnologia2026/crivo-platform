@@ -15,6 +15,7 @@ import {
   listMethodologyVersions,
   listTenants,
   publishMethodology,
+  updateMethodologyBandColors,
   updateMethodologyDraft,
   setDiagnosticLinkActive,
   type DiagnosticLinkSummary,
@@ -285,7 +286,9 @@ export function MethodologySection() {
         </div>
 
         {/* Conteúdo da versão ATIVA + memória de cálculo (leitura) */}
-        {contentOpen && active && <VersionContent version={active} bandWord={meta.bandWord} />}
+        {contentOpen && active && (
+          <VersionContent version={active} bandWord={meta.bandWord} editableColors onSaved={load} />
+        )}
       </div>
 
       {/* Aplicação por empresa REMOVIDA aqui: o diagnóstico é GLOBAL. A empresa e a
@@ -390,10 +393,43 @@ export function MethodologySection() {
  * Pedido do cliente (call 14/07): "consigo cadastrar, mas preciso VER o que
  * tem lá dentro" + "onde vejo a memória de cálculo".
  */
-function VersionContent({ version, bandWord }: { version: MethodologyVersion; bandWord: string }) {
+function VersionContent({
+  version,
+  bandWord,
+  editableColors = false,
+  onSaved,
+}: {
+  version: MethodologyVersion;
+  bandWord: string;
+  /** Quando true, as cores das faixas viram editáveis (só na versão ATIVA). */
+  editableColors?: boolean;
+  onSaved?: () => void;
+}) {
   const hasCustomWeights =
     version.dimensions.some((d) => d.weight !== 1) || version.questions.some((q) => q.weight !== 1);
   const invertidas = version.questions.filter((q) => q.inverse).length;
+  // Edição de cor por faixa (bandId → cor). Só faz sentido com editableColors.
+  const [colorEdits, setColorEdits] = useState<Record<string, string>>({});
+  const [savingColors, setSavingColors] = useState(false);
+  const [colorMsg, setColorMsg] = useState<string | null>(null);
+  const dirtyColors = Object.keys(colorEdits).length > 0;
+  async function saveColors() {
+    setSavingColors(true);
+    setColorMsg(null);
+    try {
+      await updateMethodologyBandColors(
+        version.id,
+        Object.entries(colorEdits).map(([id, color]) => ({ id, color })),
+      );
+      setColorEdits({});
+      setColorMsg("Cores salvas — já valem nos relatórios.");
+      onSaved?.();
+    } catch (e) {
+      setColorMsg(e instanceof Error ? e.message : "Falha ao salvar as cores.");
+    } finally {
+      setSavingColors(false);
+    }
+  }
   return (
     <div className="meth-view">
       <div className="meth-view__calc">
@@ -466,15 +502,38 @@ function VersionContent({ version, bandWord }: { version: MethodologyVersion; ba
                 <td>{b.label}</td>
                 <td>{b.min}–{b.max}</td>
                 <td>
-                  <span
-                    title={b.color ?? "sem cor"}
-                    style={{ display: "inline-block", width: 16, height: 16, borderRadius: 3, verticalAlign: "middle", border: "1px solid var(--line,#DCD7CE)", background: b.color ?? "transparent" }}
-                  />
+                  {editableColors && b.id ? (
+                    <input
+                      type="color"
+                      title="Cor da faixa (barra do relatório)"
+                      value={colorEdits[b.id] ?? b.color ?? "#999999"}
+                      onChange={(e) => setColorEdits((p) => ({ ...p, [b.id as string]: e.target.value }))}
+                      style={{ width: 34, height: 26, padding: 0, border: "1px solid var(--line,#DCD7CE)", borderRadius: 4, background: "none", cursor: "pointer", verticalAlign: "middle" }}
+                    />
+                  ) : (
+                    <span
+                      title={b.color ?? "sem cor"}
+                      style={{ display: "inline-block", width: 16, height: 16, borderRadius: 3, verticalAlign: "middle", border: "1px solid var(--line,#DCD7CE)", background: b.color ?? "transparent" }}
+                    />
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {editableColors && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+            <button className="btn btn--outline-dark btn--sm" disabled={!dirtyColors || savingColors} onClick={saveColors}>
+              {savingColors ? "Salvando…" : "Salvar cores"}
+            </button>
+            {colorMsg && <span className="cnae-muted" style={{ fontSize: 12 }}>{colorMsg}</span>}
+            {!colorMsg && (
+              <span className="cnae-muted" style={{ fontSize: 12 }}>
+                Ajuste a cor de cada faixa — aplica na hora, sem republicar.
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

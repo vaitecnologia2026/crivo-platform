@@ -116,3 +116,18 @@ export class UpdateMethodologyDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => BandDto)
   bands?: BandDto[];
 }
+
+/** Só a COR de cada faixa, por id — para editar a versão ATIVA sem republicar
+ *  (cor é apresentação, não altera min/max/pontuação). */
+class BandColorDto {
+  @IsString() @MaxLength(64)
+  id!: string;
+
+  @IsString() @MaxLength(20)
+  color!: string;
+}
+
+export class UpdateBandColorsDto {
+  @IsArray() @ValidateNested({ each: true }) @Type(() => BandColorDto)
+  bands!: BandColorDto[];
+}

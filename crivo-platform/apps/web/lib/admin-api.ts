@@ -1551,6 +1551,13 @@ export function updateMethodologyDraft(
 export function publishMethodology(id: string) {
   return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}/publish`, { method: "POST" });
 }
+/** Ajusta só as cores das faixas da versão ATIVA (sem republicar). */
+export function updateMethodologyBandColors(id: string, bands: { id: string; color: string }[]) {
+  return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}/band-colors`, {
+    method: "PUT",
+    body: JSON.stringify({ bands }),
+  });
+}
 export function deleteMethodologyDraft(id: string) {
   return adminFetch<{ ok: boolean }>(`/admin/methodology/version/${id}`, { method: "DELETE" });
 }

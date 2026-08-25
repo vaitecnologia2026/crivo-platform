@@ -3,7 +3,7 @@ import type { PlatformAdmin } from '@crivo/types';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
 import { MethodologyService } from './methodology.service';
-import { UpdateMethodologyDto } from './methodology.dto';
+import { UpdateBandColorsDto, UpdateMethodologyDto } from './methodology.dto';
 
 /** Metodologia configurável (Fase 1) — versões/dimensões/perguntas/faixas. Super admin. */
 @Controller('admin/methodology')
@@ -43,6 +43,16 @@ export class MethodologyController {
   @Post('version/:id/publish')
   publish(@CurrentAdmin() admin: PlatformAdmin, @Param('id') id: string) {
     return this.svc.publish(id, { id: admin.id, email: admin.email });
+  }
+
+  /** Ajusta só as cores das faixas da versão ATIVA (sem republicar). */
+  @Put('version/:id/band-colors')
+  bandColors(
+    @CurrentAdmin() admin: PlatformAdmin,
+    @Param('id') id: string,
+    @Body() dto: UpdateBandColorsDto,
+  ) {
+    return this.svc.updateBandColors(id, dto, { id: admin.id, email: admin.email });
   }
 
   @Delete('version/:id')
