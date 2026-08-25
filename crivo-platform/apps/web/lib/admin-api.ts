@@ -123,7 +123,13 @@ async function adminFetch<T>(
     const msg = typeof err.message === "string" && err.message.trim() ? err.message : `Erro na requisição (HTTP ${res.status})`;
     throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+  // Alguns endpoints retornam null (ex.: metodologia SEM versão ativa) e o NestJS
+  // manda corpo VAZIO com 200 — aí res.json() estourava "Unexpected end of JSON input".
+  // Também cobre 204/205 No Content. Corpo vazio => null (compatível com tipos `| null`).
+  if (res.status === 204 || res.status === 205) return null as T;
+  const text = await res.text();
+  if (!text) return null as T;
+  return JSON.parse(text) as T;
 }
 
 // ── Endpoints do control plane ──
