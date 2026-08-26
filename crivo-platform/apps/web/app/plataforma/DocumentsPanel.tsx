@@ -103,7 +103,24 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const meta = doc.meta.map((m) => `<tr><th>${esc(m.label)}</th><td>${esc(m.value)}</td></tr>`).join("");
+  // Cabeçalho oficial (modelo do Dossiê Técnico): identificação em GRADE DE PARES,
+  // duas por linha. Campos sem valor NÃO são exibidos — o modelo oficial proíbe
+  // campo vazio/"—" no documento.
+  const metaItems = doc.meta.filter((m) => {
+    const v = (m.value ?? "").trim();
+    return v !== "" && v !== "—" && v !== "-";
+  });
+  const metaRows: string[] = [];
+  for (let i = 0; i < metaItems.length; i += 2) {
+    const a = metaItems[i];
+    const b = metaItems[i + 1];
+    metaRows.push(
+      `<tr><th>${esc(a.label)}</th><td>${esc(a.value)}</td>` +
+        (b ? `<th>${esc(b.label)}</th><td>${esc(b.value)}</td>` : `<th></th><td></td>`) +
+        `</tr>`,
+    );
+  }
+  const meta = metaRows.join("");
 
   const sections = doc.sections
     .map((s) => {
@@ -132,10 +149,19 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
 <style>
   * { box-sizing: border-box; }
   body { font-family: Georgia, 'Times New Roman', serif; color: #14202e; max-width: 760px; margin: 40px auto; padding: 0 24px; line-height: 1.5; }
-  .brand { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #a8693d; }
-  h1 { font-size: 26px; margin: 6px 0 2px; }
+  .brandbar { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; }
+  .brandbar svg { width: 34px; height: 32px; flex: 0 0 auto; }
+  .brandbar b { font-family: Georgia, serif; font-size: 19px; letter-spacing: .16em; color: #0d1f3c; display: block; line-height: 1; }
+  .brandbar small { font-size: 7px; letter-spacing: .24em; text-transform: uppercase; color: #8a97a5; display: block; margin-top: 3px; }
+  .rule { border: 0; border-top: 2px solid #0d1f3c; margin: 0 0 22px; }
+  h1 { font-size: 27px; margin: 0 0 4px; color: #0d1f3c; font-weight: 600; line-height: 1.22; }
   .sub { color: #5a6b7b; font-size: 13px; margin-bottom: 20px; }
   table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 13px; }
+  /* Identificação em pares (Organização | CNPJ · Estabelecimento | Método…) */
+  table.ident { margin-top: 18px; }
+  table.ident th, table.ident td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e7e2da; vertical-align: top; }
+  table.ident th { background: #f3f0ea; color: #0d1f3c; font-weight: 700; font-size: 12px; width: 19%; }
+  table.ident td { width: 31%; color: #14202e; }
   table.kv th, table.kv td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #e7e2da; }
   table.kv th { width: 180px; color: #5a6b7b; font-weight: 600; }
   table.grid th, table.grid td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
@@ -145,10 +171,20 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
   @media print { body { margin: 0; } button { display: none; } }
 </style></head><body>
-  <div class="brand">CRIVO™ · ${esc(doc.subtitle ?? "Documento de apoio")}</div>
+  <div class="brandbar">
+    <svg viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <line x1="5" y1="37" x2="24" y2="6" stroke="#0d1f3c" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="43" y1="37" x2="24" y2="6" stroke="#0d1f3c" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="5" y1="37" x2="17" y2="37" stroke="#0d1f3c" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="31" y1="37" x2="43" y2="37" stroke="#0d1f3c" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="24" cy="6" r="3.4" fill="#a8693d"/>
+    </svg>
+    <span><b>CRIVO</b><small>Decision Intelligence</small></span>
+  </div>
+  <hr class="rule"/>
   <h1>${esc(doc.title)}</h1>
-  <div class="sub">${esc(doc.company)} · gerado em ${new Date(doc.generatedAt).toLocaleString("pt-BR")}</div>
-  <table class="kv">${meta}</table>
+  <div class="sub">${esc(doc.subtitle ?? "Documento de apoio")}</div>
+  <table class="ident">${meta}</table>
   ${sections}
   <div class="note">${esc(doc.responsibilityNote)}</div>
   <div class="foot">CRIVO™ — Decision Intelligence · documento de apoio técnico, gerencial e documental.</div>

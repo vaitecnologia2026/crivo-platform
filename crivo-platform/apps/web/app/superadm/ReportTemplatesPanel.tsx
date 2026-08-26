@@ -186,16 +186,24 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
     return {
       type: "preview",
       title: f.name.trim() || "Relatório sem nome",
-      subtitle: f.description.trim() || `Relatório vinculado ao diagnóstico ${instrumentName}`,
+      // Evita "…ao diagnóstico Diagnóstico Organizacional" quando o nome do
+      // instrumento já começa com "Diagnóstico".
+      subtitle:
+        f.description.trim() ||
+        (/^diagn[óo]stico/i.test(instrumentName)
+          ? `Relatório vinculado ao ${instrumentName}`
+          : `Relatório vinculado ao diagnóstico ${instrumentName}`),
       company: "Empresa Exemplo S.A.",
       generatedAt: new Date().toISOString(),
+      // Mesmos campos do gerador real (documents.service.generateFromTemplate),
+      // no padrão do modelo oficial: grade de pares, sem campo vazio.
       meta: [
-        { label: "Empresa", value: "Empresa Exemplo S.A. (exemplo)" },
-        { label: "Diagnóstico aplicado", value: instrumentName },
-        { label: "Método", value: "—" },
-        { label: "Saída técnica", value: "—" },
-        { label: "Respondentes", value: "12 (exemplo)" },
-        { label: "Responsável CRIVO", value: "—" },
+        { label: "Organização", value: "Empresa Exemplo S.A." },
+        { label: "CNPJ", value: "00.000.000/0001-00" },
+        { label: "Método aplicado", value: instrumentName },
+        { label: "Data de emissão", value: new Date().toLocaleDateString("pt-BR") },
+        { label: "Saída técnica", value: "Apoio à AEP" },
+        { label: "Respostas válidas", value: "12" },
       ],
       sections,
       responsibilityNote: RESPONSIBILITY_NOTE,

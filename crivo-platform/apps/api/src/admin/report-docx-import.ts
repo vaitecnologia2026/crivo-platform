@@ -34,7 +34,9 @@ function nameFromFilename(filename: string): string {
 
 function decodeEntities(s: string): string {
   return s
-    .replace(/<[^>]+>/g, '')
+    // Tag vira ESPAÇO (não string vazia): células com mais de um parágrafo
+    // colavam os textos ("EMPRESA" + "O2 Legacy" => "EMPRESAO2 Legacy").
+    .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')

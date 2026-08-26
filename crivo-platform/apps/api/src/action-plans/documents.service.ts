@@ -554,6 +554,7 @@ export class DocumentsService {
     key: string,
     ctx: {
       company: string;
+      org: { taxId: string | null } | null;
       contract: { technicalOutput?: string | null; responsible?: string | null } | null;
       method: DiagnosticMethodLike;
       plans: { title: string; validatedAt: Date | null; items: FactorItem[] }[];
@@ -574,13 +575,16 @@ export class DocumentsService {
     }
 
     const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
+    // Identificação no padrão do modelo oficial (grade de pares). Campos sem
+    // valor saem vazios e o renderizador os OMITE — o modelo proíbe campo vazio.
+    // "Responsável CRIVO" não entra: a responsabilidade legal é da organização.
     const meta: GeneratedDocument['meta'] = [
-      { label: 'Empresa', value: ctx.company },
-      { label: 'Diagnóstico aplicado', value: tpl.instrument.name },
-      { label: 'Método', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
+      { label: 'Organização', value: ctx.company },
+      { label: 'CNPJ', value: ctx.org?.taxId ?? '' },
+      { label: 'Método aplicado', value: tpl.instrument.name },
+      { label: 'Data de emissão', value: fmt(new Date()) },
       { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
-      { label: 'Respondentes', value: String(agg.totalRespondents) },
-      { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
+      { label: 'Respostas válidas', value: String(agg.totalRespondents) },
     ];
 
     const sections: DocumentSection[] = [];
@@ -661,7 +665,11 @@ export class DocumentsService {
     return {
       type: `tpl:${tpl.key}`,
       title: tpl.name,
-      subtitle: tpl.description || `Relatório vinculado ao diagnóstico ${tpl.instrument.name}`,
+      subtitle:
+        tpl.description ||
+        (/^diagn[óo]stico/i.test(tpl.instrument.name)
+          ? `Relatório vinculado ao ${tpl.instrument.name}`
+          : `Relatório vinculado ao diagnóstico ${tpl.instrument.name}`),
       company: ctx.company,
       generatedAt: new Date().toISOString(),
       meta,
@@ -1996,6 +2004,7 @@ export class DocumentsService {
     if (isTemplate) {
       return this.generateFromTemplate(tenantId, type.slice(4), {
         company,
+        org,
         contract,
         method,
         plans,
