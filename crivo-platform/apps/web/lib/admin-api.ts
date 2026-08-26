@@ -1849,7 +1849,15 @@ export function deleteReportTemplate(id: string): Promise<{ deactivatedInsteadOf
  *  Extração no servidor pode demorar: timeout de 60s, acima dos 15s padrão. */
 export function importReportTemplateDocx(
   input: { filename: string; mimeType: string; dataBase64: string },
-): Promise<{ name: string; sections: ReportTemplateSection[]; warnings: string[] }> {
+): Promise<{
+  name: string;
+  /** Padrão oficial reconhecido (MAPA Executivo, Dossiê Técnico NR-1 ou livre). */
+  pattern: "MAPA_EXECUTIVO" | "DOSSIE_TECNICO" | "GENERICO";
+  patternLabel: string;
+  suggested: { includeResults: boolean; includeDimensions: boolean; includePlan: boolean };
+  sections: ReportTemplateSection[];
+  warnings: string[];
+}> {
   return adminFetch("/admin/reports/templates/import", {
     method: "POST",
     body: JSON.stringify(input),

@@ -259,16 +259,21 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
       });
       // Abre o editor pré-preenchido (vínculo do diagnóstico do Motor é mantido)
       // e já mostra a pré-visualização de como o relatório vai ficar.
+      // O padrão detectado define o esqueleto E as opções de injeção automática
+      // (o que é dinâmico no modelo oficial não vira texto fixo).
       const imported: FormState = {
         ...EMPTY,
         instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "",
         name: res.name,
         sections: res.sections.length ? res.sections : [{ heading: "", body: "" }],
+        includeResults: res.suggested?.includeResults ?? EMPTY.includeResults,
+        includeDimensions: res.suggested?.includeDimensions ?? EMPTY.includeDimensions,
+        includePlan: res.suggested?.includePlan ?? EMPTY.includePlan,
       };
       setForm(imported);
       setPreviewHtml(renderDocumentHtml(buildPreviewDoc(imported)));
-      const warn = res.warnings.length ? ` Avisos: ${res.warnings.join(" ")}` : "";
-      setImportMsg(`✓ Importado de "${file.name}". Revise as seções (dados de exemplo como empresa/scores podem ser apagados — os números reais entram pelas opções "Incluir resultado/dimensões") e salve.${warn}`);
+      const warn = res.warnings.length ? ` ${res.warnings.join(" ")}` : "";
+      setImportMsg(`✓ Importado de "${file.name}" · padrão: ${res.patternLabel}.${warn} Revise as seções e salve.`);
     } catch (e) {
       setImportMsg(`✕ ${e instanceof Error ? e.message : "Falha ao importar o documento."}`);
     } finally {

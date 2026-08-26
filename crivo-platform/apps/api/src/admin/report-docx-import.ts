@@ -14,7 +14,78 @@ import { PDFParse } from 'pdf-parse';
  */
 
 export type ReportImportSection = { heading: string; body: string };
-export type ReportImportResult = { name: string; sections: ReportImportSection[]; warnings: string[] };
+
+/** Padrões oficiais de relatório reconhecidos na importação. Cada um tem um
+ *  esqueleto próprio (ordem das seções + o que é dinâmico). */
+export type ReportPattern = 'MAPA_EXECUTIVO' | 'DOSSIE_TECNICO' | 'GENERICO';
+
+export type ReportImportResult = {
+  name: string;
+  pattern: ReportPattern;
+  patternLabel: string;
+  /** Flags de injeção automática sugeridas pelo padrão detectado. */
+  suggested: { includeResults: boolean; includeDimensions: boolean; includePlan: boolean };
+  sections: ReportImportSection[];
+  warnings: string[];
+};
+
+/** Um "slot" do esqueleto oficial. `dynamic` = o conteúdo vem do motor (score,
+ *  dimensões, plano); o texto de exemplo do arquivo é DESCARTADO e viramos a
+ *  flag correspondente, para o relatório sair com os números reais da empresa. */
+type PatternSlot = {
+  heading: string;
+  match: RegExp;
+  dynamic?: 'results' | 'dimensions' | 'plan';
+};
+
+type PatternSpec = { label: string; slots: PatternSlot[] };
+
+const PATTERNS: Record<Exclude<ReportPattern, 'GENERICO'>, PatternSpec> = {
+  // Modelo "MAPA Executivo · Visão preliminar da organização" (2 páginas).
+  MAPA_EXECUTIVO: {
+    label: 'MAPA Executivo',
+    slots: [
+      { heading: 'Visão preliminar da organização', match: /vis[ãa]o preliminar|introdu[çc][ãa]o|objetivo/i },
+      { heading: 'Panorama', match: /panorama/i, dynamic: 'results' },
+      { heading: 'Dimensões', match: /dimens[õo]es/i, dynamic: 'dimensions' },
+      { heading: 'Síntese executiva', match: /s[íi]ntese executiva/i },
+      { heading: 'Caminho recomendado', match: /caminho recomendado/i },
+      { heading: 'Limites de uso', match: /n[ãa]o substitui|preliminar de gest[ãa]o|limites/i },
+    ],
+  },
+  // Modelo "Dossiê Técnico de Fatores de Riscos Psicossociais" (5 páginas).
+  DOSSIE_TECNICO: {
+    label: 'Dossiê Técnico NR-1',
+    slots: [
+      { heading: 'Objetivo e escopo', match: /objetivo e escopo|objetivo/i },
+      { heading: 'Responsabilidades', match: /responsabilidades/i },
+      { heading: 'Escopo da avaliação', match: /escopo da avalia[çc][ãa]o|confidencialidade/i },
+      { heading: 'Metodologia e critérios', match: /metodologia|crit[ée]rios|matriz de risco|m[ée]todo de avalia[çc][ãa]o/i },
+      { heading: 'Síntese do ciclo', match: /s[íi]ntese do ciclo|s[íi]ntese executiva|resultados por dimens[ãa]o/i, dynamic: 'dimensions' },
+      { heading: 'Prioridades técnicas', match: /prioridades t[ée]cnicas/i, dynamic: 'results' },
+      { heading: 'Inventário técnico', match: /invent[áa]rio t[ée]cnico|caracteriza[çc][ãa]o dos fatores|exposi[çc][ãa]o, poss[íi]veis agravos/i },
+      { heading: 'Medidas e plano de ação', match: /medidas e plano|plano de a[çc][ãa]o/i, dynamic: 'plan' },
+      { heading: 'Participação, comunicação e evidências', match: /participa[çc][ãa]o|comunica[çc][ãa]o|evid[êe]ncias/i },
+      { heading: 'Controle documental e responsabilidade', match: /controle documental|responsabilidade legal/i },
+    ],
+  },
+};
+
+/** Blocos que são IDENTIFICAÇÃO ou dados de exemplo — não viram texto fixo do
+ *  modelo (empresa, respondente, CNPJ e afins vêm do contrato/motor). */
+const IDENTITY_RE =
+  /^(empresa|organiza[çc][ãa]o|respondente|data|cnpj|estabelecimento|per[íi]odo avaliado|data de emiss[ãa]o|vers[ãa]o metodol[óo]gica|ciclo|m[ée]todo aplicado)\b/i;
+
+function detectPattern(text: string): ReportPattern {
+  const t = text.toLowerCase();
+  if (/dossi[êe]\s+t[ée]cnico|invent[áa]rio t[ée]cnico|riscos psicossociais relacionados ao trabalho/.test(t)) {
+    return 'DOSSIE_TECNICO';
+  }
+  if (/mapa executivo/.test(t) || (/panorama/.test(t) && /caminho recomendado/.test(t))) {
+    return 'MAPA_EXECUTIVO';
+  }
+  return 'GENERICO';
+}
 
 // Espelham os limites de cleanSections() no reports.service.ts.
 const MAX_SECTIONS = 20;
@@ -139,6 +210,73 @@ function blocksToSections(blocks: Block[]): ReportImportSection[] {
   return sections;
 }
 
+/**
+ * Encaixa as seções extraídas do arquivo no ESQUELETO do padrão detectado:
+ * mantém a ordem oficial, normaliza os títulos e separa o que é conteúdo fixo
+ * (vai para o modelo) do que é dinâmico (vira flag; o motor preenche com os
+ * dados reais da empresa). O que não casar com nenhum slot é preservado no fim.
+ */
+function fitToPattern(
+  sections: ReportImportSection[],
+  pattern: ReportPattern,
+): {
+  sections: ReportImportSection[];
+  suggested: { includeResults: boolean; includeDimensions: boolean; includePlan: boolean };
+  warnings: string[];
+} {
+  const suggested = { includeResults: false, includeDimensions: false, includePlan: false };
+  const warnings: string[] = [];
+  if (pattern === 'GENERICO') return { sections, suggested, warnings };
+
+  const spec = PATTERNS[pattern];
+  const filled = new Map<number, string[]>(); // slot index -> corpos
+  const extras: ReportImportSection[] = [];
+  const dynamicSeen = new Set<string>();
+
+  for (const s of sections) {
+    const label = `${s.heading} ${s.body}`.trim();
+    // Identificação (empresa/CNPJ/respondente/data) não vira texto fixo.
+    if (IDENTITY_RE.test(s.heading.trim()) || (!s.heading && IDENTITY_RE.test(s.body.trim()))) {
+      continue;
+    }
+    const idx = spec.slots.findIndex((slot) => slot.match.test(s.heading) || (!s.heading && slot.match.test(label)));
+    if (idx === -1) {
+      if (s.heading || s.body) extras.push(s);
+      continue;
+    }
+    const slot = spec.slots[idx];
+    if (slot.dynamic) {
+      // Conteúdo de exemplo (scores, faixas, tabela de dimensões) é descartado:
+      // o motor injeta os números reais pela flag correspondente.
+      if (slot.dynamic === 'results') suggested.includeResults = true;
+      if (slot.dynamic === 'dimensions') suggested.includeDimensions = true;
+      if (slot.dynamic === 'plan') suggested.includePlan = true;
+      dynamicSeen.add(slot.heading);
+      continue;
+    }
+    const list = filled.get(idx) ?? [];
+    list.push(s.body || s.heading);
+    filled.set(idx, list);
+  }
+
+  const out: ReportImportSection[] = [];
+  spec.slots.forEach((slot, i) => {
+    if (slot.dynamic) return;
+    const bodies = filled.get(i);
+    if (!bodies || !bodies.join('').trim()) return;
+    out.push({ heading: slot.heading, body: bodies.join('\n\n').trim() });
+  });
+  out.push(...extras);
+
+  warnings.push(`Padrão reconhecido: ${spec.label}. As seções foram organizadas na ordem do modelo oficial.`);
+  if (dynamicSeen.size) {
+    warnings.push(
+      `${[...dynamicSeen].join(', ')} não vira texto fixo — o motor preenche com os dados reais da empresa (já marquei as opções de injeção automática).`,
+    );
+  }
+  return { sections: out, suggested, warnings };
+}
+
 /** Aplica os limites do ReportTemplate (máx. seções e tamanho do corpo). */
 function clampSections(sections: ReportImportSection[]): { sections: ReportImportSection[]; warnings: string[] } {
   const warnings: string[] = [];
@@ -235,9 +373,25 @@ export async function extractReportSections(filename: string, buf: Buffer): Prom
   if (blocks.length === 0) {
     throw new BadRequestException('O documento não tem texto que possa ser importado.');
   }
-  const { sections, warnings } = clampSections(blocksToSections(blocks));
+
+  // 1) Blocos → seções; 2) seções → esqueleto do padrão oficial detectado.
+  const pattern = detectPattern(blocks.map((b) => b.text).join('\n'));
+  const fitted = fitToPattern(blocksToSections(blocks), pattern);
+  const { sections, warnings } = clampSections(fitted.sections);
   if (sections.length === 0) {
     throw new BadRequestException('Não foi possível identificar seções no documento.');
   }
-  return { name: nameFromFilename(filename), sections, warnings };
+  if (ext === 'pdf') {
+    warnings.push(
+      'Importado de PDF: a extração pode perder caracteres e formatação de tabelas. Se o documento original for Word, importar o .docx dá um resultado melhor.',
+    );
+  }
+  return {
+    name: nameFromFilename(filename),
+    pattern,
+    patternLabel: pattern === 'GENERICO' ? 'Documento livre' : PATTERNS[pattern].label,
+    suggested: fitted.suggested,
+    sections,
+    warnings: [...fitted.warnings, ...warnings],
+  };
 }
