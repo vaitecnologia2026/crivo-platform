@@ -121,6 +121,43 @@ describe('autoMarkReportHtml', () => {
     expect(out.html).toBe('<p>{{identificacao}}</p>');
   });
 
+  it('NÃO troca o texto que só EXPLICA probabilidade e severidade', () => {
+    // Regressão do Dossiê: este bloco explica os criterios; a matriz de verdade
+    // vem depois. Marcá-lo apagava a explicação e deixava a matriz como texto fixo.
+    const html =
+      '<table><tr><td><p>Probabilidade (1-5)</p><p>Considera a possibilidade de ocorrência de agravos.</p>' +
+      '<p>Severidade (1-5)</p><p>Representa a magnitude das consequências.</p></td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.applied).toEqual([]);
+    expect(out.html).toContain('Considera a possibilidade');
+  });
+
+  it('NÃO troca o inventário técnico, que tem P/S/R mas carrega dados que o motor não gera', () => {
+    const html =
+      '<table><tr><th>ID</th><th>Caracterização da exposição</th><th>Possíveis agravos</th>' +
+      '<th>Medidas existentes</th><th>P</th><th>S</th><th>R</th><th>Classificação</th></tr>' +
+      '<tr><td>F01</td><td>Frequente nos picos</td><td>Fadiga</td><td>Pausas</td><td>4</td><td>4</td><td>16</td><td>Crítico</td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.applied).toEqual([]);
+    expect(out.html).toContain('Possíveis agravos');
+  });
+
+  it('troca a matriz real (Fator | P | S | R | Classificação)', () => {
+    const html =
+      '<table><tr><th>Fator</th><th>P</th><th>S</th><th>R</th><th>Classificação</th></tr>' +
+      '<tr><td>Sobrecarga de trabalho</td><td>4</td><td>4</td><td>16</td><td>Crítico</td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.applied).toEqual(['matriz_risco']);
+    expect(out.html).toBe('<p>{{matriz_risco}}</p>');
+  });
+
+  it('troca o plano de ação pelo cabeçalho, não pelo texto solto', () => {
+    const html =
+      '<table><tr><th>ID</th><th>Medida definida</th><th>Objetivo</th><th>Responsável</th><th>Prazo</th></tr>' +
+      '<tr><td>F01</td><td>Revisar capacidade</td><td>Reduzir sobrecarga</td><td>Gerente</td><td>30/09/2026</td></tr></table>';
+    expect(autoMarkReportHtml(html).applied).toEqual(['plano_acao']);
+  });
+
   it('não mexe em tabela de conteúdo que não é bloco dinâmico', () => {
     const html = '<table><tr><th>Etapa</th><th>Descrição</th></tr><tr><td>1</td><td>Coleta</td></tr></table>';
     const out = autoMarkReportHtml(html);

@@ -175,41 +175,77 @@ function plainText(html: string): string {
     .trim();
 }
 
-/** Regra de reconhecimento de uma tabela de exemplo → marcador que a substitui. */
-type TableRule = { key: string; test: (text: string) => boolean };
+/** Cabeçalho da tabela (primeira linha) — é ele que diz o que a tabela É. */
+function tableHeader(table: string): string[] {
+  const first = table.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/i)?.[0] ?? '';
+  return (first.match(/<t[dh]\b[^>]*>[\s\S]*?<\/t[dh]>/gi) ?? []).map(plainText);
+}
 
-// A ordem importa: a primeira regra que casar vence (matriz antes de plano,
-// porque a matriz também cita "Ação recomendada").
+/** Primeira coluna — tabela de pares rótulo/valor não tem cabeçalho. */
+function tableFirstColumn(table: string): string[] {
+  const rows = table.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) ?? [];
+  return rows.map((r) => plainText((r.match(/<t[dh]\b[^>]*>[\s\S]*?<\/t[dh]>/i) ?? [''])[0]));
+}
+
+const has = (campos: string[], re: RegExp) => campos.some((c) => re.test(c));
+
+/**
+ * Regra de reconhecimento de uma tabela de exemplo → marcador que a substitui.
+ * Decide pelo CABEÇALHO e pela primeira coluna, nunca pelo texto inteiro: um
+ * parágrafo que só EXPLICA "Probabilidade (1-5)... Severidade (1-5)..." não é a
+ * matriz, e trocá-lo por {{matriz_risco}} apagava a explicação e deixava a
+ * matriz de verdade como texto fixo.
+ */
+type TableRule = { key: string; test: (h: string[], col1: string[]) => boolean };
+
+/**
+ * Tabela que NÃO deve virar marcador, mesmo casando com alguma regra: o
+ * inventário técnico tem P/S/R como a matriz, mas carrega caracterização,
+ * agravos e medidas existentes, que o motor não gera.
+ */
+function isInventario(h: string[]): boolean {
+  return has(h, /(caracteriza[çc][ãa]o|poss[íi]veis agravos|medidas existentes|processo \s?\/?\s?ambiente|atividade \s?\/?\s?tarefa)/i);
+}
+
 const TABLE_RULES: TableRule[] = [
   {
+    // Matriz: colunas curtas de calculo (P, S, R) ou os nomes por extenso.
     key: 'matriz_risco',
-    test: (t) => /probabilidade/i.test(t) && /severidade/i.test(t),
+    test: (h) =>
+      !isInventario(h) &&
+      has(h, /^(p|prob\.?|probabilidade)$/i) &&
+      has(h, /^(s|sev\.?|severidade)$/i) &&
+      has(h, /^(r|risco|classifica[çc][ãa]o|a[çc][ãa]o recomendada)$/i),
   },
   {
     key: 'assinaturas',
-    test: (t) => /assinatura/i.test(t) && /(respons[áa]vel|nome|cargo)/i.test(t),
+    test: (h) => has(h, /assinatura/i) && has(h, /(respons[áa]vel|nome|cargo)/i),
   },
   {
     key: 'controle_documental',
-    test: (t) => /(hash|identificador)/i.test(t) && /(vers[ãa]o|status)/i.test(t),
+    test: (h, c) =>
+      has([...h, ...c], /(hash|id do documento|identificador do documento)/i) &&
+      has([...h, ...c], /(vers[ãa]o|status|emiss[ãa]o)/i),
   },
   {
     key: 'tabela_dimensoes',
-    test: (t) => /dimens[ãa]o/i.test(t) && /([íi]ndice|score|pontua[çc][ãa]o|resultado)/i.test(t),
+    test: (h) => has(h, /^dimens[ãa]o$/i) && has(h, /^([íi]ndice|score|pontua[çc][ãa]o|resultado|faixa)/i),
   },
   {
     key: 'participacao',
-    test: (t) => /setor/i.test(t) && /(respondentes|participa[çc][ãa]o|ades[ãa]o)/i.test(t),
+    test: (h) => has(h, /^(setor|[áa]rea|grupo)/i) && has(h, /^(respondentes|respostas|participa[çc][ãa]o|ades[ãa]o)/i),
   },
   {
     key: 'plano_acao',
-    test: (t) => /a[çc][ãa]o/i.test(t) && /(respons[áa]vel|prazo|status)/i.test(t),
+    test: (h) =>
+      has(h, /(medida|a[çc][ãa]o|ponto de aten[çc][ãa]o)/i) && has(h, /(respons[áa]vel|prazo|status|acompanhamento)/i),
   },
   {
+    // Identificacao: pares rotulo/valor com a empresa e ao menos um dado do ciclo.
     key: 'identificacao',
-    test: (t) =>
-      /(empresa|organiza[çc][ãa]o|raz[ãa]o social)/i.test(t) &&
-      /(cnpj|respondente|\bdata\b|data de emiss[ãa]o|m[ée]todo aplicado|estabelecimento|per[íi]odo)/i.test(t),
+    test: (h, c) =>
+      has([...h, ...c], /^(empresa|organiza[çc][ãa]o|raz[ãa]o social)/i) &&
+      has([...h, ...c], /(cnpj|respondente|^data|data de emiss[ãa]o|m[ée]todo aplicado|estabelecimento|per[íi]odo)/i),
   },
 ];
 
@@ -268,9 +304,10 @@ export function autoMarkReportHtml(html: string): { html: string; applied: strin
 
   // 1) Tabelas inteiras (identificação, dimensões, matriz, plano, assinaturas…).
   let out = html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, (table) => {
-    const text = plainText(table);
-    if (!text) return table;
-    const rule = TABLE_RULES.find((r) => r.test(text));
+    if (!plainText(table)) return table;
+    const header = tableHeader(table);
+    const col1 = tableFirstColumn(table);
+    const rule = TABLE_RULES.find((r) => r.test(header, col1));
     if (!rule) return table;
     applied.add(rule.key);
     return `<p>{{${rule.key}}}</p>`;
