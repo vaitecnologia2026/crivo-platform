@@ -1138,6 +1138,11 @@ export function psychosocialRiskClass(risk: number): PsychosocialRiskClass {
 export interface PsychosocialRiskMatrixRow {
   slug: string;
   label: string;
+  /** Dimensão que forneceu a PROBABILIDADE. Quando a linha vem de um FATOR
+   *  (Orientação NR-1 §8), `slug` é o do fator e este aponta a dimensão de
+   *  origem — é por ele que a biblioteca de ações (chaveada por dimensão)
+   *  continua resolvendo. Ausente = a própria linha é a dimensão. */
+  sourceSlug?: string;
   /** Respondentes do recorte cujo escore nesta escala caiu na faixa crítica. */
   criticalCount: number;
   respondents: number;

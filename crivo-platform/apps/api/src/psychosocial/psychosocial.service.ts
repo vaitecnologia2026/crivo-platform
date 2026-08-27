@@ -215,7 +215,10 @@ export class PsychosocialService {
     // rls-allow: methodology_* é catálogo GLOBAL (control-plane), não é dado do tenant.
     const activeVersion = await this.prisma.admin.methodologyVersion.findFirst({
       where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
-      select: { dimensions: { select: { slug: true, severity: true, parentSlug: true } } },
+      select: {
+        dimensions: { select: { slug: true, severity: true, parentSlug: true } },
+        factors: { select: { slug: true, label: true, severity: true, dimensionSlug: true }, orderBy: { order: 'asc' } },
+      },
     });
     const metaBySlug = new Map(
       (activeVersion?.dimensions ?? []).map((d) => [d.slug, { severity: d.severity, parentSlug: d.parentSlug }]),
@@ -233,6 +236,25 @@ export class PsychosocialService {
           severity: null,
           parentSlug: null,
         }));
+
+    // Linhas da Matriz de Risco. A severidade pertence ao FATOR (Orientação NR-1
+    // §8): havendo fatores cadastrados na versão ativa, eles mandam e a
+    // probabilidade sai da dimensão vinculada. Sem fatores, cai no comportamento
+    // anterior (dimensão de topo com severidade) — nada muda para quem já
+    // parametrizou assim.
+    const factors = activeVersion?.factors ?? [];
+    const matrixRows: MatrixSource[] = factors.length
+      ? factors.map((f) => ({
+          slug: f.slug,
+          label: f.label,
+          severity: f.severity,
+          // De onde vem a evidência de exposição (probabilidade). Sem vínculo,
+          // usa o próprio slug (cai no score geral se não houver respostas).
+          sourceSlug: f.dimensionSlug ?? f.slug,
+        }))
+      : dims
+          .filter((d) => !d.parentSlug && d.severity != null)
+          .map((d) => ({ slug: d.slug, label: d.label, severity: d.severity as number, sourceSlug: d.slug }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
@@ -245,7 +267,7 @@ export class PsychosocialService {
         new Set(rows.map((r) => r.methodologyVersionId).filter((v): v is string => !!v)),
       );
 
-      const overall = aggregate(rows, dims, bands);
+      const overall = aggregate(rows, dims, bands, matrixRows);
       const overallSuppressed = rows.length < minRespondents;
 
       // Agrupa por setor.
@@ -263,7 +285,7 @@ export class PsychosocialService {
             sector,
             respondents: list.length,
             suppressed,
-            ...(suppressed ? {} : aggregate(list, dims, bands)),
+            ...(suppressed ? {} : aggregate(list, dims, bands, matrixRows)),
           };
         })
         .sort((a, b) => b.respondents - a.respondents);
@@ -287,6 +309,9 @@ export class PsychosocialService {
 type Row = { score: number; byDimension: unknown };
 type AggDim = { slug: string; label: string; severity?: number | null; parentSlug?: string | null };
 type AggBand = { code: string; label: string; min: number; max: number; color?: string | null };
+/** Linha da Matriz de Risco: o que a compõe (fator ou, no fallback, dimensão de
+ *  topo) e de qual dimensão sai a probabilidade (`sourceSlug`). */
+type MatrixSource = { slug: string; label: string; severity: number; sourceSlug: string };
 
 /** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
  *  Acrescenta o Perfil de grupo (distribuição de pessoas por faixa) e a Matriz de
@@ -296,6 +321,7 @@ function aggregate(
   rows: Row[],
   dims: AggDim[],
   bands: AggBand[] | null,
+  matrixRows: MatrixSource[] = [],
 ): {
   score: number;
   level: string;
@@ -356,18 +382,18 @@ function aggregate(
   // Escala sem severidade fica de fora — entrar com 0 produziria "aceitável" falso.
   const critical = ordered[0] ?? null;
   const riskMatrix: PsychosocialRiskMatrixRow[] = critical
-    ? dims
-        .filter((d) => !d.parentSlug && d.severity != null)
+    ? matrixRows
         .map((d) => {
-          const vals = valuesOf(d.slug);
+          const vals = valuesOf(d.sourceSlug);
           const criticalCount = vals.filter((v) => inBand(v, critical)).length;
           const percentCritical = vals.length ? (criticalCount / vals.length) * 100 : 0;
           const probability = psychosocialProbabilityLevel(percentCritical);
-          const severity = d.severity as number;
+          const severity = d.severity;
           const risk = probability * severity;
           return {
             slug: d.slug,
             label: d.label,
+            sourceSlug: d.sourceSlug,
             criticalCount,
             respondents: vals.length,
             percentCritical: Math.round(percentCritical),

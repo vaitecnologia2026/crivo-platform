@@ -1259,7 +1259,10 @@ export class DocumentsService {
           `(R = Probabilidade × Severidade). ${originNote}`,
       });
       for (const r of planMatrix) {
-        const entry = plans[r.slug];
+        // A biblioteca é chaveada pela DIMENSÃO. Com fatores cadastrados a linha
+        // traz o slug do fator, então resolvemos pela dimensão de origem — sem
+        // isto o Dossiê perderia o Plano de Ação em silêncio.
+        const entry = plans[r.sourceSlug ?? r.slug] ?? plans[r.slug];
         if (!entry) continue;
         sections.push({
           heading: `Plano de Ação — ${r.label} (Classificação: ${r.riskClass})`,

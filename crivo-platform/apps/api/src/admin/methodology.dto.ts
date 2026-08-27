@@ -36,6 +36,25 @@ class DimensionDto {
   severity?: number | null;
 }
 
+/** Fator de risco (Orientação NR-1 §8): a severidade pertence ao FATOR e às suas
+ *  possíveis consequências. `dimensionSlug` diz de onde vem a PROBABILIDADE. */
+class FactorDto {
+  @IsString() @MaxLength(80)
+  slug!: string;
+
+  @IsString() @MaxLength(160)
+  label!: string;
+
+  @IsInt() @Min(1) @Max(5)
+  severity!: number;
+
+  @IsOptional() @IsString() @MaxLength(600)
+  consequences?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(80)
+  dimensionSlug?: string | null;
+}
+
 class QuestionDto {
   @IsString() @MaxLength(80)
   dimensionSlug!: string;
@@ -109,6 +128,9 @@ export class UpdateMethodologyDto {
 
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => DimensionDto)
   dimensions?: DimensionDto[];
+
+  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => FactorDto)
+  factors?: FactorDto[];
 
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => QuestionDto)
   questions?: QuestionDto[];

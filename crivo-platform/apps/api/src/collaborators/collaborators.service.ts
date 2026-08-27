@@ -214,8 +214,8 @@ export class CollaboratorsService {
 
   /** Resolve token → colaborador (sem expor dados pessoais antes do CPF). */
   private async byToken(token: string): Promise<CollaboratorRow> {
-    // rls-allow: endpoint público (/r/<token>); resolve token→colaborador (o token
-    // de 128 bits é a credencial). Nenhuma escrita aqui.
+    // Endpoint público (/r/<token>): o token de 128 bits é a credencial.
+    // rls-allow: resolve token→colaborador sem tenant no contexto; só leitura.
     const c = await this.prisma.admin.collaborator.findUnique({ where: { token } });
     if (!c) throw new NotFoundException('Link inválido ou expirado.');
     return c as CollaboratorRow;

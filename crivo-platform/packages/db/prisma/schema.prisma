@@ -2314,6 +2314,7 @@ model MethodologyVersion {
   createdAt                 DateTime             @default(now()) @map("created_at")
   publishedAt               DateTime?            @map("published_at")
 
+  factors    MethodologyFactor[]
   dimensions MethodologyDimension[]
   questions  MethodologyQuestion[]
   bands      MethodologyBand[]
@@ -2348,6 +2349,32 @@ model MethodologyDimension {
   @@unique([versionId, slug])
   @@index([versionId, parentSlug])
   @@map("methodology_dimensions")
+}
+
+/// Fator de risco psicossocial da metodologia (Orientacao NR-1 §8): a SEVERIDADE
+/// pertence ao FATOR e as suas possiveis consequencias — nao a dimensao. Cada
+/// fator vincula-se (opcionalmente) a uma dimensao, de onde sai a PROBABILIDADE
+/// pelas respostas; Risco = P x S na Matriz de Risco. Versionado junto com o
+/// resto da metodologia: publicar cria versao nova, o historico fica intacto.
+model MethodologyFactor {
+  id            String             @id @default(uuid()) @db.Uuid
+  versionId     String             @map("version_id") @db.Uuid
+  version       MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  slug          String
+  label         String
+  /// S-base (1-5): magnitude da consequencia possivel do fator.
+  severity      Int
+  /// Possiveis agravos/consequencias documentados — justificam a severidade e
+  /// alimentam a coluna "Possiveis agravos" do Inventario Tecnico do Dossie.
+  consequences  String?
+  /// Dimensao da metodologia que fornece a evidencia de exposicao (probabilidade).
+  /// Referencia textual (mesmo padrao de MethodologyQuestion.dimensionSlug).
+  dimensionSlug String?            @map("dimension_slug")
+  order         Int                @default(0)
+
+  @@unique([versionId, slug])
+  @@index([versionId])
+  @@map("methodology_factors")
 }
 
 model MethodologyQuestion {

@@ -25,7 +25,7 @@ import {
   type MethodologyVersionSummary,
   type ScoreAggregation,
 } from "../../lib/admin-api";
-import { DEFAULT_SCALE_LABELS } from "@crivo/types";
+import { DEFAULT_SCALE_LABELS, PSYCHOSOCIAL_SEVERITY_LABEL } from "@crivo/types";
 import { SearchSelect } from "./SearchSelect";
 import { ReportTemplatesPanel } from "./ReportTemplatesPanel";
 import "./cnae.css";
@@ -44,6 +44,8 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
 
 type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null };
 type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
+/** Fator de risco: severidade (S) própria + dimensão que fornece a probabilidade. */
+type Fator = { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number; color?: string | null };
 
 export function MethodologySection() {
@@ -67,6 +69,7 @@ export function MethodologySection() {
   const [dims, setDims] = useState<Dim[]>([]);
   const [questions, setQuestions] = useState<Q[]>([]);
   const [bands, setBands] = useState<Band[]>([]);
+  const [factors, setFactors] = useState<Fator[]>([]);
   const [scaleLabels, setScaleLabels] = useState<string[]>([]);
   // Motor v3.1: precisão do resultado e cobertura mínima para o resultado oficial.
   const [rounding, setRounding] = useState<number>(1);
@@ -92,6 +95,7 @@ export function MethodologySection() {
         setDims([]);
         setQuestions([]);
         setBands([]);
+        setFactors([]);
         setScaleLabels([...DEFAULT_SCALE_LABELS]);
         setRounding(1);
         setMinCoverage(70);
@@ -115,6 +119,7 @@ export function MethodologySection() {
       showWhenValue: x.showWhenValue ?? null,
     })));
     setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max, color: x.color ?? null })));
+    setFactors((d.factors ?? []).map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences ?? null, dimensionSlug: f.dimensionSlug ?? null })));
     setScaleLabels(d.scaleLabels && d.scaleLabels.length === 5 ? d.scaleLabels : [...DEFAULT_SCALE_LABELS]);
     setRounding(d.rounding ?? 1);
     setMinCoverage(d.minValidCompletionPercent ?? 70);
@@ -146,7 +151,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands, factors });
       // load() zera msg/err (:82) — por isso a mensagem vem DEPOIS do await, senão
       // sumia no mesmo batch do React e o usuário achava que não tinha salvo.
       await load();
@@ -165,7 +170,7 @@ export function MethodologySection() {
     setErr(null);
     setMsg(null);
     try {
-      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands });
+      await updateMethodologyDraft(draftId, { label, scaleLabels, rounding, minValidCompletionPercent: minCoverage, dimensions: dims, questions, bands, factors });
       await publishMethodology(draftId);
       await load();
       setMsg("Publicado! Esta é a nova versão ativa — o MAPA no site e o portal já refletem as mudanças.");
@@ -343,6 +348,8 @@ export function MethodologySection() {
           setQuestions={setQuestions}
           bands={bands}
           setBands={setBands}
+          factors={factors}
+          setFactors={setFactors}
           bandKind={meta.bandKind}
           bandWord={meta.bandWord}
           busy={busy}
@@ -985,7 +992,7 @@ const AGG_SHORT: Record<ScoreAggregation, string> = {
  */
 function DraftEditor({
   label, setLabel, scaleLabels, setScaleLabels, rounding, setRounding, minCoverage, setMinCoverage,
-  dims, setDims, questions, setQuestions, bands, setBands,
+  dims, setDims, questions, setQuestions, bands, setBands, factors, setFactors,
   bandKind, bandWord, busy, onSave, onPublish, onDiscard, errText, okText,
 }: {
   label: string;
@@ -1002,6 +1009,8 @@ function DraftEditor({
   setQuestions: (q: Q[]) => void;
   bands: Band[];
   setBands: (b: Band[]) => void;
+  factors: Fator[];
+  setFactors: (f: Fator[]) => void;
   bandKind: "MATURITY" | "RISK";
   bandWord: string;
   busy: string | null;
@@ -1011,7 +1020,7 @@ function DraftEditor({
   errText: string | null;
   okText: string | null;
 }) {
-  const [tab, setTab] = useState<"estrutura" | "escalas" | "faixas" | "calculo" | "biblioteca">("estrutura");
+  const [tab, setTab] = useState<"estrutura" | "escalas" | "faixas" | "fatores" | "calculo" | "biblioteca">("estrutura");
   const scale = scaleLabels.length === 5 ? scaleLabels : [...DEFAULT_SCALE_LABELS];
 
   const topDims = dims.filter((d) => !d.parentSlug);
@@ -1019,6 +1028,11 @@ function DraftEditor({
   const qsOf = (slug: string) => questions.map((q, i) => ({ q, i })).filter(({ q }) => q.dimensionSlug === slug);
 
   /** slug livre a partir de um prefixo (dim-1, sub-2…). */
+  const freeFactorSlug = () => {
+    let n = 1;
+    while (factors.some((f) => f.slug === `fator-${n}`)) n++;
+    return `fator-${n}`;
+  };
   const freeSlug = (prefix: string) => {
     let n = 1;
     while (dims.some((d) => d.slug === `${prefix}-${n}`)) n++;
@@ -1131,6 +1145,7 @@ function DraftEditor({
           ["estrutura", "Estrutura"],
           ["escalas", "Escalas e regras"],
           ["faixas", bandWord],
+          ["fatores", "Fatores e Riscos"],
           ["calculo", "Memória de cálculo"],
           ["biblioteca", "Templates e bibliotecas"],
         ] as const).map(([k, lbl]) => (
@@ -1299,6 +1314,78 @@ function DraftEditor({
           </div>
           <p className="cnae-muted" style={{ margin: "8px 0" }}>Faixas do <strong>score final</strong> (0–100). Régua do instrumento: {bandKind === "RISK" ? "risco" : "maturidade"}.</p>
           <button className="btn btn--ghost btn--sm" onClick={() => setBands([...bands, { kind: bandKind, code: "", label: "", min: 0, max: 100 }])}>+ faixa</button>
+        </>
+      )}
+
+      {/* FATORES E RISCOS — severidade por FATOR (Orientação NR-1 §8) */}
+      {tab === "fatores" && (
+        <>
+          <p className="cnae-muted" style={{ marginTop: 0 }}>
+            Cadastre os <strong>fatores de risco</strong> desta metodologia. A <strong>severidade (S)</strong>{" "}
+            pertence ao fator e às suas possíveis consequências. A <strong>probabilidade (P)</strong> vem das
+            respostas da dimensão vinculada, e a Matriz de Risco calcula <strong>R = P × S</strong>.
+          </p>
+          <div className="meth-rows">
+            {factors.map((f, i) => (
+              <div key={f.slug} style={{ borderTop: i ? "1px solid var(--line,#DCD7CE)" : "none", paddingTop: i ? 12 : 0, marginTop: i ? 12 : 0 }}>
+                <div className="meth-row">
+                  <input
+                    className="meth-in"
+                    value={f.label}
+                    placeholder="Fator (ex.: Sobrecarga de trabalho)"
+                    onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                  />
+                  <label className="meth-w" title="Dimensão que fornece a evidência de exposição (probabilidade).">
+                    dim
+                    <select
+                      className="meth-in"
+                      value={f.dimensionSlug ?? ""}
+                      onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, dimensionSlug: e.target.value || null } : x)))}
+                    >
+                      <option value="">— sem vínculo —</option>
+                      {topDims.map((d) => (
+                        <option key={d.slug} value={d.slug}>{d.label || d.slug}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="meth-w" title="Severidade (1–5): magnitude da consequência possível deste fator.">
+                    sev
+                    <select
+                      className="meth-in meth-in--num"
+                      value={f.severity}
+                      onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, severity: Number(e.target.value) } : x)))}
+                    >
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <option key={n} value={n}>{n} · {PSYCHOSOCIAL_SEVERITY_LABEL[n as 1 | 2 | 3 | 4 | 5]}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="meth-del" title="Remover fator" onClick={() => setFactors(factors.filter((_, j) => j !== i))}>✕</button>
+                </div>
+                <textarea
+                  className="meth-in"
+                  rows={2}
+                  style={{ width: "100%", marginTop: 8, resize: "vertical" }}
+                  value={f.consequences ?? ""}
+                  placeholder="Possíveis agravos (ex.: fadiga, estresse relacionado ao trabalho, afastamento) — justificam a severidade e saem no Inventário do Dossiê."
+                  onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, consequences: e.target.value } : x)))}
+                />
+              </div>
+            ))}
+          </div>
+          {factors.length === 0 && (
+            <p className="cnae-muted" style={{ margin: "8px 0" }}>
+              Nenhum fator cadastrado — a Matriz de Risco usa a severidade das dimensões (aba Estrutura).
+              Ao cadastrar fatores, eles passam a ser a fonte oficial da severidade.
+            </p>
+          )}
+          <button
+            className="btn btn--outline-dark btn--sm"
+            style={{ marginTop: 12 }}
+            onClick={() => setFactors([...factors, { slug: freeFactorSlug(), label: "", severity: 3, consequences: "", dimensionSlug: topDims[0]?.slug ?? null }])}
+          >
+            + fator
+          </button>
         </>
       )}
 

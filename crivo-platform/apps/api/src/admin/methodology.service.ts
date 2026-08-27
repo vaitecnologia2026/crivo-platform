@@ -13,6 +13,7 @@ type Actor = { id: string; email: string };
 
 const CONTENT_INCLUDE = {
   dimensions: { orderBy: { order: 'asc' as const } },
+  factors: { orderBy: { order: 'asc' as const } },
   questions: { orderBy: { order: 'asc' as const } },
   bands: { orderBy: { order: 'asc' as const } },
 };
@@ -218,6 +219,9 @@ export class MethodologyService {
         bands: active
           ? { create: active.bands.map((b) => ({ kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color, order: b.order })) }
           : undefined,
+        factors: active
+          ? { create: active.factors.map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences, dimensionSlug: f.dimensionSlug, order: f.order })) }
+          : undefined,
       },
       include: CONTENT_INCLUDE,
     });
@@ -244,6 +248,7 @@ export class MethodologyService {
         showWhenValue?: number | null;
       }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
+      factors?: { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }[];
     },
     actor: Actor,
   ) {
@@ -288,6 +293,12 @@ export class MethodologyService {
         await tx.methodologyBand.deleteMany({ where: { versionId: id } });
         await tx.methodologyBand.createMany({
           data: dto.bands.map((b, i) => ({ versionId: id, kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color ?? null, order: i })),
+        });
+      }
+      if (dto.factors) {
+        await tx.methodologyFactor.deleteMany({ where: { versionId: id } });
+        await tx.methodologyFactor.createMany({
+          data: dto.factors.map((f, i) => ({ versionId: id, slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences ?? null, dimensionSlug: f.dimensionSlug ?? null, order: i })),
         });
       }
     });

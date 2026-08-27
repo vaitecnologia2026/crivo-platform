@@ -1490,6 +1490,18 @@ export interface MethodologyBand {
   color?: string | null;
   order?: number;
 }
+/** Fator de risco da metodologia: a SEVERIDADE pertence ao fator (Orientação
+ *  NR-1 §8) e a PROBABILIDADE vem da dimensão vinculada. */
+export interface MethodologyFactor {
+  id?: string;
+  slug: string;
+  label: string;
+  severity: number;
+  consequences?: string | null;
+  dimensionSlug?: string | null;
+  order?: number;
+}
+
 export interface MethodologyVersion {
   id: string;
   instrument: MethodologyInstrument;
@@ -1504,6 +1516,7 @@ export interface MethodologyVersion {
   createdAt: string;
   publishedAt?: string | null;
   dimensions: MethodologyDimension[];
+  factors?: MethodologyFactor[];
   questions: MethodologyQuestion[];
   bands: MethodologyBand[];
 }
@@ -1541,6 +1554,7 @@ export function updateMethodologyDraft(
     dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null }>;
     questions?: Array<{ dimensionSlug: string; text: string; weight?: number; inverse?: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null }>;
     bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string | null }>;
+    factors?: Array<{ slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }>;
   },
 ) {
   return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}`, {
