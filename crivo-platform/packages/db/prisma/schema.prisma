@@ -558,6 +558,9 @@ model ReportTemplate {
   instrument        DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
   /// Seções fixas de texto: [{ heading, body }] — contexto/metodologia/limites.
   sections          Json                 @default("[]")
+  /// Corpo FIEL do arquivo importado (.docx), já sanitizado, com os trechos
+  /// dinâmicos marcados com {{chave}}. Null = modelo antigo, gerado por `sections`.
+  html              String?              @db.Text
   /// O que o motor injeta automaticamente no documento.
   includeResults    Boolean              @default(true) @map("include_results") // score + faixa
   includeDimensions Boolean              @default(true) @map("include_dimensions") // tabela por dimensão

@@ -141,7 +141,13 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
           .join("");
         inner += `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
       }
-      return `<section><h2>${esc(s.heading)}</h2>${inner}</section>`;
+      // Modelo FIEL ao arquivo importado: o corpo chega como HTML JA SANEADO no
+      // servidor (allowlist de tags/atributos em report-html.ts) e entra como
+      // esta, para preservar tabelas, listas e formatacao do documento original.
+      if (s.html) inner += s.html;
+      // Sem titulo quando o proprio corpo do modelo ja traz a titulacao dele.
+      const title = s.heading ? `<h2>${esc(s.heading)}</h2>` : "";
+      return `<section>${title}${inner}</section>`;
     })
     .join("");
 
@@ -167,6 +173,16 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   table.grid th, table.grid td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
   table.grid th { background: #f3f0ea; font-size: 12px; }
   h2 { font-size: 15px; border-bottom: 2px solid #0d1f3c; padding-bottom: 4px; margin-top: 24px; }
+  h3 { font-size: 13.5px; color: #0d1f3c; margin: 18px 0 6px; }
+  h4, h5, h6 { font-size: 12.5px; color: #0d1f3c; margin: 14px 0 5px; }
+  /* Conteudo vindo do modelo importado do Word (tabelas, listas, imagens). */
+  section ul, section ol { margin: 8px 0 14px; padding-left: 22px; }
+  section li { margin-bottom: 4px; }
+  section img { max-width: 100%; height: auto; }
+  section a { color: #a8693d; }
+  section table:not(.kv):not(.grid):not(.ident) th,
+  section table:not(.kv):not(.grid):not(.ident) td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
+  section table:not(.kv):not(.grid):not(.ident) th { background: #f3f0ea; font-size: 12px; }
   .note { margin-top: 30px; padding: 14px 16px; background: #f6f4f0; border-left: 3px solid #a8693d; font-size: 11.5px; color: #3a4858; font-style: italic; }
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
   @media print { body { margin: 0; } button { display: none; } }

@@ -7,11 +7,15 @@ import { AiPromptsService } from './ai-prompts.service';
 import { ME_CODE } from '../action-plans/documents.service';
 import { resolveActiveMethodology } from './methodology.service';
 import { extractReportSections, type ReportImportResult } from './report-docx-import';
+import { sanitizeReportHtml } from './report-html';
 
 type Actor = { id: string; email: string };
 
 /** Teto do upload em base64 (~8 MiB), igual ao dos anexos de prompt. */
 const MAX_IMPORT_BASE64 = 11_184_812;
+
+/** Teto do corpo fiel do modelo (espelha MAX_TEMPLATE_HTML do importador). */
+const MAX_TEMPLATE_HTML = 1_500_000;
 
 /**
  * F3 — Catálogo dos TEXTOS APROVADOS por documento (Pacote Final de Templates,
@@ -112,6 +116,8 @@ export type UpsertReportTemplate = {
   description?: string | null;
   instrumentSlug: string;
   sections?: ReportTemplateSection[];
+  /** Corpo fiel do arquivo importado, com marcadores {{chave}}. */
+  html?: string | null;
   includeResults?: boolean;
   includeDimensions?: boolean;
   includePlan?: boolean;
@@ -139,6 +145,17 @@ function cleanSections(raw: unknown): ReportTemplateSection[] {
     }))
     .filter((s) => s.heading || s.body)
     .slice(0, 20);
+}
+
+/**
+ * Sanitiza o corpo fiel do modelo. Este é o ÚNICO portão antes do banco: o HTML
+ * nasce de um arquivo enviado por terceiro e depois é renderizado no navegador
+ * do cliente. Nunca gravar `dto.html` sem passar por aqui.
+ */
+function cleanHtml(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  const clean = sanitizeReportHtml(String(raw)).slice(0, MAX_TEMPLATE_HTML);
+  return clean.trim() ? clean : null;
 }
 
 /**
@@ -228,11 +245,30 @@ export class ReportsAdminService {
       orderBy: [{ active: 'desc' }, { name: 'asc' }],
       include: { instrument: { select: { name: true, active: true } } },
     });
-    return rows.map(({ instrument, ...t }) => ({
+    // O corpo fiel chega a ~1,5 MB por modelo: a LISTA devolve so o indicador e
+    // o editor busca o conteudo do modelo escolhido em getTemplate().
+    return rows.map(({ instrument, html, ...t }) => ({
       ...t,
       instrumentName: instrument.name,
       instrumentActive: instrument.active,
+      hasHtml: !!html,
     }));
+  }
+
+  /** Modelo completo (inclui o corpo fiel) — usado ao abrir o editor. */
+  async getTemplate(id: string) {
+    const row = await this.prisma.admin.reportTemplate.findUnique({
+      where: { id },
+      include: { instrument: { select: { name: true, active: true } } },
+    });
+    if (!row) throw new BadRequestException('Modelo de relatorio nao encontrado.');
+    const { instrument, ...t } = row;
+    return {
+      ...t,
+      instrumentName: instrument.name,
+      instrumentActive: instrument.active,
+      hasHtml: !!row.html,
+    };
   }
 
   /** Instrumentos do Motor de Diagnósticos disponíveis para vincular. */
@@ -246,9 +282,10 @@ export class ReportsAdminService {
   }
 
   /**
-   * Importa um modelo de relatório a partir de um .docx ou .pdf: extrai o texto
-   * em seções {heading, body}. STATELESS — não cria o template; devolve os dados
-   * para o admin revisar no editor e salvar com createTemplate.
+   * Importa um modelo de relatório a partir de um .docx ou .pdf: devolve o corpo
+   * FIEL do arquivo (`html`, só em .docx) e o mesmo conteúdo em seções editáveis.
+   * STATELESS — não cria o template; o admin revisa no editor e salva com
+   * createTemplate.
    */
   async importTemplateDocx(dto: { filename: string; mimeType: string; dataBase64: string }): Promise<ReportImportResult> {
     if (!dto.dataBase64) throw new BadRequestException('Arquivo vazio.');
@@ -277,6 +314,7 @@ export class ReportsAdminService {
         description: dto.description?.trim() || null,
         instrumentSlug: instrument.slug,
         sections: cleanSections(dto.sections) as object,
+        html: cleanHtml(dto.html),
         includeResults: dto.includeResults ?? true,
         includeDimensions: dto.includeDimensions ?? true,
         includePlan: dto.includePlan ?? false,
@@ -309,6 +347,7 @@ export class ReportsAdminService {
         description: dto.description === undefined ? existing.description : dto.description?.trim() || null,
         instrumentSlug: dto.instrumentSlug ?? existing.instrumentSlug,
         sections: (dto.sections === undefined ? existing.sections : cleanSections(dto.sections)) as object,
+        html: dto.html === undefined ? existing.html : cleanHtml(dto.html),
         includeResults: dto.includeResults ?? existing.includeResults,
         includeDimensions: dto.includeDimensions ?? existing.includeDimensions,
         includePlan: dto.includePlan ?? existing.includePlan,

@@ -12,6 +12,7 @@ import {
   type RiskLevel3,
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
   PSYCHOSOCIAL_RISK_CLASS_ACTION,
+  fillReportPlaceholders,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
@@ -263,6 +264,71 @@ function signalReadings(
     else leftovers.push(trimmed);
   }
   return { byCode, prose: leftovers.length ? leftovers.join('\n') : null };
+}
+
+// ── HTML dos blocos dinâmicos (modelos FIÉIS ao arquivo importado) ───────────
+// O modelo importado do Word guarda o corpo do documento em HTML, com os
+// trechos que mudam marcados com {{chave}}. Estas funções convertem os blocos
+// que o motor já sabe montar (`DocumentSection`) no HTML que entra no lugar do
+// marcador — mesmas classes CSS do renderizador, para o visual não destoar.
+
+function escapeHtml(v: string): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function kvTableHtml(rows: { label: string; value: string }[]): string {
+  const body = rows.map((r) => `<tr><th>${escapeHtml(r.label)}</th><td>${escapeHtml(r.value)}</td></tr>`).join('');
+  return `<table class="kv">${body}</table>`;
+}
+
+function gridTableHtml(t: { columns: string[]; data: string[][] }): string {
+  const head = t.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('');
+  const rows = t.data.map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+  return `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/** Grade de identificação em pares — mesmo formato do cabeçalho oficial. */
+function identGridHtml(meta: { label: string; value: string }[]): string {
+  const items = meta.filter((m) => {
+    const v = (m.value ?? '').trim();
+    return v !== '' && v !== '—' && v !== '-';
+  });
+  if (!items.length) return '';
+  const rows: string[] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    const a = items[i];
+    const b = items[i + 1];
+    rows.push(
+      `<tr><th>${escapeHtml(a.label)}</th><td>${escapeHtml(a.value)}</td>` +
+        (b ? `<th>${escapeHtml(b.label)}</th><td>${escapeHtml(b.value)}</td>` : '<th></th><td></td>') +
+        '</tr>',
+    );
+  }
+  return `<table class="ident">${rows.join('')}</table>`;
+}
+
+/** Conteúdo da seção SEM o título: o modelo do cliente já traz o dele. */
+function sectionInnerHtml(s: DocumentSection): string {
+  let out = '';
+  if (s.body) {
+    out += s.body
+      .split(/\n{2,}/)
+      .map((para) => `<p>${escapeHtml(para).replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+  }
+  if (s.rows) out += kvTableHtml(s.rows);
+  if (s.table) out += gridTableHtml(s.table);
+  return out;
+}
+
+/** Seção COM subtítulo (h3) — para blocos que vêm em série, como a matriz por setor. */
+function sectionBlockHtml(s: DocumentSection): string {
+  const inner = sectionInnerHtml(s);
+  if (!inner && !s.heading) return '';
+  return `${s.heading ? `<h3>${escapeHtml(s.heading)}</h3>` : ''}${inner}`;
 }
 
 /**
@@ -589,53 +655,38 @@ export class DocumentsService {
       { label: 'Respostas válidas', value: String(agg.totalRespondents) },
     ];
 
-    const sections: DocumentSection[] = [];
+    // Blocos que o motor injeta. Montados uma vez e usados pelos DOIS caminhos:
+    // o modelo FIEL (substituição na posição do marcador) e o modelo por seções
+    // (empilhados no fim, comportamento histórico).
+    const resultsSection: DocumentSection = {
+      heading: 'Resultado do diagnóstico',
+      body:
+        `Resultado agregado de "${tpl.instrument.name}" com base em ${agg.totalRespondents} ` +
+        `respondente(s)${agg.sectors ? ` em ${agg.sectors} setor(es)` : ''}. ` +
+        'Resultado coletivo — nenhuma resposta individual é exibida ou identificável.',
+      rows: [
+        { label: 'Índice do diagnóstico (0–100)', value: String(agg.score) },
+        { label: 'Faixa', value: agg.levelLabel },
+        { label: 'Respondentes', value: String(agg.totalRespondents) },
+        { label: 'Última resposta', value: agg.lastResponseAt ? fmt(agg.lastResponseAt) : '—' },
+      ],
+    };
 
-    // 1) Texto fixo do modelo (contexto, metodologia, limites) — o que a CRIVO
-    //    cadastrou no Super Admin.
-    for (const s of (tpl.sections as ReportTemplateSectionRow[] | null) ?? []) {
-      if (s?.heading || s?.body) {
-        sections.push({ heading: s.heading || 'Contexto', body: s.body || '' });
-      }
-    }
-
-    // 2) Resultado do diagnóstico (score + faixa) direto do motor.
-    if (tpl.includeResults) {
-      sections.push({
-        heading: 'Resultado do diagnóstico',
-        body:
-          `Resultado agregado de "${tpl.instrument.name}" com base em ${agg.totalRespondents} ` +
-          `respondente(s)${agg.sectors ? ` em ${agg.sectors} setor(es)` : ''}. ` +
-          'Resultado coletivo — nenhuma resposta individual é exibida ou identificável.',
-        rows: [
-          { label: 'Índice do diagnóstico (0–100)', value: String(agg.score) },
-          { label: 'Faixa', value: agg.levelLabel },
-          { label: 'Respondentes', value: String(agg.totalRespondents) },
-          {
-            label: 'Última resposta',
-            value: agg.lastResponseAt ? fmt(agg.lastResponseAt) : '—',
+    const dimensionsSection: DocumentSection | null = agg.byDimension.length
+      ? {
+          heading: 'Resultado por dimensão',
+          body: 'Média por dimensão da versão da metodologia ativa no período.',
+          table: {
+            columns: ['Dimensão', 'Índice (0–100)'],
+            data: agg.byDimension.map((d) => [d.label, String(d.value)]),
           },
-        ],
-      });
-    }
+        }
+      : null;
 
-    // 3) Dimensões do instrumento (a estrutura publicada na metodologia ativa).
-    if (tpl.includeDimensions && agg.byDimension.length) {
-      sections.push({
-        heading: 'Resultado por dimensão',
-        body: 'Média por dimensão da versão da metodologia ativa no período.',
-        table: {
-          columns: ['Dimensão', 'Índice (0–100)'],
-          data: agg.byDimension.map((d) => [d.label, String(d.value)]),
-        },
-      });
-    }
-
-    // 4) Ações do Plano de Evolução (quando o modelo pede).
-    if (tpl.includePlan) {
+    const planOf = (): DocumentSection => {
       const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
       const items = plan?.items ?? [];
-      sections.push({
+      return {
         heading: 'Plano de Evolução vinculado',
         body: plan
           ? `Ações registradas em "${plan.title}"${plan.validatedAt ? ' (plano validado)' : ' (plano ainda não validado)'}.`
@@ -653,16 +704,113 @@ export class DocumentsService {
               ]),
             }
           : undefined,
-      });
-    }
+      };
+    };
 
-    sections.push(
-      signatureSection(
-        'A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de ' +
-          'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
-      ),
+    const signature = signatureSection(
+      'A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de ' +
+        'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
     );
-    sections.push(docControlSection());
+    const docControl = docControlSection();
+
+    const sections: DocumentSection[] = [];
+    const tplHtml = typeof tpl.html === 'string' ? tpl.html.trim() : '';
+
+    if (tplHtml) {
+      // ── Modelo FIEL ao arquivo importado ─────────────────────────────────
+      // O corpo é o próprio documento do cliente (títulos, tabelas, listas e
+      // formatação preservados); só os marcadores {{...}} mudam. É isso que faz
+      // o relatório sair na ORDEM e no formato do modelo, em vez de empilhar os
+      // blocos dinâmicos no fim.
+      const wants = (key: string) => tplHtml.includes(`{{${key}}}`);
+      const matrixSections = wants('matriz_risco') ? await this.psychosocialMatrixSections(tenantId) : [];
+      const adhesion = wants('participacao') ? await this.sectorAdhesion(tenantId) : null;
+
+      const filled = fillReportPlaceholders(tplHtml, (key) => {
+        switch (key) {
+          case 'empresa':
+            return escapeHtml(ctx.company);
+          case 'cnpj':
+            return escapeHtml(ctx.org?.taxId ?? '');
+          case 'data_emissao':
+            return escapeHtml(fmt(new Date()));
+          case 'diagnostico':
+            return escapeHtml(tpl.instrument.name);
+          case 'saida_tecnica':
+            return escapeHtml(OUTPUT_LABEL[output] ?? output);
+          case 'respondentes':
+            return String(agg.totalRespondents);
+          case 'setores':
+            return agg.sectors ? String(agg.sectors) : '';
+          case 'score':
+            return String(agg.score);
+          case 'faixa':
+            return escapeHtml(agg.levelLabel);
+          case 'ultima_resposta':
+            return agg.lastResponseAt ? escapeHtml(fmt(agg.lastResponseAt)) : '';
+          case 'identificacao':
+            return identGridHtml(meta);
+          case 'resultado':
+            return sectionInnerHtml(resultsSection);
+          case 'tabela_dimensoes':
+            return dimensionsSection ? sectionInnerHtml(dimensionsSection) : '';
+          case 'matriz_risco':
+            return matrixSections.map(sectionBlockHtml).join('');
+          case 'participacao':
+            return adhesion && adhesion.sectors.length
+              ? gridTableHtml({
+                  columns: ['Setor', 'Respondentes'],
+                  data: adhesion.sectors.map((x) => [
+                    x.sector,
+                    // Recorte abaixo do mínimo tem o número ocultado (Bloqueio §5).
+                    x.suppressed ? `Suprimido (< ${adhesion.minRespondents})` : String(x.respondents),
+                  ]),
+                })
+              : '';
+          case 'plano_acao':
+            return sectionInnerHtml(planOf());
+          case 'assinaturas':
+            return sectionInnerHtml(signature);
+          case 'controle_documental':
+            return sectionInnerHtml(docControl);
+          default:
+            return '';
+        }
+      });
+
+      // Se o modelo posiciona a identificação no corpo, o cabeçalho não a
+      // repete — senão a mesma grade sairia duas vezes no documento.
+      if (filled.used.includes('identificacao')) meta.length = 0;
+
+      // Heading vazio: o corpo fiel já traz a titulação do próprio modelo.
+      sections.push({ heading: '', html: filled.html });
+
+      // Bloco que o modelo NÃO posicionou continua sendo anexado quando a flag
+      // está marcada — o admin não perde conteúdo por esquecer o marcador.
+      if (tpl.includeResults && !filled.used.includes('resultado')) sections.push(resultsSection);
+      if (tpl.includeDimensions && dimensionsSection && !filled.used.includes('tabela_dimensoes')) {
+        sections.push(dimensionsSection);
+      }
+      if (tpl.includePlan && !filled.used.includes('plano_acao')) sections.push(planOf());
+      if (!filled.used.includes('assinaturas')) sections.push(signature);
+      if (!filled.used.includes('controle_documental')) sections.push(docControl);
+    } else {
+      // ── Modelo por seções (escrito à mão ou importado antes desta versão) ──
+      // 1) Texto fixo do modelo (contexto, metodologia, limites).
+      for (const s of (tpl.sections as ReportTemplateSectionRow[] | null) ?? []) {
+        if (s?.heading || s?.body) {
+          sections.push({ heading: s.heading || 'Contexto', body: s.body || '' });
+        }
+      }
+      // 2) Resultado do diagnóstico (score + faixa) direto do motor.
+      if (tpl.includeResults) sections.push(resultsSection);
+      // 3) Dimensões do instrumento (a estrutura publicada na metodologia ativa).
+      if (tpl.includeDimensions && dimensionsSection) sections.push(dimensionsSection);
+      // 4) Ações do Plano de Evolução (quando o modelo pede).
+      if (tpl.includePlan) sections.push(planOf());
+      sections.push(signature);
+      sections.push(docControl);
+    }
 
     return {
       type: `tpl:${tpl.key}`,

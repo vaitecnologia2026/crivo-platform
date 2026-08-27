@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   createReportTemplate,
   deleteReportTemplate,
+  getReportTemplate,
   importReportTemplateDocx,
   listReportInstrumentOptions,
   listReportTemplates,
@@ -14,7 +15,13 @@ import {
   type UpsertReportTemplateRequest,
 } from "@/lib/admin-api";
 import { renderDocumentHtml } from "../plataforma/DocumentsPanel";
-import { RESPONSIBILITY_NOTE, type GeneratedDocument } from "@crivo/types";
+import {
+  REPORT_PLACEHOLDERS,
+  RESPONSIBILITY_NOTE,
+  fillReportPlaceholders,
+  findReportPlaceholders,
+  type GeneratedDocument,
+} from "@crivo/types";
 
 /** Lê um arquivo como base64 puro (sem o prefixo data:). Padrão do CustomPromptsPanel. */
 function fileToBase64(file: File): Promise<string> {
@@ -37,6 +44,8 @@ type FormState = {
   description: string;
   instrumentSlug: string;
   sections: ReportTemplateSection[];
+  /** Corpo fiel do arquivo importado (.docx), com marcadores. Null = so secoes. */
+  html: string | null;
   includeResults: boolean;
   includeDimensions: boolean;
   includePlan: boolean;
@@ -89,10 +98,58 @@ const EMPTY: FormState = {
   description: "",
   instrumentSlug: "",
   sections: [{ heading: "", body: "" }],
+  html: null,
   includeResults: true,
   includeDimensions: true,
   includePlan: false,
   active: true,
+};
+
+/** Amostras HTML dos blocos dinâmicos, para a pré-visualização de um modelo
+ *  FIEL: cada marcador aparece na posição em que o arquivo importado o colocou,
+ *  com números de exemplo. No portal entram os dados reais do diagnóstico. */
+const SAMPLE_BLOCKS: Record<string, string> = {
+  identificacao:
+    '<table class="ident"><tr><th>Organização</th><td>Empresa Exemplo S.A.</td>' +
+    "<th>CNPJ</th><td>00.000.000/0001-00</td></tr>" +
+    "<tr><th>Data de emissão</th><td>00/00/0000</td><th>Respostas válidas</th><td>12</td></tr></table>",
+  resultado:
+    '<table class="kv"><tr><th>Índice do diagnóstico (0–100)</th><td>62,5</td></tr>' +
+    "<tr><th>Faixa</th><td>Faixa de exemplo</td></tr>" +
+    "<tr><th>Respondentes</th><td>12</td></tr></table>",
+  tabela_dimensoes:
+    '<table class="grid"><thead><tr><th>Dimensão</th><th>Índice (0–100)</th></tr></thead><tbody>' +
+    "<tr><td>Dimensão exemplo A</td><td>58,3</td></tr>" +
+    "<tr><td>Dimensão exemplo B</td><td>71,0</td></tr></tbody></table>",
+  matriz_risco:
+    '<table class="grid"><thead><tr><th>Fator</th><th>Probabilidade</th><th>Severidade</th><th>Risco</th>' +
+    "<th>Classificação</th></tr></thead><tbody>" +
+    "<tr><td>Fator de exemplo</td><td>4</td><td>4</td><td>16</td><td>Muito alto</td></tr></tbody></table>",
+  participacao:
+    '<table class="grid"><thead><tr><th>Setor</th><th>Respondentes</th></tr></thead><tbody>' +
+    "<tr><td>Operações</td><td>7</td></tr><tr><td>Administrativo</td><td>5</td></tr></tbody></table>",
+  plano_acao:
+    '<table class="grid"><thead><tr><th>Ponto de atenção</th><th>Ação</th><th>Responsável</th><th>Prazo</th>' +
+    "</tr></thead><tbody><tr><td>Exemplo de ponto</td><td>Ação de exemplo</td><td>RH</td><td>30 dias</td></tr></tbody></table>",
+  assinaturas:
+    '<table class="grid"><thead><tr><th>Responsável</th><th>Nome</th><th>Cargo</th><th>Data</th><th>Assinatura</th>' +
+    "</tr></thead><tbody><tr><td>Empresa</td><td></td><td></td><td></td><td></td></tr>" +
+    "<tr><td>Responsável técnico/designado</td><td></td><td></td><td></td><td></td></tr></tbody></table>",
+  controle_documental:
+    '<table class="kv"><tr><th>Status do documento</th><td>Rascunho (pré-visualização)</td></tr>' +
+    "<tr><th>Versão do documento</th><td>Atribuída na emissão oficial</td></tr>" +
+    "<tr><th>Hash/Identificador</th><td>Atribuído na emissão oficial</td></tr></table>",
+};
+const SAMPLE_SCALARS: Record<string, string> = {
+  empresa: "Empresa Exemplo S.A.",
+  cnpj: "00.000.000/0001-00",
+  data_emissao: "00/00/0000",
+  saida_tecnica: "Apoio à AEP",
+  respondentes: "12",
+  setores: "3",
+  score: "62,5",
+  faixa: "Faixa de exemplo",
+  ultima_resposta: "00/00/0000",
 };
 
 /**
@@ -119,48 +176,51 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
    *  renderDocumentHtml do portal — o preview é o documento de verdade. */
   function buildPreviewDoc(f: FormState): GeneratedDocument {
     const instrumentName = instruments.find((i) => i.slug === f.instrumentSlug)?.name ?? f.instrumentSlug;
-    const sections: GeneratedDocument["sections"] = f.sections
-      .filter((s) => s.heading.trim() || s.body.trim())
-      .map((s) => ({ heading: s.heading.trim() || "Contexto", body: s.body }));
-    if (f.includeResults) {
-      sections.push({
-        heading: "Resultado do diagnóstico",
-        body:
-          `Resultado agregado de "${instrumentName}" com base em 12 respondente(s) em 3 setor(es). ` +
-          "Resultado coletivo — nenhuma resposta individual é exibida ou identificável. (valores de exemplo)",
-        rows: [
-          { label: "Índice do diagnóstico (0–100)", value: "62,5" },
-          { label: "Faixa", value: "Faixa de exemplo" },
-          { label: "Respondentes", value: "12" },
-          { label: "Última resposta", value: new Date().toLocaleDateString("pt-BR") },
+    // Mesmos campos do gerador real (documents.service.generateFromTemplate),
+    // no padrao do modelo oficial: grade de pares, sem campo vazio.
+    const meta: GeneratedDocument["meta"] = [
+      { label: "Organização", value: "Empresa Exemplo S.A." },
+      { label: "CNPJ", value: "00.000.000/0001-00" },
+      { label: "Método aplicado", value: instrumentName },
+      { label: "Data de emissão", value: new Date().toLocaleDateString("pt-BR") },
+      { label: "Saída técnica", value: "Apoio à AEP" },
+      { label: "Respostas válidas", value: "12" },
+    ];
+    const sections: GeneratedDocument["sections"] = [];
+
+    const resultsSection: GeneratedDocument["sections"][number] = {
+      heading: "Resultado do diagnóstico",
+      body:
+        `Resultado agregado de "${instrumentName}" com base em 12 respondente(s) em 3 setor(es). ` +
+        "Resultado coletivo — nenhuma resposta individual é exibida ou identificável. (valores de exemplo)",
+      rows: [
+        { label: "Índice do diagnóstico (0–100)", value: "62,5" },
+        { label: "Faixa", value: "Faixa de exemplo" },
+        { label: "Respondentes", value: "12" },
+        { label: "Última resposta", value: new Date().toLocaleDateString("pt-BR") },
+      ],
+    };
+    const dimensionsSection: GeneratedDocument["sections"][number] = {
+      heading: "Resultado por dimensão",
+      body: "Média por dimensão da versão da metodologia ativa no período. (valores de exemplo)",
+      table: {
+        columns: ["Dimensão", "Índice (0–100)"],
+        data: [
+          ["Dimensão exemplo A", "58,3"],
+          ["Dimensão exemplo B", "71,0"],
+          ["Dimensão exemplo C", "45,8"],
         ],
-      });
-    }
-    if (f.includeDimensions) {
-      sections.push({
-        heading: "Resultado por dimensão",
-        body: "Média por dimensão da versão da metodologia ativa no período. (valores de exemplo)",
-        table: {
-          columns: ["Dimensão", "Índice (0–100)"],
-          data: [
-            ["Dimensão exemplo A", "58,3"],
-            ["Dimensão exemplo B", "71,0"],
-            ["Dimensão exemplo C", "45,8"],
-          ],
-        },
-      });
-    }
-    if (f.includePlan) {
-      sections.push({
-        heading: "Plano de Evolução vinculado",
-        body: 'Ações registradas em "Plano de Evolução" (exemplo).',
-        table: {
-          columns: ["Ponto de atenção", "Ação", "Responsável", "Prazo", "Risco", "Status"],
-          data: [["Exemplo de ponto", "Ação de exemplo", "RH", "30 dias", "Moderado", "Em andamento"]],
-        },
-      });
-    }
-    sections.push({
+      },
+    };
+    const planSection: GeneratedDocument["sections"][number] = {
+      heading: "Plano de Evolução vinculado",
+      body: 'Ações registradas em "Plano de Evolução" (exemplo).',
+      table: {
+        columns: ["Ponto de atenção", "Ação", "Responsável", "Prazo", "Risco", "Status"],
+        data: [["Exemplo de ponto", "Ação de exemplo", "RH", "30 dias", "Moderado", "Em andamento"]],
+      },
+    };
+    const signatureSection: GeneratedDocument["sections"][number] = {
       heading: "Conclusão e validação",
       body:
         "A revisão, validação e integração formal deste relatório às obrigações aplicáveis são de " +
@@ -172,8 +232,8 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
           ["Responsável técnico/designado", "", "", "", "", ""],
         ],
       },
-    });
-    sections.push({
+    };
+    const docControlSection: GeneratedDocument["sections"][number] = {
       heading: "Controle documental",
       rows: [
         { label: "Status do documento", value: "Rascunho (pré-visualização)" },
@@ -182,7 +242,37 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
         { label: "Validação", value: "Assinatura fora do sistema (empresa e responsável técnico)" },
         { label: "Hash/Identificador", value: "Atribuído na emissão oficial" },
       ],
-    });
+    };
+
+    if (f.html) {
+      // Modelo FIEL: o corpo e o proprio arquivo importado; so os marcadores
+      // mudam, e eles aparecem na posicao em que o cliente os desenhou. Espelha
+      // documents.service.generateFromTemplate.
+      const filled = fillReportPlaceholders(f.html, (key) => {
+        if (key === "diagnostico") return instrumentName;
+        if (key in SAMPLE_SCALARS) return SAMPLE_SCALARS[key];
+        return SAMPLE_BLOCKS[key] ?? "";
+      });
+      if (filled.used.includes("identificacao")) meta.length = 0;
+      sections.push({ heading: "", html: filled.html });
+      if (f.includeResults && !filled.used.includes("resultado")) sections.push(resultsSection);
+      if (f.includeDimensions && !filled.used.includes("tabela_dimensoes")) sections.push(dimensionsSection);
+      if (f.includePlan && !filled.used.includes("plano_acao")) sections.push(planSection);
+      if (!filled.used.includes("assinaturas")) sections.push(signatureSection);
+      if (!filled.used.includes("controle_documental")) sections.push(docControlSection);
+    } else {
+      for (const sec of f.sections) {
+        if (sec.heading.trim() || sec.body.trim()) {
+          sections.push({ heading: sec.heading.trim() || "Contexto", body: sec.body });
+        }
+      }
+      if (f.includeResults) sections.push(resultsSection);
+      if (f.includeDimensions) sections.push(dimensionsSection);
+      if (f.includePlan) sections.push(planSection);
+      sections.push(signatureSection);
+      sections.push(docControlSection);
+    }
+
     return {
       type: "preview",
       title: f.name.trim() || "Relatório sem nome",
@@ -195,16 +285,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
           : `Relatório vinculado ao diagnóstico ${instrumentName}`),
       company: "Empresa Exemplo S.A.",
       generatedAt: new Date().toISOString(),
-      // Mesmos campos do gerador real (documents.service.generateFromTemplate),
-      // no padrão do modelo oficial: grade de pares, sem campo vazio.
-      meta: [
-        { label: "Organização", value: "Empresa Exemplo S.A." },
-        { label: "CNPJ", value: "00.000.000/0001-00" },
-        { label: "Método aplicado", value: instrumentName },
-        { label: "Data de emissão", value: new Date().toLocaleDateString("pt-BR") },
-        { label: "Saída técnica", value: "Apoio à AEP" },
-        { label: "Respostas válidas", value: "12" },
-      ],
+      meta,
       sections,
       responsibilityNote: RESPONSIBILITY_NOTE,
     };
@@ -227,18 +308,28 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
     // No Motor de Diagnósticos o modelo já nasce vinculado ao diagnóstico selecionado.
     setForm({ ...EMPTY, instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "" });
   }
-  function openEdit(r: ReportTemplateRow) {
-    setForm({
-      id: r.id,
-      name: r.name,
-      description: r.description ?? "",
-      instrumentSlug: r.instrumentSlug,
-      sections: r.sections.length ? r.sections : [{ heading: "", body: "" }],
-      includeResults: r.includeResults,
-      includeDimensions: r.includeDimensions,
-      includePlan: r.includePlan,
-      active: r.active,
-    });
+  /** A listagem nao traz o corpo fiel (pesado); buscamos o modelo completo. */
+  async function openEdit(r: ReportTemplateRow) {
+    setBusyId(r.id);
+    try {
+      const full = await getReportTemplate(r.id);
+      setForm({
+        id: full.id,
+        name: full.name,
+        description: full.description ?? "",
+        instrumentSlug: full.instrumentSlug,
+        sections: full.sections.length ? full.sections : [{ heading: "", body: "" }],
+        html: full.html,
+        includeResults: full.includeResults,
+        includeDimensions: full.includeDimensions,
+        includePlan: full.includePlan,
+        active: full.active,
+      });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao abrir o modelo.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function onImportFile(file: File | null) {
@@ -266,6 +357,9 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
         instrumentSlug: instrumentSlug ?? instruments[0]?.slug ?? "",
         name: res.name,
         sections: res.sections.length ? res.sections : [{ heading: "", body: "" }],
+        // Corpo fiel do .docx (null em PDF): e o que faz o relatorio sair com o
+        // layout do arquivo, trocando so os marcadores.
+        html: res.html,
         includeResults: res.suggested?.includeResults ?? EMPTY.includeResults,
         includeDimensions: res.suggested?.includeDimensions ?? EMPTY.includeDimensions,
         includePlan: res.suggested?.includePlan ?? EMPTY.includePlan,
@@ -273,7 +367,10 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
       setForm(imported);
       setPreviewHtml(renderDocumentHtml(buildPreviewDoc(imported)));
       const warn = res.warnings.length ? ` ${res.warnings.join(" ")}` : "";
-      setImportMsg(`✓ Importado de "${file.name}" · padrão: ${res.patternLabel}.${warn} Revise as seções e salve.`);
+      const modo = res.html
+        ? "O relatório vai sair com o LAYOUT do arquivo (tabelas, listas e formatação preservadas)."
+        : "Sem layout do arquivo — o relatório usa o formato padrão CRIVO com as seções extraídas.";
+      setImportMsg(`✓ Importado de "${file.name}" · padrão: ${res.patternLabel}. ${modo}${warn} Revise e salve.`);
     } catch (e) {
       setImportMsg(`✕ ${e instanceof Error ? e.message : "Falha ao importar o documento."}`);
     } finally {
@@ -302,6 +399,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
         description: form.description.trim() || null,
         instrumentSlug: form.instrumentSlug,
         sections: form.sections.filter((s) => s.heading.trim() || s.body.trim()),
+        html: form.html,
         includeResults: form.includeResults,
         includeDimensions: form.includeDimensions,
         includePlan: form.includePlan,
@@ -468,11 +566,90 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
             </div>
           </fieldset>
 
+          {form.html && (
+            <fieldset className="prod-fs" style={{ marginTop: 16 }}>
+              <legend>Corpo fiel do arquivo importado</legend>
+              <p className="prod-note" style={{ marginTop: 0 }}>
+                O relatório sai com o <strong>layout do documento importado</strong> — títulos, tabelas,
+                listas, negrito e imagens preservados ({Math.round(form.html.length / 1024)} KB). A cada
+                emissão só mudam os <strong>marcadores</strong>, e eles são preenchidos na posição em que
+                estão no arquivo.
+              </p>
+              {(() => {
+                const found = findReportPlaceholders(form.html ?? "");
+                return (
+                  <>
+                    <p className="prod-note" style={{ margin: "8px 0 4px" }}>
+                      <strong>Neste modelo:</strong>{" "}
+                      {found.known.length
+                        ? found.known
+                            .map((k) => REPORT_PLACEHOLDERS.find((x) => x.key === k)?.label ?? k)
+                            .join(" · ")
+                        : "nenhum marcador — o documento sairia igual para toda empresa."}
+                    </p>
+                    {found.unknown.length > 0 && (
+                      <p className="evd-reason" style={{ margin: "0 0 4px" }}>
+                        Marcadores não reconhecidos (serão removidos do documento):{" "}
+                        {found.unknown.map((k) => `{{${k}}}`).join(" ")}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+              <p className="prod-note" style={{ margin: "10px 0 4px" }}>
+                Marcadores disponíveis (clique para copiar e cole no lugar desejado):
+              </p>
+              <div className="prod-modules">
+                {REPORT_PLACEHOLDERS.map((ph) => (
+                  <button
+                    key={ph.key}
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    title={ph.hint}
+                    onClick={() => {
+                      const tag = `{{${ph.key}}}`;
+                      navigator.clipboard?.writeText(tag).catch(() => window.prompt("Copie o marcador:", tag));
+                    }}
+                  >
+                    {ph.label}
+                  </button>
+                ))}
+              </div>
+              <details style={{ marginTop: 12 }}>
+                <summary className="prod-note" style={{ cursor: "pointer" }}>
+                  Editar o HTML do modelo (avançado)
+                </summary>
+                <textarea
+                  rows={10}
+                  value={form.html ?? ""}
+                  onChange={(e) => setField("html", e.target.value)}
+                  style={{ width: "100%", resize: "vertical", marginTop: 8, fontFamily: "monospace", fontSize: 12 }}
+                />
+                <span className="prod-note">
+                  Tags e atributos fora da lista permitida são removidos ao salvar.
+                </span>
+              </details>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  if (window.confirm("Descartar o layout do arquivo? O relatório passa a usar só as seções de texto abaixo.")) {
+                    setField("html", null);
+                  }
+                }}
+              >
+                Descartar o layout e usar só as seções de texto
+              </button>
+            </fieldset>
+          )}
+
           <fieldset className="prod-fs" style={{ marginTop: 16 }}>
             <legend>Texto fixo do relatório</legend>
             <p className="prod-note" style={{ marginTop: 0 }}>
-              Contexto, metodologia e limites — o que é igual para toda empresa. Os números entram
-              automaticamente nas seções acima.
+              {form.html
+                ? "Seções extraídas do arquivo. Com o corpo fiel ativo elas NÃO entram no documento — ficam guardadas para o caso de você descartar o layout."
+                : "Contexto, metodologia e limites — o que é igual para toda empresa. Os números entram automaticamente nas seções acima."}
             </p>
             {form.sections.map((s, i) => (
               <div key={i} style={{ borderTop: i ? "1px solid var(--line)" : "none", paddingTop: i ? 12 : 0, marginTop: i ? 12 : 0 }}>
@@ -575,6 +752,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
                 </td>
                 <td>
                   {[
+                    r.hasHtml ? "layout do arquivo" : null,
                     r.includeResults ? "índice e faixa" : null,
                     r.includeDimensions ? "dimensões" : null,
                     r.includePlan ? "plano" : null,
@@ -588,7 +766,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
                   </span>
                 </td>
                 <td className="addx-actions">
-                  <button type="button" disabled={busyId === r.id} onClick={() => openEdit(r)}>Editar</button>
+                  <button type="button" disabled={busyId === r.id} onClick={() => void openEdit(r)}>Editar</button>
                   <button type="button" disabled={busyId === r.id} onClick={() => remove(r)}>Remover</button>
                 </td>
               </tr>

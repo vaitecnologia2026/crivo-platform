@@ -1,16 +1,26 @@
 import { BadRequestException } from '@nestjs/common';
+import { REPORT_PLACEHOLDERS } from '@crivo/types';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 
+import { autoMarkReportHtml, sanitizeReportHtml } from './report-html';
+
 /**
  * Importação de um modelo de relatório a partir de um .docx (Word) ou .pdf.
- * Extrai o texto em SEÇÕES editáveis {heading, body} para o admin revisar e
- * salvar como ReportTemplate. O binário nunca é persistido — só o texto.
  *
- * O documento do cliente pode vir sem estilos de heading (só texto corrido); por
- * isso usamos `convertToHtml` no Word (preserva h1–h6/p/li/table quando existem)
- * e, como fallback — único caminho no PDF, que não tem marcação —, uma
- * heurística de "linha curta = título".
+ * Produz DUAS leituras do mesmo arquivo:
+ *  1. `html` — o corpo FIEL do documento (títulos, tabelas, listas, negrito e
+ *     imagens), sanitizado e com os blocos de exemplo já trocados por
+ *     marcadores `{{chave}}`. É o que faz o relatório emitido sair igual ao
+ *     modelo, com os dados reais na POSIÇÃO em que o cliente os desenhou.
+ *     Só existe para .docx — em PDF a estrutura não é recuperável.
+ *  2. `sections` — o mesmo conteúdo achatado em {heading, body} editável, que
+ *     continua sendo o caminho dos modelos escritos à mão.
+ *
+ * O binário nunca é persistido. O documento do cliente pode vir sem estilos de
+ * heading (só texto corrido); por isso a extração em seções tem, como fallback
+ * — único caminho no PDF, que não tem marcação —, a heurística "linha curta =
+ * título".
  */
 
 export type ReportImportSection = { heading: string; body: string };
@@ -26,6 +36,10 @@ export type ReportImportResult = {
   /** Flags de injeção automática sugeridas pelo padrão detectado. */
   suggested: { includeResults: boolean; includeDimensions: boolean; includePlan: boolean };
   sections: ReportImportSection[];
+  /** Corpo fiel do .docx (sanitizado e marcado). `null` em PDF. */
+  html: string | null;
+  /** Marcadores que a detecção automática aplicou no HTML. */
+  placeholders: string[];
   warnings: string[];
 };
 
@@ -91,6 +105,10 @@ function detectPattern(text: string): ReportPattern {
 const MAX_SECTIONS = 20;
 const MAX_HEADING = 160;
 const MAX_BODY = 8000;
+/** Teto do corpo fiel guardado no modelo (o banco aguenta, o payload do editor não). */
+const MAX_TEMPLATE_HTML = 1_500_000;
+/** Imagem maior que isto (base64) fica de fora — uma logo cabe folgado. */
+const MAX_IMAGE_BASE64 = 700_000;
 
 function extOf(filename: string): string {
   const i = filename.lastIndexOf('.');
@@ -336,6 +354,7 @@ function pdfTextToBlocks(text: string): Block[] {
 export async function extractReportSections(filename: string, buf: Buffer): Promise<ReportImportResult> {
   const ext = extOf(filename);
   let blocks: Block[];
+  let rawHtml = '';
 
   if (ext === 'pdf') {
     const isPdf = buf.length >= 4 && buf.toString('latin1', 0, 4) === '%PDF';
@@ -362,11 +381,26 @@ export async function extractReportSections(filename: string, buf: Buffer): Prom
     }
     let html: string;
     try {
-      const result = await mammoth.convertToHtml({ buffer: buf });
+      const result = await mammoth.convertToHtml(
+        { buffer: buf },
+        {
+          // Sublinhado e tachado não estão no mapa padrão do mammoth, e os
+          // modelos oficiais usam os dois em cabeçalho de tabela.
+          styleMap: ['u => u', 'strike => s'],
+          // Imagens viram data URI: o modelo fica autocontido (nada de arquivo
+          // externo para servir depois).
+          convertImage: mammoth.images.imgElement(async (image) => {
+            const b64 = await image.read('base64');
+            if (!b64 || b64.length > MAX_IMAGE_BASE64) return { src: '' };
+            return { src: `data:${image.contentType};base64,${b64}` };
+          }),
+        },
+      );
       html = result.value ?? '';
     } catch {
       throw new BadRequestException('Não foi possível ler o documento. Confirme que é um .docx válido.');
     }
+    rawHtml = html;
     blocks = htmlToBlocks(html);
   }
 
@@ -383,15 +417,57 @@ export async function extractReportSections(filename: string, buf: Buffer): Prom
   }
   if (ext === 'pdf') {
     warnings.push(
-      'Importado de PDF: a extração pode perder caracteres e formatação de tabelas. Se o documento original for Word, importar o .docx dá um resultado melhor.',
+      'Importado de PDF: o layout do arquivo NÃO é reproduzido (a extração perde tabelas, listas e até caracteres). ' +
+        'Para o relatório sair igual ao modelo, importe o .docx.',
     );
   }
+
+  // Corpo fiel: sanear (o arquivo vem de fora) e trocar os blocos de exemplo
+  // por marcadores. Sem isso o modelo sairia com os números da outra empresa.
+  const fidelity = buildFidelityHtml(rawHtml);
+  warnings.push(...fidelity.warnings);
+
   return {
     name: nameFromFilename(filename),
     pattern,
     patternLabel: pattern === 'GENERICO' ? 'Documento livre' : PATTERNS[pattern].label,
     suggested: fitted.suggested,
     sections,
+    html: fidelity.html,
+    placeholders: fidelity.placeholders,
     warnings: [...fitted.warnings, ...warnings],
   };
+}
+
+/**
+ * HTML do arquivo → corpo fiel do modelo: allowlist de tags/atributos e
+ * marcação automática dos blocos dinâmicos. Documento grande demais perde
+ * primeiro as imagens (e só então é cortado), para preservar o texto.
+ */
+function buildFidelityHtml(rawHtml: string): { html: string | null; placeholders: string[]; warnings: string[] } {
+  const warnings: string[] = [];
+  if (!rawHtml.trim()) return { html: null, placeholders: [], warnings };
+
+  let clean = sanitizeReportHtml(rawHtml);
+  if (clean.length > MAX_TEMPLATE_HTML) {
+    clean = sanitizeReportHtml(rawHtml.replace(/<img\b[^>]*>/gi, ''));
+    warnings.push('As imagens do documento eram grandes demais e ficaram de fora do modelo; o texto foi preservado.');
+  }
+  if (clean.length > MAX_TEMPLATE_HTML) {
+    clean = clean.slice(0, MAX_TEMPLATE_HTML);
+    warnings.push('O documento excedeu o tamanho máximo do modelo e foi cortado no fim.');
+  }
+  if (!clean) return { html: null, placeholders: [], warnings };
+
+  const marked = autoMarkReportHtml(clean);
+  if (marked.applied.length) {
+    const labels = marked.applied
+      .map((k) => REPORT_PLACEHOLDERS.find((p) => p.key === k)?.label ?? k)
+      .join(', ');
+    warnings.push(
+      `Blocos de exemplo reconhecidos e trocados por marcadores: ${labels}. ` +
+        'Na emissão eles são preenchidos com os dados reais da empresa, na mesma posição do modelo.',
+    );
+  }
+  return { html: marked.html, placeholders: marked.applied, warnings };
 }

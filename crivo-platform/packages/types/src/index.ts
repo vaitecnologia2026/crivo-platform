@@ -2146,6 +2146,13 @@ export interface DocumentSection {
   rows?: { label: string; value: string }[];
   /** Tabela com cabeçalho + linhas (ex.: plano de ação). */
   table?: { columns: string[]; data: string[][] };
+  /**
+   * Bloco HTML JÁ SANITIZADO (modelo importado do Word, com tabelas/listas/
+   * negrito do arquivo original). O renderizador injeta como está — nunca
+   * atribua aqui HTML que não tenha passado por `sanitizeReportHtml`.
+   * Quando presente, `heading` vazio omite o título da seção.
+   */
+  html?: string;
 }
 
 export interface GeneratedDocument {
@@ -2157,6 +2164,102 @@ export interface GeneratedDocument {
   meta: { label: string; value: string }[];
   sections: DocumentSection[];
   responsibilityNote: string;
+}
+
+// ── Modelos de relatório: marcadores dinâmicos ────────────────────────────────
+// Um modelo importado do Word guarda o HTML FIEL do arquivo. Os trechos que
+// mudam a cada emissão ficam marcados com {{chave}} e são substituídos NA
+// POSIÇÃO em que aparecem — é isso que faz o documento sair na ordem do modelo
+// do cliente, em vez de empilhar os blocos dinâmicos no fim.
+
+export type ReportPlaceholderKind = 'scalar' | 'block';
+
+export interface ReportPlaceholderSpec {
+  /** Chave sem as chaves duplas (ex.: "empresa" para {{empresa}}). */
+  key: string;
+  label: string;
+  kind: ReportPlaceholderKind;
+  hint: string;
+}
+
+/**
+ * Vocabulário oficial dos marcadores. `scalar` vira texto; `block` vira uma
+ * tabela/seção montada pelo motor. Marcador fora desta lista é reportado ao
+ * admin e REMOVIDO do documento — o cliente nunca vê "{{xyz}}" cru.
+ */
+export const REPORT_PLACEHOLDERS: ReportPlaceholderSpec[] = [
+  { key: 'empresa', label: 'Empresa', kind: 'scalar', hint: 'Razão social da organização.' },
+  { key: 'cnpj', label: 'CNPJ', kind: 'scalar', hint: 'CNPJ cadastrado da organização.' },
+  { key: 'data_emissao', label: 'Data de emissão', kind: 'scalar', hint: 'Data em que o documento foi gerado.' },
+  { key: 'diagnostico', label: 'Diagnóstico aplicado', kind: 'scalar', hint: 'Nome do instrumento vinculado ao modelo.' },
+  { key: 'saida_tecnica', label: 'Saída técnica', kind: 'scalar', hint: 'Saída técnica contratada.' },
+  { key: 'respondentes', label: 'Respondentes', kind: 'scalar', hint: 'Total de respostas válidas no agregado.' },
+  { key: 'setores', label: 'Setores', kind: 'scalar', hint: 'Quantidade de setores com respostas.' },
+  { key: 'score', label: 'Índice (0–100)', kind: 'scalar', hint: 'Índice agregado do diagnóstico.' },
+  { key: 'faixa', label: 'Faixa', kind: 'scalar', hint: 'Faixa da metodologia em que o índice caiu.' },
+  { key: 'ultima_resposta', label: 'Última resposta', kind: 'scalar', hint: 'Data da resposta mais recente.' },
+  { key: 'identificacao', label: 'Identificação', kind: 'block', hint: 'Grade de identificação (empresa, CNPJ, método, data…).' },
+  { key: 'resultado', label: 'Resultado do diagnóstico', kind: 'block', hint: 'Índice, faixa, respondentes e última resposta.' },
+  { key: 'tabela_dimensoes', label: 'Resultado por dimensão', kind: 'block', hint: 'Tabela com o índice de cada dimensão.' },
+  { key: 'matriz_risco', label: 'Matriz de risco', kind: 'block', hint: 'Matriz 5×5 por fator (só para diagnósticos de risco).' },
+  { key: 'participacao', label: 'Participação por setor', kind: 'block', hint: 'Respondentes por setor, com supressão por volume mínimo.' },
+  { key: 'plano_acao', label: 'Plano de Evolução', kind: 'block', hint: 'Ações registradas no plano vinculado.' },
+  { key: 'assinaturas', label: 'Conclusão e validação', kind: 'block', hint: 'Bloco de assinaturas em branco.' },
+  { key: 'controle_documental', label: 'Controle documental', kind: 'block', hint: 'Status, versão e hash do documento.' },
+];
+
+export const REPORT_PLACEHOLDER_KEYS: string[] = REPORT_PLACEHOLDERS.map((p) => p.key);
+
+/** Sintaxe aceita: {{chave}}, tolerando espaços e caixa alta. */
+const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
+
+/** Lista os marcadores presentes num HTML, separando os reconhecidos dos que não são. */
+export function findReportPlaceholders(html: string): { known: string[]; unknown: string[] } {
+  const valid = new Set(REPORT_PLACEHOLDER_KEYS);
+  const known = new Set<string>();
+  const unknown = new Set<string>();
+  for (const m of html.matchAll(PLACEHOLDER_RE)) {
+    const key = m[1].toLowerCase();
+    (valid.has(key) ? known : unknown).add(key);
+  }
+  return { known: [...known], unknown: [...unknown] };
+}
+
+/**
+ * Blocos que ficaram VAZIOS depois da substituição somem: o modelo oficial
+ * proíbe campo vazio no documento, e um marcador sem dado não pode deixar um
+ * parágrafo/título órfão para trás.
+ */
+export function stripEmptyReportBlocks(html: string): string {
+  let out = html;
+  let prev = '';
+  // Repetido até estabilizar: remover um <p> vazio pode esvaziar o <li> que o continha.
+  while (out !== prev) {
+    prev = out;
+    out = out.replace(/<(p|li|h[1-6]|td|th)(\s[^>]*)?>(\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, '');
+  }
+  return out;
+}
+
+/**
+ * Substitui os marcadores pelo conteúdo real. `resolve` devolve o texto (já
+ * escapado) ou o HTML do bloco; `undefined`/`null` remove o marcador.
+ */
+export function fillReportPlaceholders(
+  html: string,
+  resolve: (key: string) => string | null | undefined,
+): { html: string; used: string[]; unknown: string[] } {
+  const found = findReportPlaceholders(html);
+  const used: string[] = [];
+  const filled = html.replace(PLACEHOLDER_RE, (_m, raw: string) => {
+    const key = String(raw).toLowerCase();
+    if (!REPORT_PLACEHOLDER_KEYS.includes(key)) return '';
+    const value = resolve(key);
+    if (value == null || value === '') return '';
+    used.push(key);
+    return value;
+  });
+  return { html: stripEmptyReportBlocks(filled), used, unknown: found.unknown };
 }
 
 // ── Parecer Consultivo CRIVO (portal · Briefing §6 — módulo de autoria do consultor) ──

@@ -48,6 +48,13 @@ export class ReportsAdminController {
     return this.svc.listInstrumentOptions();
   }
 
+  /** Modelo completo, com o corpo fiel. Declarado DEPOIS de
+   *  'templates/instruments' para o prefixo estatico vencer o parametro. */
+  @Get('templates/:id')
+  getTemplate(@Param('id') id: string) {
+    return this.svc.getTemplate(id);
+  }
+
   @Post('templates')
   createTemplate(@Body() dto: UpsertReportTemplate, @CurrentAdmin() admin: PlatformAdmin) {
     return this.svc.createTemplate(dto, { id: admin.id, email: admin.email });

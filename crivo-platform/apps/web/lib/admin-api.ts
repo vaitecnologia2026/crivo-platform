@@ -1776,12 +1776,18 @@ export interface ReportTemplateRow {
   instrumentName: string;
   instrumentActive: boolean;
   sections: ReportTemplateSection[];
+  /** O modelo tem corpo fiel do arquivo importado? (o HTML em si vem em getReportTemplate) */
+  hasHtml: boolean;
   includeResults: boolean;
   includeDimensions: boolean;
   includePlan: boolean;
   active: boolean;
   updatedBy: string | null;
   updatedAt: string;
+}
+/** Modelo completo — inclui o corpo fiel (`html`), que a listagem omite por peso. */
+export interface ReportTemplateFull extends ReportTemplateRow {
+  html: string | null;
 }
 export interface ReportInstrumentOption {
   slug: string;
@@ -1794,6 +1800,7 @@ export interface UpsertReportTemplateRequest {
   description?: string | null;
   instrumentSlug: string;
   sections?: ReportTemplateSection[];
+  html?: string | null;
   includeResults?: boolean;
   includeDimensions?: boolean;
   includePlan?: boolean;
@@ -1856,6 +1863,10 @@ export function listReportTemplates(): Promise<ReportTemplateRow[]> {
 export function listReportInstrumentOptions(): Promise<ReportInstrumentOption[]> {
   return adminFetch<ReportInstrumentOption[]>("/admin/reports/templates/instruments");
 }
+/** Modelo completo (com o corpo fiel) — chamado ao abrir o editor. */
+export function getReportTemplate(id: string): Promise<ReportTemplateFull> {
+  return adminFetch(`/admin/reports/templates/${id}`);
+}
 export function createReportTemplate(dto: UpsertReportTemplateRequest): Promise<ReportTemplateRow> {
   return adminFetch("/admin/reports/templates", { method: "POST", body: JSON.stringify(dto) });
 }
@@ -1865,8 +1876,9 @@ export function updateReportTemplate(id: string, dto: UpsertReportTemplateReques
 export function deleteReportTemplate(id: string): Promise<{ deactivatedInsteadOfDeleted: boolean; emitted: number }> {
   return adminFetch(`/admin/reports/templates/${id}`, { method: "DELETE" });
 }
-/** Importa um .docx ou .pdf → seções {heading, body} (não persiste; abre no editor).
- *  Extração no servidor pode demorar: timeout de 60s, acima dos 15s padrão. */
+/** Importa um .docx ou .pdf: devolve o corpo FIEL do arquivo (`html`, so em .docx,
+ *  ja saneado e com marcadores) e o mesmo conteudo em secoes editaveis. Nao
+ *  persiste — abre no editor. Timeout de 60s (extracao no servidor demora). */
 export function importReportTemplateDocx(
   input: { filename: string; mimeType: string; dataBase64: string },
 ): Promise<{
@@ -1876,6 +1888,10 @@ export function importReportTemplateDocx(
   patternLabel: string;
   suggested: { includeResults: boolean; includeDimensions: boolean; includePlan: boolean };
   sections: ReportTemplateSection[];
+  /** Corpo fiel do documento. `null` em PDF (layout nao e recuperavel). */
+  html: string | null;
+  /** Marcadores que a deteccao automatica aplicou no HTML. */
+  placeholders: string[];
   warnings: string[];
 }> {
   return adminFetch("/admin/reports/templates/import", {
