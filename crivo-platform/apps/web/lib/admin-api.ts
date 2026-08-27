@@ -227,6 +227,8 @@ export function setTenantProfile(
     cnpj?: string | null;
     headquarterType?: string | null;
     internalResponsible?: string | null;
+    /** Mínimo de respondentes desta empresa (null = padrão da plataforma). */
+    minRespondents?: number | null;
     consentAnonymized?: boolean;
     consentBenchmark?: boolean;
     consentCase?: boolean;

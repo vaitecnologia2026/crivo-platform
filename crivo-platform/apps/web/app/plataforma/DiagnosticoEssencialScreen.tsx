@@ -90,6 +90,28 @@ export function DiagnosticoEssencialScreen() {
               empresa — mesma tabela, mesmo agregado, sem caminho paralelo. */}
           <EscutaDosEmpregados />
 
+      {/* O MESMO questionário do bloco 1 pode ser respondido pelos colaboradores
+          por link individual (com CPF), o que importa em empresas pequenas: cada
+          resposta conta para liberar o resultado agregado. */}
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="card__head">
+          <div>
+            <h3>3. Enviar para os colaboradores</h3>
+            <span className="card__sub">
+              Além de responder aqui no painel, você pode enviar o mesmo diagnóstico para a equipe: cada
+              pessoa recebe um <strong>link individual</strong>, confirma o CPF e responde uma única vez.
+              As respostas são anônimas e somam ao resultado da empresa.
+            </span>
+          </div>
+        </div>
+        <button
+          className="btn btn--gold btn--sm"
+          onClick={() => document.querySelector<HTMLElement>('.nav-item[data-route="colaboradores"]')?.click()}
+        >
+          Ir para Colaboradores
+        </button>
+      </div>
+
           {/* O Super Admin cadastra diagnósticos no Motor e os APLICA à empresa
               (Metodologia → Aplicação, "Gerar link de aplicação"). Essa lista só
               existia no painel dele: no portal do cliente não havia nada, então
@@ -426,7 +448,7 @@ function RecordsBlock({ records, onChanged }: { records: EssentialRecordData[]; 
     <div className="card" style={{ marginBottom: 18 }}>
       <div className="card__head">
         <div>
-          <h3>2. Escuta &amp; observação</h3>
+          <h3>4. Escuta &amp; observação</h3>
           <span className="card__sub">Registros de escuta com empregados e observação da atividade.</span>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setAdding(true)}>Novo registro</button>

@@ -9,6 +9,9 @@ import {
   IsUrl,
   MaxLength,
   MinLength,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Plan } from '@crivo/db';
 
@@ -101,6 +104,12 @@ export class SetTenantProfileDto {
   @IsOptional() @IsBoolean() consentCase?: boolean;
   @IsOptional() @IsBoolean() consentLogo?: boolean;
   @IsOptional() @IsBoolean() consentTestimonial?: boolean;
+
+  /** Mínimo de respondentes para liberar resultados NESTA empresa. null = padrão
+   *  global. Existe para a microempresa (Essencial), onde o padrão 5 nunca
+   *  liberaria resultado. O piso de anonimato continua sendo aplicado. */
+  @IsOptional() @IsInt() @Min(1) @Max(100)
+  minRespondents?: number | null;
 }
 
 export class AddDomainDto {

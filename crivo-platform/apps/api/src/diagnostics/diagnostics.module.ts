@@ -7,5 +7,7 @@ import { AdminDiagnosticsController } from './admin-diagnostics.controller';
 @Module({
   controllers: [PublicDiagnosticsController, AdminDiagnosticsController],
   providers: [DiagnosticsService],
+  // CollaboratorsModule usa submitForTenant (link do colaborador no Essencial).
+  exports: [DiagnosticsService],
 })
 export class DiagnosticsModule {}

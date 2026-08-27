@@ -23,7 +23,7 @@ import {
   loadMethodologyConfigByVersion,
   resolveActiveMethodology,
 } from '../admin/methodology.service';
-import { getEngineConfig } from '../admin/engine-config';
+import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { SubmitPsychosocialDto } from './dto';
 
 // Resultado psicossocial em formato "superset" — compatível com o storage/telas
@@ -225,7 +225,7 @@ export class PsychosocialService {
    */
   async results(tenantId: string) {
     // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
-    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
     const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
     // Severidade e hierarquia (escala × fator) vêm DIRETO da versão ativa, não do

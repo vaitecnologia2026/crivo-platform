@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { scoreWithMethodology, findBandForScore } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
-import { getEngineConfig } from '../admin/engine-config';
+import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { SubmitDiagnosticDto } from './dto';
 
 type Actor = { id: string; email: string };
@@ -148,7 +148,21 @@ export class DiagnosticsService {
     // rls-allow: endpoint público anônimo; resolve slug→tenant e grava sob a RLS do tenant.
     const link = await this.prisma.admin.diagnosticLink.findUnique({ where: { slug } });
     if (!link || !link.active) throw new NotFoundException('Diagnóstico não encontrado ou link inválido.');
-    const active = await resolveActiveMethodology(this.prisma, link.instrumentSlug);
+    return this.submitForTenant(link.tenantId, link.instrumentSlug, dto);
+  }
+
+  /**
+   * Grava uma resposta de diagnóstico do catálogo para um tenant já resolvido.
+   * `beforeCreate` roda na MESMA transação, antes do create — usado pelo link do
+   * colaborador para marcar participação atomicamente (se lançar, nada é gravado).
+   */
+  async submitForTenant(
+    tenantId: string,
+    instrumentSlug: string,
+    dto: SubmitDiagnosticDto,
+    beforeCreate?: (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => Promise<void>,
+  ) {
+    const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     if (!active) throw new NotFoundException('Este diagnóstico ainda não está disponível.');
 
     let result;
@@ -178,11 +192,12 @@ export class DiagnosticsService {
       throw new BadRequestException(e instanceof Error ? e.message : 'Respostas inválidas');
     }
     const sector = dto.sector?.trim() || null;
-    return this.prisma.forTenant(link.tenantId, async (tx) => {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      if (beforeCreate) await beforeCreate(tx);
       await tx.diagnosticResponse.create({
         data: {
-          tenantId: link.tenantId,
-          instrumentSlug: link.instrumentSlug,
+          tenantId,
+          instrumentSlug,
           sector,
           answers: dto.answers as unknown as object,
           score: result.score,
@@ -199,7 +214,7 @@ export class DiagnosticsService {
   async results(rawTenantId: string, instrumentSlug: string) {
     const tenantId = await this.resolveOrgId(rawTenantId);
     // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
-    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     const dims = active ? active.config.dimensions.map((d) => ({ slug: d.slug, label: d.label })) : [];
     const bands = active?.config.bands ?? [];

@@ -678,6 +678,7 @@ function TenantProfileModal({
     consentLogo: tenant.consentLogo,
     consentTestimonial: tenant.consentTestimonial,
   });
+  const [minResp, setMinResp] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -689,6 +690,7 @@ function TenantProfileModal({
         cnpj: cnpj.trim() || null,
         headquarterType: hq || null,
         internalResponsible: resp.trim() || null,
+        minRespondents: minResp.trim() ? Number(minResp) : null,
         ...consent,
       });
       onSaved(updated);
@@ -708,6 +710,14 @@ function TenantProfileModal({
         </header>
         <div className="modal__body" style={{ display: "grid", gap: 14 }}>
           <Input label="CNPJ" value={cnpj} onChange={setCnpj} placeholder="00.000.000/0000-00" />
+          {/* Microempresa: com o padrão 5, uma empresa de 3 funcionários nunca
+              veria resultado. O piso de anonimato continua sendo aplicado. */}
+          <Input
+            label="Mínimo de respondentes para liberar resultados"
+            value={minResp}
+            onChange={setMinResp}
+            placeholder="vazio = padrão da plataforma (5)"
+          />
           <label className="block">
             <span className="mb-1.5 block text-[11px] uppercase tracking-[0.1em] text-text-sec">Matriz / Filial</span>
             <select

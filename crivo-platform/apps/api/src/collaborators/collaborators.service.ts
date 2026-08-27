@@ -9,6 +9,8 @@ import { randomBytes } from 'node:crypto';
 import { isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
+import { DiagnosticsService } from '../diagnostics/diagnostics.service';
+import { resolveActiveMethodology } from '../admin/methodology.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { whatsappConfigured, sendWhatsapp } from '../common/whatsapp';
 import { CreateCollaboratorDto, SubmitByTokenDto, UpdateCollaboratorDto } from './dto';
@@ -44,7 +46,35 @@ export class CollaboratorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly psychosocial: PsychosocialService,
+    private readonly diagnostics: DiagnosticsService,
   ) {}
+
+  /**
+   * Qual diagnóstico este colaborador vai responder. Espelha BUILTIN_BY_METHOD
+   * (me.controller): quem contratou ESSENCIAL/INICIAL responde o Diagnóstico
+   * Executivo (PRE_DIAGNOSTIC); ORGANIZACIONAL responde o psicossocial. A
+   * solução contratada manda — o `contract.method` é só fallback legado.
+   */
+  private async instrumentFor(tenantId: string): Promise<'PRE_DIAGNOSTIC' | 'PSYCHOSOCIAL'> {
+    // rls-allow: resolve o método contratado da própria empresa do link.
+    const contract = await this.prisma.admin.contract.findFirst({
+      where: { organizationId: tenantId, status: 'ATIVO' },
+      orderBy: { updatedAt: 'desc' },
+      select: { method: true, productId: true },
+    });
+    // rls-allow: tenants é control-plane (catálogo de empresas), filtrado pela própria org.
+    const tenant = await this.prisma.admin.tenant.findFirst({
+      where: { organizationId: tenantId },
+      select: { productId: true },
+    });
+    const productId = contract?.productId ?? tenant?.productId ?? null;
+    const product = productId
+      // rls-allow: Product é catálogo GLOBAL (control-plane), sem tenantId.
+      ? await this.prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
+      : null;
+    const method = product?.method ?? contract?.method ?? null;
+    return method === 'ESSENCIAL' || method === 'INICIAL' ? 'PRE_DIAGNOSTIC' : 'PSYCHOSOCIAL';
+  }
 
   private view(c: CollaboratorRow) {
     const status = c.respondedAt
@@ -246,8 +276,17 @@ export class CollaboratorsService {
       name: c.name,
       sector: c.sector,
       tenantName: await this.tenantName(c.tenantId),
-      questions: await this.psychosocial.publicQuestions(),
+      questions: await this.questionsFor(c.tenantId),
     };
+  }
+
+  /** Perguntas do diagnóstico que a empresa contratou (Essencial ou NR-1). */
+  private async questionsFor(tenantId: string) {
+    const instrument = await this.instrumentFor(tenantId);
+    if (instrument === 'PSYCHOSOCIAL') return this.psychosocial.publicQuestions();
+    const active = await resolveActiveMethodology(this.prisma, instrument);
+    if (!active) throw new NotFoundException('Este diagnóstico ainda não está disponível.');
+    return active.config.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }));
   }
 
   /** Etapa 2 — grava a resposta ANÔNIMA e marca participação atomicamente. */
@@ -257,16 +296,20 @@ export class CollaboratorsService {
     if (c.respondedAt) throw new ConflictException('Você já respondeu este diagnóstico.');
     // O setor é o do CADASTRO (não do cliente). O hook marca respondedAt na mesma
     // transação do create da resposta — count!==1 significa que já respondeu (corrida).
-    return this.psychosocial.submit(
-      c.tenantId,
-      { sector: c.sector ?? undefined, answers: dto.answers },
-      async (tx) => {
-        const r = await tx.collaborator.updateMany({
-          where: { id: c.id, respondedAt: null },
-          data: { respondedAt: new Date() },
-        });
-        if (r.count !== 1) throw new ConflictException('Você já respondeu este diagnóstico.');
-      },
-    );
+    const marcarParticipacao = async (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => {
+      const r = await tx.collaborator.updateMany({
+        where: { id: c.id, respondedAt: null },
+        data: { respondedAt: new Date() },
+      });
+      if (r.count !== 1) throw new ConflictException('Você já respondeu este diagnóstico.');
+    };
+    const instrument = await this.instrumentFor(c.tenantId);
+    const payload = { sector: c.sector ?? undefined, answers: dto.answers };
+    // Cada método responde o SEU diagnóstico: Essencial → Diagnóstico Executivo
+    // (diagnostic_responses); Organizacional → psicossocial. Nos dois casos a
+    // resposta é anônima e a participação é marcada na mesma transação.
+    return instrument === 'PRE_DIAGNOSTIC'
+      ? this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao)
+      : this.psychosocial.submit(c.tenantId, payload, marcarParticipacao);
   }
 }

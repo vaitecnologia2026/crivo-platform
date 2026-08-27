@@ -15,7 +15,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
-import { getEngineConfig } from '../admin/engine-config';
+import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { buildPromptReferenceBlocks } from '../admin/ai-custom-prompts.service';
@@ -687,7 +687,7 @@ export class DocumentsService {
    * número ocultado. Fonte: respostas psicossociais (o dossiê é psicossocial).
    */
   private async sectorAdhesion(tenantId: string) {
-    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({ select: { sector: true } });
       const bySector = new Map<string, number>();
@@ -723,7 +723,7 @@ export class DocumentsService {
    * mínimo (Configuração do Motor). Nunca expõe resposta individual.
    */
   private async instrumentSummary(tenantId: string, instrumentSlug: string) {
-    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = active?.config.bands ?? [];
@@ -770,7 +770,7 @@ export class DocumentsService {
    * (1ª e última resposta) e supressão pelo mínimo de confidencialidade.
    */
   private async psychosocialSummary(tenantId: string, range?: { from: Date; to: Date }) {
-    const minRespondents = (await getEngineConfig(this.prisma)).minRespondents;
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = (active?.config.bands ?? []) as BandLike[];

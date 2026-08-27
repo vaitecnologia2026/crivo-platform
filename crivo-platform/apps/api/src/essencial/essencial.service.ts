@@ -19,6 +19,8 @@ import { resolveActiveMethodology } from '../admin/methodology.service';
 /** Instrumento built-in que o Motor chama de "Diagnóstico Executivo". É ELE que
  *  a autoavaliação do portal aplica — o mesmo slug que a LP e o dossiê já leem. */
 const SELF_ASSESSMENT_INSTRUMENT = 'PRE_DIAGNOSTIC';
+/** Marca a resposta do gestor no painel — permite substituí-la ao refazer. */
+const SELF_ASSESSMENT_ORIGIN = 'SELF_ASSESSMENT';
 
 /** Escala do instrumento quando a versão publicada não define a sua. NÃO é a
  *  `DEFAULT_SCALE_LABELS` (concordância): este diagnóstico lê MATURIDADE, e a
@@ -119,6 +121,25 @@ export class EssencialService {
       throw new BadRequestException(e instanceof Error ? e.message : 'Respostas inválidas');
     }
     return this.prisma.forTenant(tenantId, async (tx) => {
+      // A autoavaliação é UMA resposta do gestor — espelhada em
+      // diagnostic_responses para contar no agregado oficial (MAPA e Dossiê leem
+      // de lá, não de self_assessments). Refazer SUBSTITUI a anterior, então o N
+      // do agregado não infla a cada revisão.
+      await tx.diagnosticResponse.deleteMany({
+        where: { instrumentSlug: SELF_ASSESSMENT_INSTRUMENT, origin: SELF_ASSESSMENT_ORIGIN },
+      });
+      await tx.diagnosticResponse.create({
+        data: {
+          tenantId,
+          instrumentSlug: SELF_ASSESSMENT_INSTRUMENT,
+          origin: SELF_ASSESSMENT_ORIGIN,
+          answers: dto.answers as unknown as object,
+          score: result.score,
+          level: result.level,
+          byDimension: result.byDimension as unknown as object,
+          methodologyVersionId: result.methodologyVersionId,
+        },
+      });
       const sa = await tx.selfAssessment.create({
         data: {
           tenantId,

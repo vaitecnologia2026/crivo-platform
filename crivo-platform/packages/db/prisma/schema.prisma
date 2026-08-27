@@ -1180,6 +1180,10 @@ model Organization {
   phone               String?
   // Slug público do Questionário Psicossocial (Briefing §6): link anônimo sem
   // login (/q/<slug>), opcionalmente por setor via query. Único entre empresas.
+  /// Mínimo de respondentes para liberar resultados agregados NESTA empresa.
+  /// null = usa o padrão global da Configuração do Motor (5). Existe para a
+  /// microempresa (ex.: 3 funcionários), onde o padrão nunca liberaria nada.
+  minRespondents      Int?         @map("min_respondents")
   psychosocialSlug    String?              @unique
   diagnosticLinks     DiagnosticLink[]
   diagnosticResponses DiagnosticResponse[]
@@ -2246,6 +2250,10 @@ model DiagnosticResponse {
   instrumentSlug       String               @map("instrument_slug")
   instrument           DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
   sector               String?
+  /// Como a resposta chegou. null/ausente = link público (/d/<slug>, /r/<token>).
+  /// 'SELF_ASSESSMENT' = autoavaliação do gestor no painel — existe UMA por
+  /// empresa (refazer substitui), para o agregado não inflar a cada revisão.
+  origin               String?
   answers              Json // [{ questionId, value }] escala 1–5
   score                Float // 0–100 (Float: o motor v3.1 pontua com 1 casa decimal)
   level                String // código da faixa da metodologia

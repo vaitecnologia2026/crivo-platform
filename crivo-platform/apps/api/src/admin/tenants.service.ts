@@ -152,6 +152,7 @@ export class TenantsService {
       consentCase?: boolean;
       consentLogo?: boolean;
       consentTestimonial?: boolean;
+      minRespondents?: number | null;
     },
     actor?: AuditActor,
   ): Promise<TenantSummary> {
@@ -170,6 +171,13 @@ export class TenantsService {
       if (input[k] !== undefined) data[k] = input[k];
     }
     const updated = await this.prisma.admin.tenant.update({ where: { id }, data });
+    // O mínimo vive na ORGANIZAÇÃO (é ela que os agregados consultam), não no tenant.
+    if (input.minRespondents !== undefined) {
+      await this.prisma.admin.organization.update({
+        where: { id: existing.organizationId },
+        data: { minRespondents: input.minRespondents },
+      });
+    }
     await this.audit.record({
       action: 'tenant.profile.update',
       actor,

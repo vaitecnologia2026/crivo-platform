@@ -48,3 +48,27 @@ export async function getEngineConfig(prisma: PrismaService): Promise<EngineConf
     updatedAt: row?.updatedAt ?? null,
   };
 }
+
+/**
+ * Mínimo de respondentes EFETIVO de uma empresa: o valor próprio dela quando
+ * definido, senão o padrão global. Existe para a microempresa — com o padrão 5,
+ * uma empresa de 3 funcionários nunca veria resultado nenhum.
+ *
+ * O piso de anonimato (MIN_RESPONDENTS_FLOOR) é aplicado mesmo aqui: por mais
+ * baixo que o admin configure, um agregado nunca é revelado abaixo dele. Quem
+ * responde no painel (autoavaliação do gestor) também conta para esse total.
+ */
+export async function resolveMinRespondents(
+  prisma: PrismaService,
+  tenantId: string,
+): Promise<number> {
+  const globalMin = (await getEngineConfig(prisma)).minRespondents;
+  // rls-allow: leitura pontual do parâmetro da PRÓPRIA empresa do contexto.
+  const org = await prisma.admin.organization.findUnique({
+    where: { id: tenantId },
+    select: { minRespondents: true },
+  });
+  const own = org?.minRespondents;
+  if (own == null) return globalMin;
+  return Math.max(MIN_RESPONDENTS_FLOOR, Math.min(MIN_RESPONDENTS_CEIL, own));
+}
