@@ -1268,26 +1268,10 @@ function DraftEditor({
                 <div className="meth-dim__head">
                   <input className="meth-in" value={d.label} placeholder="Dimensão (ex.: Liderança)" onChange={(e) => setDim(d.slug, { label: e.target.value })} />
                   <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={d.weight} onChange={(e) => setDim(d.slug, { weight: Number(e.target.value) })} /></label>
-                  {/* Severidade da Matriz de Risco — só faz sentido em régua de RISCO
-                      e só na ESCALA (dimensão de topo). Vazio = escala fora da matriz.
-                      Não entra no peso, na média nem na pontuação. */}
-                  {bandKind === "RISK" && (
-                    <label className="meth-w" title="Severidade (1–5): gravidade da consequência se a escala seguir em nível crítico. Multiplica a probabilidade na Matriz de Risco. Vazio = escala fora da matriz.">
-                      sev
-                      <select
-                        className="meth-in meth-in--num"
-                        value={d.severity ?? ""}
-                        onChange={(e) => setDim(d.slug, { severity: e.target.value === "" ? null : Number(e.target.value) })}
-                      >
-                        <option value="">—</option>
-                        <option value={1}>1</option>
-                        <option value={2}>2</option>
-                        <option value={3}>3</option>
-                        <option value={4}>4</option>
-                        <option value={5}>5</option>
-                      </select>
-                    </label>
-                  )}
+                  {/* A severidade saiu daqui: ela pertence ao FATOR (NR-1 §8) e é
+                      editada na aba "Fatores e Riscos". O valor das versões antigas
+                      continua gravado e ainda alimenta a matriz como fallback — só
+                      não é mais editável aqui, para não haver duas fontes na tela. */}
                   <button className="meth-del" title="Remover dimensão" onClick={() => removeDim(d.slug)}>✕</button>
                 </div>
 
@@ -1417,8 +1401,9 @@ function DraftEditor({
           </div>
           {factors.length === 0 && (
             <p className="cnae-muted" style={{ margin: "8px 0" }}>
-              Nenhum fator cadastrado — a Matriz de Risco usa a severidade das dimensões (aba Estrutura).
-              Ao cadastrar fatores, eles passam a ser a fonte oficial da severidade.
+              {dims.some((d) => !d.parentSlug && d.severity != null)
+                ? "Este diagnóstico ainda usa a severidade herdada das dimensões (parametrização anterior), que continua valendo na Matriz de Risco mas não é mais editável. Cadastre os fatores abaixo para migrar — a partir daí eles passam a ser a única fonte da severidade."
+                : "Nenhum fator cadastrado — sem fatores, este diagnóstico fica fora da Matriz de Risco. Cadastre os fatores para habilitá-la."}
             </p>
           )}
           <button
