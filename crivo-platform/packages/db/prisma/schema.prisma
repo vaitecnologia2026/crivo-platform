@@ -1538,12 +1538,24 @@ model ActionItem {
   /// A4 — proveniência estruturada do fator (mesma semântica do plano).
   sourceInstrumentSlug String?               @map("source_instrument_slug")
   sourceInstrument     DiagnosticInstrument? @relation("item_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
+  // Origem do cálculo quando a ação foi SUGERIDA pela matriz 5x5 (NR-1 §8.4).
+  // Guarda o retrato de P e S do momento da geração: a matriz muda quando entram
+  // novas respostas, e o item precisa manter o que o justificou. NÃO se mistura
+  // com severity/probability acima, que são a matriz 3x3 preenchida pela empresa
+  // — as duas réguas convivem de propósito (Anexo D `important_separation`).
+  riskFactorSlug       String?               @map("risk_factor_slug")
+  riskProbability      Int?                  @map("risk_probability")
+  riskSeverity         Int?                  @map("risk_severity")
+  /// Idempotência da sugestão (<dimensão>|<título da ação>): gerar duas vezes
+  /// não duplica a ação no mesmo plano.
+  suggestionKey        String?               @map("suggestion_key")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
   evidences Evidence[]
   history   ActionItemHistory[]
 
+  @@unique([planId, suggestionKey])
   @@index([tenantId])
   @@index([planId])
   @@map("action_items")

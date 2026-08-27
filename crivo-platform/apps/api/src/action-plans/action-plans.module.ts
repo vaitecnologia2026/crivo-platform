@@ -6,6 +6,7 @@ import { ActionPlansController } from './action-plans.controller';
 import { ActionPlansService } from './action-plans.service';
 import { CyclesService } from './cycles.service';
 import { DocumentsService } from './documents.service';
+import { RiskSuggestionsService } from './risk-suggestions.service';
 
 /** Plano de Ação + Evidências + Documentos + Ciclos do tenant (Briefing §8/§9/§15 + F4).
  *  Importa AdminModule para consumir AiSettingsService (IA da plataforma no Dossiê).
@@ -13,6 +14,6 @@ import { DocumentsService } from './documents.service';
 @Module({
   imports: [IamModule, PsychosocialModule, AdminModule],
   controllers: [ActionPlansController],
-  providers: [ActionPlansService, DocumentsService, CyclesService],
+  providers: [ActionPlansService, DocumentsService, CyclesService, RiskSuggestionsService],
 })
 export class ActionPlansModule {}

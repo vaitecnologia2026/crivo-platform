@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Query,
   Patch,
   Post,
   Res,
@@ -28,7 +29,9 @@ import { CurrentUser } from '../iam/current-user.decorator';
 import { ActionPlansService } from './action-plans.service';
 import { CyclesService } from './cycles.service';
 import { DocumentsService } from './documents.service';
+import { RiskSuggestionsService } from './risk-suggestions.service';
 import {
+  AcceptRiskSuggestionsDto,
   CreateActionItemDto,
   CreateActionPlanDto,
   CreateEvidenceDto,
@@ -62,6 +65,7 @@ export class ActionPlansController {
     private readonly plans: ActionPlansService,
     private readonly documents: DocumentsService,
     private readonly cycles: CyclesService,
+    private readonly riskSvc: RiskSuggestionsService,
   ) {}
 
   // ── Documentos gerados (Briefing §15) ──
@@ -109,6 +113,14 @@ export class ActionPlansController {
   @Get('suggested-actions')
   suggestedActions(@CurrentUser() user: SessionUser) {
     return this.plans.suggestedActions(user.tenantId);
+  }
+
+  /** Ações derivadas da MATRIZ DE RISCO (R = P × S): só os fatores cujo risco
+   *  torna o plano obrigatório (≥ 10). Leitura — não cria nada. */
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
+  @Get('risk-suggestions')
+  riskSuggestions(@CurrentUser() user: SessionUser, @Query('planId') planId?: string) {
+    return this.riskSvc.list(user.tenantId, planId);
   }
 
   @Post()
@@ -167,6 +179,16 @@ export class ActionPlansController {
     @Param('templateId', ParseUUIDPipe) templateId: string,
   ) {
     return this.plans.addItemFromTemplate(user.tenantId, planId, templateId, user.name ?? user.email);
+  }
+
+  /** Aceite da organização: as sugestões escolhidas viram ações do plano. */
+  @Post(':planId/items-from-risk')
+  acceptRiskSuggestions(
+    @CurrentUser() user: SessionUser,
+    @Param('planId', ParseUUIDPipe) planId: string,
+    @Body() dto: AcceptRiskSuggestionsDto,
+  ) {
+    return this.plans.acceptRiskSuggestions(user.tenantId, planId, dto.keys, user.name ?? user.email);
   }
 
   @Post(':planId/validate')

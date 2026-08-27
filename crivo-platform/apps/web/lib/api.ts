@@ -59,6 +59,7 @@ import type {
   CreateDevolutivaRequest,
   DiagnosticCycleData,
   OpenCycleRequest,
+  RiskActionSuggestions,
 } from '@crivo/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -281,6 +282,23 @@ export function getSuggestedActions(): Promise<SuggestedActions> {
 export function addActionItemFromTemplate(planId: string, templateId: string): Promise<ActionItemData> {
   return apiFetch<ActionItemData>(`/action-plans/${planId}/items-from-template/${templateId}`, {
     method: 'POST',
+  });
+}
+
+/** Ações derivadas da MATRIZ DE RISCO (P × S) — só fatores com plano obrigatório.
+ *  Leitura: nada entra no plano até a organização aceitar. A IA pode participar
+ *  da geração, então o tempo de resposta é maior que o padrão. */
+export function listRiskActionSuggestions(planId?: string): Promise<RiskActionSuggestions> {
+  const qs = planId ? `?planId=${encodeURIComponent(planId)}` : '';
+  return apiFetch<RiskActionSuggestions>(`/action-plans/risk-suggestions${qs}`, {
+    signal: AbortSignal.timeout(45000),
+  });
+}
+/** ACEITE: as sugestões escolhidas viram ações do plano (status SUGERIDA). */
+export function acceptRiskActionSuggestions(planId: string, keys: string[]): Promise<ActionItemData[]> {
+  return apiFetch<ActionItemData[]>(`/action-plans/${planId}/items-from-risk`, {
+    method: 'POST',
+    body: JSON.stringify({ keys }),
   });
 }
 

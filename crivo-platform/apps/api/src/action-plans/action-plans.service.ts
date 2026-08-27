@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MIN_LEADERS_FOR_DISCLOSURE,
+  actionTermDays,
   TENSION_TO_TEMPLATE_CATEGORIES,
   type ActionItemData,
   type ActionPlanData,
@@ -14,6 +15,7 @@ import {
   type UpdateActionItemRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { RiskSuggestionsService, riskOriginLabel } from './risk-suggestions.service';
 
 const TENSION_LABEL: Record<DominantPattern, string> = {
   REATIVIDADE: 'Reatividade',
@@ -33,7 +35,10 @@ type ActorName = string;
  */
 @Injectable()
 export class ActionPlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly riskSuggestions: RiskSuggestionsService,
+  ) {}
 
   async list(tenantId: string): Promise<ActionPlanData[]> {
     return this.prisma.forTenant(tenantId, async (tx) => {
@@ -178,6 +183,74 @@ export class ActionPlansService {
         },
       });
       return this.toItem(item);
+    });
+  }
+
+  /**
+   * ACEITE das sugestões da matriz de risco: a organização escolhe quais ações
+   * entram no plano. Cria com status SUGERIDA (default do schema) — a ação passa
+   * a existir e a ser editável, mas `dossierBlockers` continua barrando a emissão
+   * do dossiê final até a empresa APROVAR. É a regra da Orientação NR-1: somente
+   * ações aceitas, editadas ou inseridas pela organização entram no plano.
+   */
+  async acceptRiskSuggestions(
+    tenantId: string,
+    planId: string,
+    keys: string[],
+    actor?: string,
+  ): Promise<ActionItemData[]> {
+    const escolhidas = new Set(keys.filter((k) => k.trim()));
+    if (!escolhidas.size) throw new BadRequestException('Selecione ao menos uma ação para adicionar.');
+
+    const { suggestions } = await this.riskSuggestions.list(tenantId, planId);
+    const aceitas = suggestions.filter((x) => escolhidas.has(x.key) && !x.alreadyInPlan);
+    if (!aceitas.length) {
+      throw new BadRequestException(
+        'As ações selecionadas já estão no plano ou não constam mais entre as sugestões do diagnóstico.',
+      );
+    }
+
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
+      if (!plan) throw new NotFoundException('Plano não encontrado');
+      const out: ActionItemData[] = [];
+      for (const x of aceitas) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + actionTermDays(x.prazo));
+        const item = await tx.actionItem.create({
+          data: {
+            tenantId,
+            planId,
+            point: x.factorLabel,
+            // Título + passo a passo: sem isto as etapas da biblioteca se
+            // perderiam (o item não tem campo de descrição).
+            action: `${x.title} — ${x.etapas}`.slice(0, 600),
+            origin: 'questionário',
+            sourceInstrumentSlug: 'PSYCHOSOCIAL',
+            dueDate,
+            indicator: x.indicadores,
+            // Retrato do cálculo que originou a ação. severity/probability (a
+            // matriz 3x3, em texto) ficam VAZIOS de propósito: a classificação
+            // técnica do dossiê é decisão da empresa e as duas réguas não
+            // derivam uma da outra (Anexo D `important_separation`).
+            riskFactorSlug: x.factorSlug,
+            riskProbability: x.probability,
+            riskSeverity: x.severity,
+            suggestionKey: x.key,
+          },
+          include: { evidences: true, sourceInstrument: { select: { name: true } } },
+        });
+        await tx.actionItemHistory.create({
+          data: {
+            tenantId,
+            actionItemId: item.id,
+            change: `Ação sugerida pela matriz de risco e aceita (${riskOriginLabel(x)})`,
+            changedBy: actor ?? null,
+          },
+        });
+        out.push(this.toItem(item));
+      }
+      return out;
     });
   }
 
@@ -488,6 +561,7 @@ export class ActionPlansService {
     severity?: string | null; probability?: string | null; riskLevel?: string | null;
     areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
     sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
+    riskFactorSlug?: string | null; riskProbability?: number | null; riskSeverity?: number | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
   }): ActionItemData {
     return {
@@ -510,6 +584,9 @@ export class ActionPlansService {
       existingMeasure: i.existingMeasure ?? null,
       indicator: i.indicator ?? null,
       reviewDate: i.reviewDate?.toISOString() ?? null,
+      riskFactorSlug: i.riskFactorSlug ?? null,
+      riskProbability: i.riskProbability ?? null,
+      riskSeverity: i.riskSeverity ?? null,
       createdAt: i.createdAt.toISOString(),
       evidences: (i.evidences ?? []).map((e) => this.toEvidence(e)),
     };

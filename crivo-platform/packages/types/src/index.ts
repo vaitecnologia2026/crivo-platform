@@ -1258,6 +1258,53 @@ export function exposuresFromAnswers(
   return { byFactor, byDimension };
 }
 
+// ── Sugestões de ação derivadas da matriz (P × S) ────────────────────────────
+// A matriz diz QUAIS fatores exigem plano (R >= 10, §8.4). Estas sugestões são o
+// elo que faltava entre esse cálculo e o Plano de Evolução: o sistema propõe, a
+// EMPRESA aceita, edita ou descarta — só o que ela aceita entra no plano.
+
+/** Prazo da biblioteca → dias, para calcular a data de revisão da ação. */
+export const ACTION_TERM_DAYS: Record<string, number> = {
+  'Curto prazo': 30,
+  'Curto → Médio prazo': 60,
+  'Médio prazo': 90,
+  'Longo prazo': 180,
+};
+
+/** Dias de prazo de uma ação; 90 (médio) quando o rótulo não é reconhecido. */
+export function actionTermDays(prazo: string): number {
+  return ACTION_TERM_DAYS[prazo.trim()] ?? 90;
+}
+
+export interface RiskActionSuggestion {
+  /** Idempotência: `<dimensão>|<título>`. Aceitar 2x não duplica no plano. */
+  key: string;
+  factorSlug: string;
+  factorLabel: string;
+  /** Dimensão que resolveu o conteúdo do plano (a biblioteca é por dimensão). */
+  dimensionSlug: string | null;
+  /** Retrato do cálculo que originou a sugestão. */
+  probability: number;
+  severity: number;
+  risk: number;
+  riskClass: PsychosocialRiskClass;
+  title: string;
+  prazo: string;
+  objetivo: string;
+  etapas: string;
+  indicadores: string;
+  /** Já aceita antes: a tela mostra como "no plano" em vez de oferecer de novo. */
+  alreadyInPlan: boolean;
+}
+
+export interface RiskActionSuggestions {
+  /** De onde veio o texto das ações. */
+  origin: 'IA' | 'biblioteca';
+  suggestions: RiskActionSuggestion[];
+  /** Por que a lista está vazia — a tela explica em vez de mostrar nada. */
+  reason?: string;
+}
+
 /** Uma linha da Matriz de Risco: uma ESCALA dentro de um recorte (geral ou setor). */
 export interface PsychosocialRiskMatrixRow {
   slug: string;
@@ -1845,6 +1892,11 @@ export interface ActionItemData {
   /** A4 — proveniência estruturada: diagnóstico do Motor que originou o fator. */
   sourceInstrumentSlug: string | null;
   sourceInstrumentName: string | null;
+  /** Cálculo que originou a ação, quando ela veio da matriz 5×5 (P × S). Retrato
+   *  do momento da geração — a matriz muda quando entram novas respostas. */
+  riskFactorSlug: string | null;
+  riskProbability: number | null;
+  riskSeverity: number | null;
   createdAt: string;
   evidences: EvidenceData[];
 }

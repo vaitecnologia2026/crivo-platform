@@ -13,6 +13,9 @@ import {
   type ActionStatus,
   type DevolutivaData,
   type DiagnosticCycleData,
+  PSYCHOSOCIAL_RISK_CLASS_LABEL,
+  type RiskActionSuggestions,
+  psychosocialRiskClass,
 } from "@crivo/types";
 import {
   addActionItem,
@@ -34,6 +37,8 @@ import {
   openCycle,
   closeCycle,
   getDiagnosticContext,
+  listRiskActionSuggestions,
+  acceptRiskActionSuggestions,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
@@ -513,6 +518,15 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
               {item.sourceInstrumentName ? `Diagnóstico ${item.sourceInstrumentName}` : item.origin}
             </span>
           )}
+          {/* Origem do CÁLCULO: por que esta ação foi sugerida. Fica visível para
+              a ação continuar auditável depois, quando a matriz já tiver mudado. */}
+          {item.riskProbability != null && item.riskSeverity != null && (
+            <div className="card__sub" style={{ fontSize: 11 }}>
+              Sugerida pela matriz · P{item.riskProbability} × S{item.riskSeverity} ={" "}
+              <strong>{item.riskProbability * item.riskSeverity}</strong> ·{" "}
+              {PSYCHOSOCIAL_RISK_CLASS_LABEL[psychosocialRiskClass(item.riskProbability * item.riskSeverity)]}
+            </div>
+          )}
         </td>
         <td>{item.action}</td>
         <td><RiskCell item={item} /></td>
@@ -714,6 +728,12 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
   const [showSuggested, setShowSuggested] = useState(false);
   const [suggested, setSuggested] = useState<SuggestedActions | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
+  // Sugestões da MATRIZ DE RISCO (P x S) — fonte diferente das "sugeridas pelo
+  // diagnóstico" acima, que vêm do catálogo pela tensão de liderança.
+  const [showRisk, setShowRisk] = useState(false);
+  const [risk, setRisk] = useState<RiskActionSuggestions | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [accepting, setAccepting] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
   async function loadTemplates() {
@@ -723,6 +743,32 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
   async function loadSuggested() {
     if (suggested) return;
     try { setSuggested(await getSuggestedActions()); } catch { setSuggested({ tension: null, reason: "", templates: [] }); }
+  }
+
+  async function loadRisk() {
+    if (risk) return;
+    try {
+      setRisk(await listRiskActionSuggestions(planId));
+    } catch (err) {
+      setRisk({ origin: "biblioteca", suggestions: [], reason: err instanceof Error ? err.message : "Falha ao ler a matriz de risco." });
+    }
+  }
+  function togglePick(key: string) {
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  }
+  async function acceptPicked() {
+    if (!picked.size) return;
+    setAccepting(true);
+    try {
+      await acceptRiskActionSuggestions(planId, [...picked]);
+      setPicked(new Set());
+      setRisk(null);
+      onAdded();
+    } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setAccepting(false); }
   }
 
   async function importTemplate(tplId: string) {
@@ -768,6 +814,14 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
           </button>
           <button
             type="button"
+            className="btn btn--terra btn--sm"
+            onClick={() => { setShowRisk((s) => !s); loadRisk(); }}
+            title="Ações para os fatores cujo risco (P × S) torna o plano obrigatório"
+          >
+            {showRisk ? "Fechar matriz de risco" : "▲ Do diagnóstico de risco (P × S)"}
+          </button>
+          <button
+            type="button"
             className="btn btn--ghost-dark btn--sm"
             onClick={() => { setShowTemplates((s) => !s); loadTemplates(); }}
           >
@@ -804,6 +858,64 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
                   ))}
                 </ul>
               )}
+            </>
+          )}
+        </div>
+      )}
+
+      {showRisk && (
+        <div style={{ marginBottom: 14, padding: 12, background: "var(--bg-elev)", borderRadius: 6, border: "1px solid var(--terra-soft, var(--line))" }}>
+          {risk === null && <p className="card__sub">Lendo a matriz de risco do diagnóstico…</p>}
+          {risk && risk.suggestions.length === 0 && (
+            <p className="card__sub" style={{ fontSize: 12, margin: 0 }}>{risk.reason}</p>
+          )}
+          {risk && risk.suggestions.length > 0 && (
+            <>
+              <p className="card__sub" style={{ marginBottom: 10, fontSize: 12 }}>
+                Ações para os fatores cujo risco <strong>torna o plano obrigatório</strong> (R = P × S ≥ 10,
+                NR-1 §1.5.4.4.2). Conteúdo{" "}
+                {risk.origin === "IA" ? "elaborado com apoio da IA da plataforma" : "da biblioteca técnica CRIVO"}.
+                O que você marcar entra no plano como <strong>Sugerida</strong> — o dossiê só é emitido
+                depois que a empresa aprovar cada ação.
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 340, overflow: "auto" }}>
+                {risk.suggestions.map((x) => (
+                  <li key={x.key} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--line-soft)", opacity: x.alreadyInPlan ? 0.55 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={picked.has(x.key)}
+                      disabled={x.alreadyInPlan}
+                      onChange={() => togglePick(x.key)}
+                      style={{ marginTop: 4 }}
+                      aria-label={`Adicionar ${x.title}`}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ fontSize: 13 }}>{x.title}</strong>
+                      <div className="card__sub" style={{ fontSize: 11, marginTop: 2 }}>
+                        {x.factorLabel} · P{x.probability} × S{x.severity} = <strong>{x.risk}</strong> ·{" "}
+                        {PSYCHOSOCIAL_RISK_CLASS_LABEL[x.riskClass]} · prazo {x.prazo}
+                        {x.alreadyInPlan && " · já no plano"}
+                      </div>
+                      <div className="card__sub" style={{ fontSize: 11, marginTop: 4 }}>{x.objetivo}</div>
+                      <div className="card__sub" style={{ fontSize: 11, marginTop: 2 }}>
+                        <em>Etapas:</em> {x.etapas}
+                      </div>
+                      <div className="card__sub" style={{ fontSize: 11, marginTop: 2 }}>
+                        <em>Indicadores:</em> {x.indicadores}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="btn btn--terra btn--sm"
+                style={{ marginTop: 12 }}
+                disabled={!picked.size || accepting}
+                onClick={acceptPicked}
+              >
+                {accepting ? "Adicionando…" : `Adicionar ${picked.size} ao plano`}
+              </button>
             </>
           )}
         </div>

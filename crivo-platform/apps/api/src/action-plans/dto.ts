@@ -1,4 +1,4 @@
-import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ActionStatus } from '@crivo/db';
 import { RISK_LEVELS_3, INVENTORY_RISK_LEVELS } from '@crivo/types';
 
@@ -149,4 +149,13 @@ export class CreateEvidenceDto {
 export class OpenCycleDto {
   @IsOptional() @IsString() @MaxLength(120)
   label?: string;
+}
+
+/** Aceite das ações sugeridas pela matriz de risco (P × S). */
+export class AcceptRiskSuggestionsDto {
+  /** Chaves das sugestões escolhidas pela organização. */
+  @IsArray()
+  @ArrayMaxSize(60)
+  @IsString({ each: true })
+  keys!: string[];
 }
