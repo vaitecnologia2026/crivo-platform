@@ -180,9 +180,19 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   section li { margin-bottom: 4px; }
   section img { max-width: 100%; height: auto; }
   section a { color: #a8693d; }
-  section table:not(.kv):not(.grid):not(.ident) th,
-  section table:not(.kv):not(.grid):not(.ident) td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
-  section table:not(.kv):not(.grid):not(.ident) th { background: #f3f0ea; font-size: 12px; }
+  /* Tabela do modelo: SO leva grade quando ela tem borda no Word (classe
+     mdl-grid). O Word usa tabela sem borda para posicionar logo e titulo —
+     desenhar linhas ali faria o documento sair diferente do arquivo. */
+  section table.mdl-grid th,
+  section table.mdl-grid td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
+  section table.mdl-grid th { background: #f3f0ea; font-size: 12px; }
+  /* Traco fino embaixo de cada linha — o estilo dos modelos oficiais CRIVO. */
+  section table.mdl-rows th,
+  section table.mdl-rows td { border: 0; border-bottom: 1px solid #e7e2da; padding: 6px 10px 6px 0; text-align: left; vertical-align: top; }
+  section table.mdl-rows th { font-weight: 700; color: #0d1f3c; }
+  /* Tabela de LAYOUT (logo + titulo do cabecalho): sem nenhuma linha. */
+  section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) th,
+  section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) td { border: 0; padding: 4px 10px 4px 0; text-align: left; vertical-align: top; }
   .note { margin-top: 30px; padding: 14px 16px; background: #f6f4f0; border-left: 3px solid #a8693d; font-size: 11.5px; color: #3a4858; font-style: italic; }
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
   @media print { body { margin: 0; } button { display: none; } }

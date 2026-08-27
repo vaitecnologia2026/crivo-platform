@@ -32,7 +32,7 @@ const ALLOWED: Record<string, string[]> = {
   ul: [],
   ol: ['start'],
   li: [],
-  table: [],
+  table: ['class'],
   thead: [],
   tbody: [],
   tfoot: [],
@@ -107,6 +107,9 @@ function cleanAttrs(tag: string, raw: string): { attrs: string; dropTag: boolean
     if (key === 'href' && !/^(https?:\/\/|mailto:)/i.test(value)) continue;
     // Imagem só embutida (o import converte o binário do .docx em data URI).
     if (key === 'src' && !/^data:image\/(png|jpe?g|gif|webp|bmp);base64,[A-Za-z0-9+/=\s]+$/i.test(value)) continue;
+    // Unica classe aceita: a marca de tabela COM borda no Word. Valor livre em
+    // class seria um vetor de estilo injetado no documento do cliente.
+    if (key === 'class' && value !== 'mdl-grid' && value !== 'mdl-rows') continue;
     if (key === 'colspan' || key === 'rowspan' || key === 'start') {
       const n = Number(value);
       if (!Number.isInteger(n) || n < 1 || n > 100) continue;

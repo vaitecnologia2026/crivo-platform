@@ -3,6 +3,7 @@ import { REPORT_PLACEHOLDERS } from '@crivo/types';
 import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 
+import { applyTableBorders, docxTableBorders } from './docx-table-borders';
 import { autoMarkReportHtml, sanitizeReportHtml } from './report-html';
 
 /**
@@ -471,7 +472,9 @@ export async function extractReportSections(filename: string, buf: Buffer): Prom
     } catch {
       throw new BadRequestException('Não foi possível ler o documento. Confirme que é um .docx válido.');
     }
-    rawHtml = html;
+    // O mammoth nao diz quais tabelas tem borda no Word; sem isso, tabela de
+    // LAYOUT (logo + titulo do cabecalho) sairia com grade no documento.
+    rawHtml = applyTableBorders(html, docxTableBorders(buf));
     blocks = htmlToBlocks(html);
   }
 
