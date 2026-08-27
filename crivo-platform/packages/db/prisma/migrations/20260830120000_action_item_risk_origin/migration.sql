@@ -14,5 +14,7 @@ ALTER TABLE "action_items" ADD COLUMN IF NOT EXISTS "suggestion_key" TEXT;
 -- Idempotência: aceitar a mesma sugestão duas vezes não duplica a ação no plano.
 -- NULL não colide em UNIQUE no Postgres, então itens criados à mão (sem chave)
 -- não são afetados.
-CREATE UNIQUE INDEX IF NOT EXISTS "action_items_plan_id_suggestion_key_key"
-  ON "action_items" ("plan_id", "suggestion_key");
+-- ATENÇÃO: a coluna do plano é "planId" (camelCase, sem @map no schema) — o nome
+-- do índice segue o que o Prisma gera para @@unique([planId, suggestionKey]).
+CREATE UNIQUE INDEX IF NOT EXISTS "action_items_planId_suggestionKey_key"
+  ON "action_items" ("planId", "suggestion_key");
