@@ -439,6 +439,11 @@ export async function extractReportSections(filename: string, buf: Buffer): Prom
   };
 }
 
+/** Texto plano de um HTML (só para inspecionar o conteúdo, nunca para gravar). */
+function plainOf(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /**
  * HTML do arquivo → corpo fiel do modelo: allowlist de tags/atributos e
  * marcação automática dos blocos dinâmicos. Documento grande demais perde
@@ -460,6 +465,19 @@ function buildFidelityHtml(rawHtml: string): { html: string | null; placeholders
   if (!clean) return { html: null, placeholders: [], warnings };
 
   const marked = autoMarkReportHtml(clean);
+
+  // Texto redacional do arquivo (síntese, comentários) pode citar números da
+  // empresa de exemplo. Não dá para adivinhar quais são dado e quais são régua,
+  // então avisamos: sem revisar, esses números sairiam iguais para todo cliente.
+  const semMarcadores = marked.html.replace(/\{\{[\s\S]*?\}\}/g, ' ');
+  const numeros = plainOf(semMarcadores).match(/\d+[.,]\d/g);
+  if (numeros && numeros.length) {
+    warnings.push(
+      `Ainda há ${numeros.length} número(s) de exemplo no texto do modelo (ex.: ${numeros.slice(0, 3).join(', ')}). ` +
+        'Revise os parágrafos redacionais: o que não virar marcador sai igual para toda empresa.',
+    );
+  }
+
   if (marked.applied.length) {
     const labels = marked.applied
       .map((k) => REPORT_PLACEHOLDERS.find((p) => p.key === k)?.label ?? k)

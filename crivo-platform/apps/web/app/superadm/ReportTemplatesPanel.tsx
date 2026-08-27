@@ -150,6 +150,8 @@ const SAMPLE_SCALARS: Record<string, string> = {
   score: "62,5",
   faixa: "Faixa de exemplo",
   ultima_resposta: "00/00/0000",
+  maior_pontuacao: "Dimensão exemplo B · 71,0 / 100 · Em estruturação",
+  maior_atencao: "Dimensão exemplo C · 45,8 / 100 · Atenção crítica",
 };
 
 /**

@@ -85,6 +85,41 @@ describe('autoMarkReportHtml', () => {
     expect(out.applied).toContain('empresa');
   });
 
+  it('marca o score e a faixa do painel de resultado', () => {
+    const html =
+      '<table><tr><td><p><strong>41,7</strong> / 100</p><p><strong>Atenção crítica</strong></p></td>' +
+      '<td><p>Texto longo do panorama que não pode virar marcador de faixa.</p></td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.html).toContain('{{score}} / 100');
+    expect(out.html).toContain('{{faixa}}');
+    expect(out.html).toContain('Texto longo do panorama');
+    expect(out.applied).toEqual(expect.arrayContaining(['score', 'faixa']));
+  });
+
+  it('não marca score em frase que apenas cita "/ 100"', () => {
+    const html = '<p>O índice de 62,5 / 100 indica atenção.</p>';
+    const out = autoMarkReportHtml(html);
+    expect(out.html).toBe(html);
+  });
+
+  it('marca o valor de "Maior pontuação" preservando o rótulo', () => {
+    const html =
+      '<table><tr><td><p><strong>Maior pontuação</strong></p></td><td><p>Governança · 62,5 / 100</p></td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.html).toContain('<strong>Maior pontuação</strong>');
+    expect(out.html).toContain('{{maior_pontuacao}}');
+    expect(out.html).not.toContain('Governança');
+  });
+
+  it('reconhece a identificação do MAPA (EMPRESA/RESPONDENTE/DATA, sem CNPJ)', () => {
+    const html =
+      '<table><tr><td><p><strong>EMPRESA</strong></p><p>O2 Legacy</p></td>' +
+      '<td><p><strong>RESPONDENTE</strong></p><p>Rodrigo</p></td>' +
+      '<td><p><strong>DATA</strong></p><p>24/08/2026</p></td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.html).toBe('<p>{{identificacao}}</p>');
+  });
+
   it('não mexe em tabela de conteúdo que não é bloco dinâmico', () => {
     const html = '<table><tr><th>Etapa</th><th>Descrição</th></tr><tr><td>1</td><td>Coleta</td></tr></table>';
     const out = autoMarkReportHtml(html);

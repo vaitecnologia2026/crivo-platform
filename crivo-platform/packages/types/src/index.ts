@@ -2198,6 +2198,18 @@ export const REPORT_PLACEHOLDERS: ReportPlaceholderSpec[] = [
   { key: 'score', label: 'Índice (0–100)', kind: 'scalar', hint: 'Índice agregado do diagnóstico.' },
   { key: 'faixa', label: 'Faixa', kind: 'scalar', hint: 'Faixa da metodologia em que o índice caiu.' },
   { key: 'ultima_resposta', label: 'Última resposta', kind: 'scalar', hint: 'Data da resposta mais recente.' },
+  {
+    key: 'maior_pontuacao',
+    label: 'Maior pontuação',
+    kind: 'scalar',
+    hint: 'Dimensão com o melhor índice, com valor e faixa.',
+  },
+  {
+    key: 'maior_atencao',
+    label: 'Maior atenção',
+    kind: 'scalar',
+    hint: 'Dimensão com o pior índice, com valor e faixa.',
+  },
   { key: 'identificacao', label: 'Identificação', kind: 'block', hint: 'Grade de identificação (empresa, CNPJ, método, data…).' },
   { key: 'resultado', label: 'Resultado do diagnóstico', kind: 'block', hint: 'Índice, faixa, respondentes e última resposta.' },
   { key: 'tabela_dimensoes', label: 'Resultado por dimensão', kind: 'block', hint: 'Tabela com o índice de cada dimensão.' },

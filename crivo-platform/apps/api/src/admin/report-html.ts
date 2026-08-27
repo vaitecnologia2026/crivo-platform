@@ -209,7 +209,7 @@ const TABLE_RULES: TableRule[] = [
     key: 'identificacao',
     test: (t) =>
       /(empresa|organiza[çc][ãa]o|raz[ãa]o social)/i.test(t) &&
-      /(cnpj|data de emiss[ãa]o|m[ée]todo aplicado|estabelecimento|per[íi]odo)/i.test(t),
+      /(cnpj|respondente|\bdata\b|data de emiss[ãa]o|m[ée]todo aplicado|estabelecimento|per[íi]odo)/i.test(t),
   },
 ];
 
@@ -222,6 +222,42 @@ const INLINE_LABELS: { re: RegExp; key: string }[] = [
   { re: /^(respondentes|respostas v[áa]lidas|total de respondentes)$/i, key: 'respondentes' },
   { re: /^(sa[íi]da t[ée]cnica)$/i, key: 'saida_tecnica' },
 ];
+
+/** Linha de tabela "Rótulo | valor" cujo VALOR é calculado pelo motor. */
+const ROW_LABELS: { re: RegExp; key: string }[] = [
+  { re: /^maior pontua[çc][ãa]o$/i, key: 'maior_pontuacao' },
+  { re: /^maior aten[çc][ãa]o$/i, key: 'maior_atencao' },
+];
+
+/**
+ * Painel de resultado do MAPA: "41,7 / 100" e, logo ao lado, o rótulo da faixa.
+ * São os dois números que MAIS pesam no documento — deixá-los fixos faria todo
+ * cliente receber a pontuação da empresa de exemplo.
+ */
+function markScorePanel(html: string, applied: Set<string>): string {
+  return html.replace(/<td\b[^>]*>[\s\S]*?<\/td>/gi, (cell) => {
+    let out = cell;
+    // Bloco cujo texto e SO o score ("41,7 / 100"); frases longas nao entram.
+    out = out.replace(/(<(p|h[1-6])\b[^>]*>)([\s\S]*?)(<\/\2>)/gi, (full, open, _tag, inner, close) => {
+      const text = plainText(inner);
+      if (!/^\d{1,3}([.,]\d+)?\s*\/\s*100$/.test(text)) return full;
+      applied.add('score');
+      return `${open}{{score}} / 100${close}`;
+    });
+    if (!out.includes('{{score}}')) return out;
+    // Rotulo da faixa: bloco curto, sem digitos, na MESMA celula do score.
+    let faixaFeita = false;
+    out = out.replace(/(<(p|h[1-6])\b[^>]*>)([\s\S]*?)(<\/\2>)/gi, (full, open, _tag, inner, close) => {
+      if (faixaFeita) return full;
+      const text = plainText(inner);
+      if (!text || text.includes('{{') || /\d/.test(text) || text.length > 40) return full;
+      faixaFeita = true;
+      applied.add('faixa');
+      return `${open}{{faixa}}${close}`;
+    });
+    return out;
+  });
+}
 
 /**
  * Troca os blocos de exemplo do arquivo importado pelos marcadores
@@ -254,6 +290,20 @@ export function autoMarkReportHtml(html: string): { html: string; applied: strin
       return `${open}${m[1].trim()}: {{${hit.key}}}${close}`;
     },
   );
+
+  // 3) Linhas "Maior pontuação | <dimensão · valor>" — o valor vem do motor.
+  out = out.replace(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi, (row) => {
+    const cells = row.match(/<t[dh]\b[^>]*>[\s\S]*?<\/t[dh]>/gi);
+    if (!cells || cells.length !== 2) return row;
+    const label = plainText(cells[0]);
+    const hit = ROW_LABELS.find((l) => l.re.test(label));
+    if (!hit) return row;
+    applied.add(hit.key);
+    return row.replace(cells[1], `<td><p>{{${hit.key}}}</p></td>`);
+  });
+
+  // 4) Painel com o score e a faixa do diagnóstico.
+  out = markScorePanel(out, applied);
 
   return { html: out, applied: [...applied] };
 }

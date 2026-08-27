@@ -290,6 +290,22 @@ function gridTableHtml(t: { columns: string[]; data: string[][] }): string {
   return `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+/** Dimensão de melhor/pior índice, no formato do modelo oficial do MAPA:
+ *  "Nome da dimensão · 62,5 / 100 · Faixa". */
+function dimensionHighlight(
+  dims: { label: string; value: number }[],
+  bands: BandLike[],
+  pick: 'max' | 'min',
+): string {
+  if (!dims.length) return '';
+  const chosen = dims.reduce((acc, d) =>
+    pick === 'max' ? (d.value > acc.value ? d : acc) : d.value < acc.value ? d : acc,
+  );
+  const valor = String(chosen.value).replace('.', ',');
+  const faixa = bands.length ? ` · ${bandLabelOf(chosen.value, bands)}` : '';
+  return `${chosen.label} · ${valor} / 100${faixa}`;
+}
+
 /** Grade de identificação em pares — mesmo formato do cabeçalho oficial. */
 function identGridHtml(meta: { label: string; value: string }[]): string {
   const items = meta.filter((m) => {
@@ -748,6 +764,10 @@ export class DocumentsService {
             return escapeHtml(agg.levelLabel);
           case 'ultima_resposta':
             return agg.lastResponseAt ? escapeHtml(fmt(agg.lastResponseAt)) : '';
+          case 'maior_pontuacao':
+            return escapeHtml(dimensionHighlight(agg.byDimension, agg.bands, 'max'));
+          case 'maior_atencao':
+            return escapeHtml(dimensionHighlight(agg.byDimension, agg.bands, 'min'));
           case 'identificacao':
             return identGridHtml(meta);
           case 'resultado':
@@ -906,6 +926,9 @@ export class DocumentsService {
         score,
         levelLabel: band?.label ?? '—',
         byDimension,
+        // Faixas da metodologia ativa: rotulam a dimensao destaque nos
+        // marcadores {{maior_pontuacao}} / {{maior_atencao}}.
+        bands,
         sectors: sectors.size,
         lastResponseAt: last,
       };
