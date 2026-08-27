@@ -23,8 +23,9 @@ type VersionWithContent = {
   rounding?: number | null;
   minValidCompletionPercent?: number | null;
   dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
+  factors?: { slug: string; label: string; severity: number; dimensionSlug?: string | null }[];
   questions: {
-    dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean;
+    dimensionSlug: string; factorSlugs?: string[]; text: string; weight: number; inverse: boolean; required?: boolean;
     scored?: boolean;
     showWhenQuestionId?: number | null;
     showWhenOperator?: string | null;
@@ -53,6 +54,7 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
       const hasCond = q.showWhenQuestionId != null && op != null && q.showWhenValue != null;
       return {
         dimensionSlug: q.dimensionSlug,
+        ...(q.factorSlugs?.length ? { factorSlugs: q.factorSlugs } : {}),
         text: q.text,
         weight: q.weight,
         inverse: q.inverse,
@@ -64,6 +66,10 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
       };
     }),
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max, color: b.color ?? null })),
+    // Fatores só alimentam a leitura de RISCO (matriz) — o motor de score ignora.
+    ...(v.factors?.length
+      ? { factors: v.factors.map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, dimensionSlug: f.dimensionSlug ?? null })) }
+      : {}),
     ...(aggregation ? { aggregation } : {}),
     ...(v.scaleLabels && v.scaleLabels.length ? { scaleLabels: v.scaleLabels } : {}),
     ...(v.rounding != null ? { rounding: v.rounding } : {}),
@@ -214,7 +220,7 @@ export class MethodologyService {
           ? { create: active.dimensions.map((d) => ({ slug: d.slug, label: d.label, weight: d.weight, order: d.order, parentSlug: d.parentSlug, aggregation: d.aggregation, severity: d.severity })) }
           : undefined,
         questions: active
-          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, scored: qq.scored, showWhenQuestionId: qq.showWhenQuestionId, showWhenOperator: qq.showWhenOperator, showWhenValue: qq.showWhenValue, order: qq.order })) }
+          ? { create: active.questions.map((qq) => ({ dimensionSlug: qq.dimensionSlug, factorSlugs: qq.factorSlugs, text: qq.text, weight: qq.weight, inverse: qq.inverse, required: qq.required, scored: qq.scored, showWhenQuestionId: qq.showWhenQuestionId, showWhenOperator: qq.showWhenOperator, showWhenValue: qq.showWhenValue, order: qq.order })) }
           : undefined,
         bands: active
           ? { create: active.bands.map((b) => ({ kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color, order: b.order })) }
@@ -246,6 +252,7 @@ export class MethodologyService {
         showWhenQuestionId?: number | null;
         showWhenOperator?: string | null;
         showWhenValue?: number | null;
+        factorSlugs?: string[];
       }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
       factors?: { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }[];
@@ -286,7 +293,7 @@ export class MethodologyService {
       if (dto.questions) {
         await tx.methodologyQuestion.deleteMany({ where: { versionId: id } });
         await tx.methodologyQuestion.createMany({
-          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, required: qq.required ?? true, scored: qq.scored ?? true, showWhenQuestionId: qq.showWhenQuestionId ?? null, showWhenOperator: qq.showWhenOperator ?? null, showWhenValue: qq.showWhenValue ?? null, order: i })),
+          data: dto.questions.map((qq, i) => ({ versionId: id, dimensionSlug: qq.dimensionSlug, factorSlugs: qq.factorSlugs ?? [], text: qq.text, weight: qq.weight ?? 1, inverse: qq.inverse ?? false, required: qq.required ?? true, scored: qq.scored ?? true, showWhenQuestionId: qq.showWhenQuestionId ?? null, showWhenOperator: qq.showWhenOperator ?? null, showWhenValue: qq.showWhenValue ?? null, order: i })),
         });
       }
       if (dto.bands) {

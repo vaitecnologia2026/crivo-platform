@@ -692,6 +692,10 @@ export interface MethodologyConfigDimension {
 }
 export interface MethodologyConfigQuestion {
   dimensionSlug: string; // liga à FOLHA (dimensão/subdimensão sem filhos)
+  /** Fatores de risco que esta pergunta alimenta (NR-1 §9). A dimensão pontua
+   *  (score 0–100); os fatores medem RISCO (probabilidade da matriz). Vazio =
+   *  a pergunta não entra em nenhuma matriz. */
+  factorSlugs?: string[];
   text: string;
   weight: number;
   inverse: boolean;
@@ -743,10 +747,22 @@ export const DEFAULT_SCALE_LABELS = [
   'Concordo totalmente',
 ] as const;
 
+/** Fator de risco da metodologia (NR-1 §8): a severidade pertence ao fator. */
+export interface MethodologyConfigFactor {
+  slug: string;
+  label: string;
+  severity: number; // 1–5
+  /** Dimensão usada como FALLBACK da probabilidade quando o fator ainda não tem
+   *  perguntas vinculadas. Também é a chave da biblioteca de ações do dossiê. */
+  dimensionSlug?: string | null;
+}
+
 export interface MethodologyConfig {
   dimensions: MethodologyConfigDimension[];
   questions: MethodologyConfigQuestion[];
   bands: MethodologyConfigBand[];
+  /** Fatores de risco (opcional). Só a leitura de RISCO usa — o score ignora. */
+  factors?: MethodologyConfigFactor[];
   aggregation?: ScoreAggregationMode; // ausente = MEDIA_PONDERADA (compat total)
   scaleLabels?: string[]; // rótulos da escala (só apresentação; vazio = padrão)
   /** Casas decimais do resultado (Anexo D/E `rounding`). Ausente = 0 (inteiro),
@@ -793,6 +809,10 @@ export interface MethodologyScoreResult {
   levelColor: string | null; // cor da faixa do score geral (hex) ou null
   /** 0–100 por dimensão + a faixa (code/cor) em que a dimensão caiu, para a barra. */
   byDimension: { slug: string; label: string; value: number; band: string | null; color: string | null }[];
+  /** 0–100 por FATOR de risco — média ponderada das perguntas vinculadas a ele
+   *  (NR-1 §9). Vazio quando a versão não tem fatores ou nenhuma pergunta foi
+   *  vinculada. NÃO influencia `score` nem `byDimension`. */
+  byFactor: { slug: string; label: string; value: number }[];
   topAttentions: string[]; // slugs das dimensões de menor valor (pontos de atenção)
   /** % de itens pontuáveis APLICÁVEIS que foram respondidos (0–100). */
   coverage: number;
@@ -844,7 +864,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   // Itens de contexto (`scored:false`) e não aplicáveis saem do cálculo.
   let applicableScored = 0;
   let answeredScored = 0;
-  const qNorm: { norm: number; weight: number; dimensionSlug: string }[] = [];
+  const qNorm: { norm: number; weight: number; dimensionSlug: string; factorSlugs: string[] }[] = [];
   cfg.questions.forEach((q, i) => {
     const id = i + 1; // questionId = índice 1-based
     if (q.scored === false) return; // item de contexto: coletado, não pontuado
@@ -862,7 +882,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
     answeredScored += 1;
     let norm = ((v - 1) / 4) * 100;
     if (q.inverse) norm = 100 - norm;
-    qNorm.push({ norm, weight: q.weight ?? 1, dimensionSlug: q.dimensionSlug });
+    qNorm.push({ norm, weight: q.weight ?? 1, dimensionSlug: q.dimensionSlug, factorSlugs: q.factorSlugs ?? [] });
   });
 
   const coverage = applicableScored > 0 ? (answeredScored / applicableScored) * 100 : 0;
@@ -942,6 +962,21 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
   const topAttentions =
     minVal < maxVal ? byDimension.filter((d) => d.value === minVal).map((d) => d.slug) : [];
 
+  // Leitura de RISCO (NR-1 §9): média das perguntas vinculadas a cada fator. Uma
+  // pergunta pode alimentar N fatores — conta em todos. Independente do score:
+  // não entra em `byDimension` nem no cálculo de `score`.
+  const qByFactor = new Map<string, { value: number; weight: number }[]>();
+  for (const q of qNorm) {
+    for (const fs of q.factorSlugs) {
+      const list = qByFactor.get(fs) ?? [];
+      list.push({ value: q.norm, weight: q.weight });
+      qByFactor.set(fs, list);
+    }
+  }
+  const byFactor = (cfg.factors ?? [])
+    .filter((f) => (qByFactor.get(f.slug)?.length ?? 0) > 0)
+    .map((f) => ({ slug: f.slug, label: f.label, value: clamp(roundTo(wavg(qByFactor.get(f.slug)!, mode))) }));
+
   return {
     score,
     levelCode: band?.code ?? '',
@@ -951,6 +986,7 @@ export function scoreWithMethodology(answers: IcdAnswer[], cfg: MethodologyConfi
       const b = findBandForScore(cfg.bands, d.value);
       return { ...d, band: b?.code ?? null, color: b?.color ?? null };
     }),
+    byFactor,
     topAttentions,
     coverage: roundTo(coverage),
     officialResultBlocked,
@@ -1148,6 +1184,9 @@ export interface PsychosocialRiskMatrixRow {
   respondents: number;
   percentCritical: number;
   probability: number;
+  /** De onde veio a probabilidade: das perguntas vinculadas ao fator ou da
+   *  dimensão (fallback). Transparência para a tela e para o dossiê. */
+  probabilitySource?: 'perguntas' | 'dimensao';
   severity: number;
   risk: number;
   riskClass: PsychosocialRiskClass;

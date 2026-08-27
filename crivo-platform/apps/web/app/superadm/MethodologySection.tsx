@@ -43,7 +43,7 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
 };
 
 type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null };
-type Q = { dimensionSlug: string; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
+type Q = { dimensionSlug: string; factorSlugs?: string[]; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
 /** Fator de risco: severidade (S) própria + dimensão que fornece a probabilidade. */
 type Fator = { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number; color?: string | null };
@@ -111,7 +111,7 @@ export function MethodologySection() {
     setLabel(d.label);
     setDims(d.dimensions.map((x) => ({ slug: x.slug, label: x.label, weight: x.weight, parentSlug: x.parentSlug ?? null, aggregation: x.aggregation ?? null, severity: x.severity ?? null })));
     setQuestions(d.questions.map((x) => ({
-      dimensionSlug: x.dimensionSlug, text: x.text, weight: x.weight, inverse: x.inverse,
+      dimensionSlug: x.dimensionSlug, factorSlugs: x.factorSlugs ?? [], text: x.text, weight: x.weight, inverse: x.inverse,
       required: x.required ?? true,
       scored: x.scored ?? true,
       showWhenQuestionId: x.showWhenQuestionId ?? null,
@@ -1095,6 +1095,32 @@ function DraftEditor({
           </label>
           <button className="meth-del" title="Remover" onClick={() => setQuestions(questions.filter((_, j) => j !== i))}>✕</button>
         </div>
+        {/* NR-1 §9 — a pergunta alimenta um ou mais FATORES. A dimensão continua
+            pontuando (0–100); os fatores medem RISCO (probabilidade da matriz). */}
+        {factors.length > 0 && (
+          <div className="meth-cond" style={{ flexWrap: "wrap", gap: 8 }}>
+            <span className="cnae-muted" style={{ fontSize: 12 }}>Alimenta os fatores:</span>
+            {factors.map((f) => {
+              const on = (q.factorSlugs ?? []).includes(f.slug);
+              return (
+                <label key={f.slug} className="meth-inv" title={`Severidade ${f.severity}`}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) =>
+                      setQ(i, {
+                        factorSlugs: e.target.checked
+                          ? [...(q.factorSlugs ?? []), f.slug]
+                          : (q.factorSlugs ?? []).filter((x) => x !== f.slug),
+                      })
+                    }
+                  />{" "}
+                  {f.label || f.slug}
+                </label>
+              );
+            })}
+          </div>
+        )}
         {/* Motor v3.1 — exibição CONDICIONAL (`show_when`). Não disparado = item
             não aplicável: sai do cálculo E do denominador de cobertura. */}
         <div className="meth-cond">
@@ -1335,8 +1361,8 @@ function DraftEditor({
                     placeholder="Fator (ex.: Sobrecarga de trabalho)"
                     onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
                   />
-                  <label className="meth-w" title="Dimensão que fornece a evidência de exposição (probabilidade).">
-                    dim
+                  <label className="meth-w" title="Dimensão usada como FALLBACK da probabilidade quando o fator não tem perguntas vinculadas.">
+                    dim (fallback)
                     <select
                       className="meth-in"
                       value={f.dimensionSlug ?? ""}
@@ -1362,6 +1388,22 @@ function DraftEditor({
                   </label>
                   <button className="meth-del" title="Remover fator" onClick={() => setFactors(factors.filter((_, j) => j !== i))}>✕</button>
                 </div>
+                {(() => {
+                  // NR-1 §9: com perguntas vinculadas o P vem delas; senão, da
+                  // dimensão (fallback); sem nenhum dos dois, o fator fica fora.
+                  const n = questions.filter((q) => (q.factorSlugs ?? []).includes(f.slug)).length;
+                  const dim = topDims.find((d) => d.slug === f.dimensionSlug);
+                  const txt = n > 0
+                    ? `Probabilidade por ${n} pergunta(s) vinculada(s) na aba Estrutura.`
+                    : dim
+                      ? `Sem perguntas vinculadas — probabilidade pela dimensão "${dim.label || dim.slug}".`
+                      : "Sem perguntas e sem dimensão — este fator fica FORA da matriz de risco.";
+                  return (
+                    <p className="cnae-muted" style={{ margin: "6px 0 0", fontSize: 12, color: n === 0 && !dim ? "var(--danger,#b4453a)" : undefined }}>
+                      {txt}
+                    </p>
+                  );
+                })()}
                 <textarea
                   className="meth-in"
                   rows={2}

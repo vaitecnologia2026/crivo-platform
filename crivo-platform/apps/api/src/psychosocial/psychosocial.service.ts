@@ -29,6 +29,8 @@ type PsyResult = {
   byDimension: Record<string, number>;
   dimensionLabels?: Record<string, string>;
   dimensionBands?: DimensionBandMap;
+  /** 0–100 por FATOR (perguntas vinculadas) — alimenta a probabilidade da matriz. */
+  byFactor?: Record<string, number>;
   topRisk: string;
 };
 
@@ -88,10 +90,16 @@ export class PsychosocialService {
           const b = findBandForScore(active.config.bands, d.value);
           if (b) dimensionBands[d.slug] = { code: b.code, label: b.label, color: b.color ?? null };
         }
+        // Leitura de RISCO: média por fator das perguntas vinculadas (NR-1 §9).
+        // Gravada junto da resposta para a matriz não depender de recálculo.
+        const byFactor: Record<string, number> = {};
+        for (const f of s.byFactor ?? []) byFactor[f.slug] = f.value;
         result = {
           score: s.score, level: s.levelCode, levelLabel: s.levelLabel,
           levelColor: findBandForScore(active.config.bands, s.score)?.color ?? null,
-          byDimension, dimensionLabels, dimensionBands, topRisk: s.topAttentions[0] ?? '',
+          byDimension, dimensionLabels, dimensionBands,
+          ...(Object.keys(byFactor).length ? { byFactor } : {}),
+          topRisk: s.topAttentions[0] ?? '',
         };
       } else {
         const r = computePsychosocial(dto.answers ?? []);
@@ -114,6 +122,9 @@ export class PsychosocialService {
           score: result.score,
           level: result.level,
           byDimension: result.byDimension as unknown as object,
+          // null quando a versão não tem fatores/vínculos — a matriz IGNORA a
+          // resposta nesse fator (nunca conta como zero).
+          byFactor: (result.byFactor ?? null) as unknown as object,
           methodologyVersionId,
         },
       });
@@ -218,6 +229,7 @@ export class PsychosocialService {
       select: {
         dimensions: { select: { slug: true, severity: true, parentSlug: true } },
         factors: { select: { slug: true, label: true, severity: true, dimensionSlug: true }, orderBy: { order: 'asc' } },
+        questions: { select: { dimensionSlug: true, factorSlugs: true } },
       },
     });
     const metaBySlug = new Map(
@@ -243,22 +255,60 @@ export class PsychosocialService {
     // anterior (dimensão de topo com severidade) — nada muda para quem já
     // parametrizou assim.
     const factors = activeVersion?.factors ?? [];
+    const activeQuestions = activeVersion?.questions ?? [];
+    /** Dimensão majoritária entre as perguntas do fator — mantém a chave da
+     *  biblioteca de ações do Dossiê (que é por DIMENSÃO) quando o fator não
+     *  declara `dimensionSlug`. */
+    const mainDimensionOf = (factorSlug: string): string | null => {
+      const count = new Map<string, number>();
+      for (const q of activeQuestions) {
+        if (!q.factorSlugs?.includes(factorSlug)) continue;
+        count.set(q.dimensionSlug, (count.get(q.dimensionSlug) ?? 0) + 1);
+      }
+      let best: string | null = null;
+      let bestN = 0;
+      for (const [dim, n] of count) if (n > bestN) { best = dim; bestN = n; }
+      return best;
+    };
     const matrixRows: MatrixSource[] = factors.length
-      ? factors.map((f) => ({
-          slug: f.slug,
-          label: f.label,
-          severity: f.severity,
-          // De onde vem a evidência de exposição (probabilidade). Sem vínculo,
-          // usa o próprio slug (cai no score geral se não houver respostas).
-          sourceSlug: f.dimensionSlug ?? f.slug,
-        }))
+      ? factors
+          .map((f): MatrixSource | null => {
+            // Cascata da PROBABILIDADE (NR-1 §9): perguntas vinculadas ao fator →
+            // dimensão de fallback → fora da matriz. Nunca entra com 0 (que na
+            // régua de proteção viraria "100% crítico" e inflaria o risco).
+            const hasQuestions = activeQuestions.some((q) => q.factorSlugs?.includes(f.slug));
+            const dimForPlan = f.dimensionSlug ?? mainDimensionOf(f.slug);
+            if (hasQuestions) {
+              return {
+                slug: f.slug,
+                label: f.label,
+                severity: f.severity,
+                from: 'factor' as const,
+                sourceSlug: f.slug,
+                // A biblioteca de ações do Dossiê resolve por DIMENSÃO.
+                planSlug: dimForPlan,
+              };
+            }
+            if (dimForPlan) {
+              return {
+                slug: f.slug,
+                label: f.label,
+                severity: f.severity,
+                from: 'dimension' as const,
+                sourceSlug: dimForPlan,
+                planSlug: dimForPlan,
+              };
+            }
+            return null; // sem perguntas e sem dimensão: fica fora da matriz
+          })
+          .filter((r): r is MatrixSource => r !== null)
       : dims
           .filter((d) => !d.parentSlug && d.severity != null)
-          .map((d) => ({ slug: d.slug, label: d.label, severity: d.severity as number, sourceSlug: d.slug }));
+          .map((d) => ({ slug: d.slug, label: d.label, severity: d.severity as number, from: 'dimension' as const, sourceSlug: d.slug, planSlug: d.slug }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
-        select: { sector: true, score: true, byDimension: true, methodologyVersionId: true },
+        select: { sector: true, score: true, byDimension: true, byFactor: true, methodologyVersionId: true },
       });
 
       // MET1 — trilha: quantas versões de metodologia pontuaram este conjunto.
@@ -306,12 +356,22 @@ export class PsychosocialService {
   }
 }
 
-type Row = { score: number; byDimension: unknown };
+type Row = { score: number; byDimension: unknown; byFactor?: unknown };
 type AggDim = { slug: string; label: string; severity?: number | null; parentSlug?: string | null };
 type AggBand = { code: string; label: string; min: number; max: number; color?: string | null };
 /** Linha da Matriz de Risco: o que a compõe (fator ou, no fallback, dimensão de
  *  topo) e de qual dimensão sai a probabilidade (`sourceSlug`). */
-type MatrixSource = { slug: string; label: string; severity: number; sourceSlug: string };
+type MatrixSource = {
+  slug: string;
+  label: string;
+  severity: number;
+  /** De onde sai a probabilidade: das perguntas do fator ou da dimensão. */
+  from: 'factor' | 'dimension';
+  /** Chave usada para ler o valor do respondente (byFactor ou byDimension). */
+  sourceSlug: string;
+  /** Chave da DIMENSÃO para a biblioteca de ações do Dossiê (pode ser null). */
+  planSlug: string | null;
+};
 
 /** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
  *  Acrescenta o Perfil de grupo (distribuição de pessoas por faixa) e a Matriz de
@@ -381,10 +441,24 @@ function aggregate(
   // Matriz de Risco: só ESCALAS (dimensão de topo) COM severidade parametrizada.
   // Escala sem severidade fica de fora — entrar com 0 produziria "aceitável" falso.
   const critical = ordered[0] ?? null;
+  /** Valores do recorte para uma linha da matriz. No caminho FATOR lemos o
+   *  `byFactor` gravado e DESCARTAMOS quem não tem o fator (resposta anterior ao
+   *  cadastro) — contar como 0 viraria "100% crítico" e inflaria o risco. */
+  const matrixValuesOf = (src: MatrixSource): number[] => {
+    if (src.from === 'dimension') return valuesOf(src.sourceSlug);
+    const out: number[] = [];
+    for (const r of rows) {
+      const map = r.byFactor as Record<string, number> | null | undefined;
+      const v = map?.[src.sourceSlug];
+      if (typeof v === 'number' && Number.isFinite(v)) out.push(v);
+    }
+    return out;
+  };
+
   const riskMatrix: PsychosocialRiskMatrixRow[] = critical
     ? matrixRows
         .map((d) => {
-          const vals = valuesOf(d.sourceSlug);
+          const vals = matrixValuesOf(d);
           const criticalCount = vals.filter((v) => inBand(v, critical)).length;
           const percentCritical = vals.length ? (criticalCount / vals.length) * 100 : 0;
           const probability = psychosocialProbabilityLevel(percentCritical);
@@ -393,7 +467,9 @@ function aggregate(
           return {
             slug: d.slug,
             label: d.label,
-            sourceSlug: d.sourceSlug,
+            // Chave da DIMENSÃO para a biblioteca de ações do Dossiê.
+            sourceSlug: d.planSlug ?? d.slug,
+            probabilitySource: d.from === 'factor' ? ('perguntas' as const) : ('dimensao' as const),
             criticalCount,
             respondents: vals.length,
             percentCritical: Math.round(percentCritical),
@@ -403,6 +479,9 @@ function aggregate(
             riskClass: psychosocialRiskClass(risk),
           };
         })
+        // Linha sem nenhum respondente elegível (ex.: fator novo, respostas
+        // antigas) não entra: probabilidade sobre zero respostas não é medida.
+        .filter((r) => r.respondents > 0)
         // Mesma ordenação do relatório de referência: maior risco primeiro.
         .sort((a, b) => b.risk - a.risk)
     : [];

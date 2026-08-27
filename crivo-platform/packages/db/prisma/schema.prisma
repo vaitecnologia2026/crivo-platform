@@ -1411,6 +1411,10 @@ model PsychosocialResponse {
   score                Int // 0–100 (proteção geral; maior = menor risco)
   level                String // BAIXO | MODERADO | ALTO | CRITICO
   byDimension          Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
+  /// { <slug do fator>: 0-100 } — média das perguntas vinculadas ao fator, para a
+  /// PROBABILIDADE da Matriz de Risco. null = respondido antes de existirem
+  /// fatores; nesse caso a resposta é IGNORADA no cálculo do fator (nunca 0).
+  byFactor             Json?        @map("by_factor")
   // MET1 — versão de metodologia PSYCHOSOCIAL que EFETIVAMENTE pontuou esta
   // resposta (pin no momento do score). Trilha de rastreabilidade: republicar a
   // metodologia não altera respostas já pontuadas. null = pontuada pelo padrão
@@ -2382,6 +2386,11 @@ model MethodologyQuestion {
   versionId          String             @map("version_id") @db.Uuid
   version            MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
   dimensionSlug      String             @map("dimension_slug")
+  /// Fatores de risco que ESTA pergunta alimenta (NR-1 §9: "a pergunta alimenta
+  /// um ou mais fatores"). Slugs de MethodologyFactor da mesma versão; vazio =
+  /// a pergunta não entra em nenhuma matriz de risco. A DIMENSÃO segue mandando
+  /// na pontuação (0-100) — este vínculo é só a leitura de RISCO.
+  factorSlugs        String[]           @default([]) @map("factor_slugs")
   text               String             @db.Text
   weight             Float              @default(1)
   inverse            Boolean            @default(false) // true = afirmação negativa (inverte na pontuação)

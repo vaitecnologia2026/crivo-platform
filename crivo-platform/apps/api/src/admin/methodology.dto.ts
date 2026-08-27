@@ -59,6 +59,10 @@ class QuestionDto {
   @IsString() @MaxLength(80)
   dimensionSlug!: string;
 
+  /** Fatores que a pergunta alimenta (NR-1 §9). Vazio = fora da matriz de risco. */
+  @IsOptional() @IsArray() @IsString({ each: true })
+  factorSlugs?: string[];
+
   @IsString() @MaxLength(600)
   text!: string;
 
