@@ -7,7 +7,7 @@ import { AiPromptsService } from './ai-prompts.service';
 import { ME_CODE } from '../action-plans/documents.service';
 import { resolveActiveMethodology } from './methodology.service';
 import { extractReportSections, type ReportImportResult } from './report-docx-import';
-import { sanitizeReportHtml } from './report-html';
+import { findExampleLeaks, sanitizeReportHtml } from './report-html';
 
 type Actor = { id: string; email: string };
 
@@ -159,6 +159,23 @@ function cleanHtml(raw: unknown): string | null {
 }
 
 /**
+ * Trava de ativação: modelo ATIVO com dado da empresa de EXEMPLO ainda no corpo
+ * emitiria a pontuação e o CNPJ de outra empresa para TODO cliente — e ninguém
+ * perceberia olhando o documento, porque ele parece correto. Salvar continua
+ * permitido; o que a trava impede é publicar assim.
+ */
+function assertSemDadoDeExemplo(html: string | null, active: boolean) {
+  if (!active || !html) return;
+  const leaks = findExampleLeaks(html);
+  if (!leaks.length) return;
+  throw new BadRequestException(
+    `Este modelo ainda tem dado da empresa de exemplo no corpo: ${leaks.join('; ')}. ` +
+      'Troque esses trechos pelos marcadores ({{score}}, {{faixa}}, {{cnpj}}, {{identificacao}}) ' +
+      'ou desmarque "Ativo" para guardar como rascunho — publicado assim, todo cliente receberia esses valores.',
+  );
+}
+
+/**
  * Motor 4 — Relatórios e Dossiês (R-001), lado control-plane. Repositório
  * cross-tenant das EMISSÕES congeladas (ReportEmission) + fila de revisão
  * técnica do super admin. A emissão em si acontece no portal do tenant
@@ -307,6 +324,9 @@ export class ReportsAdminService {
     const clash = await this.prisma.admin.reportTemplate.findUnique({ where: { key } });
     if (clash) throw new BadRequestException(`Já existe um relatório com o identificador "${key}".`);
 
+    const html = cleanHtml(dto.html);
+    assertSemDadoDeExemplo(html, dto.active ?? true);
+
     const created = await this.prisma.admin.reportTemplate.create({
       data: {
         key,
@@ -314,7 +334,7 @@ export class ReportsAdminService {
         description: dto.description?.trim() || null,
         instrumentSlug: instrument.slug,
         sections: cleanSections(dto.sections) as object,
-        html: cleanHtml(dto.html),
+        html,
         includeResults: dto.includeResults ?? true,
         includeDimensions: dto.includeDimensions ?? true,
         includePlan: dto.includePlan ?? false,
@@ -340,6 +360,9 @@ export class ReportsAdminService {
       });
       if (!instrument) throw new BadRequestException('Diagnóstico vinculado não encontrado.');
     }
+    const html = dto.html === undefined ? (existing.html as string | null) : cleanHtml(dto.html);
+    assertSemDadoDeExemplo(html, dto.active ?? existing.active);
+
     const updated = await this.prisma.admin.reportTemplate.update({
       where: { id },
       data: {
@@ -347,7 +370,7 @@ export class ReportsAdminService {
         description: dto.description === undefined ? existing.description : dto.description?.trim() || null,
         instrumentSlug: dto.instrumentSlug ?? existing.instrumentSlug,
         sections: (dto.sections === undefined ? existing.sections : cleanSections(dto.sections)) as object,
-        html: dto.html === undefined ? existing.html : cleanHtml(dto.html),
+        html,
         includeResults: dto.includeResults ?? existing.includeResults,
         includeDimensions: dto.includeDimensions ?? existing.includeDimensions,
         includePlan: dto.includePlan ?? existing.includePlan,

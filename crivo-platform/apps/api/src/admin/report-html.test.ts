@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoMarkReportHtml, sanitizeReportHtml } from './report-html';
+import { autoMarkReportHtml, findExampleLeaks, sanitizeReportHtml } from './report-html';
 import { pdfTextToBlocks } from './report-docx-import';
 
 /**
@@ -158,6 +158,21 @@ describe('autoMarkReportHtml', () => {
     expect(autoMarkReportHtml(html).applied).toEqual(['plano_acao']);
   });
 
+  it('marca score e faixa quando o Word usou <br/> em vez de parágrafos', () => {
+    // Regressão: o mesmo painel escrito com quebra de linha custava DOIS
+    // marcadores, e os números da outra empresa saíam publicados.
+    const html = '<table><tr><td><p><strong>41,7</strong> / 100 <br/><strong>Atenção crítica</strong></p></td></tr></table>';
+    const out = autoMarkReportHtml(html);
+    expect(out.html).toContain('{{score}} / 100');
+    expect(out.html).toContain('{{faixa}}');
+    expect(out.applied).toEqual(expect.arrayContaining(['score', 'faixa']));
+  });
+
+  it('aceita "Dimensões" no plural no cabeçalho', () => {
+    const html = '<table><tr><th>Dimensões</th><th>Score</th></tr><tr><td>Demandas</td><td>58</td></tr></table>';
+    expect(autoMarkReportHtml(html).applied).toEqual(['tabela_dimensoes']);
+  });
+
   it('não mexe em tabela de conteúdo que não é bloco dinâmico', () => {
     const html = '<table><tr><th>Etapa</th><th>Descrição</th></tr><tr><td>1</td><td>Coleta</td></tr></table>';
     const out = autoMarkReportHtml(html);
@@ -213,5 +228,21 @@ describe('pdfTextToBlocks', () => {
   it('junta palavra hifenizada quebrada entre linhas', () => {
     const blocks = pdfTextToBlocks('as medidas de preven-\nção adotadas pela empresa.');
     expect(blocks[0].text).toContain('prevenção adotadas');
+  });
+});
+
+describe('findExampleLeaks', () => {
+  it('acusa pontuação e CNPJ da empresa de exemplo deixados no corpo', () => {
+    const leaks = findExampleLeaks('<p><strong>41,7</strong> / 100</p><p>CNPJ 00.000.000/0001-00</p>');
+    expect(leaks.join(' ')).toContain('pontuação fixa');
+    expect(leaks.join(' ')).toContain('CNPJ fixo');
+  });
+
+  it('ignora o que já virou marcador', () => {
+    expect(findExampleLeaks('<p>{{score}} / 100</p><p>{{cnpj}}</p>')).toEqual([]);
+  });
+
+  it('não acusa a régua de faixas (0-49, 50-64…), que é texto legítimo', () => {
+    expect(findExampleLeaks('<p>0–49 Atenção crítica · 50–64 Vulnerável · 80–100 Estruturado</p>')).toEqual([]);
   });
 });

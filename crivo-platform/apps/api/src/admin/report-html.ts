@@ -229,7 +229,7 @@ const TABLE_RULES: TableRule[] = [
   },
   {
     key: 'tabela_dimensoes',
-    test: (h) => has(h, /^dimens[ãa]o$/i) && has(h, /^([íi]ndice|score|pontua[çc][ãa]o|resultado|faixa)/i),
+    test: (h) => has(h, /^dimens(?:[ãa]o|[õo]es)$/i) && has(h, /^([íi]ndice|score|pontua[çc][ãa]o|resultado|faixa)/i),
   },
   {
     key: 'participacao',
@@ -272,33 +272,56 @@ const ROW_LABELS: { re: RegExp; key: string }[] = [
  */
 function markScorePanel(html: string, applied: Set<string>): string {
   return html.replace(/<td\b[^>]*>[\s\S]*?<\/td>/gi, (cell) => {
-    let out = cell;
-    // Bloco cujo texto e SO o score ("41,7 / 100"); frases longas nao entram.
-    out = out.replace(/(<(p|h[1-6])\b[^>]*>)([\s\S]*?)(<\/\2>)/gi, (full, open, _tag, inner, close) => {
-      const text = plainText(inner);
-      if (!/^\d{1,3}([.,]\d+)?\s*\/\s*100$/.test(text)) return full;
+    // "Linha lógica" da célula: aos olhos do leitor, <br/> e </p> quebram o
+    // texto do mesmo jeito, e o Word usa um ou outro conforme quem escreveu o
+    // documento. Tratar só <p> custava os marcadores de score e faixa em
+    // qualquer modelo que usasse quebra de linha.
+    const parts = cell.split(/(<\/p>|<br\s*\/?>|<p\b[^>]*>)/i);
+    const separador = (x: string) => /^(<\/p>|<br|<p)/i.test(x);
+
+    let temScore = false;
+    for (let i = 0; i < parts.length; i++) {
+      if (separador(parts[i])) continue;
+      if (!/^\d{1,3}([.,]\d+)?\s*\/\s*100$/.test(plainText(parts[i]))) continue;
+      parts[i] = '{{score}} / 100';
+      temScore = true;
       applied.add('score');
-      return `${open}{{score}} / 100${close}`;
-    });
-    if (!out.includes('{{score}}')) return out;
-    // Rotulo da faixa: bloco curto, sem digitos, na MESMA celula do score.
-    let faixaFeita = false;
-    out = out.replace(/(<(p|h[1-6])\b[^>]*>)([\s\S]*?)(<\/\2>)/gi, (full, open, _tag, inner, close) => {
-      if (faixaFeita) return full;
-      const text = plainText(inner);
-      if (!text || text.includes('{{') || /\d/.test(text) || text.length > 40) return full;
-      faixaFeita = true;
+    }
+    if (!temScore) return parts.join('');
+
+    // Rótulo da faixa: bloco curto, sem dígitos, na MESMA célula do score.
+    for (let i = 0; i < parts.length; i++) {
+      if (separador(parts[i])) continue;
+      const t = plainText(parts[i]);
+      if (!t || t.includes('{{') || /\d/.test(t) || t.length > 40) continue;
+      parts[i] = '{{faixa}}';
       applied.add('faixa');
-      return `${open}{{faixa}}${close}`;
-    });
-    return out;
+      break;
+    }
+    return parts.join('');
   });
 }
 
 /**
- * Troca os blocos de exemplo do arquivo importado pelos marcadores
- * correspondentes. Roda sobre HTML JÁ SANITIZADO.
+ * Dado da empresa de EXEMPLO que sobrou solto no corpo do modelo. Se isto sair
+ * publicado, TODO cliente recebe a pontuação e o CNPJ de outra empresa — falha
+ * silenciosa, que ninguém percebe olhando o documento. Usado como trava na
+ * ativação do modelo.
  */
+export function findExampleLeaks(html: string): string[] {
+  const texto = html
+    .replace(/\{\{[\s\S]*?\}\}/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ');
+  const achados: string[] = [];
+  const scores = texto.match(/\d{1,3}[.,]\d\s*\/\s*100/g);
+  if (scores) achados.push(`pontuação fixa (${[...new Set(scores)].slice(0, 3).join(', ')})`);
+  const cnpj = texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g);
+  if (cnpj) achados.push(`CNPJ fixo (${[...new Set(cnpj)][0]})`);
+  return achados;
+}
+
 export function autoMarkReportHtml(html: string): { html: string; applied: string[] } {
   const applied = new Set<string>();
 
