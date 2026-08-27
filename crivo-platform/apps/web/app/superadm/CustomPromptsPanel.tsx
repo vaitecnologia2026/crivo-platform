@@ -34,7 +34,7 @@ type EditorState = {
   id: string | null; // null = prompt novo (ainda não salvo)
   name: string;
   body: string;
-  instrumentSlug: string; // "" = sem vínculo
+  instrumentSlugs: string[]; // [] = sem vínculo
   addonIds: string[];
   active: boolean;
   files: AiCustomPromptFileMeta[];
@@ -44,7 +44,7 @@ const EMPTY_EDITOR: EditorState = {
   id: null,
   name: "",
   body: "",
-  instrumentSlug: "",
+  instrumentSlugs: [],
   addonIds: [],
   active: true,
   files: [],
@@ -88,9 +88,9 @@ export function CustomPromptsPanel() {
   }
   useEffect(() => { void load(); }, []);
 
-  function instrumentLabel(slug: string | null): string {
-    if (!slug) return "—";
-    return options.find((o) => o.slug === slug)?.label ?? slug;
+  function instrumentLabel(slugs: string[]): string {
+    if (!slugs.length) return "—";
+    return slugs.map((s) => options.find((o) => o.slug === s)?.label ?? s).join(" · ");
   }
 
   function openNew() {
@@ -105,7 +105,7 @@ export function CustomPromptsPanel() {
       id: p.id,
       name: p.name,
       body: p.body,
-      instrumentSlug: p.instrumentSlug ?? "",
+      instrumentSlugs: p.instrumentSlugs,
       addonIds: p.addonIds,
       active: p.active,
       files: p.files,
@@ -126,8 +126,9 @@ export function CustomPromptsPanel() {
       const payload = {
         name: editor.name,
         body: editor.body,
-        // "" no seletor = limpar/sem vínculo (o servidor normaliza para null).
-        instrumentSlug: editor.instrumentSlug,
+        // Lista vazia = sem vínculo. O servidor grava o array e espelha o
+        // primeiro slug em `instrumentSlug` (compatibilidade).
+        instrumentSlugs: editor.instrumentSlugs,
         addonIds: editor.addonIds,
         active: editor.active,
       };
@@ -139,7 +140,7 @@ export function CustomPromptsPanel() {
         id: saved.id,
         name: saved.name,
         body: saved.body,
-        instrumentSlug: saved.instrumentSlug ?? "",
+        instrumentSlugs: saved.instrumentSlugs,
         addonIds: saved.addonIds,
         active: saved.active,
         files: saved.files,
@@ -243,8 +244,8 @@ export function CustomPromptsPanel() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
         <p className="prod-note" style={{ margin: 0 }}>
           <strong>Prompts personalizados.</strong> Prompt livre do super admin — pode ser vinculado a um
-          diagnóstico do Motor e a adicionais, receber material de referência (PDF, Word, Excel, texto) e
-          ser testado na IA real antes de valer.
+          ou mais diagnósticos do Motor e a adicionais, receber material de referência (PDF, Word, Excel,
+          texto) e ser testado na IA real antes de valer.
         </p>
         <button className="btn btn--terra btn--sm" onClick={openNew}>Novo prompt</button>
       </div>
@@ -254,7 +255,7 @@ export function CustomPromptsPanel() {
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Diagnóstico</th>
+              <th>Diagnósticos</th>
               <th>Adicionais</th>
               <th>Arquivos</th>
               <th>Atualizado</th>
@@ -268,7 +269,7 @@ export function CustomPromptsPanel() {
                   <strong>{p.name}</strong>
                   {!p.active && <span className="sol-chip" style={{ marginLeft: 8 }}>inativo</span>}
                 </td>
-                <td>{instrumentLabel(p.instrumentSlug)}</td>
+                <td>{instrumentLabel(p.instrumentSlugs)}</td>
                 <td>{p.addonIds.length}</td>
                 <td>{p.files.length}</td>
                 <td style={{ whiteSpace: "nowrap" }}>{new Date(p.updatedAt).toLocaleString("pt-BR")}</td>
@@ -318,14 +319,20 @@ export function CustomPromptsPanel() {
                   placeholder="Instruções completas para a IA…"
                 />
               </label>
-              <label className="prod-field">
-                <span>Diagnóstico do Motor</span>
+              <label className="prod-field prod-field--full">
+                <span>Diagnósticos do Motor</span>
                 <SearchSelect
+                  multiple
                   placeholder="— Nenhum —"
                   options={options.map((o) => ({ value: o.slug, label: o.label }))}
-                  value={editor.instrumentSlug ? [editor.instrumentSlug] : []}
-                  onChange={(v) => setEditor((s) => (s ? { ...s, instrumentSlug: v[0] ?? "" } : s))}
+                  value={editor.instrumentSlugs}
+                  onChange={(v) => setEditor((s) => (s ? { ...s, instrumentSlugs: v } : s))}
                 />
+                <small className="prod-note">
+                  O mesmo prompt pode atender mais de um diagnóstico — por exemplo, a mesma política
+                  valendo para o Essencial e para o Organizacional. Ele entra na geração daquele
+                  diagnóstico enquanto estiver ativo.
+                </small>
               </label>
             </div>
 

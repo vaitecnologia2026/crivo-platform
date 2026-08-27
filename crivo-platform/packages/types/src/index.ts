@@ -2107,7 +2107,11 @@ export interface AiCustomPromptData {
   id: string;
   name: string;
   body: string;
+  /** Espelho do primeiro item de `instrumentSlugs` (compatibilidade). */
   instrumentSlug: string | null;
+  /** Diagnósticos do Motor que este prompt atende — o mesmo prompt pode servir
+   *  a mais de um (ex.: Essencial e Organizacional sob a mesma política). */
+  instrumentSlugs: string[];
   addonIds: string[];
   active: boolean;
   updatedAt: string;
@@ -2126,6 +2130,9 @@ export interface UpsertAiCustomPromptRequest {
   name?: string;
   body?: string;
   instrumentSlug?: string | null;
+  /** Lista de diagnósticos atendidos. Quando enviada, manda nela: o backend
+   *  grava o array e espelha o primeiro slug em `instrumentSlug`. */
+  instrumentSlugs?: string[];
   addonIds?: string[];
   active?: boolean;
 }

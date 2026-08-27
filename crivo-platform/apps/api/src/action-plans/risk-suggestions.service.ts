@@ -81,6 +81,9 @@ export class RiskSuggestionsService {
       { prisma: this.prisma, aiSettings: this.aiSettings },
       tenantId,
       required,
+      // Mesmo instrumento que produziu a matriz (psychosocial.results) — é por
+      // ele que o prompt personalizado da IA da Plataforma é resolvido.
+      'PSYCHOSOCIAL',
     );
     const jaNoPlano = await this.acceptedKeys(tenantId, planId);
 

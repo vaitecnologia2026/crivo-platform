@@ -40,6 +40,61 @@ export function buildPromptReferenceBlocks(
   return out;
 }
 
+/** Teto de diagnósticos por prompt — o mesmo do seletor da tela. */
+const MAX_INSTRUMENTS = 10;
+
+/**
+ * Diagnósticos atendidos por um prompt: sem vazios, sem repetição, na ordem
+ * escolhida. Um prompt pode servir a mais de um (a mesma política para o
+ * Essencial e o Organizacional, por exemplo).
+ */
+export function normalizeInstrumentSlugs(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const v of value) {
+    if (typeof v !== 'string') continue;
+    const slug = v.trim().slice(0, 80);
+    if (!slug || out.includes(slug)) continue;
+    out.push(slug);
+    if (out.length >= MAX_INSTRUMENTS) break;
+  }
+  return out;
+}
+
+/**
+ * Prompt personalizado ATIVO que atende o diagnóstico informado — ou null.
+ *
+ * É o ponto único de resolução: antes o gerador de planos consultava a tabela
+ * com o slug 'PSYCHOSOCIAL' cravado no código, então um prompt vinculado a
+ * outro diagnóstico nunca seria encontrado. O `OR` cobre as linhas antigas, que
+ * guardam o vínculo só na coluna singular.
+ *
+ * Havendo mais de um ativo para o mesmo diagnóstico, vence o mais recente.
+ * NUNCA lança: qualquer falha vira null e o chamador cai no prompt fixo.
+ */
+export async function findActiveCustomPromptForInstrument(
+  prisma: PrismaService,
+  instrumentSlug: string,
+): Promise<{ name: string; body: string; files: { filename: string; extractedText: string }[] } | null> {
+  // rls-allow: catálogo control-plane global (prompts personalizados da IA)
+  const row = await prisma.admin.aiCustomPrompt
+    .findFirst({
+      where: {
+        active: true,
+        OR: [{ instrumentSlugs: { has: instrumentSlug } }, { instrumentSlug }],
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: { files: true },
+    })
+    .catch(() => null);
+  if (!row) return null;
+  return {
+    name: row.name,
+    body: row.body,
+    files: row.files.map((f) => ({ filename: f.filename, extractedText: f.extractedText })),
+  };
+}
+
 /** Slugs BUILT-IN do seletor "Diagnóstico do Motor" (rótulos do briefing). */
 const BUILTIN_INSTRUMENTS: AiPromptInstrumentOption[] = [
   { slug: 'PRE_DIAGNOSTIC', label: 'MAPA Executivo (Diagnóstico Inicial)' },
@@ -99,14 +154,27 @@ export class AiCustomPromptsService {
   }
 
   async create(
-    dto: { name: string; body: string; instrumentSlug?: string; addonIds?: string[]; active?: boolean },
+    dto: {
+      name: string;
+      body: string;
+      instrumentSlug?: string;
+      instrumentSlugs?: string[];
+      addonIds?: string[];
+      active?: boolean;
+    },
     actor: Actor,
   ): Promise<AiCustomPromptData> {
     const name = dto.name?.trim();
     const body = dto.body?.trim();
     if (!name) throw new BadRequestException('Informe o nome do prompt.');
     if (!body) throw new BadRequestException('Informe o conteúdo do prompt.');
-    const instrumentSlug = dto.instrumentSlug?.trim() || null;
+    // A tela manda a LISTA; o campo singular fica como espelho do primeiro item,
+    // para que qualquer leitor antigo continue enxergando o vínculo.
+    const instrumentSlugs =
+      dto.instrumentSlugs !== undefined
+        ? normalizeInstrumentSlugs(dto.instrumentSlugs)
+        : normalizeInstrumentSlugs([dto.instrumentSlug]);
+    const instrumentSlug = instrumentSlugs[0] ?? null;
     const addonIds = (dto.addonIds ?? []).filter((a): a is string => typeof a === 'string');
 
     // rls-allow: catálogo control-plane global (prompts personalizados da IA)
@@ -115,6 +183,7 @@ export class AiCustomPromptsService {
         name,
         body,
         instrumentSlug,
+        instrumentSlugs,
         addonIds,
         active: dto.active ?? true,
         updatedBy: actor.email,
@@ -126,14 +195,21 @@ export class AiCustomPromptsService {
       action: 'ai-prompt.upsert',
       actor,
       target: created.id,
-      meta: { name, instrumentSlug, addonsCount: addonIds.length },
+      meta: { name, instrumentSlugs, addonsCount: addonIds.length },
     });
     return this.toData(created);
   }
 
   async update(
     id: string,
-    dto: { name?: string; body?: string; instrumentSlug?: string; addonIds?: string[]; active?: boolean },
+    dto: {
+      name?: string;
+      body?: string;
+      instrumentSlug?: string;
+      instrumentSlugs?: string[];
+      addonIds?: string[];
+      active?: boolean;
+    },
     actor: Actor,
   ): Promise<AiCustomPromptData> {
     // rls-allow: catálogo control-plane global (prompts personalizados da IA)
@@ -152,14 +228,24 @@ export class AiCustomPromptsService {
         ? dto.addonIds.filter((a): a is string => typeof a === 'string')
         : undefined;
 
+    // Lista vazia (nenhum selecionado) = limpar o vínculo com os diagnósticos.
+    // Quem só manda o campo singular (chamada antiga) continua funcionando.
+    const instrumentSlugs =
+      dto.instrumentSlugs !== undefined
+        ? normalizeInstrumentSlugs(dto.instrumentSlugs)
+        : dto.instrumentSlug !== undefined
+          ? normalizeInstrumentSlugs([dto.instrumentSlug])
+          : undefined;
+
     // rls-allow: catálogo control-plane global (prompts personalizados da IA)
     const updated = await this.prisma.admin.aiCustomPrompt.update({
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...(dto.body !== undefined ? { body: dto.body.trim() } : {}),
-        // '' no seletor = limpar o vínculo com o diagnóstico.
-        ...(dto.instrumentSlug !== undefined ? { instrumentSlug: dto.instrumentSlug.trim() || null } : {}),
+        ...(instrumentSlugs !== undefined
+          ? { instrumentSlugs, instrumentSlug: instrumentSlugs[0] ?? null }
+          : {}),
         ...(addonIds !== undefined ? { addonIds } : {}),
         ...(dto.active !== undefined ? { active: dto.active } : {}),
         updatedBy: actor.email,
@@ -173,7 +259,7 @@ export class AiCustomPromptsService {
       target: id,
       meta: {
         name: updated.name,
-        instrumentSlug: updated.instrumentSlug,
+        instrumentSlugs: updated.instrumentSlugs,
         addonsCount: this.normalizeAddonIds(updated.addonIds).length,
       },
     });
@@ -349,16 +435,25 @@ export class AiCustomPromptsService {
     name: string;
     body: string;
     instrumentSlug: string | null;
+    instrumentSlugs: string[];
     addonIds: unknown;
     active: boolean;
     updatedAt: Date;
     files: { id: string; filename: string; mimeType: string; sizeBytes: number; createdAt: Date }[];
   }): AiCustomPromptData {
+    // Linha antiga (anterior à coluna de lista) chega com array vazio: a tela
+    // precisa ver o vínculo que existe, então caímos no campo singular.
+    const instrumentSlugs = r.instrumentSlugs?.length
+      ? r.instrumentSlugs
+      : r.instrumentSlug
+        ? [r.instrumentSlug]
+        : [];
     return {
       id: r.id,
       name: r.name,
       body: r.body,
       instrumentSlug: r.instrumentSlug,
+      instrumentSlugs,
       addonIds: this.normalizeAddonIds(r.addonIds),
       active: r.active,
       updatedAt: r.updatedAt.toISOString(),

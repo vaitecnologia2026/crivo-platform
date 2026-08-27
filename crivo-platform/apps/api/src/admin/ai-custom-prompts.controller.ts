@@ -25,6 +25,9 @@ class CreateAiCustomPromptDto {
   instrumentSlug?: string;
 
   @IsOptional() @IsArray() @IsString({ each: true })
+  instrumentSlugs?: string[];
+
+  @IsOptional() @IsArray() @IsString({ each: true })
   addonIds?: string[];
 
   @IsOptional() @IsBoolean()
@@ -40,6 +43,9 @@ class UpdateAiCustomPromptDto {
 
   @IsOptional() @IsString() @MaxLength(80)
   instrumentSlug?: string;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
+  instrumentSlugs?: string[];
 
   @IsOptional() @IsArray() @IsString({ each: true })
   addonIds?: string[];

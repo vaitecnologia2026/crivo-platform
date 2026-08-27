@@ -1290,6 +1290,9 @@ export class DocumentsService {
         { prisma: this.prisma, aiSettings: this.aiSettings },
         tenantId,
         planMatrix,
+        // A matriz veio de psychosocial.results, que lê o instrumento
+        // PSYCHOSOCIAL — é por ele que o prompt personalizado é resolvido.
+        'PSYCHOSOCIAL',
       );
       const originNote =
         origin === 'IA'

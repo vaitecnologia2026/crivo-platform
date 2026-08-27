@@ -984,8 +984,12 @@ model AiCustomPrompt {
   id             String  @id @default(uuid()) @db.Uuid
   name           String
   body           String  @db.Text
-  instrumentSlug String? @map("instrument_slug") // PRE_DIAGNOSTIC | PSYCHOSOCIAL | slug custom
-  addonIds       Json    @default("[]") @map("addon_ids") // moduleCode[] dos adicionais
+  // Um prompt pode servir a VÁRIOS diagnósticos (ex.: a mesma política para o
+  // Essencial e o Organizacional). `instrumentSlug` continua existindo como
+  // espelho do primeiro item — nenhuma linha antiga precisa ser reescrita.
+  instrumentSlug  String?  @map("instrument_slug") // PRE_DIAGNOSTIC | PSYCHOSOCIAL | slug custom
+  instrumentSlugs String[] @default([]) @map("instrument_slugs")
+  addonIds        Json     @default("[]") @map("addon_ids") // moduleCode[] dos adicionais
   active         Boolean @default(true)
   updatedBy      String? @map("updated_by")
 

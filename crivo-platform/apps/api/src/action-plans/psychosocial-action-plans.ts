@@ -1,7 +1,10 @@
 import type { PsychosocialRiskMatrixRow } from '@crivo/types';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AiSettingsService } from '../admin/ai-settings.service';
-import { buildPromptReferenceBlocks } from '../admin/ai-custom-prompts.service';
+import {
+  buildPromptReferenceBlocks,
+  findActiveCustomPromptForInstrument,
+} from '../admin/ai-custom-prompts.service';
 import {
   PSYCHOSOCIAL_ACTION_LIBRARY,
   type PsychosocialActionLibraryEntry,
@@ -50,6 +53,7 @@ async function fromAI(
   deps: ActionPlansDeps,
   tenantId: string,
   matrix: PsychosocialRiskMatrixRow[],
+  instrumentSlug: string,
 ): Promise<Record<string, PsychosocialActionLibraryEntry> | null> {
   const s = await deps.aiSettings.get();
   if (!s.enabled || !s.enabledModules.includes('relatorios') || matrix.length === 0) return null;
@@ -66,24 +70,17 @@ async function fromAI(
   const slugs = matrix.map((r) => r.slug);
 
   // Prompt PERSONALIZADO do super admin (IA da Plataforma · Prompts e Políticas)
-  // vinculado ao diagnóstico PSYCHOSOCIAL: quando existir um ativo, o corpo dele
-  // (+ material de referência anexado) substitui o system fixo. O guard de JSON é
-  // anexado SEMPRE e a mensagem `user` fica intacta → o parse nunca quebra.
+  // vinculado ao DIAGNÓSTICO que está sendo processado: quando existir um ativo,
+  // o corpo dele (+ material de referência anexado) substitui o system fixo. O
+  // guard de JSON é anexado SEMPRE e a mensagem `user` fica intacta → o parse
+  // nunca quebra. O slug vem de quem chamou porque o mesmo prompt pode atender
+  // mais de um diagnóstico (ex.: Essencial e Organizacional sob uma política só).
   // Permissivo: qualquer falha na consulta cai no prompt fixo.
-  // rls-allow: catálogo control-plane global (prompts personalizados da IA)
-  const custom = await deps.prisma.admin.aiCustomPrompt
-    .findFirst({
-      where: { active: true, instrumentSlug: 'PSYCHOSOCIAL' },
-      orderBy: { updatedAt: 'desc' },
-      include: { files: true },
-    })
-    .catch(() => null);
+  const custom = await findActiveCustomPromptForInstrument(deps.prisma, instrumentSlug);
 
   let system: string;
   if (custom) {
-    const refs = buildPromptReferenceBlocks(
-      custom.files.map((f) => ({ filename: f.filename, extractedText: f.extractedText })),
-    );
+    const refs = buildPromptReferenceBlocks(custom.files);
     system = `${custom.body}${refs ? `\n\n${refs}` : ''}\n\n${PSY_JSON_FORMAT_GUARD}`;
   } else {
     system =
@@ -180,8 +177,9 @@ export async function resolveActionPlans(
   deps: ActionPlansDeps,
   tenantId: string,
   matrix: PsychosocialRiskMatrixRow[],
+  instrumentSlug: string,
 ): Promise<ResolvedActionPlans> {
-  const ai = await fromAI(deps, tenantId, matrix).catch(() => null);
+  const ai = await fromAI(deps, tenantId, matrix, instrumentSlug).catch(() => null);
   return ai
     ? { plans: ai, origin: 'IA' }
     : { plans: PSYCHOSOCIAL_ACTION_LIBRARY, origin: 'biblioteca' };
