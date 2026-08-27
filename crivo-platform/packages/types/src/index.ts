@@ -1094,80 +1094,168 @@ export function computePsychosocial(answers: IcdAnswer[]): PsychosocialResult {
   return { score, level: psychosocialLevel(score), byDimension, topRisk };
 }
 
-// ── Matriz de Risco psicossocial (método MapaHDS) ─────────────────────────────
-// Prioriza os fatores combinando EXPOSIÇÃO CRÍTICA (probabilidade) com GRAVIDADE
-// plausível (severidade): R = P × S, de 1 a 25. Recurso SEMIQUANTITATIVO de apoio
-// à gestão — não é diagnóstico clínico individual, laudo pericial nem medida
-// epidemiológica de adoecimento. Referências do método: ISO 45003:2021,
-// IEC 31010:2019 e Taibi et al. (2022).
+// ── Matriz de Risco Psicossocial 5×5 (NR-1, subitem 1.5.4.4.2) ────────────────
+// R = Probabilidade × Severidade, de 1 a 25. A SEVERIDADE é fixa por fator (vem
+// da biblioteca de Riscos/Fatores, §8.1); a PROBABILIDADE é recalculada a cada
+// ciclo a partir das respostas (§8.2). Recurso SEMIQUANTITATIVO de apoio à
+// gestão — não é diagnóstico clínico individual nem laudo pericial.
 
 /**
- * PROBABILIDADE (1–5) a partir do percentual de respondentes cujo escore na
- * escala caiu na faixa CRÍTICA. Indica exposição crítica ATUAL do grupo — não é
- * estimativa de adoecimento futuro.
- *
- * Os limites seguem o método: <5 · 5–20 · 21–50 · 51–80 · >80. Como o percentual
- * é contínuo, as fronteiras são fechadas à direita (20,0 ainda é nível 2; 20,1 já
- * é nível 3), que é a leitura natural de "21 a 50".
+ * EXPOSIÇÃO de uma resposta (1–5). As perguntas CRIVO são afirmativas positivas:
+ * resposta alta = condição melhor = menor exposição, daí `6 - resposta` (§6.1).
+ * Numa afirmação NEGATIVA (`inverse`) a leitura já é direta: concordar é o pior
+ * caso, então a exposição é o próprio valor — inverter de novo anularia o sentido.
  */
+export function exposureOf(value: number, inverse = false): number {
+  return inverse ? value : 6 - value;
+}
+
+/** PROBABILIDADE (1–5) por faixa de EXPOSIÇÃO MÉDIA (§6.2). */
 export const PSYCHOSOCIAL_PROBABILITY_LABEL: Record<number, string> = {
-  1: 'Baixíssimo — raro (<5%)',
-  2: 'Baixo — ocasional (5% a 20%)',
-  3: 'Médio — moderado (21% a 50%)',
-  4: 'Alto — frequente (51% a 80%)',
-  5: 'Crítico — muito frequente (>80%)',
+  1: 'Raro — quase nunca reportado; exposição mínima',
+  2: 'Improvável — reportado por poucos; ocorrência eventual',
+  3: 'Possível — frequência moderada; presente no cotidiano',
+  4: 'Provável — reportado por grande parte dos respondentes; recorrente',
+  5: 'Altamente provável — percepção generalizada',
 };
 
-export function psychosocialProbabilityLevel(percentCritical: number): number {
-  if (!Number.isFinite(percentCritical) || percentCritical < 5) return 1;
-  if (percentCritical <= 20) return 2;
-  if (percentCritical <= 50) return 3;
-  if (percentCritical <= 80) return 4;
+/**
+ * Converte a EXPOSIÇÃO MÉDIA (1,00–5,00) em probabilidade 1–5 (§6.2):
+ * 1,00–1,49 → 1 · 1,50–2,49 → 2 · 2,50–3,49 → 3 · 3,50–4,49 → 4 · 4,50–5,00 → 5.
+ */
+export function psychosocialProbabilityLevel(exposureAvg: number): number {
+  if (!Number.isFinite(exposureAvg) || exposureAvg < 1.5) return 1;
+  if (exposureAvg < 2.5) return 2;
+  if (exposureAvg < 3.5) return 3;
+  if (exposureAvg < 4.5) return 4;
   return 5;
 }
 
-/** SEVERIDADE (1–5): gravidade da consequência se o fator seguir em nível crítico. */
+/** Exposição ALTA = respostas 1 ou 2 numa pergunta positiva (§6.2, regra dos 60%). */
+export const HIGH_EXPOSURE_MIN = 4;
+/** Acima desta fração de exposições altas, a probabilidade sobe direto para 5. */
+export const HIGH_EXPOSURE_SHARE_FOR_MAX = 0.6;
+
+/**
+ * Probabilidade final: faixa da exposição média, com a regra adicional do §6.2 —
+ * mais de 60% das respostas válidas em exposição alta força o nível 5, mesmo que
+ * a média não alcance 4,50 (risco concentrado que a média dilui).
+ */
+export function psychosocialProbabilityFrom(exposures: number[]): {
+  probability: number;
+  exposureAvg: number;
+  highExposureCount: number;
+} {
+  if (!exposures.length) return { probability: 1, exposureAvg: 0, highExposureCount: 0 };
+  const sum = exposures.reduce((a, b) => a + b, 0);
+  const exposureAvg = sum / exposures.length;
+  const highExposureCount = exposures.filter((e) => e >= HIGH_EXPOSURE_MIN).length;
+  const byAvg = psychosocialProbabilityLevel(exposureAvg);
+  const share = highExposureCount / exposures.length;
+  const probability = share > HIGH_EXPOSURE_SHARE_FOR_MAX ? 5 : byAvg;
+  return { probability, exposureAvg, highExposureCount };
+}
+
+/** SEVERIDADE (1–5): potencial de impacto do risco (§8.1). Fixa por fator — vem
+ *  da biblioteca de Riscos/Fatores, nunca é calculada pela dimensão. */
 export const PSYCHOSOCIAL_SEVERITY_LABEL: Record<number, string> = {
-  1: 'Leve — sintomas passageiros ou desconforto leve',
-  2: 'Moderado leve — sintomas persistentes, não incapacitantes',
-  3: 'Moderado — estresse ou sofrimento sem afastamento clínico',
-  4: 'Grave — sintomas severos ou indicadores organizacionais críticos',
-  5: 'Muito grave — diagnósticos clínicos severos, acidentes, afastamentos',
+  1: 'Insignificante — desconforto leve, sem impacto mensurável',
+  2: 'Baixo — impacto leve em bem-estar ou produtividade, reversível',
+  3: 'Moderado — impacto perceptível em saúde ou desempenho, requer atenção',
+  4: 'Alto — risco de adoecimento ou queda significativa de desempenho',
+  5: 'Crítico — risco grave: burnout, assédio, violência, exposição legal',
 };
 
+/** Faixas de criticidade do §8.4 (produto P × S, de 1 a 25). */
 export const PSYCHOSOCIAL_RISK_CLASSES = [
-  'ACEITAVEL',
+  'BAIXO',
   'MODERADO',
-  'SIGNIFICATIVO',
+  'ALTO',
+  'MUITO_ALTO',
   'CRITICO',
-  'INTOLERAVEL',
 ] as const;
 export type PsychosocialRiskClass = (typeof PSYCHOSOCIAL_RISK_CLASSES)[number];
 
 export const PSYCHOSOCIAL_RISK_CLASS_LABEL: Record<PsychosocialRiskClass, string> = {
-  ACEITAVEL: 'Aceitável',
-  MODERADO: 'Moderado',
-  SIGNIFICATIVO: 'Significativo',
-  CRITICO: 'Crítico',
-  INTOLERAVEL: 'Intolerável',
+  BAIXO: 'Baixo (Tolerável)',
+  MODERADO: 'Moderado (Exige atenção pontual)',
+  ALTO: 'Alto (Requer plano de ação)',
+  MUITO_ALTO: 'Muito alto (Prioridade imediata)',
+  CRITICO: 'Crítico (Intolerável)',
 };
 
-/** Conduta esperada por classificação — é o que transforma a matriz em decisão. */
+/** Ação recomendada por faixa (§8.4) — é o que transforma a matriz em decisão. */
 export const PSYCHOSOCIAL_RISK_CLASS_ACTION: Record<PsychosocialRiskClass, string> = {
-  ACEITAVEL: 'Ações preventivas',
-  MODERADO: 'Monitorar',
-  SIGNIFICATIVO: 'Mitigar se possível',
-  CRITICO: 'Ações urgentes',
-  INTOLERAVEL: 'Eliminar ou reduzir drasticamente',
+  BAIXO: 'Monitorar',
+  MODERADO: 'Prevenir',
+  ALTO: 'Corrigir',
+  MUITO_ALTO: 'Mitigar urgentemente',
+  CRITICO: 'Ação imediata',
 };
 
-/** Classificação do risco (R = P × S, 1–25). */
+/** Plano de ação obrigatório a partir de risco 10 (§8.4). */
+export const PSYCHOSOCIAL_RISK_PLAN_REQUIRED: Record<PsychosocialRiskClass, boolean> = {
+  BAIXO: false,
+  MODERADO: false,
+  ALTO: true,
+  MUITO_ALTO: true,
+  CRITICO: true,
+};
+
+/** Classificação do risco (R = P × S, 1–25) pelas faixas do §8.4. */
 export function psychosocialRiskClass(risk: number): PsychosocialRiskClass {
-  if (risk <= 5) return 'ACEITAVEL';
-  if (risk <= 10) return 'MODERADO';
-  if (risk <= 15) return 'SIGNIFICATIVO';
-  if (risk <= 20) return 'CRITICO';
-  return 'INTOLERAVEL';
+  if (risk <= 4) return 'BAIXO';
+  if (risk <= 9) return 'MODERADO';
+  if (risk <= 15) return 'ALTO';
+  if (risk <= 20) return 'MUITO_ALTO';
+  return 'CRITICO';
+}
+
+/**
+ * EXPOSIÇÕES de uma resposta individual, agrupadas por fator e por dimensão.
+ * Recalcula a partir das respostas CRUAS (1–5) contra a config da versão que
+ * pontuou — é o único caminho fiel ao §6.1/§6.2, porque os agregados 0–100
+ * gravados já vêm normalizados, ponderados e arredondados.
+ *
+ * Aplica os mesmos filtros do motor de score: item de contexto (`scored:false`)
+ * e condicional não disparado (`showWhen`) ficam fora, assim como valor ausente
+ * ou fora de 1–5.
+ */
+export function exposuresFromAnswers(
+  answers: { questionId: number; value: number }[],
+  cfg: MethodologyConfig,
+): { byFactor: Record<string, number[]>; byDimension: Record<string, number[]> } {
+  const byId = new Map(answers.map((a) => [a.questionId, a.value]));
+  const byFactor: Record<string, number[]> = {};
+  const byDimension: Record<string, number[]> = {};
+
+  const isApplicable = (q: MethodologyConfigQuestion): boolean => {
+    if (!q.showWhen) return true;
+    const dep = byId.get(q.showWhen.questionId);
+    if (dep == null) return false;
+    const v = q.showWhen.value;
+    switch (q.showWhen.operator) {
+      case '>=': return dep >= v;
+      case '>': return dep > v;
+      case '<=': return dep <= v;
+      case '<': return dep < v;
+      case '==': return dep === v;
+      case '!=': return dep !== v;
+      default: return true;
+    }
+  };
+
+  cfg.questions.forEach((q, i) => {
+    if (q.scored === false) return;
+    if (!isApplicable(q)) return;
+    const v = byId.get(i + 1); // questionId = índice 1-based
+    if (v == null || !Number.isFinite(v) || v < 1 || v > 5) return;
+    const exp = exposureOf(v, q.inverse);
+    (byDimension[q.dimensionSlug] ??= []).push(exp);
+    for (const fs of q.factorSlugs ?? []) (byFactor[fs] ??= []).push(exp);
+  });
+
+  return { byFactor, byDimension };
 }
 
 /** Uma linha da Matriz de Risco: uma ESCALA dentro de um recorte (geral ou setor). */
@@ -1183,6 +1271,10 @@ export interface PsychosocialRiskMatrixRow {
   criticalCount: number;
   respondents: number;
   percentCritical: number;
+  /** Exposição média (1,00–5,00) das respostas vinculadas ao risco (§6.2). */
+  exposureAvg: number;
+  /** Quantas dessas respostas ficaram em exposição alta (4 ou 5) — regra dos 60%. */
+  highExposureCount: number;
   probability: number;
   /** De onde veio a probabilidade: das perguntas vinculadas ao fator ou da
    *  dimensão (fallback). Transparência para a tela e para o dossiê. */
@@ -1190,6 +1282,9 @@ export interface PsychosocialRiskMatrixRow {
   severity: number;
   risk: number;
   riskClass: PsychosocialRiskClass;
+  /** Ação recomendada e obrigatoriedade do plano (§8.4), derivadas da classe. */
+  actionLabel: string;
+  planRequired: boolean;
 }
 
 /** Distribuição de pessoas por faixa, em UMA dimensão (o "Perfil de grupo"). */

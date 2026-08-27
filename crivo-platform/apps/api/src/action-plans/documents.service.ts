@@ -10,6 +10,8 @@ import {
   type GeneratedDocument,
   type PsychosocialRiskMatrixRow,
   type RiskLevel3,
+  PSYCHOSOCIAL_RISK_CLASS_LABEL,
+  PSYCHOSOCIAL_RISK_CLASS_ACTION,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
@@ -1192,17 +1194,30 @@ export class DocumentsService {
     }
     if (!res || res.totalRespondents < res.minRespondents) return [];
     const table = (rows: PsychosocialRiskMatrixRow[]) => ({
-      columns: ['Escala', 'Probabilidade', 'Severidade', 'Risco', 'Classificação'],
-      data: rows.map((r) => [r.label, String(r.probability), String(r.severity), String(r.risk), r.riskClass]),
+      columns: ['Fator', 'Exposição média', 'Probabilidade', 'Severidade', 'Risco', 'Classificação', 'Ação recomendada', 'Plano de ação'],
+      data: rows.map((r) => [
+        r.label,
+        r.exposureAvg.toFixed(2).replace('.', ','),
+        String(r.probability),
+        String(r.severity),
+        String(r.risk),
+        // Rótulo legível — antes saía o código cru (ACEITAVEL, SIGNIFICATIVO…).
+        PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+        r.actionLabel ?? PSYCHOSOCIAL_RISK_CLASS_ACTION[r.riskClass],
+        r.planRequired ? 'Obrigatório' : 'Não obrigatório',
+      ]),
     });
     const sections: DocumentSection[] = [];
     sections.push({
       heading: 'Matriz de Risco Psicossocial — leitura',
       body:
-        'Probabilidade (1–3): chance de a condição psicossocial estar presente de forma crítica no grupo, ' +
-        'estimada pelo percentual de respondentes na faixa crítica. Severidade (1–5): gravidade plausível ' +
-        'do fator, parametrizada na metodologia. Risco = Probabilidade × Severidade (1–25): 1–5 Aceitável · ' +
-        '6–10 Moderado · 11–15 Significativo · 16–20 Crítico · 21–25 Intolerável.',
+        'Probabilidade (1–5): frequência com que o risco é percebido, calculada pela exposição média das ' +
+        'respostas vinculadas ao fator (exposição = 6 − resposta, pois as perguntas são afirmativas ' +
+        'positivas); acima de 60% das respostas em exposição alta, a probabilidade é 5. Severidade (1–5): ' +
+        'potencial de impacto do fator, fixo na metodologia. Risco = Probabilidade × Severidade (1–25): ' +
+        '1–4 Baixo (monitorar) · 5–9 Moderado (prevenir) · 10–15 Alto (corrigir) · 16–20 Muito alto ' +
+        '(mitigar urgentemente) · 21–25 Crítico (ação imediata). A partir de 10, o plano de ação é ' +
+        'obrigatório (NR-1, subitem 1.5.4.4.2).',
     });
     const overall = res.overall && !res.overall.suppressed ? res.overall : null;
     if (overall && 'riskMatrix' in overall && overall.riskMatrix.length) {
@@ -1265,7 +1280,7 @@ export class DocumentsService {
         const entry = plans[r.sourceSlug ?? r.slug] ?? plans[r.slug];
         if (!entry) continue;
         sections.push({
-          heading: `Plano de Ação — ${r.label} (Classificação: ${r.riskClass})`,
+          heading: `Plano de Ação — ${r.label} (Classificação: ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]})`,
           body: `${entry.descricao}\n\nObjetivo do plano de ação: ${entry.objetivo}`,
         });
         sections.push({

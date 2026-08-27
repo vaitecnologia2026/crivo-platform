@@ -5,8 +5,12 @@ import {
   scoreWithMethodology,
   findBandForScore,
   psychosocialLevel,
-  psychosocialProbabilityLevel,
+  psychosocialProbabilityFrom,
   psychosocialRiskClass,
+  exposuresFromAnswers,
+  PSYCHOSOCIAL_RISK_CLASS_ACTION,
+  PSYCHOSOCIAL_RISK_PLAN_REQUIRED,
+  type MethodologyConfig,
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_QUESTIONS,
@@ -14,7 +18,11 @@ import {
   type PsychosocialRiskMatrixRow,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { loadActiveMethodologyConfig, resolveActiveMethodology } from '../admin/methodology.service';
+import {
+  loadActiveMethodologyConfig,
+  loadMethodologyConfigByVersion,
+  resolveActiveMethodology,
+} from '../admin/methodology.service';
 import { getEngineConfig } from '../admin/engine-config';
 import { SubmitPsychosocialDto } from './dto';
 
@@ -308,8 +316,25 @@ export class PsychosocialService {
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
-        select: { sector: true, score: true, byDimension: true, byFactor: true, methodologyVersionId: true },
+        select: { sector: true, score: true, byDimension: true, byFactor: true, answers: true, methodologyVersionId: true },
       });
+
+      // §6.1/§6.2 — EXPOSIÇÃO por resposta, recalculada das respostas CRUAS contra
+      // a config da versão que pontuou (os agregados 0–100 gravados já vêm
+      // normalizados/ponderados/arredondados e não permitem derivar exposição).
+      // Uma carga de config por versão distinta, reaproveitada por todas as linhas.
+      const cfgByVersion = new Map<string, MethodologyConfig | null>();
+      for (const vId of new Set(rows.map((r) => r.methodologyVersionId).filter((v): v is string => !!v))) {
+        cfgByVersion.set(vId, await loadMethodologyConfigByVersion(this.prisma, vId));
+      }
+      for (const r of rows as RowWithExposure[]) {
+        // Sem versão pinada (pontuada pelo padrão embutido) não há config para
+        // reconstruir: a resposta não entra na matriz — melhor ausente que errada.
+        const rc = r.methodologyVersionId ? cfgByVersion.get(r.methodologyVersionId) ?? null : null;
+        if (!rc) continue;
+        const ans = Array.isArray(r.answers) ? (r.answers as { questionId: number; value: number }[]) : [];
+        r.exposures = exposuresFromAnswers(ans, rc);
+      }
 
       // MET1 — trilha: quantas versões de metodologia pontuaram este conjunto.
       // >1 sinaliza que o recorte mistura metodologias (comparabilidade limitada).
@@ -356,7 +381,10 @@ export class PsychosocialService {
   }
 }
 
-type Row = { score: number; byDimension: unknown; byFactor?: unknown };
+type Exposures = { byFactor: Record<string, number[]>; byDimension: Record<string, number[]> };
+type Row = { score: number; byDimension: unknown; byFactor?: unknown; exposures?: Exposures };
+/** Linha do banco + as exposições recalculadas (preenchidas em results()). */
+type RowWithExposure = Row & { methodologyVersionId: string | null; answers: unknown };
 type AggDim = { slug: string; label: string; severity?: number | null; parentSlug?: string | null };
 type AggBand = { code: string; label: string; min: number; max: number; color?: string | null };
 /** Linha da Matriz de Risco: o que a compõe (fator ou, no fallback, dimensão de
@@ -455,15 +483,33 @@ function aggregate(
     return out;
   };
 
+  /** POOL de exposições vinculadas à linha: todas as respostas válidas das
+   *  perguntas do fator (ou da dimensão, no fallback) — §6.2 pede a média do
+   *  conjunto, não a média das médias por respondente. */
+  const exposuresOf = (src: MatrixSource): number[] => {
+    const out: number[] = [];
+    for (const r of rows) {
+      const e = r.exposures;
+      if (!e) continue;
+      const list = src.from === 'factor' ? e.byFactor[src.sourceSlug] : e.byDimension[src.sourceSlug];
+      if (list?.length) out.push(...list);
+    }
+    return out;
+  };
+
   const riskMatrix: PsychosocialRiskMatrixRow[] = critical
     ? matrixRows
         .map((d) => {
+          // Exposição (§6.1) → probabilidade por faixa + regra dos 60% (§6.2).
+          const exposures = exposuresOf(d);
+          const { probability, exposureAvg, highExposureCount } = psychosocialProbabilityFrom(exposures);
+          // Mantido para leitura: quantos respondentes ficaram na faixa crítica.
           const vals = matrixValuesOf(d);
           const criticalCount = vals.filter((v) => inBand(v, critical)).length;
           const percentCritical = vals.length ? (criticalCount / vals.length) * 100 : 0;
-          const probability = psychosocialProbabilityLevel(percentCritical);
           const severity = d.severity;
           const risk = probability * severity;
+          const riskClass = psychosocialRiskClass(risk);
           return {
             slug: d.slug,
             label: d.label,
@@ -473,15 +519,21 @@ function aggregate(
             criticalCount,
             respondents: vals.length,
             percentCritical: Math.round(percentCritical),
+            exposureAvg: Math.round(exposureAvg * 100) / 100,
+            highExposureCount,
             probability,
             severity,
             risk,
-            riskClass: psychosocialRiskClass(risk),
+            riskClass,
+            actionLabel: PSYCHOSOCIAL_RISK_CLASS_ACTION[riskClass],
+            planRequired: PSYCHOSOCIAL_RISK_PLAN_REQUIRED[riskClass],
           };
         })
         // Linha sem nenhum respondente elegível (ex.: fator novo, respostas
         // antigas) não entra: probabilidade sobre zero respostas não é medida.
-        .filter((r) => r.respondents > 0)
+        // Sem nenhuma exposição válida não há probabilidade a medir (ex.: fator
+        // novo, ou respostas sem versão pinada) — a linha não entra.
+        .filter((r) => r.exposureAvg > 0)
         // Mesma ordenação do relatório de referência: maior risco primeiro.
         .sort((a, b) => b.risk - a.risk)
     : [];

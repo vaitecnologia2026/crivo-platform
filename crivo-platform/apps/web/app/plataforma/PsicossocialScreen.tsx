@@ -544,11 +544,11 @@ function SectorHeatmap({ data }: { data: PsychosocialResults }) {
 
 /** Cor da classificação — do verde (aceitável) ao vermelho (intolerável). */
 const RISK_CLASS_COLOR: Record<PsychosocialRiskClass, string> = {
-  ACEITAVEL: "#2E7D4F",
+  BAIXO: "#2E7D4F",
   MODERADO: "#8A6D1F",
-  SIGNIFICATIVO: "#C4671D",
-  CRITICO: "#B3541E",
-  INTOLERAVEL: "#8E2F1B",
+  ALTO: "#C4671D",
+  MUITO_ALTO: "#B3541E",
+  CRITICO: "#8E2F1B",
 };
 
 /**
@@ -573,9 +573,10 @@ function RiskMatrix({ rows }: { rows?: PsychosocialRiskMatrixRow[] }) {
         <div>
           <h3>Matriz de Risco psicossocial</h3>
           <span className="card__sub">
-            Risco = Probabilidade × Severidade (1 a 25). A probabilidade vem do percentual de
-            respondentes na faixa crítica de cada escala; a severidade é a parametrização da empresa.
-            Recurso de apoio à gestão — não é diagnóstico clínico individual.
+            Risco = Probabilidade × Severidade (1 a 25), conforme o subitem 1.5.4.4.2 da NR-1. A
+            probabilidade vem da exposição média das respostas vinculadas ao risco (exposição = 6 −
+            resposta); a severidade é fixa por fator. Recurso de apoio à gestão — não é diagnóstico
+            clínico individual.
           </span>
         </div>
       </div>
@@ -583,21 +584,22 @@ function RiskMatrix({ rows }: { rows?: PsychosocialRiskMatrixRow[] }) {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Escala</th>
-              <th>Na faixa crítica</th>
+              <th>Fator</th>
+              <th>Exposição média</th>
               <th>Probabilidade</th>
               <th>Severidade</th>
               <th>Risco</th>
               <th>Classificação</th>
-              <th>Conduta</th>
+              <th>Ação recomendada</th>
+              <th>Plano de ação</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.slug}>
                 <td><strong>{r.label}</strong></td>
-                <td className="cell-mute">
-                  {r.criticalCount} de {r.respondents} ({r.percentCritical}%)
+                <td className="cell-mute" title={`${r.highExposureCount} resposta(s) em exposição alta (1 ou 2)`}>
+                  {r.exposureAvg.toFixed(2).replace(".", ",")}
                 </td>
                 <td title={PSYCHOSOCIAL_PROBABILITY_LABEL[r.probability]}>{r.probability}</td>
                 <td title={PSYCHOSOCIAL_SEVERITY_LABEL[r.severity]}>{r.severity}</td>
@@ -610,7 +612,10 @@ function RiskMatrix({ rows }: { rows?: PsychosocialRiskMatrixRow[] }) {
                     {PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]}
                   </span>
                 </td>
-                <td className="cell-mute">{PSYCHOSOCIAL_RISK_CLASS_ACTION[r.riskClass]}</td>
+                <td className="cell-mute">{r.actionLabel ?? PSYCHOSOCIAL_RISK_CLASS_ACTION[r.riskClass]}</td>
+                <td className="cell-mute">
+                  {r.planRequired ? <strong>Obrigatório</strong> : "Não obrigatório"}
+                </td>
               </tr>
             ))}
           </tbody>
