@@ -14,11 +14,12 @@ import {
   type SubmitSelfAssessmentRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { resolveActiveMethodology } from '../admin/methodology.service';
+import { resolveActiveMethodology, resolveInstrumentForMethod } from '../admin/methodology.service';
 
 /** Instrumento built-in que o Motor chama de "Diagnóstico Executivo". É ELE que
  *  a autoavaliação do portal aplica — o mesmo slug que a LP e o dossiê já leem. */
-const SELF_ASSESSMENT_INSTRUMENT = 'PRE_DIAGNOSTIC';
+/** Fallback quando a empresa não tem método resolvido (sem contrato ativo). */
+const SELF_ASSESSMENT_FALLBACK = 'PRE_DIAGNOSTIC';
 /** Marca a resposta do gestor no painel — permite substituí-la ao refazer. */
 const SELF_ASSESSMENT_ORIGIN = 'SELF_ASSESSMENT';
 
@@ -48,8 +49,31 @@ export class EssencialService {
    * cadastrado não aparecia correto para o cliente. Sem versão ativa, cai no
    * padrão embutido — o comportamento anterior, byte a byte.
    */
-  async getInstrument(): Promise<SelfAssessmentInstrument> {
-    const active = await resolveActiveMethodology(this.prisma, SELF_ASSESSMENT_INSTRUMENT);
+  /** Qual questionário ESTA empresa aplica — vem do método contratado, e o
+   *  vínculo método→instrumento é configurável no Motor. */
+  private async instrumentOf(tenantId: string): Promise<string> {
+    // rls-allow: resolve o método contratado da própria empresa do contexto.
+    const contract = await this.prisma.admin.contract.findFirst({
+      where: { organizationId: tenantId, status: 'ATIVO' },
+      orderBy: { updatedAt: 'desc' },
+      select: { method: true, productId: true },
+    });
+    // rls-allow: tenants é control-plane (catálogo de empresas).
+    const tenant = await this.prisma.admin.tenant.findFirst({
+      where: { organizationId: tenantId },
+      select: { productId: true },
+    });
+    const productId = contract?.productId ?? tenant?.productId ?? null;
+    const product = productId
+      // rls-allow: Product é catálogo GLOBAL (control-plane), sem tenantId.
+      ? await this.prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
+      : null;
+    const method = product?.method ?? contract?.method ?? null;
+    return (await resolveInstrumentForMethod(this.prisma, method)) ?? SELF_ASSESSMENT_FALLBACK;
+  }
+
+  async getInstrument(tenantId: string): Promise<SelfAssessmentInstrument> {
+    const active = await resolveActiveMethodology(this.prisma, await this.instrumentOf(tenantId));
     if (active) {
       const cfg = active.config;
       return {
@@ -85,7 +109,8 @@ export class EssencialService {
     // versão publicada é ela que manda, e o `versionId` fica pinado no resultado
     // (MET1) para uma republicação depois não repontuar o que já foi respondido.
     // Sem versão ativa, o cálculo embutido de antes.
-    const active = await resolveActiveMethodology(this.prisma, SELF_ASSESSMENT_INSTRUMENT);
+    const instrumentSlug = await this.instrumentOf(tenantId);
+    const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     let result: SelfAssessmentResult;
     try {
       if (active) {
@@ -126,12 +151,12 @@ export class EssencialService {
       // de lá, não de self_assessments). Refazer SUBSTITUI a anterior, então o N
       // do agregado não infla a cada revisão.
       await tx.diagnosticResponse.deleteMany({
-        where: { instrumentSlug: SELF_ASSESSMENT_INSTRUMENT, origin: SELF_ASSESSMENT_ORIGIN },
+        where: { instrumentSlug, origin: SELF_ASSESSMENT_ORIGIN },
       });
       await tx.diagnosticResponse.create({
         data: {
           tenantId,
-          instrumentSlug: SELF_ASSESSMENT_INSTRUMENT,
+          instrumentSlug,
           origin: SELF_ASSESSMENT_ORIGIN,
           answers: dto.answers as unknown as object,
           score: result.score,

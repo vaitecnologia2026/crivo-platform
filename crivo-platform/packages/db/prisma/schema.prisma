@@ -2209,6 +2209,11 @@ model DiagnosticInstrument {
   description String?             @db.Text
   active      Boolean             @default(true)
   builtIn     Boolean             @default(false) @map("built_in") // imutável/indelével
+  /// Método CRIVO que este instrumento atende (INICIAL | ESSENCIAL |
+  /// ORGANIZACIONAL). É o que liga o diagnóstico contratado ao questionário
+  /// aplicado — antes era hardcoded. null = instrumento avulso do catálogo,
+  /// aplicado por link. Só um instrumento ATIVO por método é usado.
+  method      String?
 
   versions        MethodologyVersion[]
   links           DiagnosticLink[]

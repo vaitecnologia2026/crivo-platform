@@ -10,7 +10,7 @@ import { isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
-import { resolveActiveMethodology } from '../admin/methodology.service';
+import { resolveActiveMethodology, resolveInstrumentForMethod } from '../admin/methodology.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { whatsappConfigured, sendWhatsapp } from '../common/whatsapp';
 import { CreateCollaboratorDto, SubmitByTokenDto, UpdateCollaboratorDto } from './dto';
@@ -55,7 +55,7 @@ export class CollaboratorsService {
    * Executivo (PRE_DIAGNOSTIC); ORGANIZACIONAL responde o psicossocial. A
    * solução contratada manda — o `contract.method` é só fallback legado.
    */
-  private async instrumentFor(tenantId: string): Promise<'PRE_DIAGNOSTIC' | 'PSYCHOSOCIAL'> {
+  private async instrumentFor(tenantId: string): Promise<string> {
     // rls-allow: resolve o método contratado da própria empresa do link.
     const contract = await this.prisma.admin.contract.findFirst({
       where: { organizationId: tenantId, status: 'ATIVO' },
@@ -73,7 +73,9 @@ export class CollaboratorsService {
       ? await this.prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
       : null;
     const method = product?.method ?? contract?.method ?? null;
-    return method === 'ESSENCIAL' || method === 'INICIAL' ? 'PRE_DIAGNOSTIC' : 'PSYCHOSOCIAL';
+    // O vínculo método→instrumento é DADO (diagnostic_instruments.method),
+    // configurável no Motor; o mapa histórico é só fallback.
+    return (await resolveInstrumentForMethod(this.prisma, method)) ?? 'PSYCHOSOCIAL';
   }
 
   private view(c: CollaboratorRow) {
@@ -308,8 +310,8 @@ export class CollaboratorsService {
     // Cada método responde o SEU diagnóstico: Essencial → Diagnóstico Executivo
     // (diagnostic_responses); Organizacional → psicossocial. Nos dois casos a
     // resposta é anônima e a participação é marcada na mesma transação.
-    return instrument === 'PRE_DIAGNOSTIC'
-      ? this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao)
-      : this.psychosocial.submit(c.tenantId, payload, marcarParticipacao);
+    return instrument === 'PSYCHOSOCIAL'
+      ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao)
+      : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao);
   }
 }

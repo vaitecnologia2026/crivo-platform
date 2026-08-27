@@ -1214,6 +1214,8 @@ export interface InstrumentSummary {
   description: string | null;
   active: boolean;
   builtIn: boolean;
+  /** Método CRIVO que este diagnóstico atende (null = avulso do catálogo). */
+  method?: string | null;
   _count?: { versions: number };
 }
 
@@ -1221,12 +1223,12 @@ export function listInstruments(): Promise<InstrumentSummary[]> {
   return adminFetch<InstrumentSummary[]>("/admin/instruments");
 }
 export function createInstrument(input: {
-  slug: string; name: string; bandKind: MethodologyBandKind; aggregation: ScoreAggregation; description?: string | null;
+  slug: string; name: string; bandKind: MethodologyBandKind; aggregation: ScoreAggregation; description?: string | null; method?: string | null;
 }): Promise<InstrumentSummary> {
   return adminFetch<InstrumentSummary>("/admin/instruments", { method: "POST", body: JSON.stringify(input) });
 }
 export function updateInstrument(slug: string, input: {
-  name?: string; bandKind?: MethodologyBandKind; aggregation?: ScoreAggregation; description?: string | null; active?: boolean;
+  name?: string; bandKind?: MethodologyBandKind; aggregation?: ScoreAggregation; description?: string | null; active?: boolean; method?: string | null;
 }): Promise<InstrumentSummary> {
   return adminFetch<InstrumentSummary>(`/admin/instruments/${slug}`, { method: "PUT", body: JSON.stringify(input) });
 }

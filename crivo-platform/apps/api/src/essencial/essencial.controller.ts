@@ -19,8 +19,8 @@ export class EssencialController {
 
   /** Perguntas + escala da autoavaliação, como cadastradas no Motor. */
   @Get('instrument')
-  instrument() {
-    return this.svc.getInstrument();
+  instrument(@CurrentUser() user: SessionUser) {
+    return this.svc.getInstrument(user.tenantId);
   }
 
   /** Diagnósticos do catálogo que a CRIVO aplicou a esta empresa (/d/<slug>). */

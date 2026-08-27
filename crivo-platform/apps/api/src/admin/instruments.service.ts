@@ -16,6 +16,7 @@ export type InstrumentInput = {
   aggregation?: 'MEDIA_PONDERADA' | 'MEDIA_SIMPLES' | 'SOMA_NORMALIZADA';
   description?: string | null;
   active?: boolean;
+  method?: string | null;
 };
 
 /**
@@ -58,6 +59,7 @@ export class InstrumentsService {
         aggregation: dto.aggregation ?? cfg.defaultAggregation,
         description: dto.description ?? null,
         active: dto.active ?? true,
+        method: dto.method || null,
         builtIn: false,
       },
     });
@@ -79,6 +81,9 @@ export class InstrumentsService {
         aggregation: dto.aggregation ?? existing.aggregation,
         description: dto.description === undefined ? existing.description : dto.description,
         active: existing.builtIn ? existing.active : (dto.active ?? existing.active),
+        // O vínculo com o método é editável mesmo em instrumento nativo: é ele
+        // que decide qual questionário cada diagnóstico contratado aplica.
+        method: dto.method === undefined ? existing.method : (dto.method || null),
       },
     });
     await this.audit.record({ action: 'instrument.update', actor, target: slug, meta: { name: updated.name } });

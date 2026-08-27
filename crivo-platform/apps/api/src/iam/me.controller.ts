@@ -6,6 +6,7 @@ import { CurrentUser } from './current-user.decorator';
 import { ModuleService } from './module.service';
 import { PermissionService } from './permission.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveInstrumentForMethod } from '../admin/methodology.service';
 import { GroupsService } from '../admin/groups.service';
 import { UpdateBrandingDto, UpdateOrganizationDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
@@ -180,7 +181,14 @@ export class MeController {
     // resolvido, mantém os dois (fallback histórico). Os instrumentos com link de
     // aplicação NÃO são filtrados: cada um foi escolhido para aquela empresa.
     const methodsContratados = contracted.length ? contracted.map((c) => c.method) : method ? [method] : [];
-    const builtInSlugs = new Set(methodsContratados.map((m) => BUILTIN_BY_METHOD[m]).filter(Boolean));
+    // O vínculo método→instrumento é DADO (diagnostic_instruments.method),
+    // configurável no Motor; BUILTIN_BY_METHOD segue como fallback.
+    const resolvidos = await Promise.all(
+      methodsContratados.map((m) => resolveInstrumentForMethod(this.prisma, m)),
+    );
+    const builtInSlugs = new Set(
+      resolvidos.map((slug, i) => slug ?? BUILTIN_BY_METHOD[methodsContratados[i]]).filter(Boolean),
+    );
     const doMetodo = builtIns.filter((i) => builtInSlugs.size === 0 || builtInSlugs.has(i.slug));
     const seen = new Set<string>();
     const instruments: { slug: string; name: string }[] = [];

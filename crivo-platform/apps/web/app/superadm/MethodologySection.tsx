@@ -721,6 +721,7 @@ function NewInstrumentModal({
   const [bandKind, setBandKind] = useState<"MATURITY" | "RISK">("MATURITY");
   const [aggregation, setAggregation] = useState<ScoreAggregation>("MEDIA_PONDERADA");
   const [description, setDescription] = useState("");
+  const [method, setMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -733,7 +734,7 @@ function NewInstrumentModal({
     setError(null);
     try {
       const finalSlug = slug || slugify(name);
-      await createInstrument({ slug: finalSlug, name: name.trim(), bandKind, aggregation, description: description.trim() || null });
+      await createInstrument({ slug: finalSlug, name: name.trim(), bandKind, aggregation, description: description.trim() || null, method: method || null });
       await onCreated(finalSlug);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao criar o diagnóstico.");
@@ -790,6 +791,21 @@ function NewInstrumentModal({
             <label className="prod-field prod-field--full">
               <span>Descrição (opcional)</span>
               <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
+            {/* É este vínculo que decide qual questionário cada diagnóstico
+                CONTRATADO aplica — antes estava fixo no código. */}
+            <label className="prod-field prod-field--full">
+              <span>Método que este diagnóstico atende</span>
+              <select value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="">— nenhum (avulso, aplicado por link) —</option>
+                <option value="INICIAL">Diagnóstico Inicial (MAPA do site)</option>
+                <option value="ESSENCIAL">Diagnóstico Essencial</option>
+                <option value="ORGANIZACIONAL">Diagnóstico Organizacional (NR-1)</option>
+              </select>
+              <span className="prod-note" style={{ margin: "6px 0 0" }}>
+                Quem contratar esse método passa a responder ESTE questionário. Só um diagnóstico ativo por
+                método é aplicado.
+              </span>
             </label>
           </div>
           {error && <p className="prod-note" style={{ color: "var(--danger, #b4453a)" }}>{error}</p>}

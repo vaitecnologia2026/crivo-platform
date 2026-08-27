@@ -380,3 +380,32 @@ export class MethodologyService {
     return { ok: true };
   }
 }
+
+/**
+ * Mapa histórico método→instrumento. Só é usado como FALLBACK: a fonte de verdade
+ * passou a ser `diagnostic_instruments.method`, configurável no Motor.
+ */
+const LEGACY_INSTRUMENT_BY_METHOD: Record<string, string> = {
+  INICIAL: 'PRE_DIAGNOSTIC',
+  ESSENCIAL: 'PRE_DIAGNOSTIC',
+  ORGANIZACIONAL: 'PSYCHOSOCIAL',
+};
+
+/**
+ * Qual instrumento o método contratado aplica. Procura o instrumento ATIVO
+ * marcado com aquele método (dado, editável no Motor); se não houver, cai no mapa
+ * histórico — assim nada quebra enquanto o vínculo não estiver configurado.
+ */
+export async function resolveInstrumentForMethod(
+  prisma: PrismaService,
+  method: string | null | undefined,
+): Promise<string | null> {
+  if (!method) return null;
+  // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
+  const found = await prisma.admin.diagnosticInstrument.findFirst({
+    where: { method, active: true },
+    orderBy: { createdAt: 'asc' },
+    select: { slug: true },
+  });
+  return found?.slug ?? LEGACY_INSTRUMENT_BY_METHOD[method] ?? null;
+}

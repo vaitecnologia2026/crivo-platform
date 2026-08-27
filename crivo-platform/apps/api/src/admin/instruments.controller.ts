@@ -23,6 +23,10 @@ class InstrumentDto {
 
   @IsOptional() @IsBoolean()
   active?: boolean;
+
+  /** Método CRIVO que este diagnóstico atende (vazio = avulso do catálogo). */
+  @IsOptional() @IsIn(['INICIAL', 'ESSENCIAL', 'ORGANIZACIONAL', ''])
+  method?: string | null;
 }
 
 /** Catálogo de instrumentos do Motor de Diagnósticos. Owner-only. */
