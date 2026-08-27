@@ -46,6 +46,8 @@ type FormState = {
   sections: ReportTemplateSection[];
   /** Corpo fiel do arquivo importado (.docx), com marcadores. Null = so secoes. */
   html: string | null;
+  /** Só nesta sessão: veio de PDF, então NÃO há layout. Não é persistido. */
+  fromPdf?: boolean;
   includeResults: boolean;
   includeDimensions: boolean;
   includePlan: boolean;
@@ -362,6 +364,7 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
         // Corpo fiel do .docx (null em PDF): e o que faz o relatorio sair com o
         // layout do arquivo, trocando so os marcadores.
         html: res.html,
+        fromPdf: !res.html,
         includeResults: res.suggested?.includeResults ?? EMPTY.includeResults,
         includeDimensions: res.suggested?.includeDimensions ?? EMPTY.includeDimensions,
         includePlan: res.suggested?.includePlan ?? EMPTY.includePlan,
@@ -486,9 +489,9 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
             className="btn btn--ghost btn--sm"
             onClick={() => fileRef.current?.click()}
             disabled={instruments.length === 0 || importing}
-            title="Importar um modelo do Word (.docx) ou PDF e criar o relatório a partir dele"
+            title="Importar um modelo do Word (.docx) — o PDF traz só o texto, sem o layout"
           >
-            {importing ? "Importando…" : "Importar modelo (Word/PDF)"}
+            {importing ? "Importando…" : "Importar modelo (.docx recomendado)"}
           </button>
           <button className="btn btn--terra btn--sm" onClick={openNew} disabled={instruments.length === 0}>
             + Novo relatório
@@ -513,6 +516,22 @@ export function ReportTemplatesPanel({ instrumentSlug }: { instrumentSlug?: stri
 
       {form && (
         <div className="card" style={{ marginBottom: 18 }}>
+          {form.fromPdf && (
+            <div className="dash-state dash-state--error" style={{ marginBottom: 14 }}>
+              <strong>Este modelo veio de um PDF — o layout do arquivo NÃO foi reproduzido.</strong>
+              <p style={{ margin: "6px 0 0" }}>
+                Um PDF guarda só a posição dos textos na página: não há tabela, coluna nem formatação
+                para recuperar. O que dá para extrair é o texto, em seções editáveis — e o relatório sai
+                no formato padrão CRIVO, não no do seu arquivo.
+              </p>
+              <p style={{ margin: "6px 0 0" }}>
+                Para o relatório sair <strong>igual ao modelo</strong>: abra o PDF no Word
+                (Arquivo → Abrir), confira as tabelas, salve como <code>.docx</code> e importe esse
+                arquivo. Se o documento original for Word, importe direto o <code>.docx</code>.
+              </p>
+            </div>
+          )}
+
           <fieldset className="prod-fs">
             <legend>{form.id ? "Editar relatório" : "Novo relatório"}</legend>
             <div className="prod-form__grid">

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { autoMarkReportHtml, sanitizeReportHtml } from './report-html';
+import { pdfTextToBlocks } from './report-docx-import';
 
 /**
  * O HTML do modelo vem de um arquivo enviado por terceiro e é renderizado no
@@ -125,5 +126,55 @@ describe('autoMarkReportHtml', () => {
     const out = autoMarkReportHtml(html);
     expect(out.html).toBe(html);
     expect(out.applied).toEqual([]);
+  });
+});
+
+/**
+ * Extração de PDF: não há layout para recuperar, então o mínimo é não INVENTAR
+ * estrutura. O PDF quebra linha por largura de coluna, e a regra antiga ("linha
+ * curta sem pontuação final") transformava metade das frases em títulos.
+ */
+describe('pdfTextToBlocks', () => {
+  it('não corta uma frase no meio para virar título', () => {
+    const texto = [
+      'Considera a possibilidade de ocorrência de lesões ou agravos em função',
+      'da exposição ao fator, das exigências da atividade e da eficácia das',
+      'medidas de prevenção existentes.',
+    ].join('\n');
+    const blocks = pdfTextToBlocks(texto);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('text');
+    expect(blocks[0].text).toContain('medidas de prevenção existentes');
+  });
+
+  it('reconhece título em caixa alta e numeração de seção', () => {
+    const texto = 'SÍNTESE DO CICLO\n\nTexto da seção.\n\n3.1 Metodologia\n\nOutro texto.';
+    const kinds = pdfTextToBlocks(texto).map((b) => `${b.kind}:${b.text}`);
+    expect(kinds).toContain('heading:SÍNTESE DO CICLO');
+    expect(kinds).toContain('heading:3.1 Metodologia');
+  });
+
+  it('não trata linha de tabela achatada como título', () => {
+    const texto = '4 4 16 ● Crítico\nF02 Recorrente em picos; percepção moderada.';
+    expect(pdfTextToBlocks(texto).every((b) => b.kind === 'text')).toBe(true);
+  });
+
+  it('não trata "3 Possível ..." (célula numerada) como título', () => {
+    const texto = '3 Possível Presente em parte do grupo ou em determinados\nciclos.';
+    expect(pdfTextToBlocks(texto).every((b) => b.kind === 'text')).toBe(true);
+  });
+
+  it('remove cabeçalho/rodapé repetido em toda página', () => {
+    const pagina = (n: number) => `CRIVO — Decision Intelligence\nConteúdo da página ${n}.\n— ${n} of 5 —`;
+    const texto = [pagina(1), pagina(2), pagina(3)].join('\n');
+    const todo = pdfTextToBlocks(texto).map((b) => b.text).join(' ');
+    expect(todo).not.toContain('Decision Intelligence');
+    expect(todo).not.toContain('of 5');
+    expect(todo).toContain('Conteúdo da página 2');
+  });
+
+  it('junta palavra hifenizada quebrada entre linhas', () => {
+    const blocks = pdfTextToBlocks('as medidas de preven-\nção adotadas pela empresa.');
+    expect(blocks[0].text).toContain('prevenção adotadas');
   });
 });

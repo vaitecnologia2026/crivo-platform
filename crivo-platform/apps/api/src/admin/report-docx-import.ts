@@ -149,7 +149,7 @@ function tableToText(tableHtml: string): string {
     .join('\n');
 }
 
-type Block = { kind: 'heading' | 'text'; text: string };
+export type Block = { kind: 'heading' | 'text'; text: string };
 
 /** Quebra o HTML do mammoth numa lista linear de blocos (título vs texto). */
 function htmlToBlocks(html: string): Block[] {
@@ -319,9 +319,71 @@ function clampSections(sections: ReportImportSection[]): { sections: ReportImpor
   return { sections: out, warnings };
 }
 
-/** Texto puro do PDF vira blocos: linhas curtas ficam isoladas (candidatas a
- *  título pela heurística) e linhas seguidas se juntam num parágrafo. */
-function pdfTextToBlocks(text: string): Block[] {
+/**
+ * Cabeçalho/rodapé de página não é conteúdo: no PDF eles se repetem em toda
+ * página e, sem remover, entram no meio do texto ("CRIVO — Decision
+ * Intelligence" aparecia dentro das seções).
+ */
+function dropRunningHeaders(lines: string[]): string[] {
+  const count = new Map<string, number>();
+  for (const l of lines) {
+    const k = l.trim();
+    if (k && k.length <= 90) count.set(k, (count.get(k) ?? 0) + 1);
+  }
+  return lines.filter((l) => {
+    const k = l.trim();
+    if (/^[-\u2013\u2014]{0,2}\s*\d+\s+of \s*\d+\s*[-\u2013\u2014]{0,2}$/i.test(k)) return false;
+    if (/^(p[áa]gina|page)\s+\d+(\s+(de|of)\s+\d+)?$/i.test(k)) return false;
+    return (count.get(k) ?? 0) < 3;
+  });
+}
+
+/**
+ * Palavra de ligação no fim da linha denuncia quebra no MEIO da frase — o PDF
+ * quebra por largura de coluna, não por sentido.
+ */
+const CONTINUACAO_RE =
+  /\b(de|da|do|das|dos|e|ou|a|o|as|os|em|no|na|nos|nas|para|por|com|que|se|ao|\u00e0|um|uma|dos|pelo|pela|sobre|entre|quando|como)$/i;
+
+/**
+ * Título dentro de um PDF. A regra antiga ("linha curta sem pontuação final")
+ * era fraca demais: como quase toda linha de PDF termina sem pontuação, frases
+ * partidas viravam títulos ("medidas de prevenção existentes. Os resultados do
+ * questionário são"). Agora exige um sinal POSITIVO de título e descarta
+ * continuação de frase.
+ */
+function pdfLooksLikeHeading(line: string, prevLine: string | null, nextLine: string | null): boolean {
+  const t = line.trim();
+  if (!t || t.length > 80) return false;
+  if (/[.!?;,]$/.test(t)) return false;
+  if (CONTINUACAO_RE.test(t)) return false;
+  if (t.split(/\s+/).length > 10) return false;
+  // Frase anterior não fechou => esta linha é continuação, não título.
+  if (prevLine !== null && !/[.!?:]$/.test(prevLine)) return false;
+  // Linha de TABELA achatada em texto ("4 4 16 * Critico", "3 Possivel ...")
+  // se parece com titulo numerado. Descarta quando ha varios numeros soltos ou
+  // marcador de celula - no PDF a tabela vira exatamente isso.
+  const tokens = t.split(/\s+/);
+  const numericos = tokens.filter((w) => /^\d+([.,]\d+)?$/.test(w)).length;
+  if (numericos >= 2) return false;
+  if (/[\u25cf\u25cb\u25aa\u2022]/.test(t)) return false;
+
+  // Sinais positivos, em ordem de confiança.
+  // Numeracao de secao EXIGE o ponto/parentese ("3.1 Metodologia", "3) Escopo");
+  // sem isso, "3 Possivel Presente em parte do grupo" passaria por titulo.
+  // Hierarquica ("3.1 Metodologia") ou simples COM ponto/parentese ("3. Escopo").
+  // Numero simples SEM pontuacao e celula de tabela, nao titulo.
+  if (/^\d+(\.\d+)+\s+\S|^\d+[.)]\s+\S/.test(t)) return true;
+  if (t === t.toUpperCase() && /[A-Z\u00c0-\u00da]/.test(t)) return true; // "SÍNTESE DO CICLO"
+  // Caso geral: bloco isolado seguido de conteúdo que abre frase nova.
+  return nextLine !== null && /^[A-Z\u00c0-\u00da\d]/.test(nextLine);
+}
+
+/** Texto puro do PDF vira blocos: parágrafos reconstruídos (o PDF quebra linha
+ *  por largura) e títulos só quando há sinal claro de título.
+ *  Exportado para teste — a heurística é frágil por natureza e precisa de rede. */
+export function pdfTextToBlocks(text: string): Block[] {
+  const lines = dropRunningHeaders(text.split(/\r?\n/));
   const blocks: Block[] = [];
   let para: string[] = [];
   const flush = () => {
@@ -330,15 +392,24 @@ function pdfTextToBlocks(text: string): Block[] {
     if (joined) blocks.push({ kind: 'text', text: joined });
     para = [];
   };
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line) {
       flush();
       continue;
     }
-    if (looksLikeHeading(line)) {
+    // Linha em branco antes = começo de bloco; senão, a linha anterior conta
+    // para decidir se esta é continuação de frase.
+    const prev = i > 0 && lines[i - 1].trim() ? lines[i - 1].trim() : null;
+    const next = lines[i + 1]?.trim() || null;
+    if (pdfLooksLikeHeading(line, prev, next)) {
       flush();
-      blocks.push({ kind: 'text', text: line });
+      blocks.push({ kind: 'heading', text: line });
+      continue;
+    }
+    // Hifenização de fim de linha ("preven-" + "ção") não vira "preven- ção".
+    if (para.length && /-$/.test(para[para.length - 1])) {
+      para[para.length - 1] = para[para.length - 1].replace(/-$/, '') + line;
       continue;
     }
     para.push(line);
