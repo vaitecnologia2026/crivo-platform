@@ -250,18 +250,26 @@ export class PlatformLeadsService {
     if (lead.email) {
       void this.preliminaryReports
         .generate({ platformLeadId: lead.id })
-        .then((r) =>
+        .then(async (r) => {
           this.log.log(
             `Relatório preliminar do lead ${lead.id} (${lead.email}): status=${r.status}`,
-          ),
-        )
-        .catch((e) =>
+          );
+          // Gerou mas não saiu (e-mail recusado, IA em erro): o lead NÃO pode
+          // ficar sem nada. A entrega ao lead é única e é da plataforma — o
+          // site só envia quando o intake falha —, então aqui vai a leitura do
+          // MAPA com o e-book anexado.
+          if (r.status !== 'ENVIADO') {
+            await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+          }
+        })
+        .catch(async (e) => {
           this.log.warn(
             `Relatório preliminar automático falhou para ${lead.email}: ${
               e instanceof Error ? e.message : e
-            }`,
-          ),
-        );
+            } — enviando a leitura do MAPA com o e-book.`,
+          );
+          await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+        });
     }
 
     // WhatsApp (VAI) — confirmação + link do e-book. Best-effort: só envia se

@@ -6,6 +6,7 @@ import { AiPromptsService } from './ai-prompts.service';
 import { EditableTextsService } from './editable-texts.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import {
+  MATURITY_LABEL,
   PRE_DIAGNOSTIC_DIMENSION_LABEL,
   type MaturityLevel,
   type PreDiagnosticDimension,
@@ -237,12 +238,14 @@ export class PreliminaryReportsService {
     company: string | null;
     markdown: string;
     footer: string;
+    /** Assunto próprio — usado pelo envio de garantia, sem a leitura da IA. */
+    subject?: string;
   }): Promise<{ ok: boolean; provider: string; reason?: string }> {
-    const subject = input.company
-      ? `Seu Relatório Preliminar CRIVO — ${input.company}`
-      : 'Seu Relatório Preliminar CRIVO';
-    const html = renderEmailHtml(input.leadName, input.markdown, input.footer);
-
+    const subject =
+      input.subject ??
+      (input.company
+        ? `Seu Relatório Preliminar CRIVO — ${input.company}`
+        : 'Seu Relatório Preliminar CRIVO');
     // Push para a equipe CRIVO (self-gate no pushEnabled do painel).
     await this.notifications.dispatchPush('relatorio_preliminar.enviado', {
       title: 'Relatório preliminar enviado',
@@ -261,43 +264,18 @@ export class PreliminaryReportsService {
       };
     }
 
-    // #5 — anexa o e-book complementar ao relatório.
-    //
-    // 1º) o e-book IMPORTADO no painel (Governança · E-book), lido direto do
-    //     banco — sem ida à rede, então é o caminho mais rápido e o mais
-    //     confiável;
-    // 2º) se ninguém importou nada ainda, mantém EXATAMENTE o comportamento
-    //     anterior: busca o PDF estático da LP por HTTP.
-    // Qualquer falha nos dois segue sem o e-book — nunca trava o relatório.
-    let ebook: Buffer | null = null;
-    let ebookFileName = 'E-book CRIVO - Lideranca que sustenta decisoes.pdf';
-    try {
-      const imported = await this.prisma.admin.ebookAsset.findFirst({
-        orderBy: { updatedAt: 'desc' },
-      });
-      if (imported) {
-        ebook = Buffer.from(imported.data, 'base64');
-        ebookFileName = imported.fileName;
-      }
-    } catch {
-      /* banco indisponível para o e-book — cai no PDF da LP abaixo */
-    }
-    if (!ebook) {
-      try {
-        const url = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
-        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (r.ok) ebook = Buffer.from(await r.arrayBuffer());
-      } catch {
-        /* segue sem o e-book — nunca trava o envio do relatório */
-      }
-    }
+    // O e-book vai ANEXADO neste mesmo e-mail: é a entrega única prometida ao
+    // lead (diagnóstico + e-book numa mensagem só). O texto só menciona o anexo
+    // quando ele realmente existe — prometer arquivo que não foi era o defeito.
+    const ebook = await this.loadEbook();
+    const html = renderEmailHtml(input.leadName, input.markdown, input.footer, !!ebook);
     const result = await sendMail({
       to: input.to,
       subject,
       html,
       text: input.markdown,
       attachments: ebook
-        ? [{ filename: ebookFileName, content: ebook, contentType: 'application/pdf' }]
+        ? [{ filename: ebook.filename, content: ebook.content, contentType: 'application/pdf' }]
         : undefined,
     });
 
@@ -313,6 +291,123 @@ export class PreliminaryReportsService {
     }
     return result;
   }
+
+  /**
+   * O e-book complementar, para anexar no e-mail do lead.
+   *
+   * 1º) o arquivo IMPORTADO no painel (Governança · E-book), lido do banco —
+   *     sem ida à rede, é o caminho mais rápido e o mais confiável;
+   * 2º) senão, o PDF publicado (EBOOK_URL) por HTTP.
+   *
+   * Nunca lança. Devolve null quando os dois falham — mas AGORA registra no
+   * log: antes os dois `catch` eram mudos e o e-mail saía sem o anexo sem
+   * deixar rastro nenhum, que foi exatamente o que o cliente reportou.
+   */
+  private async loadEbook(): Promise<{ filename: string; content: Buffer } | null> {
+    try {
+      const imported = await this.prisma.admin.ebookAsset.findFirst({
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (imported) {
+        return { filename: imported.fileName, content: Buffer.from(imported.data, 'base64') };
+      }
+    } catch (e) {
+      this.log.warn(
+        `E-book do painel indisponível (${e instanceof Error ? e.message : e}) — tentando o PDF publicado.`,
+      );
+    }
+
+    const url = process.env.EBOOK_URL ?? 'https://crivolegacy.com.br/ebook-crivo.pdf';
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) {
+        this.log.warn(`E-book em ${url} respondeu HTTP ${r.status} — e-mail seguirá SEM o anexo.`);
+        return null;
+      }
+      const content = Buffer.from(await r.arrayBuffer());
+      if (content.length === 0) {
+        this.log.warn(`E-book em ${url} veio vazio — e-mail seguirá SEM o anexo.`);
+        return null;
+      }
+      return { filename: 'E-book CRIVO.pdf', content };
+    } catch (e) {
+      this.log.warn(
+        `Falha ao buscar o e-book em ${url} (${e instanceof Error ? e.message : e}) — e-mail seguirá SEM o anexo.`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Envio de GARANTIA: a leitura do MAPA Executivo + o e-book, sem depender da
+   * IA. É o que sai quando a geração do relatório falha ou a IA está desligada
+   * — antes, nesses casos, o lead simplesmente não recebia nada, porque o site
+   * deixou de mandar o e-mail dele (a entrega é única, por decisão de produto).
+   *
+   * Best-effort: nunca lança, para não derrubar o intake do lead.
+   */
+  async sendDiagnosticEmail(platformLeadId: string): Promise<{ ok: boolean; reason?: string }> {
+    try {
+      const lead = await this.prisma.admin.platformLead.findUnique({
+        where: { id: platformLeadId },
+      });
+      const to = lead?.email?.trim();
+      if (!lead || !to) return { ok: false, reason: 'Lead sem e-mail.' };
+      if (!lead.diagnosticResult) return { ok: false, reason: 'Lead sem diagnóstico.' };
+
+      const footer = await this.texts.render(
+        'EMAIL_PRELIMINARY_FOOTER',
+        'Esta é uma leitura preliminar gerada a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
+      );
+      const send = await this.sendEmail({
+        to,
+        leadName: lead.name,
+        company: lead.company ?? null,
+        markdown: diagnosticMarkdown(lead.diagnosticResult as unknown as PreDiagnosticResult),
+        footer,
+        subject: lead.company
+          ? `Seu MAPA Executivo CRIVO — ${lead.company}`
+          : 'Seu MAPA Executivo CRIVO',
+      });
+      if (!send.ok) {
+        this.log.warn(`Leitura do MAPA não entregue a ${to}: ${send.reason ?? send.provider}`);
+      }
+      return { ok: send.ok, reason: send.reason };
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : 'Falha ao enviar a leitura do MAPA.';
+      this.log.warn(`Envio de garantia do MAPA falhou: ${reason}`);
+      return { ok: false, reason };
+    }
+  }
+}
+
+/**
+ * Leitura do MAPA em markdown, a partir do diagnóstico já calculado. Mesmo
+ * conteúdo que o e-mail do site levava (índice, nível, dimensões e pontos de
+ * atenção) — agora do lado da plataforma, que passou a ser a dona do envio.
+ */
+function diagnosticMarkdown(d: PreDiagnosticResult): string {
+  const dims = Object.entries(d.byDimension ?? {})
+    .sort((a, b) => a[1] - b[1])
+    .map(
+      ([slug, v]) =>
+        `- ${PRE_DIAGNOSTIC_DIMENSION_LABEL[slug as PreDiagnosticDimension] ?? slug}: ${Math.round(v)}/100`,
+    );
+  const atencao = (d.topAttentions?.length ? d.topAttentions : d.topAttention ? [d.topAttention] : [])
+    .map((k) => PRE_DIAGNOSTIC_DIMENSION_LABEL[k] ?? null)
+    .filter((l): l is string => !!l);
+
+  const linhas = [
+    '# Sua leitura preliminar',
+    '',
+    `**Índice preliminar:** ${Math.round(d.score)}/100`,
+    `**Nível de maturidade:** ${MATURITY_LABEL[d.level] ?? d.level}`,
+  ];
+  if (dims.length) linhas.push('', '## Resultado por dimensão', ...dims);
+  if (atencao.length) {
+    linhas.push('', '## Principais pontos de atenção', ...atencao.map((a) => `- ${a}`));
+  }
+  return linhas.join('\n');
 }
 
 function toData(row: any): PreliminaryReportData {
@@ -447,7 +542,12 @@ Produza agora o Relatório Preliminar CRIVO conforme a estrutura definida.
 `.trim();
 }
 
-function renderEmailHtml(leadName: string, markdown: string, footer: string): string {
+function renderEmailHtml(
+  leadName: string,
+  markdown: string,
+  footer: string,
+  hasEbook: boolean,
+): string {
   // Renderização HTML simples — preserva quebras e parágrafos. Não usa lib
   // de markdown para manter o serviço sem dependências adicionais.
   // Escapa entradas controladas (leadName do formulário público, footer do
@@ -468,7 +568,9 @@ function renderEmailHtml(leadName: string, markdown: string, footer: string): st
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#1c2540;line-height:1.55">
   <p>Olá, ${esc(leadName.split(' ')[0] ?? '')}.</p>
-  <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades.</p>
+  <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades${
+    hasEbook ? ' — e o <strong>e-book complementar</strong> vai em anexo neste mesmo e-mail' : ''
+  }.</p>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
   <div><p>${html}</p></div>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>

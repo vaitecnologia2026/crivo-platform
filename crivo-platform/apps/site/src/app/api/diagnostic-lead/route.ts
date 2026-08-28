@@ -131,7 +131,7 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: bool
 }
 
 // ── E-mail profissional ao LEAD (HTML inline, email-safe) ────────────────────
-function leadEmailHtml(data: Payload, result?: DiagResult): string {
+function leadEmailHtml(data: Payload, result?: DiagResult, hasEbook = false): string {
   const empresa = data.company || "sua empresa";
   const score = result?.score ?? null;
   const nivel = levelLabel(result);
@@ -161,8 +161,11 @@ function leadEmailHtml(data: Payload, result?: DiagResult): string {
       <tr><td style="padding:30px 34px 8px">
         <p style="margin:0 0 10px;font:16px/1.6 Georgia,serif;color:${NAVY}">Olá, ${firstName(data.name)}.</p>
         <p style="margin:0 0 22px;font:14px/1.7 Arial,sans-serif;color:#444">
-          Recebemos o Diagnóstico Inicial de <strong>${empresa}</strong>. Abaixo, sua leitura preliminar — e
-          o <strong>e-book complementar</strong> segue em anexo neste e-mail.</p>
+          Recebemos o Diagnóstico Inicial de <strong>${empresa}</strong>. Abaixo, sua leitura preliminar${
+            hasEbook
+              ? " — e o <strong>e-book complementar</strong> segue em anexo neste e-mail"
+              : ""
+          }.</p>
         ${scoreBlock}
         <p style="margin:18px 0 0;font:14px/1.7 Arial,sans-serif;color:#444">
           Nível de maturidade: <strong style="color:${NAVY}">${nivel}</strong>.</p>
@@ -194,8 +197,8 @@ async function fetchEbook(): Promise<Buffer | null> {
 async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf: Buffer | null): Promise<boolean> {
   const to = data.email?.trim();
   if (!to) return false;
-  const html = leadEmailHtml(data, result);
-  const subject = "Seu Diagnóstico Inicial CRIVO™ + e-book";
+  const html = leadEmailHtml(data, result, !!pdf);
+  const subject = pdf ? "Seu Diagnóstico Inicial CRIVO™ + e-book" : "Seu Diagnóstico Inicial CRIVO™";
   const resendKey = process.env.RESEND_API_KEY;
 
   // Preferência: Resend (HTTP, ideal em serverless) se houver chave.
@@ -474,10 +477,16 @@ export async function POST(req: Request) {
     result = r.result;
   }
 
-  // 2/3. Envia ao lead (e-mail + WhatsApp) em paralelo — best-effort.
+  // 2/3. WhatsApp sempre; e-mail SÓ como rede de segurança.
+  //
+  // A entrega por e-mail ao lead passou a ser da PLATAFORMA: ela manda UM
+  // e-mail com a leitura do MAPA Executivo e o e-book anexado. Enquanto o site
+  // também mandava o dele, o lead recebia duas mensagens com o mesmo e-book.
+  // Resta aqui o caso em que o intake falhou: ninguém mais enviaria, e este
+  // e-mail curto é o que salva a entrega.
   const ebook = await fetchEbook();
   const [emailed, whatsapped] = await Promise.all([
-    sendLeadEmail(data, result, ebook).catch(() => false),
+    platformOk ? Promise.resolve(false) : sendLeadEmail(data, result, ebook).catch(() => false),
     sendLeadWhatsapp(data, result, ebook).catch(() => false),
   ]);
 
@@ -492,7 +501,10 @@ export async function POST(req: Request) {
     console.warn(`[diagnostic-lead] lead NÃO registrado no CRM — alerta interno ${rescued ? "enviado" : "FALHOU"}.`);
   }
 
-  const delivered = emailed || whatsapped;
+  // `platformOk` conta como entrega: a plataforma assumiu o e-mail do lead
+  // (Relatório Preliminar + e-book). Sem isso, um lead SEM telefone cairia em
+  // `delivered: false` e a LP mostraria a mensagem pior — com o e-mail a caminho.
+  const delivered = platformOk || emailed || whatsapped;
   // `ok` = o lead foi RETIDO (persistido no CRM) OU entregue por algum canal.
   const ok = platformOk || delivered;
 

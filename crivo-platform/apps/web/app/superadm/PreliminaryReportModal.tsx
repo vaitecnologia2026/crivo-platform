@@ -10,6 +10,7 @@ import {
 import {
   generatePreliminaryReport,
   listPreliminaryReportsByLead,
+  resendPreliminaryReport,
   sendReportEmailViaRelay,
 } from "@/lib/admin-api";
 
@@ -142,19 +143,8 @@ export function PreliminaryReportModal({
     setGenerating(true);
     try {
       let r = await generatePreliminaryReport({ platformLeadId: lead.id, sendTo: sendTo || undefined });
-      // O backend gera a IA, mas o e-mail é bloqueado no Railway (SMTP). Envia
-      // pelo relay no Vercel (que funciona) e marca como enviado.
       const dest = (sendTo || lead.email || "").trim();
-      if (r.status !== "ENVIADO" && r.content && dest) {
-        const relay = await sendReportEmailViaRelay({
-          to: dest,
-          leadName: lead.name,
-          company: lead.company,
-          markdown: r.content,
-        });
-        if (relay.ok) r = { ...r, status: "ENVIADO", sentTo: dest, sentAt: new Date().toISOString() };
-        else setError(relay.error ?? "Relatório gerado, mas o envio do e-mail falhou.");
-      }
+      if (r.status !== "ENVIADO" && r.content && dest) r = await deliver(r, dest);
       setReports((cur) => [r, ...(cur ?? [])]);
       setOpenId(r.id);
     } catch (e) {
@@ -162,6 +152,31 @@ export function PreliminaryReportModal({
     } finally {
       setGenerating(false);
     }
+  }
+
+  /**
+   * Entrega o relatório por e-mail. A API é o caminho principal porque é ela
+   * que ANEXA o e-book — o relay do site envia o texto sozinho, sem anexo, e
+   * era por ele que todo reenvio passava. O relay fica como último recurso.
+   */
+  async function deliver(rep: PreliminaryReportData, dest: string): Promise<PreliminaryReportData> {
+    try {
+      const sent = await resendPreliminaryReport(rep.id, dest);
+      if (sent.status === "ENVIADO") return sent;
+    } catch {
+      /* API indisponível para o envio — tenta o relay abaixo */
+    }
+    const relay = await sendReportEmailViaRelay({
+      to: dest,
+      leadName: lead.name,
+      company: lead.company,
+      markdown: rep.content,
+    });
+    if (relay.ok) {
+      return { ...rep, status: "ENVIADO", sentTo: dest, sentAt: new Date().toISOString() };
+    }
+    setError(relay.error ?? "Relatório gerado, mas o envio do e-mail falhou.");
+    return rep;
   }
 
   async function resend(id: string) {
@@ -172,21 +187,12 @@ export function PreliminaryReportModal({
       setError("Relatório sem conteúdo para reenviar.");
       return;
     }
-    // Reenvio também pelo relay (o backend não consegue mandar SMTP).
-    const relay = await sendReportEmailViaRelay({
-      to: dest,
-      leadName: lead.name,
-      company: lead.company,
-      markdown: rep.content,
-    });
-    if (relay.ok) {
-      setReports((cur) =>
-        cur?.map((r) => (r.id === id ? { ...r, status: "ENVIADO", sentTo: dest } : r)) ?? cur,
-      );
+    setError(null);
+    const sent = await deliver(rep, dest);
+    if (sent.status === "ENVIADO") {
+      setReports((cur) => cur?.map((r) => (r.id === id ? sent : r)) ?? cur);
       setResendId(null);
       setResendTo("");
-    } else {
-      setError(relay.error ?? "Falha ao reenviar.");
     }
   }
 
