@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, type AuditActor } from './audit.service';
 import { toTenantSummary } from './tenant.mapper';
 import type { CreateTenantDto } from './dto';
+import { emailTakenMessage, findEmailOwner } from './unique-email';
 import { modulesForPlan, type Plan, type ProvisionResult } from '@crivo/types';
 
 /** Normaliza um texto em slug DNS-safe (a-z, 0-9, hífen). */
@@ -54,6 +55,12 @@ export class ProvisioningService {
     const password = dto.adminPassword ?? generatePassword();
     const adminEmail = dto.adminEmail.toLowerCase().trim();
     const plan: Plan = dto.plan ?? 'BASE';
+
+    // O e-mail precisa ser único na plataforma — ver unique-email.ts. A tela de
+    // usuários já barrava; o provisionamento não, e era por aqui que entravam
+    // as contas repetidas.
+    const owner = await findEmailOwner(this.prisma, adminEmail);
+    if (owner) throw new ConflictException(emailTakenMessage(adminEmail, owner.company));
 
     const tenant = await db.$transaction(async (tx) => {
       const org = await tx.organization.create({
@@ -127,6 +134,14 @@ export class ProvisioningService {
 
     const password = generatePassword();
     const adminEmail = input.adminEmail.toLowerCase().trim();
+
+    // Mesma regra da criação manual. Este é o caminho da CONVERSÃO DO LEAD no
+    // CRM: sem a checagem, converter dois leads com o mesmo e-mail criava duas
+    // contas iguais em empresas diferentes, e só a senha dizia em qual delas o
+    // cliente entrava. Trocar o e-mail do lead (Dados do lead) resolve.
+    const owner = await findEmailOwner(this.prisma, adminEmail);
+    if (owner) throw new ConflictException(emailTakenMessage(adminEmail, owner.company));
+
     // Sem módulos definidos no produto → cai para os do plano (defensivo).
     const moduleCodes = input.modules.length ? input.modules : modulesForPlan(input.plan);
 

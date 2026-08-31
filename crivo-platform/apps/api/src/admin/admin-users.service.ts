@@ -11,6 +11,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { MeteringService } from '../metering/metering.service';
 import { AuditService, type AuditActor } from './audit.service';
+import { emailTakenMessage, findEmailOwner } from './unique-email';
 
 /** Senha temporária legível (sem caracteres ambíguos). */
 function generatePassword(): string {
@@ -85,8 +86,9 @@ export class AdminUsersService {
     const password = dto.password ?? generatePassword();
 
     // E-mail é único na plataforma: rejeita se já existe em QUALQUER empresa.
-    const dup = await this.prisma.admin.user.findFirst({ where: { email } });
-    if (dup) throw new ConflictException('Este e-mail já está em uso na plataforma. Use outro.');
+    // A mensagem nomeia a empresa — sem isso o operador não sabe onde procurar.
+    const owner = await findEmailOwner(this.prisma, email);
+    if (owner) throw new ConflictException(emailTakenMessage(email, owner.company));
 
     const user = await this.prisma.admin.user.create({
       data: {
