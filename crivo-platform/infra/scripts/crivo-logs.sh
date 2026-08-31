@@ -32,20 +32,20 @@ case "$CMD" in
     CORTE=$(desde "${2:-24}")
     echo "== erros e avisos desde $CORTE (UTC) =="
     for f in "$API" "$LP" "$WEB"; do
-      recente "$f" "$CORTE" | grep -E ' (WARN|ERROR|FATAL) ' | sed "s|^|$(basename "$f" .log)  |"
+      recente "$f" "$CORTE" | grep -E ' (WARN|ERROR|FATAL) ' | sed "s|^|$(basename "$f" .log)  |" || true
     done | sort -k2 | sed 's/  */ /2'
     ;;
   lead)
     ID=${2:-}
     [ -z "$ID" ] && { echo "uso: $0 lead <req-id>"; exit 1; }
     echo "== jornada do lead req=$ID (site e API, em ordem) =="
-    grep -h "req=$ID" "$LP" "$API" 2>/dev/null | sort
+    grep -h "req=$ID" "$LP" "$API" 2>/dev/null | sort || true
     ;;
   mapa)
     CORTE=$(desde "${2:-24}")
     echo "== fluxo do MAPA desde $CORTE (UTC) =="
     for f in "$LP" "$API"; do
-      recente "$f" "$CORTE" | grep -E 'diagnostic-lead|PlatformLeads|PreliminaryReports|Mailer|Whatsapp|AiSettings|e-book|E-book'
+      recente "$f" "$CORTE" | grep -E 'diagnostic-lead|PlatformLeads|PreliminaryReports|Mailer|Whatsapp|AiSettings|e-book|E-book' || true
     done | sort
     ;;
   saude)
@@ -66,3 +66,4 @@ case "$CMD" in
     exit 1
     ;;
 esac
+exit 0
