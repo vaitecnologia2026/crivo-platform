@@ -16,9 +16,14 @@ export async function findEmailOwner(
 ): Promise<{ tenantId: string; company: string } | null> {
   const normalized = email.toLowerCase().trim();
   // Inclui usuário inativo de propósito: reativar recriaria a ambiguidade.
+  // `orderBy` importa por causa das duplicatas que já existem no banco (criadas
+  // antes desta regra): sem ele o findFirst devolveria uma empresa arbitrária e
+  // a mensagem apontaria para um lugar diferente a cada tentativa. A mais
+  // recente é a que o operador acabou de mexer.
   const user = await prisma.admin.user.findFirst({
     where: { email: normalized },
     select: { tenantId: true },
+    orderBy: { createdAt: 'desc' },
   });
   if (!user) return null;
   const org = await prisma.admin.organization.findUnique({

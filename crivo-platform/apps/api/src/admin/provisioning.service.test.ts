@@ -91,4 +91,12 @@ describe('ProvisioningService — e-mail único na plataforma', () => {
       expect.objectContaining({ where: { email: 'rodrigo@exemplo.com' } }),
     );
   });
+
+  it('com duplicatas antigas, aponta a empresa MAIS RECENTE (mensagem estável)', async () => {
+    const { service, prisma } = build('org-antiga');
+    await expect(service.provisionFromProduct(doProduto)).rejects.toThrow(/já tem acesso/);
+    expect(prisma.admin.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { createdAt: 'desc' } }),
+    );
+  });
 });
