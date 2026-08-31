@@ -55,8 +55,11 @@ export class ErrorLogFilter extends BaseExceptionFilter {
       (req.user?.tenantId ? ` tenant=${req.user.tenantId}` : '') +
       `: ${message}`;
 
-    // Sessão expirada é rotina no portal — vira ruído se subir para warn.
-    if (status === 401) {
+    // Sessão expirada é rotina no portal e vira ruído em `warn`. Mas 401 na
+    // rota de LOGIN é outra coisa: é tentativa de autenticação que falhou —
+    // sinal de segurança, e o único rastro que sobra de uma tentativa de
+    // força bruta contra o painel. Só o nginx registrava, sem dizer o e-mail.
+    if (status === 401 && !/\/auth\/login$/.test(path)) {
       this.log.debug(line);
       return;
     }

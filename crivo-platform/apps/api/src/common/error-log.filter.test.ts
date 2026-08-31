@@ -39,6 +39,13 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks());
 
+/** 401 com a assinatura que o Nest produz. */
+class Unauthorized extends BadRequestException {
+  getStatus() {
+    return 401;
+  }
+}
+
 describe('ErrorLogFilter — registra o erro sem tocar na resposta', () => {
   it('delega SEMPRE ao filtro padrão: é o que mantém corpo e status idênticos', () => {
     new ErrorLogFilter(adapter).catch(new BadRequestException('x'), hostFor({ ...REQ }));
@@ -90,15 +97,21 @@ describe('ErrorLogFilter — registra o erro sem tocar na resposta', () => {
     expect(warns[0]).toContain('/api/leads ->');
   });
 
-  it('401 fica em debug: sessão expirada no portal é rotina', () => {
-    class Unauthorized extends BadRequestException {
-      getStatus() {
-        return 401;
-      }
-    }
+  it('401 de sessão expirada fica em debug: no portal isso é rotina', () => {
     new ErrorLogFilter(adapter).catch(new Unauthorized('token expirado'), hostFor({ ...REQ }));
     expect(warns).toHaveLength(0);
     expect(debugs[0]).toContain('-> 401');
+  });
+
+  it('401 de LOGIN aparece: tentativa de autenticação falha é sinal de segurança', () => {
+    // Sem isto, uma sequência de tentativas contra o painel não deixaria
+    // rastro nenhum no log da aplicação — só no nginx, sem dizer quem tentou.
+    new ErrorLogFilter(adapter).catch(
+      new Unauthorized('Credenciais inválidas'),
+      hostFor({ ...REQ, originalUrl: '/api/admin/auth/login' }),
+    );
+    expect(debugs).toHaveLength(0);
+    expect(warns[0]).toContain('/api/admin/auth/login -> 401');
   });
 
   it('identifica o ator quando a requisição é autenticada', () => {
