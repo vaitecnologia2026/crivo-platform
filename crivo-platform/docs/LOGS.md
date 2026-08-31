@@ -79,6 +79,32 @@ casos do dia a dia:
 404 de rota inexistente (varredura de bots, ~110/dia) **não** é registrado; o
 nginx já cobre. 401 fica em `debug` (sessão expirada é rotina).
 
+## Portal e super admin (o navegador)
+
+A API registra tudo que **chega** nela. Duas coisas ela não tem como saber sozinha,
+e por isso o navegador conta:
+
+| Mensagem | Significa |
+|---|---|
+| `WARN [Client] portal/<tela> origem=rede req=… : TimeoutError…` | a requisição **nunca chegou** ao servidor (queda de rede, timeout, API fora) |
+| `WARN [Client] superadm/<tela> origem=tela req=… : TypeError…` | a **tela quebrou** no navegador do usuário |
+
+### O código de rastreio
+
+Toda chamada do portal e do super admin agora leva um `x-request-id`, e a API
+adota o mesmo id. Quando algo falha, a mensagem na tela termina com
+**`(código: abc12345)`**. Com esse código:
+
+```bash
+/opt/crivo/crivo-logs.sh lead abc12345
+```
+
+...e sai a requisição inteira: a linha do navegador (se houver) e a do servidor.
+É o caminho mais curto entre "deu erro aqui" e a causa.
+
+Se o usuário relatar um erro **sem** código, foi uma tela que nem chegou a
+chamar a API — procure por `[Client]` no período.
+
 ## O que NUNCA aparece no log
 
 Corpo de requisição, senha, token, CPF, CNPJ e querystring. No site o e-mail do

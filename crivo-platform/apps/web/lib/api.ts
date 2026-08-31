@@ -62,6 +62,9 @@ import type {
   RiskActionSuggestions,
 } from '@crivo/types';
 
+import { ApiError, currentScreen, newRequestId, reportClientError } from './error-report';
+export { ApiError } from './error-report';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 function apiBase(): string {
@@ -96,20 +99,35 @@ export async function apiFetch<T>(
   { redirectOn401 = true }: ApiOptions = {},
 ): Promise<T> {
   const token = getToken();
+  // Id de correlação: a API adota este mesmo id (header `x-request-id`), então
+  // o erro que o usuário vê e a linha do log do servidor passam a ter o MESMO
+  // código. Antes não havia como ligar uma coisa na outra.
+  const reqId = newRequestId();
   let res: Response;
   try {
     res = await fetch(`${apiBase()}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
+        'x-request-id': reqId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {}),
       },
       signal: init.signal ?? AbortSignal.timeout(15000),
     });
-  } catch {
-    // Falha de rede ou timeout — não há resposta do servidor.
-    throw new Error('Serviço indisponível. Verifique sua conexão e tente novamente.');
+  } catch (e) {
+    // Falha de rede ou timeout: NENHUMA requisição chegou ao servidor, então
+    // ele não tem o que registrar. Este é um dos dois casos em que o navegador
+    // precisa contar o que aconteceu.
+    const causa = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    reportClientError(API, {
+      app: 'portal',
+      screen: `${currentScreen()} ${path}`,
+      message: causa,
+      kind: 'rede',
+      requestId: reqId,
+    });
+    throw new ApiError('Serviço indisponível. Verifique sua conexão e tente novamente.', 0, reqId);
   }
 
   if (res.status === 401 && redirectOn401) {
@@ -119,7 +137,13 @@ export async function apiFetch<T>(
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? 'Erro na requisição');
+    // O servidor já registrou este erro (filtro global). O que faltava era
+    // trazer o código de volta para a tela — é ele que acha a linha lá.
+    throw new ApiError(
+      err.message ?? 'Erro na requisição',
+      res.status,
+      res.headers.get('x-request-id') ?? reqId,
+    );
   }
   return res.json() as Promise<T>;
 }

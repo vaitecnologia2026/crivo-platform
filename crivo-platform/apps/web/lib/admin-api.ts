@@ -56,6 +56,8 @@ import type {
   PlatformLeadOriginUpsertRequest,
 } from "@crivo/types";
 
+import { ApiError, currentScreen, newRequestId, reportClientError } from "./error-report";
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function apiBase(): string {
@@ -90,6 +92,9 @@ async function adminFetch<T>(
   { redirectOn401 = true }: AdminFetchOptions = {},
 ): Promise<T> {
   const token = getAdminToken();
+  // Mesmo id de correlação do portal: a API o adota e o log do servidor passa a
+  // ter o MESMO código que a tela mostra ao operador.
+  const reqId = newRequestId();
   let res: Response;
   try {
     res = await fetch(`${apiBase()}${path}`, {
@@ -99,13 +104,23 @@ async function adminFetch<T>(
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
+        "x-request-id": reqId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {}),
       },
       signal: init.signal ?? AbortSignal.timeout(15000),
     });
-  } catch {
-    throw new Error("Serviço indisponível. Verifique sua conexão e tente novamente.");
+  } catch (e) {
+    // A requisição nunca chegou ao servidor — só o navegador sabe o motivo.
+    const causa = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    reportClientError(API, {
+      app: "superadm",
+      screen: `${currentScreen()} ${path}`,
+      message: causa,
+      kind: "rede",
+      requestId: reqId,
+    });
+    throw new ApiError("Serviço indisponível. Verifique sua conexão e tente novamente.", 0, reqId);
   }
 
   if (res.status === 401 && redirectOn401) {
@@ -116,12 +131,15 @@ async function adminFetch<T>(
   if (!res.ok) {
     // 413 vem do NGINX com corpo HTML (res.json() falha) e statusText vazio em
     // HTTP/2 — sem este mapa o erro aparecia como string VAZIA na tela.
+    const rid = res.headers.get("x-request-id") ?? reqId;
     if (res.status === 413) {
-      throw new Error("Arquivo muito grande para o servidor (máx. 8 MB).");
+      throw new ApiError("Arquivo muito grande para o servidor (máx. 8 MB).", 413, rid);
     }
     const err = await res.json().catch(() => ({ message: res.statusText }));
     const msg = typeof err.message === "string" && err.message.trim() ? err.message : `Erro na requisição (HTTP ${res.status})`;
-    throw new Error(msg);
+    // O servidor já registrou o erro; o código devolvido aqui é o que liga a
+    // reclamação do operador à linha exata do log.
+    throw new ApiError(msg, res.status, rid);
   }
   // Alguns endpoints retornam null (ex.: metodologia SEM versão ativa) e o NestJS
   // manda corpo VAZIO com 200 — aí res.json() estourava "Unexpected end of JSON input".

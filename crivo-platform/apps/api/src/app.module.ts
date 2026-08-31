@@ -27,6 +27,7 @@ import { PeopleAnalyticsModule } from './people-analytics/people-analytics.modul
 import { AlertsModule } from './alerts/alerts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { HealthController } from './health/health.controller';
+import { ClientErrorsController } from './common/client-errors.controller';
 
 @Module({
   imports: [
@@ -57,7 +58,9 @@ import { HealthController } from './health/health.controller';
     AlertsModule,
     NotificationsModule,
   ],
-  controllers: [HealthController],
+  // ClientErrors recebe do navegador o que o servidor nao ve sozinho: falha de
+  // rede (a requisicao nunca chegou) e tela que quebrou.
+  controllers: [HealthController, ClientErrorsController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Metering de api_calls por tenant (F4) — conta requisições autenticadas.
