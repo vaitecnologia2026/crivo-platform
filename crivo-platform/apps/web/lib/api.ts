@@ -767,6 +767,12 @@ export function createUser(dto: CreateUserRequest): Promise<CreateUserResult> {
 export function updateUser(id: string, dto: UpdateUserRequest): Promise<UserSummary> {
   return apiFetch<UserSummary>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }
+/** Redefine a senha de alguém do time — a temporária volta uma única vez. */
+export function resetUserPassword(id: string): Promise<{ user: UserSummary; tempPassword: string }> {
+  return apiFetch<{ user: UserSummary; tempPassword: string }>(`/users/${id}/reset-password`, {
+    method: 'POST',
+  });
+}
 /** Telas liberadas para o usuário logado (null = sem restrição) — filtra a nav. */
 export function getMyScreens(): Promise<string[] | null> {
   return apiFetch<string[] | null>('/me/screens');

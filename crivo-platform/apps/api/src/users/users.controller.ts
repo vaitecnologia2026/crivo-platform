@@ -33,6 +33,16 @@ export class UsersController {
     return this.users.create(user.tenantId, dto, user.role);
   }
 
+  /**
+   * Redefine a senha de um usuário do time — devolve a temporária 1× e derruba
+   * as sessões dele. Sem corpo: nada vindo do cliente entra na senha gerada.
+   */
+  @Post(':id/reset-password')
+  @RequirePermission('users:edit')
+  resetPassword(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.users.resetPassword(user.tenantId, id, user.role, user.id);
+  }
+
   /** Atualiza papel / (des)ativa um usuário. */
   @Patch(':id')
   @RequirePermission('users:edit')

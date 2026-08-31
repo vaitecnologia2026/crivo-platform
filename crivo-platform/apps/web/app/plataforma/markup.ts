@@ -114,7 +114,15 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
               <span>Diretor de RH</span>
             </div>
           </div>
-          <button class="icon-btn" id="chgPwdBtn" title="Trocar senha">⚿</button>
+          <!-- O glifo ⚿ que estava aqui não se lia como "senha": sem rótulo e sem
+               hover no celular, o botão passava por decoração e o cliente concluía
+               que o portal não trocava senha. Chave em traço, igual à sineta. -->
+          <button class="icon-btn" id="chgPwdBtn" type="button" title="Trocar senha" aria-label="Trocar senha">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+              <circle cx="8" cy="12" r="3.4" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M11.4 12H20M17 12v3M20 12v2.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
           <button class="icon-btn" id="logoutBtn" title="Sair">↶</button>
         </div>
       </header>

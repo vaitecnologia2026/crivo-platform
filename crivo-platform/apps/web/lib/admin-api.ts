@@ -165,6 +165,20 @@ export function adminLogin(
   );
 }
 
+/**
+ * Troca a senha do super admin logado (exige a atual; mínimo 12 caracteres).
+ * O servidor incrementa o tokenVersion — as outras sessões caem junto.
+ */
+export function changeAdminPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>("/admin/auth/password", {
+    method: "PATCH",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 /** Logout: revoga a sessão do super admin no servidor antes de limpar o token local. */
 export function adminLogout(): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>("/admin/auth/logout", { method: "POST" }, { redirectOn401: false });

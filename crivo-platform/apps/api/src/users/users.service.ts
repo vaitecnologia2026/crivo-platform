@@ -145,4 +145,48 @@ export class UsersService {
       return toSummary(updated);
     });
   }
+
+  /**
+   * Redefine a senha de alguém do time e devolve a temporária UMA vez.
+   * É o "esqueci minha senha" resolvido dentro da empresa: o link do login só
+   * abre WhatsApp, então sem isto toda senha perdida virava chamado para a
+   * equipe CRIVO — que precisava entrar no Super Admin para desbloquear.
+   */
+  resetPassword(
+    tenantId: string,
+    id: string,
+    actorRole: string,
+    actorId: string,
+  ): Promise<{ user: UserSummary; tempPassword: string }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const existing = await tx.user.findFirst({ where: { id } });
+      if (!existing) throw new NotFoundException('Usuário não encontrado');
+      // A própria senha se troca em "Trocar senha" (topo da tela), que exige a
+      // senha atual. Redefinir a si mesmo entregaria uma temporária sem nenhuma
+      // prova de identidade — uma sessão sequestrada trocaria a senha do dono.
+      if (existing.id === actorId) {
+        throw new ForbiddenException(
+          'Para trocar a sua própria senha, use "Trocar senha" no topo da tela.',
+        );
+      }
+      // Mesma regra do update: quem não é ADMIN/CEO não mexe em ADMIN/CEO — sem
+      // isto um RH redefiniria a senha do CEO e assumiria a conta dele.
+      if (ELEVATED_ROLES.has(existing.role) && !ELEVATED_ROLES.has(actorRole)) {
+        throw new ForbiddenException(
+          'Apenas Administrador ou CEO podem redefinir a senha de usuários com esses cargos.',
+        );
+      }
+      const password = generatePassword();
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          passwordHash: bcrypt.hashSync(password, 12),
+          // Derruba as sessões abertas daquele usuário: a senha antiga deixa de
+          // valer AGORA, não só no próximo login.
+          tokenVersion: { increment: 1 },
+        },
+      });
+      return { user: toSummary(updated), tempPassword: password };
+    });
+  }
 }

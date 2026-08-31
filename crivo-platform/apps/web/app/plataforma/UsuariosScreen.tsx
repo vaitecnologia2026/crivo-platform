@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listUsers, getUserSeats, createUser, updateUser } from "@/lib/api";
+import { listUsers, getUserSeats, createUser, updateUser, resetUserPassword } from "@/lib/api";
 import { ROLE_LABELS, type Role, type UserSummary, type UserSeats } from "@crivo/types";
 import { SCREEN_OPTIONS } from "./nav.config";
 
@@ -28,6 +28,8 @@ export function UsuariosScreen() {
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [editing, setEditing] = useState<UserSummary | "new" | null>(null);
   const [tempPwd, setTempPwd] = useState<{ email: string; pwd: string } | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   async function reload() {
     try {
@@ -79,6 +81,15 @@ export function UsuariosScreen() {
         <div className="dash-state" style={{ marginBottom: 16 }}>
           Limite de usuários do plano/produto atingido ({seats?.max}). Desative alguém ou aumente o
           limite no produto da empresa (Super Admin).
+        </div>
+      )}
+
+      {rowError && (
+        <div className="dash-state dash-state--error" style={{ marginBottom: 16 }}>
+          {rowError}{" "}
+          <button className="btn btn--ghost btn--sm" onClick={() => setRowError(null)}>
+            Fechar
+          </button>
         </div>
       )}
 
@@ -166,6 +177,35 @@ export function UsuariosScreen() {
                     }}
                   >
                     {u.active ? "Desativar" : "Ativar"}
+                  </button>{" "}
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    disabled={busyId === u.id}
+                    title="Gera uma senha temporária para esta pessoa"
+                    onClick={async () => {
+                      // Confirmação obrigatória: a temporária vale na hora e
+                      // derruba a sessão de quem estiver trabalhando agora.
+                      if (
+                        !confirm(
+                          `Redefinir a senha de ${u.name}? A senha atual deixa de valer imediatamente e a pessoa será desconectada.`,
+                        )
+                      )
+                        return;
+                      setBusyId(u.id);
+                      setRowError(null);
+                      try {
+                        const r = await resetUserPassword(u.id);
+                        setTempPwd({ email: r.user.email, pwd: r.tempPassword });
+                      } catch (e) {
+                        setRowError(
+                          e instanceof Error ? e.message : "Não foi possível redefinir a senha.",
+                        );
+                      } finally {
+                        setBusyId(null);
+                      }
+                    }}
+                  >
+                    {busyId === u.id ? "Redefinindo…" : "Redefinir senha"}
                   </button>
                 </td>
               </tr>

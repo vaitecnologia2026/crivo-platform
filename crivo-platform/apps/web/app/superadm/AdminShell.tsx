@@ -17,6 +17,7 @@ import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
 import { CnpjLookupCard } from "./CnpjLookupCard";
+import { AdminPasswordModal } from "./AdminPasswordModal";
 import { ContractsSection } from "./ContractsSection";
 import { ManagementReportsSection } from "./ManagementReportsSection";
 import { IntegrationsSection } from "./IntegrationsSection";
@@ -129,6 +130,7 @@ function initials(name: string): string {
 /** Painel do Super Admin — mesmo shell visual da plataforma (app.css). */
 export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout: () => void }) {
   const [section, setSection] = useState<Section>("overview");
+  const [pwdOpen, setPwdOpen] = useState(false);
   const current = NAV.find((n) => n.key === section)!;
 
   return (
@@ -197,6 +199,19 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
             <button
               type="button"
               className="btn btn--outline-dark btn--sm"
+              onClick={() => setPwdOpen(true)}
+              title="Trocar a senha desta conta"
+              style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="8" cy="12" r="3.2" stroke="currentColor" strokeWidth="2" />
+                <path d="M11.2 12H20M17 12v3M20 12v2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Trocar senha
+            </button>
+            <button
+              type="button"
+              className="btn btn--outline-dark btn--sm"
               onClick={onLogout}
               title="Encerrar sessão"
               style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
@@ -237,6 +252,8 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "auditoria" && <AuditSection />}
         </section>
       </main>
+
+      {pwdOpen && <AdminPasswordModal onClose={() => setPwdOpen(false)} />}
     </div>
   );
 }
