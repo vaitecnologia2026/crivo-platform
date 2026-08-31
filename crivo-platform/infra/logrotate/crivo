@@ -1,5 +1,8 @@
 /var/log/crivo-api.log /var/log/crivo-web.log /var/log/crivo-lp.log {
     weekly
+    # Teto por tamanho alem da rotacao semanal: um laco de erro encheria o
+    # disco entre duas rotacoes.
+    size 20M
     rotate 8
     compress
     delaycompress

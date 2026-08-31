@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { makeLogger, maskEmail, maskPhone, reasonOf, safeReqId, type SiteLogger } from "@/lib/log";
 
 export const runtime = "nodejs";
 
@@ -96,11 +98,18 @@ function attentionLabels(result?: DiagResult): string[] {
 }
 
 // ── 1. Encaminha à plataforma e devolve o pré-diagnóstico ────────────────────
-async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: boolean; result?: DiagResult }> {
+async function sendToPlatform(
+  apiUrl: string,
+  data: Payload,
+  log: SiteLogger,
+  reqId: string,
+): Promise<{ ok: boolean; result?: DiagResult }> {
   try {
     const r = await fetch(`${apiUrl}/public/diagnostic-lead`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // O mesmo id segue para a API: e o que costura esta linha de log com
+      // as do `crivo-api`, inclusive as do relatorio que sai minutos depois.
+      headers: { "Content-Type": "application/json", "x-request-id": reqId },
       body: JSON.stringify({
         name: data.name,
         cnpj: data.cnpj || undefined,
@@ -122,10 +131,19 @@ async function sendToPlatform(apiUrl: string, data: Payload): Promise<{ ok: bool
       }),
       signal: AbortSignal.timeout(9000),
     });
-    if (!r.ok) return { ok: false };
+    if (!r.ok) {
+      // O corpo do erro era descartado: um 400 do ValidationPipe, um 500 ou
+      // uma URL errada chegavam ao resto do fluxo como o mesmo
+      // `platformOk=false`, sem causa nenhuma.
+      const body = await r.text().catch(() => "");
+      log.error(`platform.rejected status=${r.status} body="${body.slice(0, 500)}"`);
+      return { ok: false };
+    }
     const d = (await r.json()) as { result?: DiagResult };
     return { ok: true, result: d?.result };
-  } catch {
+  } catch (e) {
+    // O `name` distingue o timeout de 9 s (TimeoutError) de recusa de conexao.
+    log.error(`platform.unreachable ${reasonOf(e)}`);
     return { ok: false };
   }
 }
@@ -184,19 +202,31 @@ function leadEmailHtml(data: Payload, result?: DiagResult, hasEbook = false): st
   </td></tr></table></body></html>`;
 }
 
-async function fetchEbook(): Promise<Buffer | null> {
+async function fetchEbook(log: SiteLogger): Promise<Buffer | null> {
   try {
     const r = await fetch(EBOOK_URL, { signal: AbortSignal.timeout(9000) });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      log.warn(`ebook.http_error url=${EBOOK_URL} status=${r.status}`);
+      return null;
+    }
     return Buffer.from(await r.arrayBuffer());
-  } catch {
+  } catch (e) {
+    log.warn(`ebook.fetch_failed url=${EBOOK_URL} ${reasonOf(e)}`);
     return null;
   }
 }
 
-async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf: Buffer | null): Promise<boolean> {
+async function sendLeadEmail(
+  data: Payload,
+  result: DiagResult | undefined,
+  pdf: Buffer | null,
+  log: SiteLogger,
+): Promise<boolean> {
   const to = data.email?.trim();
-  if (!to) return false;
+  if (!to) {
+    log.warn("mail.skipped motivo=lead_sem_email");
+    return false;
+  }
   const html = leadEmailHtml(data, result, !!pdf);
   const subject = pdf ? "Seu Diagnóstico Inicial CRIVO™ + e-book" : "Seu Diagnóstico Inicial CRIVO™";
   const resendKey = process.env.RESEND_API_KEY;
@@ -217,8 +247,10 @@ async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf:
         signal: AbortSignal.timeout(12000),
       });
       if (r.ok) return true;
-    } catch {
-      /* tenta SMTP abaixo */
+      const detail = await r.text().catch(() => "");
+      log.error(`mail.resend_rejected status=${r.status} body="${detail.slice(0, 300)}" - tentando SMTP`);
+    } catch (e) {
+      log.error(`mail.resend_failed ${reasonOf(e)} - tentando SMTP`);
     }
   }
 
@@ -226,7 +258,10 @@ async function sendLeadEmail(data: Payload, result: DiagResult | undefined, pdf:
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) return false;
+  if (!host || !user || !pass) {
+    log.error(`mail.no_provider to=${maskEmail(to)} - SMTP_HOST/USER/PASS ausentes no ambiente do site`);
+    return false;
+  }
   try {
     const port = Number(process.env.SMTP_PORT ?? 587);
     const transporter = nodemailer.createTransport({
@@ -311,13 +346,24 @@ async function vaiFetch(base: string, path: string, init: RequestInit, token: st
   });
 }
 
-async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, pdf: Buffer | null): Promise<boolean> {
+async function sendLeadWhatsapp(
+  data: Payload,
+  result: DiagResult | undefined,
+  pdf: Buffer | null,
+  log: SiteLogger,
+): Promise<boolean> {
   const to = (data.phone ?? "").replace(/\D/g, "");
-  if (!to) return false;
+  if (!to) {
+    log.info("wa.skipped motivo=lead_sem_telefone");
+    return false;
+  }
   const base = process.env.VAI_API_URL ?? "https://api.vaicrm.com.br";
   const email = process.env.VAI_API_EMAIL;
   const password = process.env.VAI_API_PASSWORD;
-  if (!email || !password) return false;
+  if (!email || !password) {
+    log.warn("wa.not_configured - VAI_API_EMAIL/VAI_API_PASSWORD ausentes");
+    return false;
+  }
 
   try {
     const lr = await fetch(`${base}/auth/login`, {
@@ -326,9 +372,15 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
       body: JSON.stringify({ email, password }),
       signal: AbortSignal.timeout(12000),
     });
-    if (!lr.ok) return false;
+    if (!lr.ok) {
+      log.warn(`wa.login_failed status=${lr.status}`);
+      return false;
+    }
     const token = ((await lr.json()) as { access_token?: string }).access_token;
-    if (!token) return false;
+    if (!token) {
+      log.warn("wa.no_token - login respondeu sem access_token");
+      return false;
+    }
 
     let channelId = process.env.VAI_WA_CHANNEL_ID;
     if (!channelId) {
@@ -338,7 +390,10 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
         channelId = (list.find((c) => c.status === "connected") ?? list[0])?.id;
       }
     }
-    if (!channelId) return false;
+    if (!channelId) {
+      log.warn("wa.no_channel - nenhum canal de WhatsApp conectado na VAI");
+      return false;
+    }
 
     // contato (acha ou cria)
     let contactId: string | undefined;
@@ -353,7 +408,10 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
       );
       if (c.ok) contactId = ((await c.json()) as { id?: string }).id;
     }
-    if (!contactId) return false;
+    if (!contactId) {
+      log.warn(`wa.no_contact phone=${maskPhone(to)} - nao foi possivel achar nem criar o contato`);
+      return false;
+    }
 
     // chat (cria; reusa no 409)
     let chatId: string | undefined;
@@ -363,7 +421,10 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
       const gx = await vaiFetch(base, `/chats?contactId=${encodeURIComponent(contactId)}&limit=1`, { method: "GET" }, token);
       if (gx.ok) chatId = ((await gx.json()) as { data?: { id?: string }[] })?.data?.[0]?.id;
     }
-    if (!chatId) return false;
+    if (!chatId) {
+      log.warn(`wa.no_chat phone=${maskPhone(to)} - nao foi possivel abrir a conversa`);
+      return false;
+    }
 
     const nivel = levelLabel(result);
     const score = result?.score != null ? `${result.score}/100` : "";
@@ -383,7 +444,10 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
       { method: "POST", body: JSON.stringify({ content: msg, type: "text" }) },
       token,
     );
-    if (!sent.ok) return false;
+    if (!sent.ok) {
+      log.error(`wa.send_failed phone=${maskPhone(to)} status=${sent.status}`);
+      return false;
+    }
 
     // E-book como DOCUMENTO real (best-effort). A VAI exige o arquivo no storage
     // dela: upload (multipart) → devolve a URL S3 → envia o documento com ela.
@@ -410,14 +474,14 @@ async function sendLeadWhatsapp(data: Payload, result: DiagResult | undefined, p
             );
           }
         }
-      } catch {
-        /* o link do e-book no texto já garante o acesso ao PDF */
+      } catch (e) {
+        log.warn(`wa.ebook_upload_failed ${reasonOf(e)} - o link no texto segue como alternativa`);
       }
     }
 
     return true;
   } catch (e) {
-    console.error("[lead-whatsapp] falhou:", e instanceof Error ? e.message : e);
+    log.error(`wa.failed phone=${maskPhone(to)} ${reasonOf(e)}`);
     return false;
   }
 }
@@ -446,14 +510,20 @@ async function notifyGate(key: string, title: string, body: string): Promise<{ e
 }
 
 export async function POST(req: Request) {
+  // Id de correlacao da jornada inteira: acompanha o lead deste log ate as
+  // linhas da API, inclusive as do relatorio que sai minutos depois.
+  const reqId = safeReqId(req.headers.get("x-request-id")) ?? randomUUID().slice(0, 8);
+  const log = makeLogger("diagnostic-lead", reqId);
   let data: Payload;
   try {
     data = (await req.json()) as Payload;
   } catch {
+    log.warn("payload.invalido - corpo nao e JSON");
     return NextResponse.json({ ok: false, error: "Payload inválido." }, { status: 400 });
   }
 
   if (!data.name || !data.name.trim()) {
+    log.warn("payload.sem_nome");
     return NextResponse.json({ ok: false, error: "Nome é obrigatório." }, { status: 400 });
   }
 
@@ -472,7 +542,7 @@ export async function POST(req: Request) {
   let result: DiagResult | undefined;
   let platformOk = false;
   if (platformApi) {
-    const r = await sendToPlatform(platformApi, data);
+    const r = await sendToPlatform(platformApi, data, log, reqId);
     platformOk = r.ok;
     result = r.result;
   }
@@ -484,10 +554,18 @@ export async function POST(req: Request) {
   // também mandava o dele, o lead recebia duas mensagens com o mesmo e-book.
   // Resta aqui o caso em que o intake falhou: ninguém mais enviaria, e este
   // e-mail curto é o que salva a entrega.
-  const ebook = await fetchEbook();
+  const ebook = await fetchEbook(log);
   const [emailed, whatsapped] = await Promise.all([
-    platformOk ? Promise.resolve(false) : sendLeadEmail(data, result, ebook).catch(() => false),
-    sendLeadWhatsapp(data, result, ebook).catch(() => false),
+    platformOk
+      ? Promise.resolve(false)
+      : sendLeadEmail(data, result, ebook, log).catch((e) => {
+          log.error(`mail.failed ${reasonOf(e)}`);
+          return false;
+        }),
+    sendLeadWhatsapp(data, result, ebook, log).catch((e) => {
+      log.error(`wa.failed ${reasonOf(e)}`);
+      return false;
+    }),
   ]);
 
   if (!platformApi) {
@@ -531,5 +609,17 @@ export async function POST(req: Request) {
 
   // Status HTTP reflete o resultado real (defesa extra); `delivered` distingue
   // "retido no CRM" de "entregue ao lead" para a UI mostrar a mensagem certa.
-  return NextResponse.json({ ok, delivered, emailed, whatsapped }, { status: ok ? 200 : 502 });
+  // UMA linha de resumo por lead, inclusive no sucesso. E o primeiro lugar
+  // onde olhar: diz se o CRM recebeu, se o e-book foi baixado e por qual
+  // canal o lead foi atendido. `platformOk=true` significa que a plataforma
+  // assumiu o e-mail - ele sai LA, em background, e aparece no log da API.
+  log.info(
+    `delivery.summary lead=${maskEmail(data.email)} platformOk=${platformOk} ` +
+      `emailed=${emailed} whatsapped=${whatsapped} ebookBytes=${ebook?.length ?? 0}`,
+  );
+
+  return NextResponse.json(
+    { ok, delivered, emailed, whatsapped, reqId },
+    { status: ok ? 200 : 502, headers: { "x-request-id": reqId } },
+  );
 }

@@ -30,7 +30,10 @@ const LEAD = {
 
 const EBOOK_ROW = {
   fileName: 'E-book CRIVO — Liderança.pdf',
-  data: Buffer.from('%PDF-1.4 conteudo').toString('base64'),
+  // Precisa parecer um PDF de verdade: o servico recusa base64 que nao comece
+  // com %PDF- ou que seja pequeno demais para ser um arquivo (guard contra
+  // anexo corrompido sair como se estivesse tudo certo).
+  data: Buffer.from('%PDF-1.4 ' + 'x'.repeat(500)).toString('base64'),
   updatedAt: new Date('2026-08-24T15:12:00.000Z'),
 };
 

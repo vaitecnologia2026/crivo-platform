@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type {
   AiSettingsData,
   AiTestResult,
@@ -34,6 +34,8 @@ export type AiChatResult =
  */
 @Injectable()
 export class AiSettingsService {
+  private readonly log = new Logger('AiSettings');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -95,6 +97,12 @@ export class AiSettingsService {
     try {
       return decryptSecret({ enc: r.apiKeyEnc, iv: r.apiKeyIv, tag: r.apiKeyTag });
     } catch {
+      // Sem esta linha, "token gravado que não decifra" (AUTH_SECRET rotacionado,
+      // registro corrompido) era INDISTINGUÍVEL de "nunca configuraram a chave":
+      // os dois devolvem null e a IA simplesmente não responde.
+      this.log.error(
+        'Token de IA não pôde ser decifrado — a chave gravada não abre com o AUTH_SECRET atual. Regrave o token em Super Admin · IA da Plataforma.',
+      );
       return null;
     }
   }
@@ -108,7 +116,14 @@ export class AiSettingsService {
    */
   async chat(args: AiChatArgs): Promise<AiChatResult> {
     const key = await this.getApiKey();
-    if (!key) return { ok: false, kind: 'no_key' };
+    if (!key) {
+      // Este retorno acontece ANTES do gravador de ai_call_logs: sem chave, a
+      // chamada não aparecia nem nos Registros da IA nem no log do servidor.
+      this.log.warn(
+        `Chamada de IA "${args.useCase}" abortada: nenhuma chave utilizável em Configurações de IA.`,
+      );
+      return { ok: false, kind: 'no_key' };
+    }
 
     const settings = await this.get();
     const model = args.model || settings.model || 'gpt-4o-mini';
@@ -154,12 +169,18 @@ export class AiSettingsService {
     } catch (e) {
       const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
       const message = e instanceof Error ? e.message : 'Falha de conexão';
-      await log({ ok: false, errorReason: timeout ? `timeout ${args.timeoutMs ?? 30000}ms` : message });
+      const reason = timeout ? `timeout ${args.timeoutMs ?? 30000}ms` : message;
+      await log({ ok: false, errorReason: reason });
+      // A falha ficava só em ai_call_logs, visível apenas para quem abrisse a
+      // tela de Registros da IA. Foi assim que 12 recusas por cota do provedor
+      // passaram despercebidas em produção.
+      this.log.warn(`IA "${args.useCase}" falhou (${model}): ${reason}`);
       return { ok: false, kind: timeout ? 'timeout' : 'network', message };
     }
 
     if (!res.ok) {
       await log({ ok: false, errorReason: `HTTP ${res.status}` });
+      this.log.warn(`IA "${args.useCase}" recusada pelo provedor (${model}): HTTP ${res.status}.`);
       return { ok: false, kind: 'http', httpStatus: res.status };
     }
 

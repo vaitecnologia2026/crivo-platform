@@ -247,6 +247,11 @@ export class PlatformLeadsService {
     // Relatório Preliminar automático: gera com IA e envia ao lead por e-mail.
     // Best-effort e em background — NÃO bloqueia a resposta da LP (a IA leva
     // alguns segundos) e nunca derruba o intake se a IA estiver desligada.
+    if (!lead.email) {
+      // Sem e-mail não há o que enviar — mas isso precisa aparecer, senão fica
+      // idêntico a uma falha de entrega para quem investiga depois.
+      this.log.warn(`Lead ${lead.id} entrou SEM e-mail: nenhum envio ao lead será feito.`);
+    }
     if (lead.email) {
       void this.preliminaryReports
         .generate({ platformLeadId: lead.id })
@@ -259,7 +264,19 @@ export class PlatformLeadsService {
           // site só envia quando o intake falha —, então aqui vai a leitura do
           // MAPA com o e-book anexado.
           if (r.status !== 'ENVIADO') {
-            await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+            // O retorno era descartado nos dois pontos — e este é o ÚLTIMO
+            // recurso do lead. Se ele falhar em silêncio, ninguém recebe nada e
+            // não sobra rastro de que a garantia sequer foi tentada.
+            // O try/catch é obrigatório: uma exceção aqui dentro cairia no
+            // `.catch` abaixo e dispararia um SEGUNDO envio ao mesmo lead.
+            try {
+              const fallback = await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+              this.logFallback(lead.id, fallback);
+            } catch (e) {
+              this.log.error(
+                `Envio de garantia do lead ${lead.id} lançou: ${e instanceof Error ? e.message : e}`,
+              );
+            }
           }
         })
         .catch(async (e) => {
@@ -268,7 +285,8 @@ export class PlatformLeadsService {
               e instanceof Error ? e.message : e
             } — enviando a leitura do MAPA com o e-book.`,
           );
-          await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+          const fallback = await this.preliminaryReports.sendDiagnosticEmail(lead.id);
+          this.logFallback(lead.id, fallback);
         });
     }
 
@@ -293,11 +311,40 @@ export class PlatformLeadsService {
           `Olá, ${name}! Recebemos seu Diagnóstico Inicial CRIVO™. Em instantes você recebe o ` +
           `Relatório Preliminar. Enquanto isso, baixe o e-book complementar: ${ebookUrl}`,
       })
-        .then((r) => this.log.log(`WhatsApp do lead ${lead.id}: ok=${r.ok} provider=${r.provider}`))
-        .catch(() => {});
+        .then((r) =>
+          r.ok
+            ? this.log.log(`WhatsApp do lead ${lead.id}: ok=true provider=${r.provider}`)
+            : this.log.warn(
+                `WhatsApp do lead ${lead.id} NÃO saiu (provider=${r.provider})${
+                  'reason' in r && r.reason ? `: ${r.reason}` : ''
+                }`,
+              ),
+        )
+        // O catch era vazio enquanto o `then` logava: o arquivo mostrava só o
+        // que dava certo, e uma exceção do canal sumia por completo.
+        .catch((e) =>
+          this.log.warn(
+            `WhatsApp do lead ${lead.id} falhou: ${e instanceof Error ? e.message : e}`,
+          ),
+        );
     }
 
     return { ok: true, result: result as unknown as PreDiagnosticResult };
+  }
+
+  /**
+   * Resultado do envio de GARANTIA (a leitura do MAPA com o e-book, quando o
+   * relatório com IA não saiu). Falha aqui significa lead sem nada: é erro, não
+   * aviso — o site deixou de mandar o e-mail dele por decisão de produto.
+   */
+  private logFallback(leadId: string, r: { ok: boolean; reason?: string }): void {
+    if (r.ok) {
+      this.log.log(`Envio de garantia do lead ${leadId}: entregue.`);
+    } else {
+      this.log.error(
+        `Envio de garantia do lead ${leadId} FALHOU: ${r.reason ?? 'motivo não informado'} — o lead não recebeu nada.`,
+      );
+    }
   }
 
   /**

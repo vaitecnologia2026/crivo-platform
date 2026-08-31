@@ -72,13 +72,22 @@ export class PreliminaryReportsService {
     const recipient = (input.sendTo ?? lead.email ?? '').trim();
 
     const settings = await this.ai.get();
+    // As três saídas abaixo lançam ANTES de criar a linha em `preliminary_reports`:
+    // sem log, o lead ficava sem relatório, sem registro em banco e sem nenhum
+    // rastro do motivo — e quem dispara isto é o intake, em background.
     if (!settings.enabled || !settings.hasKey) {
+      this.log.warn(
+        `Relatório do lead ${lead.id} não será gerado: IA ${settings.enabled ? 'sem chave' : 'desativada'} nas Configurações de IA.`,
+      );
       throw new BadRequestException(
         'IA não está configurada/ativa. Configure em Super Admin · Configurações de IA.',
       );
     }
     // Respeita o escopo de módulos da IA (vazio = todos liberados).
     if (settings.enabledModules.length > 0 && !settings.enabledModules.includes('relatorios')) {
+      this.log.warn(
+        `Relatório do lead ${lead.id} não será gerado: IA habilitada só para [${settings.enabledModules.join(', ')}], sem "relatorios".`,
+      );
       throw new BadRequestException(
         'IA não está habilitada para Relatórios em Configurações de IA (Super Admin).',
       );
@@ -109,6 +118,10 @@ export class PreliminaryReportsService {
       content = await this.callAi(lead, diagnostic, reportModel);
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Falha desconhecida ao gerar relatório.';
+      // Gravar `ERRO` no banco não bastava: só quem abrisse o modal daquele lead
+      // no CRM veria. Em 24/08 um lead ficou sem nenhum e-mail por "HTTP 429" do
+      // provedor de IA e isso não aparecia em lugar nenhum do servidor.
+      this.log.error(`IA falhou no relatório do lead ${lead.id} (${reportModel}): ${reason}`);
       const errored = await this.prisma.admin.preliminaryReport.update({
         where: { id: report.id },
         data: { status: 'ERRO', errorReason: reason },
@@ -309,7 +322,29 @@ export class PreliminaryReportsService {
         orderBy: { updatedAt: 'desc' },
       });
       if (imported) {
-        return { filename: imported.fileName, content: Buffer.from(imported.data, 'base64') };
+        const content = Buffer.from(imported.data, 'base64');
+        // `Buffer.from(..., 'base64')` NUNCA falha: base64 truncado ou com
+        // prefixo `data:` vira lixo silenciosamente, e o lead recebia um PDF
+        // ilegível com o relatório marcado como ENVIADO. Conferir o cabeçalho
+        // custa nada e transforma isso num aviso + tentativa pela URL.
+        //
+        // O piso é deliberadamente baixo (200 bytes): rejeitar um PDF pequeno
+        // porém VÁLIDO seria pior que o defeito original — o lead deixaria de
+        // receber um anexo que existe. Truncamento real aparece no tamanho
+        // registrado na linha de sucesso abaixo.
+        if (content.length >= 200 && content.subarray(0, 5).toString('latin1') === '%PDF-') {
+          this.log.log(
+            `E-book anexado do painel: ${imported.fileName} (${Math.round(content.length / 1024)} KB).`,
+          );
+          return { filename: imported.fileName, content };
+        }
+        this.log.warn(
+          `E-book do painel (${imported.fileName}) não é um PDF válido — ${content.length} bytes, sem cabeçalho %PDF. Tentando o PDF publicado.`,
+        );
+      } else {
+        this.log.warn(
+          'Nenhum e-book importado no painel (Governança · E-book) — tentando o PDF publicado.',
+        );
       }
     } catch (e) {
       this.log.warn(
@@ -329,6 +364,9 @@ export class PreliminaryReportsService {
         this.log.warn(`E-book em ${url} veio vazio — e-mail seguirá SEM o anexo.`);
         return null;
       }
+      this.log.log(
+        `E-book anexado de ${url} (${Math.round(content.length / 1024)} KB).`,
+      );
       return { filename: 'E-book CRIVO.pdf', content };
     } catch (e) {
       this.log.warn(
@@ -352,8 +390,16 @@ export class PreliminaryReportsService {
         where: { id: platformLeadId },
       });
       const to = lead?.email?.trim();
-      if (!lead || !to) return { ok: false, reason: 'Lead sem e-mail.' };
-      if (!lead.diagnosticResult) return { ok: false, reason: 'Lead sem diagnóstico.' };
+      // Os dois returns abaixo eram mudos — e são os motivos mais banais de o
+      // lead não receber nada. Sem log, pareciam falha de envio.
+      if (!lead || !to) {
+        this.log.warn(`Lead ${platformLeadId} sem e-mail: leitura do MAPA não enviada.`);
+        return { ok: false, reason: 'Lead sem e-mail.' };
+      }
+      if (!lead.diagnosticResult) {
+        this.log.warn(`Lead ${platformLeadId} sem diagnóstico: leitura do MAPA não enviada.`);
+        return { ok: false, reason: 'Lead sem diagnóstico.' };
+      }
 
       const footer = await this.texts.render(
         'EMAIL_PRELIMINARY_FOOTER',
@@ -369,7 +415,11 @@ export class PreliminaryReportsService {
           ? `Seu MAPA Executivo CRIVO — ${lead.company}`
           : 'Seu MAPA Executivo CRIVO',
       });
-      if (!send.ok) {
+      if (send.ok) {
+        // O envio de GARANTIA não escrevia nada em banco nem no log quando dava
+        // certo: era impossível responder "esse lead recebeu o MAPA?".
+        this.log.log(`Leitura do MAPA entregue a ${to} (lead ${platformLeadId}, via ${send.provider}).`);
+      } else {
         this.log.warn(`Leitura do MAPA não entregue a ${to}: ${send.reason ?? send.provider}`);
       }
       return { ok: send.ok, reason: send.reason };

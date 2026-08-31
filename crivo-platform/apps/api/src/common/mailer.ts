@@ -109,6 +109,21 @@ function smtpFrom(): string {
 }
 
 /**
+ * Descrição dos anexos para o log: nome e tamanho, nunca o conteúdo.
+ *
+ * É o que responde "o e-book foi junto?" — a pergunta que ninguém conseguia
+ * responder quando o cliente disse que recebeu o diagnóstico sem o e-book.
+ */
+function describeAttachments(input: SendMailInput): string {
+  const list = input.attachments ?? [];
+  if (!list.length) return ' anexos=0';
+  const detail = list
+    .map((a) => `${a.filename} ${Math.round((a.content?.length ?? 0) / 1024)}KB`)
+    .join(', ');
+  return ` anexos=${list.length} (${detail})`;
+}
+
+/**
  * Testa uma conta SMTP SEM gravar nada e SEM mexer no transporte em uso: abre
  * uma conexão descartável e autentica.
  *
@@ -157,7 +172,7 @@ export async function sendMail(
   let smtpFail: SendMailResult | null = null;
   if (transport) {
     try {
-      await transport.sendMail({
+      const info = await transport.sendMail({
         from: smtpFrom(),
         to: input.to,
         subject: input.subject,
@@ -166,6 +181,24 @@ export async function sendMail(
         replyTo: input.replyTo,
         attachments: input.attachments,
       });
+      // O SUCESSO também vai para o log, e com o que o relay respondeu.
+      // `rejected` é o caso traiçoeiro: o servidor aceita a mensagem e recusa o
+      // destinatário — sem esta linha, "entregue" e "aceito e descartado" eram
+      // indistinguíveis (os dois não escreviam nada). O `messageId` é o que
+      // permite rastrear a mensagem no provedor.
+      const rejected = Array.isArray(info?.rejected) ? info.rejected.map(String) : [];
+      log.log(
+        `SMTP enviou para ${input.to}${describeAttachments(input)}` +
+          ` messageId=${info?.messageId ?? '-'}` +
+          (rejected.length ? ` RECUSADOS=${rejected.join(',')}` : ''),
+      );
+      if (rejected.length) {
+        return {
+          ok: false,
+          provider: 'smtp',
+          reason: `Destinatário recusado pelo servidor: ${rejected.join(', ')}`,
+        };
+      }
       return { ok: true, provider: 'smtp' };
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Falha SMTP.';
@@ -198,15 +231,18 @@ export async function sendMail(
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => res.statusText);
+        // Antes esta falha só existia no `reason` devolvido — e três chamadores
+        // descartam o retorno de sendMail. Chave inválida, domínio não
+        // verificado e rate limit sumiam sem deixar rastro.
+        log.warn(`Resend recusou o envio para ${input.to}: HTTP ${res.status} ${detail}`);
         return { ok: false, provider: 'resend', reason: `HTTP ${res.status}: ${detail}` };
       }
+      log.log(`Resend enviou para ${input.to}${describeAttachments(input)}`);
       return { ok: true, provider: 'resend' };
     } catch (e) {
-      return {
-        ok: false,
-        provider: 'resend',
-        reason: e instanceof Error ? e.message : 'Falha de conexão Resend.',
-      };
+      const reason = e instanceof Error ? e.message : 'Falha de conexão Resend.';
+      log.warn(`Resend falhou ao enviar para ${input.to}: ${reason}`);
+      return { ok: false, provider: 'resend', reason };
     }
   }
 
@@ -214,6 +250,9 @@ export async function sendMail(
   if (smtpFail) return smtpFail;
 
   // 4) Stub — nenhum provider configurado.
+  log.warn(
+    `Nenhum provider de e-mail configurado (SMTP_* ou RESEND_API_KEY): a mensagem "${input.subject}" para ${input.to} NÃO foi enviada.`,
+  );
   return {
     ok: false,
     provider: 'stub',
