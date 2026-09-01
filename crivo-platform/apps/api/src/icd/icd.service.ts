@@ -6,6 +6,8 @@ import { EditableTextsService } from '../admin/editable-texts.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import type { SubmitIcdDto } from './dto';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
+import { DiagnosticsService } from '../diagnostics/diagnostics.service';
+import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
 import type { SubmitPsychosocialDto } from '../psychosocial/dto';
 import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
@@ -15,9 +17,11 @@ export class IcdService {
     private readonly prisma: PrismaService,
     private readonly texts: EditableTextsService,
     private readonly notifications: NotificationSettingsService,
-    // A campanha aplica o Diagnóstico Organizacional: perguntas e gravação são
-    // do psicossocial. Reusar o serviço mantém UM caminho de coleta.
+    // A campanha aplica o diagnóstico do MÉTODO CONTRATADO: psicossocial quando
+    // o método é o Organizacional, o instrumento do catálogo nos demais. Reusar
+    // os dois serviços mantém UM caminho de coleta por instrumento.
     private readonly psychosocial: PsychosocialService,
+    private readonly diagnostics: DiagnosticsService,
   ) {}
 
   /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
@@ -330,6 +334,33 @@ export class IcdService {
    * dentro da janela. Centralizado aqui porque GET e POST precisam da MESMA
    * regra: se a leitura mostra o formulário, a escrita tem que aceitar.
    */
+  /** Instrumento que ESTA campanha aplica — o do método contratado pela empresa.
+   *  Fallback no psicossocial: é o comportamento histórico e o que todo tenant
+   *  ORGANIZACIONAL já recebia. */
+  private async campaignInstrument(tenantId: string): Promise<string> {
+    return (await resolveInstrumentForTenant(this.prisma, tenantId)) ?? 'PSYCHOSOCIAL';
+  }
+
+  /** Perguntas da campanha no formato que a página pública já consome
+   *  ({ id, dimension, text }). Para o psicossocial delega ao serviço dele, que
+   *  tem o fallback embutido para quando não há metodologia publicada — assim o
+   *  caminho de hoje não muda em nada. */
+  private async campaignQuestions(tenantId: string) {
+    const instrument = await this.campaignInstrument(tenantId);
+    if (instrument === 'PSYCHOSOCIAL') return this.psychosocial.publicQuestions();
+    const active = await resolveActiveMethodology(this.prisma, instrument);
+    if (!active) {
+      throw new BadRequestException(
+        'O diagnóstico desta campanha ainda não foi publicado no Motor. Fale com a CRIVO.',
+      );
+    }
+    return active.config.questions.map((q, i) => ({
+      id: i + 1,
+      dimension: q.dimensionSlug,
+      text: q.text,
+    }));
+  }
+
   private async resolveOpenCampaign(slug: string) {
     // rls-allow: endpoint público (sem tenantId no contexto); resolve campanha por slug, sem score individual.
     const cycle = await this.prisma.admin.assessmentCycle.findUnique({
@@ -351,9 +382,12 @@ export class IcdService {
    */
   async getPublicBySlug(slug: string) {
     const { cycle, aberta } = await this.resolveOpenCampaign(slug);
-    // A campanha aplica o Diagnóstico Organizacional (NR-1): as perguntas saem da
-    // metodologia ATIVA, nunca fixadas aqui — mesma fonte do link /q/<slug>.
-    const questions = aberta ? await this.psychosocial.publicQuestions() : [];
+    // A campanha aplica o diagnóstico do MÉTODO CONTRATADO pela empresa — não o
+    // NR-1 por padrão. O instrumento estava FIXO aqui, então um tenant que
+    // contratasse o Essencial recebia o questionário do Organizacional — e a
+    // resposta caía noutra tabela, sem somar com a autoavaliação e o link do
+    // colaborador, que sempre resolveram pelo contrato.
+    const questions = aberta ? await this.campaignQuestions(cycle.tenantId) : [];
     return {
       name: cycle.name,
       description: cycle.description,
@@ -378,10 +412,14 @@ export class IcdService {
     if (!aberta) {
       throw new BadRequestException('Esta campanha não está aberta para respostas no momento.');
     }
-    return this.psychosocial.submit(cycle.tenantId, {
-      ...dto,
-      sector: cycle.sector ?? dto.sector,
-    });
+    const instrument = await this.campaignInstrument(cycle.tenantId);
+    const payload = { ...dto, sector: cycle.sector ?? dto.sector };
+    // Mesmo par de destinos do link do colaborador: psicossocial grava em
+    // psychosocial_responses; qualquer outro instrumento, em diagnostic_responses.
+    // Os dois devolvem { ok, result }, então a página pública não muda.
+    return instrument === 'PSYCHOSOCIAL'
+      ? this.psychosocial.submit(cycle.tenantId, payload)
+      : this.diagnostics.submitForTenant(cycle.tenantId, instrument, payload);
   }
 
   /**

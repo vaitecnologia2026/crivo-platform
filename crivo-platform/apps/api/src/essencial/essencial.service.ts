@@ -14,7 +14,7 @@ import {
   type SubmitSelfAssessmentRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { resolveActiveMethodology, resolveInstrumentForMethod } from '../admin/methodology.service';
+import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
 
 /** Instrumento built-in que o Motor chama de "Diagnóstico Executivo". É ELE que
  *  a autoavaliação do portal aplica — o mesmo slug que a LP e o dossiê já leem. */
@@ -52,24 +52,9 @@ export class EssencialService {
   /** Qual questionário ESTA empresa aplica — vem do método contratado, e o
    *  vínculo método→instrumento é configurável no Motor. */
   private async instrumentOf(tenantId: string): Promise<string> {
-    // rls-allow: resolve o método contratado da própria empresa do contexto.
-    const contract = await this.prisma.admin.contract.findFirst({
-      where: { organizationId: tenantId, status: 'ATIVO' },
-      orderBy: { updatedAt: 'desc' },
-      select: { method: true, productId: true },
-    });
-    // rls-allow: tenants é control-plane (catálogo de empresas).
-    const tenant = await this.prisma.admin.tenant.findFirst({
-      where: { organizationId: tenantId },
-      select: { productId: true },
-    });
-    const productId = contract?.productId ?? tenant?.productId ?? null;
-    const product = productId
-      // rls-allow: Product é catálogo GLOBAL (control-plane), sem tenantId.
-      ? await this.prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
-      : null;
-    const method = product?.method ?? contract?.method ?? null;
-    return (await resolveInstrumentForMethod(this.prisma, method)) ?? SELF_ASSESSMENT_FALLBACK;
+    // Mesma cascata do link do colaborador e da campanha pública, numa função só
+    // (resolveInstrumentForTenant). Fallback histórico daqui: Diagnóstico Executivo.
+    return (await resolveInstrumentForTenant(this.prisma, tenantId)) ?? SELF_ASSESSMENT_FALLBACK;
   }
 
   async getInstrument(tenantId: string): Promise<SelfAssessmentInstrument> {

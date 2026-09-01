@@ -409,3 +409,38 @@ export async function resolveInstrumentForMethod(
   });
   return found?.slug ?? LEGACY_INSTRUMENT_BY_METHOD[method] ?? null;
 }
+
+/**
+ * Qual instrumento ESTA empresa aplica — resolvido pelo MÉTODO do produto
+ * contratado (contrato ATIVO; na falta dele, o produto do tenant).
+ *
+ * A mesma cascata existia copiada na autoavaliação do Essencial e no link do
+ * colaborador — e foi a cópia AUSENTE que fez a campanha pública aplicar o NR-1
+ * a quem contratou outro diagnóstico. Uma fonte só, para não divergirem de novo.
+ *
+ * Devolve null quando não há método definido; cada chamador aplica o seu próprio
+ * fallback histórico.
+ */
+export async function resolveInstrumentForTenant(
+  prisma: PrismaService,
+  tenantId: string,
+): Promise<string | null> {
+  // rls-allow: resolve o método contratado da própria empresa do contexto.
+  const contract = await prisma.admin.contract.findFirst({
+    where: { organizationId: tenantId, status: "ATIVO" },
+    orderBy: { updatedAt: "desc" },
+    select: { method: true, productId: true },
+  });
+  // rls-allow: tenants é control-plane (catálogo de empresas), filtrado pela própria org.
+  const tenant = await prisma.admin.tenant.findFirst({
+    where: { organizationId: tenantId },
+    select: { productId: true },
+  });
+  const productId = contract?.productId ?? tenant?.productId ?? null;
+  const product = productId
+    ? // rls-allow: Product é catálogo GLOBAL (control-plane), sem tenantId.
+      await prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
+    : null;
+  return resolveInstrumentForMethod(prisma, product?.method ?? contract?.method ?? null);
+}
+

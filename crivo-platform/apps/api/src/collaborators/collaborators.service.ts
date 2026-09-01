@@ -10,7 +10,7 @@ import { isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
-import { resolveActiveMethodology, resolveInstrumentForMethod } from '../admin/methodology.service';
+import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { whatsappConfigured, sendWhatsapp } from '../common/whatsapp';
 import { CreateCollaboratorDto, SubmitByTokenDto, UpdateCollaboratorDto } from './dto';
@@ -56,26 +56,10 @@ export class CollaboratorsService {
    * solução contratada manda — o `contract.method` é só fallback legado.
    */
   private async instrumentFor(tenantId: string): Promise<string> {
-    // rls-allow: resolve o método contratado da própria empresa do link.
-    const contract = await this.prisma.admin.contract.findFirst({
-      where: { organizationId: tenantId, status: 'ATIVO' },
-      orderBy: { updatedAt: 'desc' },
-      select: { method: true, productId: true },
-    });
-    // rls-allow: tenants é control-plane (catálogo de empresas), filtrado pela própria org.
-    const tenant = await this.prisma.admin.tenant.findFirst({
-      where: { organizationId: tenantId },
-      select: { productId: true },
-    });
-    const productId = contract?.productId ?? tenant?.productId ?? null;
-    const product = productId
-      // rls-allow: Product é catálogo GLOBAL (control-plane), sem tenantId.
-      ? await this.prisma.admin.product.findUnique({ where: { id: productId }, select: { method: true } })
-      : null;
-    const method = product?.method ?? contract?.method ?? null;
-    // O vínculo método→instrumento é DADO (diagnostic_instruments.method),
-    // configurável no Motor; o mapa histórico é só fallback.
-    return (await resolveInstrumentForMethod(this.prisma, method)) ?? 'PSYCHOSOCIAL';
+    // A cascata contrato→produto→método→instrumento vive em UM lugar
+    // (resolveInstrumentForTenant): a autoavaliação do Essencial e a campanha
+    // pública resolvem pela mesma função. Fallback histórico daqui: psicossocial.
+    return (await resolveInstrumentForTenant(this.prisma, tenantId)) ?? 'PSYCHOSOCIAL';
   }
 
   private view(c: CollaboratorRow) {

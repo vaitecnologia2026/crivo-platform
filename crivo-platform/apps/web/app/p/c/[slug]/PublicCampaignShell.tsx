@@ -78,6 +78,10 @@ export function PublicCampaignShell() {
   const [slug, setSlug] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "invalid" | "ok">("loading");
   const [data, setData] = useState<Campaign | null>(null);
+  // Mensagem do servidor quando existe: a campanha pode falhar por um motivo
+  // concreto (ex.: o diagnóstico do método contratado ainda não publicado no
+  // Motor), e "link inválido" mandaria a pessoa procurar o erro no lugar errado.
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     setSlug(readSlug());
@@ -97,8 +101,10 @@ export function PublicCampaignShell() {
         setData(d);
         setStatus("ok");
       })
-      .catch(() => {
-        if (alive) setStatus("invalid");
+      .catch((e) => {
+        if (!alive) return;
+        setErro(e instanceof Error && e.message ? e.message : null);
+        setStatus("invalid");
       });
     return () => {
       alive = false;
@@ -118,7 +124,7 @@ export function PublicCampaignShell() {
       <div style={WRAP}>
         <div style={CARD}>
           <Brand />
-          <p style={{ marginTop: 16 }}>Link de campanha inválido, expirado ou incompleto.</p>
+          <p style={{ marginTop: 16 }}>{erro ?? "Link de campanha inválido, expirado ou incompleto."}</p>
         </div>
       </div>
     );
