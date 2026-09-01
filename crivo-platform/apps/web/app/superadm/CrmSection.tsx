@@ -1331,7 +1331,9 @@ function ConvertModal({
                 </p>
               )}
               <p className="prod-note">
-                O sistema cria automaticamente: empresa, admin, módulos liberados, perguntas e IA do produto.
+                O sistema cria automaticamente: empresa, admin, módulos liberados, perguntas e IA do
+                produto — e abre o contrato já ATIVO em Contratos e Liberações, com a vigência começando
+                hoje. Prazo, respondentes e adicionais o time completa lá.
               </p>
               {error && <p className="convert-warn">{error}</p>}
             </>

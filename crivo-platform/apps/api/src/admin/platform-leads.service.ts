@@ -600,26 +600,49 @@ export class PlatformLeadsService {
       meta: { product: product.name, tenant: result.tenant.slug },
     });
 
-    // [3] Caderno Tela 02 — gera um Contrato RASCUNHO já ligado à empresa criada,
-    // com a solução contratada. O time finaliza (prazo, respondentes, integração)
-    // e assina depois na ficha da empresa. Best-effort: se falhar, a conversão
-    // segue válida (o cliente já está provisionado).
+    // [3] Caderno Tela 02 — o contrato nasce ATIVO junto com a liberação. Esta é
+    // a MESMA ação que o CRM chama de "Liberar acesso do cliente" e que anuncia
+    // "Cliente Habilitado ✓ · sistema liberado": deixar o contrato em RASCUNHO
+    // fazia a tela "Contratos e Liberações" — que é a fonte de verdade das
+    // liberações — contradizer o CRM, e obrigava alguém a lembrar de ativar à mão.
+    // Ativo, ele também passa a valer para quem só lê contrato ATIVO (portal,
+    // colaboradores, essencial), que antes caíam no produto do tenant por fallback.
+    // Prazo, respondentes e integração seguem em branco — o time completa na ficha
+    // da empresa. Sem endDate/accessDays o contrato NÃO expira acesso nenhum
+    // (contract-access.ts). Best-effort: se falhar, a conversão segue válida (o
+    // cliente já está provisionado).
+    const negociados = Array.isArray(lead.potentialAddons) ? lead.potentialAddons : [];
     try {
       await this.contracts.upsert(
         result.tenant.id,
         {
           productId: product.id,
-          status: 'RASCUNHO',
+          // A solução contratada PRECISA entrar em solutionIds: é dela que saem os
+          // módulos ligados na ativação e o nome do produto no menu do portal.
+          // Só productId deixava solutionIds vazio (o default do merge é []).
+          solutionIds: [product.id],
+          status: 'ATIVO',
           model: 'PONTUAL',
-          // Adicionais negociados (pré-venda) entram como módulos opcionais do contrato.
-          optionalModules: Array.isArray(lead.potentialAddons) ? lead.potentialAddons : [],
-          notes: `Rascunho gerado na conversão do lead "${lead.name}".`,
+          // Início da vigência = o dia da liberação. Sem fim e sem accessDays,
+          // então não trava acesso; serve de âncora se o time definir accessDays.
+          startDate: new Date().toISOString(),
+          // Os "adicionais potenciais" do CRM são lista de PRÉ-VENDA, não venda
+          // fechada — e com o contrato ATIVO eles seriam liberados na hora, o que
+          // o modal de liberação nem promete (ele fala em "módulos do produto").
+          // Ficam anotados para o time confirmar e marcar no contrato.
+          optionalModules: [],
+          notes:
+            `Contrato ativado na liberação do acesso do lead "${lead.name}". ` +
+            'Prazo, respondentes e integração técnica a completar.' +
+            (negociados.length
+              ? ` Adicionais negociados na pré-venda (confirmar antes de liberar): ${negociados.join(', ')}.`
+              : ''),
         },
         actor,
       );
     } catch (e) {
       this.log.warn(
-        `Não foi possível gerar o contrato rascunho na conversão do lead ${leadId}: ` +
+        `Não foi possível ativar o contrato na conversão do lead ${leadId}: ` +
           (e instanceof Error ? e.message : String(e)),
       );
     }
