@@ -78,6 +78,42 @@ export function factorRisk(i: FactorItem): { label: string; derived: boolean; is
 }
 
 /**
+ * Declaração de escopo do Dossiê Técnico — o TÍTULO declara só o que o contrato
+ * sustenta. O que licencia o dossiê é o DIAGNÓSTICO realizado (available());
+ * sem saída técnica contratada ele continua saindo, mas em caráter técnico e
+ * gerencial, sem se apresentar como subsídio contratado à AEP. Antes, este caso
+ * era BLOQUEADO no generate() — enquanto available() liberava o cartão
+ * 'independente da saída técnica', e o clique estourava um 400. O contrato que
+ * nasce na liberação do CRM (alt. 076) vem sem saída técnica de propósito, então
+ * todo cliente novo caía nesse choque.
+ */
+export function dossierScopeSection(output: string): { heading: string; body: string } {
+  if (output === 'AEP' || output === 'AEP_PGR') {
+    return {
+      heading:
+        output === 'AEP_PGR'
+          ? 'Declaração de escopo — Integração à AEP + GRO/PGR'
+          : 'Declaração de subsídio à AEP',
+      body:
+        'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
+        'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
+        'Preliminar (AEP)' +
+        (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
+        '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
+    };
+  }
+  return {
+    heading: 'Declaração de escopo — documento técnico e gerencial',
+    body:
+      'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
+      'identificados no ciclo avaliado, em caráter técnico, gerencial e documental. O contrato ' +
+      'vigente não prevê integração formal à AEP nem ao GRO/PGR; se a empresa vier a contratar ' +
+      'essa integração, este dossiê pode subsidiá-la. Não substitui a AEP, o PGR, nem a validação ' +
+      'da empresa ou do responsável técnico.',
+  };
+}
+
+/**
  * Bloqueios de emissão do dossiê final (doc 09 §9). Regra de compliance,
  * validada no SERVIDOR: fator Alto exige responsável, prazo e evidência
  * esperada; e nenhuma ação pode estar sugerida ou em revisão.
@@ -1371,19 +1407,10 @@ export class DocumentsService {
 
     const sections: DocumentSection[] = [];
 
-    // Declaração de escopo (título por saída técnica — Bloqueio §3 garantido no generate).
-    sections.push({
-      heading:
-        output === 'AEP_PGR'
-          ? 'Declaração de escopo — Integração à AEP + GRO/PGR'
-          : 'Declaração de subsídio à AEP',
-      body:
-        'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
-        'identificados no ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica ' +
-        'Preliminar (AEP)' +
-        (output === 'AEP_PGR' ? ' e a integração ao GRO/PGR' : '') +
-        '. Não substitui a AEP, o PGR, nem a validação da empresa ou do responsável técnico.',
-    });
+    // Declaração de escopo — o título acompanha a saída técnica; sem saída no
+    // contrato o dossiê sai mesmo assim, declarando só o que pode declarar
+    // (dossierScopeSection).
+    sections.push(dossierScopeSection(output));
 
     // RESSALVA de rascunho sem ações. Vem logo depois da declaração de escopo,
     // antes de qualquer número: as seções 6, 8, 9 e 11 são tabelas alimentadas
@@ -2062,14 +2089,11 @@ export class DocumentsService {
 
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
 
-    // Bloqueio §3: não emitir com título incompatível com a saída técnica.
-    // O Dossiê Técnico exige saída AEP ou AEP+GRO/PGR — sem isso, o título do
-    // documento não corresponderia ao que ele pode declarar.
-    if (type === 'dossie_tecnico' && output !== 'AEP' && output !== 'AEP_PGR') {
-      throw new BadRequestException(
-        'Título incompatível com a saída técnica: o Dossiê Técnico exige saída AEP ou AEP + GRO/PGR no contrato.',
-      );
-    }
+    // A saída técnica NÃO barra mais o Dossiê (decisão do cliente 01/09): o que
+    // o licencia é o diagnóstico realizado — a MESMA regra do available(), que
+    // já liberava o cartão "independente da saída técnica" enquanto este gate
+    // estourava 400 no clique. O documento declara só o que o contrato sustenta
+    // (dossierScopeSection); a emissão OFICIAL segue com as exigências do emit().
 
     // ── Templates-base do Pacote Final: builders no layout oficial ───────────
     if (type === 'relatorio_executivo') {

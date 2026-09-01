@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dossierBlockers, factorRisk, type FactorItem } from './documents.service';
+import { dossierBlockers, dossierScopeSection, factorRisk, type FactorItem } from './documents.service';
 
 // Matriz de risco do dossiê (doc 09 §6) + bloqueios de emissão (§9).
 // Regra estrutural: o risco técnico é DERIVADO de Severidade x Probabilidade,
@@ -140,5 +140,38 @@ describe('Pacote §5 — Bloqueios de emissão do Dossiê', () => {
 
   it('§5 — plano completo e aprovado não gera bloqueio', () => {
     expect(dossierBlockers([alto])).toEqual([]);
+  });
+});
+
+describe('dossierScopeSection — o título declara só o que o contrato sustenta', () => {
+  it('AEP: declaração de subsídio à AEP', () => {
+    const s = dossierScopeSection('AEP');
+    expect(s.heading).toBe('Declaração de subsídio à AEP');
+    expect(s.body).toContain('subsidiar a Avaliação Ergonômica');
+    expect(s.body).not.toContain('GRO/PGR.');
+  });
+
+  it('AEP_PGR: declara também a integração ao GRO/PGR', () => {
+    const s = dossierScopeSection('AEP_PGR');
+    expect(s.heading).toBe('Declaração de escopo — Integração à AEP + GRO/PGR');
+    expect(s.body).toContain('integração ao GRO/PGR');
+  });
+
+  it('sem saída no contrato: o dossiê SAI, mas sem se vender como subsídio contratado à AEP', () => {
+    // Decisão do cliente (01/09): o diagnóstico realizado licencia o dossiê —
+    // a saída técnica em branco (caso do contrato criado na liberação do CRM)
+    // não pode mais barrar a geração. O que muda é a declaração.
+    const s = dossierScopeSection('SEM_INTEGRACAO');
+    expect(s.heading).toBe('Declaração de escopo — documento técnico e gerencial');
+    expect(s.heading).not.toContain('AEP');
+    expect(s.body).toContain('não prevê integração formal');
+    // A ressalva de sempre continua: não substitui AEP/PGR nem validação humana.
+    expect(s.body).toContain('Não substitui a AEP, o PGR');
+  });
+
+  it('valor desconhecido cai no texto neutro (mesmo caminho do sem integração)', () => {
+    expect(dossierScopeSection('QUALQUER_COISA').heading).toBe(
+      'Declaração de escopo — documento técnico e gerencial',
+    );
   });
 });
