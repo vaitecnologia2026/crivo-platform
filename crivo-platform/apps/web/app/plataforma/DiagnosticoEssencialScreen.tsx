@@ -17,9 +17,7 @@ import {
 import { publicOrigin } from "@/lib/share-url";
 import {
   createEssentialRecord,
-  ensurePsychosocialLink,
   getDiagnosticContext,
-  getPsychosocialLink,
   getSelfAssessment,
   getSelfAssessmentInstrument,
   listAppliedDiagnostics,
@@ -83,20 +81,13 @@ export function DiagnosticoEssencialScreen() {
             {assessment ? <AssessmentResult a={assessment} onRedo={() => setAssessment(null)} /> : <AssessmentForm onDone={refresh} />}
           </div>
 
-          {/* A jornada promete "autoavaliação + escuta dos empregados" (subtítulo
-              acima), mas a escuta não tinha nenhum mecanismo nesta tela: o cliente
-              chegava aqui, não achava como enviar nada ao time e trocava o método
-              do contrato só para conseguir disparar. O link é o MESMO /q/<slug> da
-              empresa — mesma tabela, mesmo agregado, sem caminho paralelo. */}
-          <EscutaDosEmpregados />
-
       {/* O MESMO questionário do bloco 1 pode ser respondido pelos colaboradores
           por link individual (com CPF), o que importa em empresas pequenas: cada
           resposta conta para liberar o resultado agregado. */}
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="card__head">
           <div>
-            <h3>3. Enviar para os colaboradores</h3>
+            <h3>2. Enviar para os colaboradores</h3>
             <span className="card__sub">
               Além de responder aqui no painel, você pode enviar o mesmo diagnóstico para a equipe: cada
               pessoa recebe um <strong>link individual</strong>, confirma o CPF e responde uma única vez.
@@ -256,111 +247,6 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
 }
 
 /**
- * Passo 2 da jornada — escuta dos empregados. Usa o MESMO link público da
- * empresa (/q/<slug>) que a tela do Organizacional já usa: as respostas caem em
- * psychosocial_responses e alimentam o mesmo agregado. Um link próprio daqui
- * criaria uma segunda base que o Dashboard não lê.
- */
-function EscutaDosEmpregados() {
-  const [slug, setSlug] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [gerando, setGerando] = useState(false);
-  const [copiado, setCopiado] = useState(false);
-
-  useEffect(() => {
-    getPsychosocialLink()
-      .then((r) => setSlug(r.slug))
-      .catch(() => setSlug(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const url = slug ? `${publicOrigin()}/q/${slug}` : "";
-
-  async function gerar() {
-    setGerando(true);
-    try {
-      setSlug((await ensurePsychosocialLink()).slug);
-    } finally {
-      setGerando(false);
-    }
-  }
-  function copiar() {
-    if (!url) return;
-    navigator.clipboard?.writeText(url).then(() => {
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 1800);
-    });
-  }
-
-  return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <div className="card__head">
-        <div>
-          <h3>2. Escuta dos empregados</h3>
-          <span className="card__sub">
-            Link anônimo para o time responder sem login. As respostas entram no agregado da
-            empresa (visível a partir de 5 respostas) e viram pontos de atenção no Plano de Ação.
-          </span>
-        </div>
-      </div>
-      {loading ? (
-        <p className="card__sub">Carregando…</p>
-      ) : slug ? (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <input
-            readOnly
-            value={url}
-            onFocus={(e) => e.currentTarget.select()}
-            style={{
-              flex: 1,
-              minWidth: 240,
-              padding: "10px 12px",
-              border: "1px solid var(--line)",
-              borderRadius: 10,
-              fontSize: 13,
-              background: "var(--surface,#fff)",
-            }}
-          />
-          <button className="btn btn--gold btn--sm" onClick={copiar}>
-            {copiado ? "Copiado" : "Copiar"}
-          </button>
-          <a className="btn btn--ghost btn--sm" href={url} target="_blank" rel="noreferrer">
-            Abrir
-          </a>
-        </div>
-      ) : (
-        <button className="btn btn--gold btn--sm" onClick={gerar} disabled={gerando}>
-          {gerando ? "Gerando…" : "Gerar link público"}
-        </button>
-      )}
-      <p className="card__sub" style={{ marginTop: 12 }}>
-        Precisa de prazo, lembrete ou recorte por setor?{" "}
-        {/* Navega pelo item real da sidebar: o binding de data-route-link roda no
-            boot do shell, antes desta ilha existir, então href="#" não navegava
-            (só jogava a página ao topo). Mesmo padrão do SuporteScreen. */}
-        <button
-          type="button"
-          onClick={() => document.querySelector<HTMLElement>('.nav-item[data-route="campanhas"]')?.click()}
-          style={{
-            fontWeight: 600,
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "inherit",
-            cursor: "pointer",
-            textDecoration: "underline",
-            font: "inherit",
-          }}
-        >
-          Criar uma campanha de diagnóstico
-        </button>
-        .
-      </p>
-    </div>
-  );
-}
-
-/**
  * Diagnósticos do catálogo que a CRIVO cadastrou no Motor e APLICOU a esta
  * empresa (Metodologia → Aplicação). Cada um tem o seu link público /d/<slug>,
  * o mesmo que o Super Admin copia — uma fonte só, sem caminho paralelo. Link
@@ -393,7 +279,7 @@ function DiagnosticosAplicados() {
       <div className="card__head">
         <div>
           {/* Sem número: os blocos numerados são os passos da jornada validada
-              (1. autoavaliação · 2. escuta) e a numeração deles não se mexe. */}
+              (1. autoavaliação · 2. envio aos colaboradores · 3. escuta e observação). */}
           <h3>Diagnósticos aplicados pela CRIVO</h3>
           <span className="card__sub">
             Instrumentos do Motor CRIVO liberados para a sua empresa. Cada um tem um link anônimo
@@ -407,7 +293,7 @@ function DiagnosticosAplicados() {
         <p className="dash-state dash-state--error">Não foi possível carregar os diagnósticos aplicados.</p>
       ) : items.length === 0 ? (
         <p className="card__sub">
-          Nenhum diagnóstico do catálogo liberado até agora. A autoavaliação e a escuta acima seguem
+          Nenhum diagnóstico do catálogo liberado até agora. A autoavaliação e o envio aos colaboradores seguem
           disponíveis; novos instrumentos aparecem aqui assim que a CRIVO os aplicar à sua empresa.
         </p>
       ) : (
@@ -448,7 +334,7 @@ function RecordsBlock({ records, onChanged }: { records: EssentialRecordData[]; 
     <div className="card" style={{ marginBottom: 18 }}>
       <div className="card__head">
         <div>
-          <h3>4. Escuta &amp; observação</h3>
+          <h3>3. Escuta &amp; observação</h3>
           <span className="card__sub">Registros de escuta com empregados e observação da atividade.</span>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setAdding(true)}>Novo registro</button>
