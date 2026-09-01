@@ -26,14 +26,21 @@ function initialsOf(name: string): string {
 }
 /** Atualiza o chip do usuário no header com o usuário REAL do tenant logado —
  *  corrige o placeholder "Rafael Moreira" que vinha fixo no markup (multi-empresa). */
-function applyUserChip(name: string, role: string) {
+function applyUserChip(name: string, role: string, orgName?: string | null) {
   const chip = document.querySelector(".user-chip");
   if (!chip) return;
   const nameEl = chip.querySelector("strong");
   const roleEl = chip.querySelector("span");
   const avatar = chip.querySelector(".user-chip__avatar");
   if (nameEl && name) nameEl.textContent = name;
-  if (roleEl) roleEl.textContent = ROLE_LABELS[role as Role] ?? role;
+  const roleLabel = ROLE_LABELS[role as Role] ?? role;
+  // A EMPRESA vai para o TOPO, junto do papel. O mesmo e-mail pode ter conta em
+  // várias empresas e o login desempata pela SENHA (iam/auth.service.ts): quem
+  // digita a senha de outra empresa entra nela sem perceber, porque o único
+  // lugar que nomeava a empresa era o card no rodapé da sidebar — abaixo da
+  // dobra. O sintoma era o portal parecer que "trouxe dados antigos".
+  if (roleEl) roleEl.textContent = orgName ? `${roleLabel} · ${orgName}` : roleLabel;
+  if (orgName) (chip as HTMLElement).title = `Empresa: ${orgName} · Papel: ${roleLabel}`;
   if (avatar && name) avatar.textContent = initialsOf(name);
 }
 /** Card da empresa no rodapé da sidebar: o markup traz "Empresa Exemplo S.A."
@@ -377,7 +384,7 @@ export function Plataforma() {
               ? [{ method: diag.method, productName: diag.productName }]
               : [];
         // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
-        if (me) applyUserChip(me.name, me.role);
+        if (me) applyUserChip(me.name, me.role, org?.name ?? null);
         // Empresa real no card da sidebar (corrige "Empresa Exemplo S.A." fixo).
         applyOrgCard(org?.name ?? null, diag?.productName ?? null);
         applyModuleVisibility();
