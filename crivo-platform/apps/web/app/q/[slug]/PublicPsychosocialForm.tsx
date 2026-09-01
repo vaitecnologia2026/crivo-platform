@@ -42,6 +42,35 @@ function Brand() {
   );
 }
 
+/** Marca de "já respondi", gravada no navegador de quem respondeu.
+ *
+ *  NÃO é controle de identidade e não tenta ser: o link é ANÔNIMO por definição
+ *  (a resposta não guarda quem respondeu), então ninguém consegue saber se duas
+ *  respostas vieram da mesma pessoa. O que isto resolve é o caso real e comum —
+ *  recarregar a página, voltar pelo histórico ou clicar no link duas vezes —, que
+ *  hoje grava uma SEGUNDA resposta e infla o N do agregado (o piso de 5
+ *  respondentes que libera o resultado pressupõe 5 PESSOAS).
+ *
+ *  Por isso é AVISO e não bloqueio: em computador compartilhado (chão de fábrica,
+ *  recepção, tablet do RH) a próxima pessoa precisa mesmo responder ali. Quem
+ *  quiser burlar, burla — para valer de verdade existe o link por colaborador
+ *  (/r/<token>), que é de uso único e conferido no servidor. */
+const MARCA_RESPONDIDO = (slug: string) => `crivo:respondido:${slug}`;
+function jaRespondeuNesteDispositivo(slug: string): boolean {
+  try {
+    return !!window.localStorage.getItem(MARCA_RESPONDIDO(slug));
+  } catch {
+    return false; // modo privado/storage bloqueado: segue exatamente como antes
+  }
+}
+function marcarRespondidoNesteDispositivo(slug: string): void {
+  try {
+    window.localStorage.setItem(MARCA_RESPONDIDO(slug), new Date().toISOString());
+  } catch {
+    /* sem storage não há marca — o formulário continua funcionando */
+  }
+}
+
 /**
  * Formulário público do Diagnóstico Organizacional. Serve DOIS links:
  *  · /q/<slug>   — link aberto da empresa (padrão, sem props extras)
@@ -75,8 +104,11 @@ export function PublicPsychosocialForm({
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [result, setResult] = useState<PsychosocialResult | null>(null);
+  // Aviso (não bloqueio) de resposta repetida — ver MARCA_RESPONDIDO acima.
+  const [avisoRepeticao, setAvisoRepeticao] = useState(false);
 
   useEffect(() => {
+    setAvisoRepeticao(jaRespondeuNesteDispositivo(slug));
     carregar(slug)
       .then((d) => {
         setTenantName(d.tenantName);
@@ -99,6 +131,9 @@ export function PublicPsychosocialForm({
       });
       setResult(res.result);
       setSubmitState("done");
+      // Só marca depois de o servidor confirmar: falha de rede não pode fazer a
+      // pessoa achar que respondeu.
+      marcarRespondidoNesteDispositivo(slug);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setSubmitState("error");
@@ -164,6 +199,31 @@ export function PublicPsychosocialForm({
               guardado e os resultados só aparecem de forma agregada (a partir de 5 respostas).
             </p>
           </div>
+        </div>
+      </div>
+    );
+
+  // Aviso de resposta repetida. Vem DEPOIS do bloco de resultado de propósito:
+  // quem acabou de responder vê o próprio resultado, não o aviso.
+  if (avisoRepeticao)
+    return (
+      <div className={s.wrap}>
+        <div className={s.card}>
+          <Brand />
+          <span className={s.pill}>{rotulo}</span>
+          <h1 className={s.title}>Você já respondeu por este dispositivo.</h1>
+          <p className={s.sub}>
+            Se você só recarregou a página ou voltou pelo link, não precisa fazer nada — sua
+            resposta já foi registrada. Responder de novo cria uma <strong>segunda resposta</strong>{" "}
+            e altera a média da sua empresa.
+          </p>
+          <p className={s.note}>
+            Este computador é compartilhado e <strong>outra pessoa</strong> vai responder agora? Siga
+            adiante.
+          </p>
+          <button className={s.submit} type="button" onClick={() => setAvisoRepeticao(false)}>
+            Outra pessoa vai responder →
+          </button>
         </div>
       </div>
     );
