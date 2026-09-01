@@ -37,7 +37,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         </div>
         <div class="login__row">
           <label class="check"><input type="checkbox" checked /> Manter conectado</label>
-          <a href="https://wa.me/5511918531796?text=Ol%C3%A1!%20Esqueci%20minha%20senha%20de%20acesso%20ao%20CRIVO%20e%20preciso%20de%20ajuda%20para%20redefinir." target="_blank" rel="noopener" class="link-gold">Esqueci minha senha</a>
+          <a href="/nova-senha" class="link-gold">Esqueci minha senha</a>
         </div>
         <button type="submit" class="btn btn--gold btn--block">Entrar na plataforma →</button>
         <p class="login__error" id="loginError" role="alert" aria-live="assertive"></p>

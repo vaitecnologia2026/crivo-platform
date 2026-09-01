@@ -1009,6 +1009,40 @@ export function logout(): Promise<{ ok: true }> {
   return apiFetch<{ ok: true }>('/auth/logout', { method: 'POST' }, { redirectOn401: false });
 }
 
+// ── Recuperação de senha (público — a pessoa está deslogada) ──
+// redirectOn401:false em todas: aqui não existe sessão para expirar, e um
+// redirect jogaria o usuário de volta ao login no meio da redefinição.
+
+/** Passo 1 — pede o link por e-mail. A API responde igual existindo ou não a
+ *  conta (anti-enumeração), então a tela NÃO deve prometer que o e-mail existe. */
+export function forgotPassword(email: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(
+    '/auth/forgot-password',
+    { method: 'POST', body: JSON.stringify({ email }) },
+    { redirectOn401: false },
+  );
+}
+
+/** Passo 2 — de quem é a conta deste link (mostrado antes de digitar a senha). */
+export function verifyResetToken(
+  token: string,
+): Promise<{ email: string; name: string; company: string }> {
+  return apiFetch<{ email: string; name: string; company: string }>(
+    `/auth/reset-password/${encodeURIComponent(token)}`,
+    {},
+    { redirectOn401: false },
+  );
+}
+
+/** Passo 3 — grava a senha nova; o link morre e as sessões abertas caem. */
+export function resetPasswordWithToken(token: string, newPassword: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(
+    '/auth/reset-password',
+    { method: 'POST', body: JSON.stringify({ token, newPassword }) },
+    { redirectOn401: false },
+  );
+}
+
 /** Notificações & Travas operacionais (§12) — derivadas do plano de ação. */
 export function getOperationalAlerts(): Promise<OperationalAlertsResult> {
   return apiFetch<OperationalAlertsResult>('/alerts');

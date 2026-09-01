@@ -55,7 +55,9 @@ DECLARE
                          -- F4: ciclos formais de diagnóstico (snapshot p/ TPL-003).
                          'diagnostic_cycles',
                          -- Colaboradores: cadastro de funcionários por tenant (link único).
-                         'collaborators'];
+                         'collaborators',
+                         -- Recuperação de senha: token de uso único por usuário.
+                         'password_reset_tokens'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

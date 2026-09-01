@@ -4,6 +4,7 @@ import { AdminModule } from '../admin/admin.module';
 import { AuthController } from './auth.controller';
 import { MeController } from './me.controller';
 import { AuthService } from './auth.service';
+import { PasswordResetService } from './password-reset.service';
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionGuard } from './guards/permission.guard';
@@ -39,6 +40,7 @@ import { TenantRolesService } from './tenant-roles.service';
   controllers: [AuthController, MeController, TenantRolesController],
   providers: [
     AuthService,
+    PasswordResetService,
     AuthGuard,
     RolesGuard,
     PermissionGuard,

@@ -1195,6 +1195,7 @@ model Organization {
   diagnosticLinks     DiagnosticLink[]
   diagnosticResponses DiagnosticResponse[]
   collaborators       Collaborator[]
+  passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -1314,6 +1315,7 @@ model User {
   updatedAt       DateTime     @updatedAt
 
   memberships              TeamMember[]
+  passwordResetTokens      PasswordResetToken[]
   assessments              Assessment[]         @relation("LeaderAssessments")
   icdScores                IcdScore[]           @relation("LeaderScores")
   // Anexo ICD do Líder v1 — decisões registradas pelo líder (task #45).
@@ -2315,6 +2317,30 @@ model Collaborator {
   @@unique([tenantId, cpf])
   @@index([tenantId])
   @@map("collaborators")
+}
+
+/// Recuperação de senha do portal (auto-atendimento). O usuário pede pelo
+/// e-mail, recebe um link de USO ÚNICO e com validade curta, e define a senha
+/// nova ele mesmo. Guardamos só o HASH do token: quem lê o banco (ou um dump)
+/// não consegue redefinir a senha de ninguém.
+///
+/// O e-mail NÃO é único na plataforma (@@unique([tenantId, email])), então a
+/// mesma pessoa pode ter conta em mais de uma empresa — por isso o token é por
+/// USUÁRIO, e o e-mail de recuperação lista uma opção por empresa.
+model PasswordResetToken {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String       @db.Uuid
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String       @unique @map("token_hash") // sha256 do token entregue
+  expiresAt DateTime     @map("expires_at")
+  usedAt    DateTime?    @map("used_at") // uso único: preenchido, não vale mais
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map("password_reset_tokens")
 }
 
 enum MethodologyStatus {
