@@ -7,7 +7,12 @@ import { NotificationSettingsService } from '../notifications/notification-setti
 import type { SubmitIcdDto } from './dto';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
-import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
+import {
+  resolveActiveMethodology,
+  resolveInstrumentForTenant,
+  resolvePsychosocialInstrument,
+  usesPsychosocialEngine,
+} from '../admin/methodology.service';
 import type { SubmitPsychosocialDto } from '../psychosocial/dto';
 import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
@@ -157,7 +162,7 @@ export class IcdService {
     // ciclo (rastreabilidade/comparabilidade do score). Leitura owner (global).
     // rls-allow: methodologyVersion é config global (control-plane); a escrita do ciclo é forTenant().
     const activeMethodology = await this.prisma.admin.methodologyVersion.findFirst({
-      where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
+      where: { instrument: await resolvePsychosocialInstrument(this.prisma), status: 'ACTIVE' },
       select: { id: true },
     });
     return this.prisma.forTenant(tenantId, async (tx) => {
@@ -347,7 +352,7 @@ export class IcdService {
    *  caminho de hoje não muda em nada. */
   private async campaignQuestions(tenantId: string) {
     const instrument = await this.campaignInstrument(tenantId);
-    if (instrument === 'PSYCHOSOCIAL') return this.psychosocial.publicQuestions();
+    if (await usesPsychosocialEngine(this.prisma, instrument)) return this.psychosocial.publicQuestions();
     const active = await resolveActiveMethodology(this.prisma, instrument);
     if (!active) {
       throw new BadRequestException(
@@ -417,7 +422,7 @@ export class IcdService {
     // Mesmo par de destinos do link do colaborador: psicossocial grava em
     // psychosocial_responses; qualquer outro instrumento, em diagnostic_responses.
     // Os dois devolvem { ok, result }, então a página pública não muda.
-    return instrument === 'PSYCHOSOCIAL'
+    return (await usesPsychosocialEngine(this.prisma, instrument))
       ? this.psychosocial.submit(cycle.tenantId, payload)
       : this.diagnostics.submitForTenant(cycle.tenantId, instrument, payload);
   }

@@ -22,6 +22,7 @@ import {
   loadActiveMethodologyConfig,
   loadMethodologyConfigByVersion,
   resolveActiveMethodology,
+  resolvePsychosocialInstrument,
 } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { SubmitPsychosocialDto } from './dto';
@@ -82,7 +83,7 @@ export class PsychosocialService {
     // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
     // MET1: capturamos o versionId da metodologia que pontuou, para pinar a trilha
     // na resposta — republicar depois não re-pontua o que já foi respondido.
-    const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
+    const active = await resolveActiveMethodology(this.prisma, await resolvePsychosocialInstrument(this.prisma));
     let result: PsyResult;
     let methodologyVersionId: string | null = null;
     try {
@@ -143,7 +144,7 @@ export class PsychosocialService {
 
   /** Perguntas do questionário — da metodologia ATIVA (Fase 1C); fallback ao padrão. */
   async getQuestions() {
-    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    const cfg = await loadActiveMethodologyConfig(this.prisma, await resolvePsychosocialInstrument(this.prisma));
     return cfg
       ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
       : PSYCHOSOCIAL_QUESTIONS;
@@ -191,7 +192,7 @@ export class PsychosocialService {
    * a campanha /p/c/<slug> — uma fonte só, para os dois links não divergirem.
    */
   async publicQuestions() {
-    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    const cfg = await loadActiveMethodologyConfig(this.prisma, await resolvePsychosocialInstrument(this.prisma));
     return cfg
       ? cfg.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }))
       : PSYCHOSOCIAL_QUESTIONS;
@@ -227,13 +228,16 @@ export class PsychosocialService {
     // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
-    const cfg = await loadActiveMethodologyConfig(this.prisma, 'PSYCHOSOCIAL');
+    // O instrumento é o do método ORGANIZACIONAL (configurável no Motor): sem
+    // isto, a matriz continuaria lendo o slug legado e saindo vazia.
+    const instrumento = await resolvePsychosocialInstrument(this.prisma);
+    const cfg = await loadActiveMethodologyConfig(this.prisma, instrumento);
     // Severidade e hierarquia (escala × fator) vêm DIRETO da versão ativa, não do
     // MethodologyConfig: o motor de score não usa severidade, e manter o contrato
     // do cálculo intocado evita mexer em quem já pontua com ele.
     // rls-allow: methodology_* é catálogo GLOBAL (control-plane), não é dado do tenant.
     const activeVersion = await this.prisma.admin.methodologyVersion.findFirst({
-      where: { instrument: 'PSYCHOSOCIAL', status: 'ACTIVE' },
+      where: { instrument: instrumento, status: 'ACTIVE' },
       select: {
         dimensions: { select: { slug: true, severity: true, parentSlug: true } },
         factors: { select: { slug: true, label: true, severity: true, dimensionSlug: true }, orderBy: { order: 'asc' } },

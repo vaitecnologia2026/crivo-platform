@@ -16,6 +16,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RiskSuggestionsService, riskOriginLabel } from './risk-suggestions.service';
+import { resolvePsychosocialInstrument } from '../admin/methodology.service';
 
 const TENSION_LABEL: Record<DominantPattern, string> = {
   REATIVIDADE: 'Reatividade',
@@ -209,6 +210,9 @@ export class ActionPlansService {
         'As ações selecionadas já estão no plano ou não constam mais entre as sugestões do diagnóstico.',
       );
     }
+    // Proveniência da ação: o diagnóstico que produziu a matriz (o do método
+    // ORGANIZACIONAL), não mais o slug legado cravado no código.
+    const instrumentoDaMatriz = await resolvePsychosocialInstrument(this.prisma);
 
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
@@ -226,7 +230,7 @@ export class ActionPlansService {
             // perderiam (o item não tem campo de descrição).
             action: `${x.title} — ${x.etapas}`.slice(0, 600),
             origin: 'questionário',
-            sourceInstrumentSlug: 'PSYCHOSOCIAL',
+            sourceInstrumentSlug: instrumentoDaMatriz,
             dueDate,
             indicator: x.indicadores,
             // Retrato do cálculo que originou a ação. severity/probability (a

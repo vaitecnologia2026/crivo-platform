@@ -411,6 +411,30 @@ export async function resolveInstrumentForMethod(
 }
 
 /**
+ * O instrumento que o MOTOR PSICOSSOCIAL (NR-1) aplica: o do método
+ * ORGANIZACIONAL, configurável no Motor de Diagnósticos.
+ *
+ * Matriz 5×5, Perfil de grupo e Dossiê Técnico nasceram presos ao slug fixo
+ * `PSYCHOSOCIAL`. Quando esse instrumento built-in foi removido do catálogo
+ * (alt. 084), esse caminho passou a rodar com as perguntas embutidas, SEM
+ * fatores nem severidade — e a matriz saía vazia mesmo com o Organizacional
+ * cadastrado do zero pelo cliente. Aqui o motor passa a seguir o dado.
+ */
+export async function resolvePsychosocialInstrument(prisma: PrismaService): Promise<string> {
+  return (await resolveInstrumentForMethod(prisma, 'ORGANIZACIONAL')) ?? 'PSYCHOSOCIAL';
+}
+
+/**
+ * Este instrumento é aplicado pelo motor psicossocial (grava em
+ * `psychosocial_responses` e alimenta matriz/dossiê) ou pelo motor de
+ * diagnósticos (`diagnostic_responses`)? O slug legado sempre vale, para que
+ * respostas antigas e instalações sem vínculo configurado sigam funcionando.
+ */
+export async function usesPsychosocialEngine(prisma: PrismaService, slug: string): Promise<boolean> {
+  return slug === 'PSYCHOSOCIAL' || slug === (await resolvePsychosocialInstrument(prisma));
+}
+
+/**
  * Qual instrumento ESTA empresa aplica — resolvido pelo MÉTODO do produto
  * contratado (contrato ATIVO; na falta dele, o produto do tenant).
  *

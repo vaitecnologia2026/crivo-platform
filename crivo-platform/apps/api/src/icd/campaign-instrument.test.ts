@@ -13,13 +13,21 @@ import { BadRequestException } from '@nestjs/common';
  * que está em produção hoje — não muda em nada.
  */
 
-const { resolveInstrumentForTenant, resolveActiveMethodology } = vi.hoisted(() => ({
-  resolveInstrumentForTenant: vi.fn(),
-  resolveActiveMethodology: vi.fn(),
-}));
+const { resolveInstrumentForTenant, resolveActiveMethodology, resolvePsychosocialInstrument } = vi.hoisted(
+  () => ({
+    resolveInstrumentForTenant: vi.fn(),
+    resolveActiveMethodology: vi.fn(),
+    resolvePsychosocialInstrument: vi.fn(),
+  }),
+);
 vi.mock('../admin/methodology.service', () => ({
   resolveInstrumentForTenant,
   resolveActiveMethodology,
+  resolvePsychosocialInstrument,
+  // Implementacao real (e o predicado que decide a tabela de destino), so que
+  // apoiada no resolvedor mockado acima.
+  usesPsychosocialEngine: async (_p: unknown, slug: string) =>
+    slug === 'PSYCHOSOCIAL' || slug === (await resolvePsychosocialInstrument()),
 }));
 
 import { IcdService } from './icd.service';
@@ -68,6 +76,10 @@ function build(cycle: Partial<Record<string, unknown>> = {}) {
 beforeEach(() => {
   resolveInstrumentForTenant.mockReset();
   resolveActiveMethodology.mockReset();
+  resolvePsychosocialInstrument.mockReset();
+  // Sem instrumento ORGANIZACIONAL cadastrado, o motor psicossocial responde
+  // pelo slug legado — e o teste do caminho historico continua valendo.
+  resolvePsychosocialInstrument.mockResolvedValue('PSYCHOSOCIAL');
 });
 
 describe('campanha pública — instrumento pelo método contratado', () => {
@@ -81,6 +93,23 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     await service.submitPublicByCampaignSlug(SLUG, { answers: [{ questionId: 1, value: 3 }] } as never);
     expect(psychosocial.submit).toHaveBeenCalledOnce();
     // O caminho antigo NÃO pode passar pelo serviço de diagnósticos do catálogo.
+    expect(diagnostics.submitForTenant).not.toHaveBeenCalled();
+  });
+
+  it('Organizacional cadastrado no Motor: roteia para o motor psicossocial (matriz/dossie)', async () => {
+    // Cliente refez o NR-1 do zero: o instrumento tem outro slug, mas o metodo e
+    // ORGANIZACIONAL. Sem isto a resposta ia para diagnostic_responses e a Matriz
+    // de Risco (que le psychosocial_responses) ficava vazia.
+    resolvePsychosocialInstrument.mockResolvedValue('diagnostico-organizacional');
+    resolveInstrumentForTenant.mockResolvedValue('diagnostico-organizacional');
+    const { service, psychosocial, diagnostics } = build();
+
+    const info = await service.getPublicBySlug(SLUG);
+    expect(info.questions).toEqual(PERGUNTAS_NR1);
+    expect(psychosocial.publicQuestions).toHaveBeenCalledOnce();
+
+    await service.submitPublicByCampaignSlug(SLUG, { answers: [{ questionId: 1, value: 2 }] } as never);
+    expect(psychosocial.submit).toHaveBeenCalledOnce();
     expect(diagnostics.submitForTenant).not.toHaveBeenCalled();
   });
 

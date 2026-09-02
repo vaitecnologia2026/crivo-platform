@@ -40,7 +40,13 @@ function build(matrix: PsychosocialRiskMatrixRow[], aiEnabled = false) {
     forTenant: vi.fn(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
       fn({ actionItem: { findMany: vi.fn(async () => []) } }),
     ),
-    admin: { aiCustomPrompt: { findFirst: vi.fn(async () => null) } },
+    admin: {
+      aiCustomPrompt: { findFirst: vi.fn(async () => null) },
+      // O instrumento do motor psicossocial (metodo ORGANIZACIONAL) e quem
+      // resolve o prompt da IA e a proveniencia da acao. Sem cadastro, vale o
+      // slug legado — que e o cenario destes testes.
+      diagnosticInstrument: { findFirst: vi.fn(async () => null) },
+    },
   };
   const psychosocial = {
     results: vi.fn(async () => ({
@@ -151,7 +157,10 @@ describe('ActionPlansService.acceptRiskSuggestions', () => {
       },
       actionItemHistory: { create: vi.fn(async () => ({})) },
     };
-    const prisma = { forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)) };
+    const prisma = {
+      forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)),
+      admin: { diagnosticInstrument: { findFirst: vi.fn(async () => null) } },
+    };
     const riskSuggestions = {
       list: vi.fn(async () => ({
         origin: 'biblioteca' as const,

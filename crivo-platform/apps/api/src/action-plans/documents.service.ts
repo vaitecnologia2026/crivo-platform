@@ -15,7 +15,7 @@ import {
   fillReportPlaceholders,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { resolveActiveMethodology } from '../admin/methodology.service';
+import { resolveActiveMethodology, resolvePsychosocialInstrument } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
@@ -964,7 +964,7 @@ export class DocumentsService {
    */
   private async psychosocialSummary(tenantId: string, range?: { from: Date; to: Date }) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
-    const active = await resolveActiveMethodology(this.prisma, 'PSYCHOSOCIAL');
+    const active = await resolveActiveMethodology(this.prisma, await resolvePsychosocialInstrument(this.prisma));
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = (active?.config.bands ?? []) as BandLike[];
     return this.prisma.forTenant(tenantId, async (tx) => {
@@ -1056,7 +1056,7 @@ export class DocumentsService {
     const psy = await this.psychosocialSummary(tenantId, { from, to });
     return {
       method: method ?? null,
-      methodologyVersion: await this.activeVersionLabel('PSYCHOSOCIAL'),
+      methodologyVersion: await this.activeVersionLabel(await resolvePsychosocialInstrument(this.prisma)),
       snapshot: {
         planTitle: plan?.title ?? null,
         planValidatedAt: plan?.validatedAt ? new Date(plan.validatedAt).toISOString() : null,
@@ -1326,9 +1326,9 @@ export class DocumentsService {
         { prisma: this.prisma, aiSettings: this.aiSettings },
         tenantId,
         planMatrix,
-        // A matriz veio de psychosocial.results, que lê o instrumento
-        // PSYCHOSOCIAL — é por ele que o prompt personalizado é resolvido.
-        'PSYCHOSOCIAL',
+        // A matriz veio de psychosocial.results, que lê o instrumento do método
+        // ORGANIZACIONAL — é por ele que o prompt personalizado é resolvido.
+        await resolvePsychosocialInstrument(this.prisma),
       );
       const originNote =
         origin === 'IA'
@@ -1455,7 +1455,7 @@ export class DocumentsService {
           label: 'Fontes utilizadas',
           value: 'Questionário psicossocial CRIVO; Matriz técnica do diagnóstico; Plano de Evolução; Motor de Evidências',
         },
-        { label: 'Versão metodológica', value: await this.activeVersionLabel('PSYCHOSOCIAL') },
+        { label: 'Versão metodológica', value: await this.activeVersionLabel(await resolvePsychosocialInstrument(this.prisma)) },
         {
           label: 'Regra de confidencialidade',
           value: `Recortes com menos de ${psy.minRespondents} respondentes são omitidos`,

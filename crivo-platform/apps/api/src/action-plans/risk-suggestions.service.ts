@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
+import { resolvePsychosocialInstrument } from '../admin/methodology.service';
 
 /**
  * Ações SUGERIDAS a partir do cálculo da matriz 5×5.
@@ -83,7 +84,7 @@ export class RiskSuggestionsService {
       required,
       // Mesmo instrumento que produziu a matriz (psychosocial.results) — é por
       // ele que o prompt personalizado da IA da Plataforma é resolvido.
-      'PSYCHOSOCIAL',
+      await resolvePsychosocialInstrument(this.prisma),
     );
     const jaNoPlano = await this.acceptedKeys(tenantId, planId);
 

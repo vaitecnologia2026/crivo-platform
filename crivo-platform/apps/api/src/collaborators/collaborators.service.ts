@@ -10,7 +10,11 @@ import { isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
-import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
+import {
+  resolveActiveMethodology,
+  resolveInstrumentForTenant,
+  usesPsychosocialEngine,
+} from '../admin/methodology.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { whatsappConfigured, sendWhatsapp } from '../common/whatsapp';
 import { CreateCollaboratorDto, SubmitByTokenDto, UpdateCollaboratorDto } from './dto';
@@ -269,7 +273,7 @@ export class CollaboratorsService {
   /** Perguntas do diagnóstico que a empresa contratou (Essencial ou NR-1). */
   private async questionsFor(tenantId: string) {
     const instrument = await this.instrumentFor(tenantId);
-    if (instrument === 'PSYCHOSOCIAL') return this.psychosocial.publicQuestions();
+    if (await usesPsychosocialEngine(this.prisma, instrument)) return this.psychosocial.publicQuestions();
     const active = await resolveActiveMethodology(this.prisma, instrument);
     if (!active) throw new NotFoundException('Este diagnóstico ainda não está disponível.');
     return active.config.questions.map((q, i) => ({ id: i + 1, dimension: q.dimensionSlug, text: q.text }));
@@ -294,7 +298,7 @@ export class CollaboratorsService {
     // Cada método responde o SEU diagnóstico: Essencial → Diagnóstico Executivo
     // (diagnostic_responses); Organizacional → psicossocial. Nos dois casos a
     // resposta é anônima e a participação é marcada na mesma transação.
-    return instrument === 'PSYCHOSOCIAL'
+    return (await usesPsychosocialEngine(this.prisma, instrument))
       ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao)
       : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao);
   }
