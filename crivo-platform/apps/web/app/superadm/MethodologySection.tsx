@@ -994,6 +994,16 @@ function ApplicationPanel({ instrumentSlug }: { instrumentSlug: string }) {
   );
 }
 
+// Limites do DTO da API (methodology.dto.ts) espelhados no formulário: sem eles
+// dava para colar um texto de 500 caracteres no nome de um fator e só descobrir
+// o problema no "Salvar", em um 400 que a tela não sabia explicar.
+const LIM = { label: 160, texto: 600, agravos: 600, faixaCodigo: 40, faixaRotulo: 80 } as const;
+
+/** Faixa é índice 0–100 (DTO: @Min(0) @Max(100)); trava o valor já na digitação. */
+const naFaixa100 = (v: string) => Math.min(100, Math.max(0, Number(v) || 0));
+/** Peso não pode ser negativo (DTO: @Min(0)). */
+const pesoValido = (v: string) => Math.max(0, Number(v) || 0);
+
 const AGG_SHORT: Record<ScoreAggregation, string> = {
   MEDIA_PONDERADA: "média ponderada",
   MEDIA_SIMPLES: "média simples",
@@ -1097,8 +1107,8 @@ function DraftEditor({
       {qsOf(leafSlug).map(({ q, i }) => (
         <div key={i}>
         <div className="meth-row">
-          <input className="meth-in" value={q.text} placeholder="Texto da pergunta" onChange={(e) => setQ(i, { text: e.target.value })} />
-          <input className="meth-in meth-in--num" type="number" step="0.1" value={q.weight} title="peso" disabled={q.scored === false} onChange={(e) => setQ(i, { weight: Number(e.target.value) })} />
+          <input className="meth-in" value={q.text} maxLength={LIM.texto} placeholder="Texto da pergunta" onChange={(e) => setQ(i, { text: e.target.value })} />
+          <input className="meth-in meth-in--num" type="number" step="0.1" min="0" value={q.weight} title="peso" disabled={q.scored === false} onChange={(e) => setQ(i, { weight: pesoValido(e.target.value) })} />
           <label className="meth-inv" title="Obrigatória (opcional não trava o respondente)">
             <input type="checkbox" checked={q.required ?? true} onChange={(e) => setQ(i, { required: e.target.checked })} /> obr
           </label>
@@ -1282,8 +1292,8 @@ function DraftEditor({
             return (
               <div className="meth-dim" key={d.slug}>
                 <div className="meth-dim__head">
-                  <input className="meth-in" value={d.label} placeholder="Dimensão (ex.: Liderança)" onChange={(e) => setDim(d.slug, { label: e.target.value })} />
-                  <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={d.weight} onChange={(e) => setDim(d.slug, { weight: Number(e.target.value) })} /></label>
+                  <input className="meth-in" value={d.label} maxLength={LIM.label} placeholder="Dimensão (ex.: Liderança)" onChange={(e) => setDim(d.slug, { label: e.target.value })} />
+                  <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" min="0" value={d.weight} onChange={(e) => setDim(d.slug, { weight: pesoValido(e.target.value) })} /></label>
                   {/* A severidade saiu daqui: ela pertence ao FATOR (NR-1 §8) e é
                       editada na aba "Fatores e Riscos". O valor das versões antigas
                       continua gravado e ainda alimenta a matriz como fallback — só
@@ -1295,8 +1305,8 @@ function DraftEditor({
                   subs.map((sub) => (
                     <div className="meth-sub" key={sub.slug}>
                       <div className="meth-sub__head">
-                        <input className="meth-in" value={sub.label} placeholder="Subdimensão (ex.: Clareza de Rotina)" onChange={(e) => setDim(sub.slug, { label: e.target.value })} />
-                        <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" value={sub.weight} onChange={(e) => setDim(sub.slug, { weight: Number(e.target.value) })} /></label>
+                        <input className="meth-in" value={sub.label} maxLength={LIM.label} placeholder="Subdimensão (ex.: Clareza de Rotina)" onChange={(e) => setDim(sub.slug, { label: e.target.value })} />
+                        <label className="meth-w">peso <input className="meth-in meth-in--num" type="number" step="0.1" min="0" value={sub.weight} onChange={(e) => setDim(sub.slug, { weight: pesoValido(e.target.value) })} /></label>
                         <button className="meth-del" title="Remover subdimensão" onClick={() => removeDim(sub.slug)}>✕</button>
                       </div>
                       <LeafQuestions leafSlug={sub.slug} aggregation={sub.aggregation} onAgg={(a) => setDim(sub.slug, { aggregation: a })} />
@@ -1323,10 +1333,10 @@ function DraftEditor({
           <div className="meth-rows">
             {bands.map((b, i) => (
               <div className="meth-row" key={i}>
-                <input className="meth-in meth-in--slug" value={b.code} placeholder="código" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))} />
-                <input className="meth-in" value={b.label} placeholder="Rótulo" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.min} title="mín" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, min: Number(e.target.value) } : x)))} />
-                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.max} title="máx" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, max: Number(e.target.value) } : x)))} />
+                <input className="meth-in meth-in--slug" value={b.code} maxLength={LIM.faixaCodigo} placeholder="código" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))} />
+                <input className="meth-in" value={b.label} maxLength={LIM.faixaRotulo} placeholder="Rótulo" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.min} title="mín (0 a 100)" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, min: naFaixa100(e.target.value) } : x)))} />
+                <input className="meth-in meth-in--num" type="number" min="0" max="100" value={b.max} title="máx (0 a 100)" onChange={(e) => setBands(bands.map((x, j) => (j === i ? { ...x, max: naFaixa100(e.target.value) } : x)))} />
                 <input
                   type="color"
                   title="Cor da faixa (barra do relatório)"
@@ -1358,6 +1368,8 @@ function DraftEditor({
                   <input
                     className="meth-in"
                     value={f.label}
+                    maxLength={LIM.label}
+                    title={`Nome curto do fator (até ${LIM.label} caracteres). A descrição longa vai em "Possíveis agravos".`}
                     placeholder="Fator (ex.: Sobrecarga de trabalho)"
                     onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
                   />
@@ -1407,6 +1419,7 @@ function DraftEditor({
                 <textarea
                   className="meth-in"
                   rows={2}
+                  maxLength={LIM.agravos}
                   style={{ width: "100%", marginTop: 8, resize: "vertical" }}
                   value={f.consequences ?? ""}
                   placeholder="Possíveis agravos (ex.: fadiga, estresse relacionado ao trabalho, afastamento) — justificam a severidade e saem no Inventário do Dossiê."

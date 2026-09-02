@@ -55,6 +55,7 @@ import type {
   PlatformLeadOriginOption,
   PlatformLeadOriginUpsertRequest,
 } from "@crivo/types";
+import { mensagemDeErroApi } from "@crivo/types";
 
 import { ApiError, currentScreen, newRequestId, reportClientError } from "./error-report";
 
@@ -136,7 +137,11 @@ async function adminFetch<T>(
       throw new ApiError("Arquivo muito grande para o servidor (máx. 8 MB).", 413, rid);
     }
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    const msg = typeof err.message === "string" && err.message.trim() ? err.message : `Erro na requisição (HTTP ${res.status})`;
+    // O ValidationPipe devolve `message` como LISTA de frases em inglês. Antes
+    // só o formato texto era aceito, então TODO 400 de validação chegava à tela
+    // como "Erro na requisição (HTTP 400)" — o operador não sabia qual campo
+    // tinha sido recusado (ex.: nome de fator acima de 160 caracteres no Motor).
+    const msg = mensagemDeErroApi(err, res.status);
     // O servidor já registrou o erro; o código devolvido aqui é o que liga a
     // reclamação do operador à linha exata do log.
     throw new ApiError(msg, res.status, rid);

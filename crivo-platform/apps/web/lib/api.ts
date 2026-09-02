@@ -61,6 +61,7 @@ import type {
   OpenCycleRequest,
   RiskActionSuggestions,
 } from '@crivo/types';
+import { mensagemDeErroApi } from '@crivo/types';
 
 import { ApiError, currentScreen, newRequestId, reportClientError } from './error-report';
 export { ApiError } from './error-report';
@@ -139,8 +140,10 @@ export async function apiFetch<T>(
     const err = await res.json().catch(() => ({ message: res.statusText }));
     // O servidor já registrou este erro (filtro global). O que faltava era
     // trazer o código de volta para a tela — é ele que acha a linha lá.
+    // `message` do ValidationPipe é uma LISTA em inglês: sem traduzir, a tela
+    // mostrava "campo.0.label must be..." (ou um array cru) para o cliente.
     throw new ApiError(
-      err.message ?? 'Erro na requisição',
+      mensagemDeErroApi(err, res.status),
       res.status,
       res.headers.get('x-request-id') ?? reqId,
     );

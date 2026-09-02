@@ -3877,3 +3877,116 @@ export function formatCpf(input: string | null | undefined): string {
   if (cpf.length !== 11) return cpf;
   return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
 }
+
+// ── Mensagem humana para erro da API ──────────────────────────────────────────
+//
+// O ValidationPipe do NestJS devolve `message` como LISTA de frases em inglês no
+// formato "<coleção>.<índice>.<campo> must be ...". As telas só sabiam ler
+// `message` quando era texto, então TODO 400 de validação aparecia como
+// "Erro na requisição (HTTP 400)" e o operador não tinha como saber qual campo
+// foi recusado (caso real: nome de fator com mais de 160 caracteres no Motor).
+// Aqui a lista vira uma frase em português que aponta o item exato.
+
+/** Nome humano da coleção (o "3º fator", a "2ª faixa"…). */
+const ERRO_COLECAO: Record<string, { nome: string; fem?: boolean }> = {
+  dimensions: { nome: 'dimensão', fem: true },
+  questions: { nome: 'pergunta', fem: true },
+  bands: { nome: 'faixa', fem: true },
+  factors: { nome: 'fator' },
+  scaleLabels: { nome: 'rótulo da escala' },
+  sections: { nome: 'seção', fem: true },
+  rows: { nome: 'linha', fem: true },
+  items: { nome: 'item' },
+  files: { nome: 'arquivo' },
+};
+
+/** Nome humano do campo, já com artigo (entra depois dos dois-pontos). */
+const ERRO_CAMPO: Record<string, string> = {
+  label: 'o nome',
+  name: 'o nome',
+  text: 'o texto',
+  body: 'o texto',
+  code: 'o código',
+  slug: 'o identificador',
+  min: 'o valor mínimo',
+  max: 'o valor máximo',
+  severity: 'a severidade',
+  weight: 'o peso',
+  color: 'a cor',
+  consequences: 'os possíveis agravos',
+  dimensionSlug: 'a dimensão vinculada',
+  factorSlugs: 'os fatores vinculados',
+  description: 'a descrição',
+  notes: 'as observações',
+  email: 'o e-mail',
+  cpf: 'o CPF',
+  phone: 'o telefone',
+  sector: 'o setor',
+  heading: 'o título',
+  instrumentSlug: 'o diagnóstico vinculado',
+};
+
+/** Traduz a regra de validação; null quando a frase não é reconhecida. */
+function traduzRegraValidacao(frase: string): string | null {
+  const regras: [RegExp, (m: RegExpMatchArray) => string][] = [
+    [/must be shorter than or equal to (\d+) characters/, (m) => `passa do limite de ${m[1]} caracteres`],
+    [/must be longer than or equal to (\d+) characters/, (m) => `precisa ter pelo menos ${m[1]} caracteres`],
+    [/must not be greater than ([\d.]+)/, (m) => `não pode ser maior que ${m[1]}`],
+    [/must not be less than ([\d.]+)/, (m) => `não pode ser menor que ${m[1]}`],
+    [/should not be empty/, () => 'não pode ficar em branco'],
+    [/must be an integer number/, () => 'precisa ser um número inteiro'],
+    [/must be a number/, () => 'precisa ser um número'],
+    [/must be a string/, () => 'precisa ser um texto'],
+    [/must be a boolean value/, () => 'precisa ser sim ou não'],
+    [/must be an email/, () => 'precisa ser um e-mail válido'],
+    [/must be one of the following values: (.+)/, (m) => `precisa ser um destes: ${m[1]}`],
+    [/must be a valid enum value/, () => 'está com um valor inválido'],
+    [/must be an array/, () => 'precisa ser uma lista'],
+  ];
+  for (const [re, texto] of regras) {
+    const m = frase.match(re);
+    if (m) return texto(m);
+  }
+  return null;
+}
+
+/** Uma frase do ValidationPipe → português apontando o item exato. */
+function traduzErroValidacao(frase: string): string {
+  const semExistir = frase.match(/property (\S+) should not exist/);
+  if (semExistir) return `o campo "${semExistir[1]}" não é aceito por esta versão da plataforma`;
+
+  const partes = frase.split(' ')[0].split('.');
+  const regraBruta = frase.slice(frase.split(' ')[0].length + 1);
+  const regra = traduzRegraValidacao(regraBruta) ?? regraBruta;
+  const campo = partes[partes.length - 1];
+  const rotuloCampo = ERRO_CAMPO[campo] ?? `o campo "${campo}"`;
+
+  // "factors.2.label ..." → "3º fator: o nome passa do limite de 160 caracteres"
+  const idx = partes.findIndex((p) => /^\d+$/.test(p));
+  if (idx > 0) {
+    const col = ERRO_COLECAO[partes[0]];
+    const posicao = `${Number(partes[idx]) + 1}${col?.fem ? 'ª' : 'º'}`;
+    const nome = col?.nome ?? partes[0];
+    return `${posicao} ${nome}: ${rotuloCampo} ${regra}`;
+  }
+  const texto = `${rotuloCampo} ${regra}`;
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * Corpo de erro da API → frase para a tela. Mostra no máximo 3 problemas
+ * (o resto vira contagem) para caber no alerta sem virar parede de texto.
+ */
+export function mensagemDeErroApi(corpo: unknown, status: number): string {
+  const generico = `Erro na requisição (HTTP ${status})`;
+  const msg = (corpo as { message?: unknown } | null | undefined)?.message;
+  if (typeof msg === 'string' && msg.trim()) return msg.trim();
+  if (Array.isArray(msg)) {
+    const frases = msg.filter((m): m is string => typeof m === 'string' && m.trim().length > 0);
+    if (frases.length === 0) return generico;
+    const mostrados = frases.slice(0, 3).map(traduzErroValidacao);
+    const resto = frases.length - mostrados.length;
+    return mostrados.join(' · ') + (resto > 0 ? ` (e mais ${resto} problema${resto > 1 ? 's' : ''})` : '');
+  }
+  return generico;
+}
