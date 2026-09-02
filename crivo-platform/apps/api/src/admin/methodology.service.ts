@@ -203,11 +203,20 @@ export class MethodologyService {
       _max: { version: true },
     });
     const nextVersion = (max._max.version ?? 0) + 1;
+    // Nome da versão no padrão "V1 - Diagnóstico Organizacional": o rótulo
+    // antigo ("Rascunho v1") continuava no histórico DEPOIS de publicada, então
+    // uma versão no ar aparecia listada como rascunho. O admin pode reescrever o
+    // rótulo no editor; este é só o padrão de quem nasce.
+    // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
+    const inst = await this.prisma.admin.diagnosticInstrument.findUnique({
+      where: { slug: instrument },
+      select: { name: true },
+    });
     const draft = await this.prisma.admin.methodologyVersion.create({
       data: {
         instrument,
         version: nextVersion,
-        label: `Rascunho v${nextVersion}`,
+        label: `V${nextVersion} - ${inst?.name ?? instrument}`,
         status: 'DRAFT',
         createdBy: actor.email,
         scaleLabels: active?.scaleLabels ?? seedScale,

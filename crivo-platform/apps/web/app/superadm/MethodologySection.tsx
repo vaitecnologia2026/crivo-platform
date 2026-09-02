@@ -36,6 +36,15 @@ const BUILTIN_TABS: InstrumentSummary[] = [
   { id: "b2", slug: "PSYCHOSOCIAL", name: "Diagnóstico Organizacional", bandKind: "RISK", aggregation: "MEDIA_PONDERADA", description: null, active: true, builtIn: true },
 ];
 const bandWordOf = (k: "MATURITY" | "RISK") => (k === "RISK" ? "Faixas de risco" : "Faixas de maturidade");
+
+/**
+ * Nome da versão como aparece no histórico. O padrão novo já embute a versão
+ * ("V1 - Diagnóstico Organizacional"), então prefixar de novo daria
+ * "v1 — V1 - …". Rótulos antigos ou escritos à mão pelo admin continuam
+ * ganhando o prefixo, para o número da versão não sumir da tela.
+ */
+const versionTitle = (v: { version: number; label: string }) =>
+  /^v\s*\d+\s*[-–—]/i.test(v.label.trim()) ? v.label.trim() : `v${v.version} — ${v.label}`;
 const AGG_LABEL: Record<ScoreAggregation, string> = {
   MEDIA_PONDERADA: "média ponderada",
   MEDIA_SIMPLES: "média simples",
@@ -314,9 +323,7 @@ export function MethodologySection() {
         <div className="modal-backdrop" onClick={() => setViewVersion(null)}>
           <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
             <header className="modal__head">
-              <h2>
-                v{viewVersion.version} — {viewVersion.label}
-              </h2>
+              <h2>{versionTitle(viewVersion)}</h2>
               <button className="icon-btn" onClick={() => setViewVersion(null)} title="Fechar">✕</button>
             </header>
             <div className="modal__body">
@@ -369,7 +376,7 @@ export function MethodologySection() {
             {versions.map((v) => (
               <li key={v.id} className="ct-item">
                 <div>
-                  <strong>v{v.version}</strong> — {v.label}
+                  <strong>{versionTitle(v)}</strong>
                   <div className="ct-item__meta">
                     {v._count.dimensions} dim · {v._count.questions} perg · {v._count.bands} faixas
                     {v.publishedAt ? ` · publicada ${new Date(v.publishedAt).toLocaleDateString("pt-BR")}` : ""}
@@ -637,7 +644,7 @@ function InstrumentDemo({
 
         <div className="modal__body">
           <p className="cnae-muted" style={{ marginTop: 0 }}>
-            Simulação da versão ativa <strong>v{version.version} · {version.label}</strong> como o respondente vê.
+            Simulação da versão ativa <strong>{versionTitle(version)}</strong> como o respondente vê.
             Nada é gravado — a pontuação é ilustrativa, calculada pela régua publicada.
           </p>
 
