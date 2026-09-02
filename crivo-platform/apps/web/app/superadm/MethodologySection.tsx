@@ -1124,27 +1124,26 @@ function DraftEditor({
         {/* NR-1 §9 — a pergunta alimenta um ou mais FATORES. A dimensão continua
             pontuando (0–100); os fatores medem RISCO (probabilidade da matriz). */}
         {factors.length > 0 && (
-          <div className="meth-cond" style={{ flexWrap: "wrap", gap: 8 }}>
-            <span className="cnae-muted" style={{ fontSize: 12 }}>Alimenta os fatores:</span>
-            {factors.map((f) => {
-              const on = (q.factorSlugs ?? []).includes(f.slug);
-              return (
-                <label key={f.slug} className="meth-inv" title={`Severidade ${f.severity}`}>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={(e) =>
-                      setQ(i, {
-                        factorSlugs: e.target.checked
-                          ? [...(q.factorSlugs ?? []), f.slug]
-                          : (q.factorSlugs ?? []).filter((x) => x !== f.slug),
-                      })
-                    }
-                  />{" "}
-                  {f.label || f.slug}
-                </label>
-              );
-            })}
+          // Era uma lista de checkboxes com TODOS os fatores repetida embaixo de
+          // CADA pergunta — com 41 fatores a tela virava um paredão e marcar o
+          // errado era fácil. Dropdown com busca: mostra só o que está escolhido.
+          <div className="meth-cond" style={{ alignItems: "flex-start", gap: 8 }}>
+            <span className="cnae-muted" style={{ fontSize: 12, paddingTop: 9, whiteSpace: "nowrap" }}>
+              Alimenta os fatores:
+            </span>
+            <div style={{ flex: 1, minWidth: 220, maxWidth: 560 }}>
+              <SearchSelect
+                multiple
+                placeholder="— nenhum (pergunta fora da matriz de risco) —"
+                emptyLabel="Nenhum fator encontrado."
+                options={factors.map((f) => ({
+                  value: f.slug,
+                  label: `${f.label || f.slug} · S${f.severity}`,
+                }))}
+                value={q.factorSlugs ?? []}
+                onChange={(v) => setQ(i, { factorSlugs: v })}
+              />
+            </div>
           </div>
         )}
         {/* Motor v3.1 — exibição CONDICIONAL (`show_when`). Não disparado = item
