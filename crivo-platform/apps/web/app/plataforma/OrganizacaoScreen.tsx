@@ -9,19 +9,17 @@ import {
   getUserSeats,
   getMyModules,
 } from "@/lib/api";
-import type { OrganizationData, TenantBrandingData, UserSeats } from "@crivo/types";
+import type { OrganizationData, Plan, TenantBrandingData, UserSeats } from "@crivo/types";
+// Rótulos dos planos vêm do catálogo compartilhado: cópias locais desta tela
+// e do onboarding tinham "PRO"/"PROFESSIONAL", que não existem no sistema —
+// um cliente ADVISORY via "ADVISORY" em caixa alta.
+import { PLAN_LABELS } from "@crivo/types";
 import { IconCheck } from "./Icons";
 
 /**
  * Organização (autoatendimento do admin da empresa): dados cadastrais, identidade
  * visual (white-label) e visão do plano/uso. Gateado por branding:edit (nav).
  */
-const PLAN_LABEL: Record<string, string> = {
-  BASE: "Base",
-  PRO: "Professional",
-  ENTERPRISE: "Enterprise",
-};
-
 export function OrganizacaoScreen() {
   const [org, setOrg] = useState<OrganizationData | null>(null);
   const [branding, setBranding] = useState<TenantBrandingData | null>(null);
@@ -59,7 +57,7 @@ export function OrganizacaoScreen() {
         <div className="kpi">
           <span className="kpi__label">Plano</span>
           <strong className="kpi__value" style={{ fontSize: 26, color: "var(--gold-deep)" }}>
-            {PLAN_LABEL[org.plan] ?? org.plan}
+            {PLAN_LABELS[org.plan as Plan] ?? org.plan}
           </strong>
         </div>
         <div className="kpi">

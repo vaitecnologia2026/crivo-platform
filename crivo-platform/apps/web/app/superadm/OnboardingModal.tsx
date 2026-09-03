@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PlatformLeadSummary, TenantSummary } from "@crivo/types";
+import type { Plan, PlatformLeadSummary, TenantSummary } from "@crivo/types";
+import { PLAN_LABELS } from "@crivo/types";
 import {
   createCharge,
   evaluateFromCnpj,
@@ -22,12 +23,6 @@ const RISK_LABEL: Record<CnaeRiskLevel, string> = {
   MEDIO: "Médio",
   MEDIO_ALTO: "Médio/Alto",
   ALTO: "Alto",
-};
-
-const PLAN_LABEL: Record<string, string> = {
-  STARTER: "Starter",
-  PROFESSIONAL: "Professional",
-  ENTERPRISE: "Enterprise",
 };
 
 function parseHeadcount(range?: string | null): number | undefined {
@@ -153,7 +148,7 @@ export function OnboardingModal({ tenant, onClose }: { tenant: TenantSummary; on
         <div className="modal__body">
           {/* Status da conta */}
           <div className="cnae-card__hero" style={{ marginBottom: 14 }}>
-            <span className="cnae-method cnae-method--organizacional">Plano {PLAN_LABEL[tenant.plan] ?? tenant.plan}</span>
+            <span className="cnae-method cnae-method--organizacional">Plano {PLAN_LABELS[tenant.plan as Plan] ?? tenant.plan}</span>
             <span className={`cnae-badge cnae-badge--${tenant.status === "ACTIVE" ? "baixo" : "alto"}`}>
               {tenant.status === "ACTIVE" ? "Ativa" : tenant.status}
             </span>
