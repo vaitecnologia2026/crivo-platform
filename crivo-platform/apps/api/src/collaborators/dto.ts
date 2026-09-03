@@ -10,7 +10,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PSYCHOSOCIAL_QUESTIONS } from '@crivo/types';
 
 /** Campos comuns do cadastro (CPF é validado no service com isValidCpf). */
 export class CreateCollaboratorDto {
@@ -80,6 +79,8 @@ export class SubmitByTokenDto {
   @IsString() @MaxLength(20)
   cpf!: string;
 
-  @IsArray() @ArrayMaxSize(PSYCHOSOCIAL_QUESTIONS.length) @ValidateNested({ each: true }) @Type(() => CollaboratorAnswerDto)
+  // Teto de sanidade — o tamanho real do questionário vem do Motor (ver a nota
+  // em psychosocial/dto.ts: amarrar ao embutido barrava o diagnóstico de 40).
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => CollaboratorAnswerDto)
   answers!: CollaboratorAnswerDto[];
 }

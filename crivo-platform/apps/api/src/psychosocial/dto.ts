@@ -10,7 +10,6 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PSYCHOSOCIAL_QUESTIONS } from '@crivo/types';
 
 class PsychosocialAnswerDto {
   @IsInt()
@@ -29,7 +28,11 @@ export class SubmitPsychosocialDto {
   sector?: string;
 
   @IsArray()
-  @ArrayMaxSize(PSYCHOSOCIAL_QUESTIONS.length)
+  // Teto de sanidade, NÃO o tamanho do questionário: o número de perguntas vem
+  // da metodologia publicada no Motor. Com o limite amarrado ao questionário
+  // EMBUTIDO (12), o Organizacional de 40 perguntas era recusado com 400 —
+  // ninguém conseguia enviar resposta. Mesmo teto do motor de diagnósticos.
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => PsychosocialAnswerDto)
   answers!: PsychosocialAnswerDto[];
