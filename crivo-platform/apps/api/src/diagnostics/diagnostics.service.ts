@@ -161,6 +161,8 @@ export class DiagnosticsService {
     instrumentSlug: string,
     dto: SubmitDiagnosticDto,
     beforeCreate?: (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => Promise<void>,
+    /** Campanha (ciclo) de onde veio a resposta. null = coleta avulsa. */
+    cycleId?: string | null,
   ) {
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     if (!active) throw new NotFoundException('Este diagnóstico ainda não está disponível.');
@@ -204,6 +206,7 @@ export class DiagnosticsService {
           level: result.level,
           byDimension: result.byDimension as unknown as object,
           methodologyVersionId: active.versionId,
+          cycleId: cycleId ?? null,
         },
       });
       return { ok: true as const, result };

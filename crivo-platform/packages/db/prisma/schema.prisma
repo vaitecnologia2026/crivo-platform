@@ -981,17 +981,17 @@ model AiPrompt {
 // único identificador que o catálogo do front expõe e o único que existe para
 // adicionais ainda não configurados no banco. Control plane (owner-only).
 model AiCustomPrompt {
-  id             String  @id @default(uuid()) @db.Uuid
-  name           String
-  body           String  @db.Text
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  body            String   @db.Text
   // Um prompt pode servir a VÁRIOS diagnósticos (ex.: a mesma política para o
   // Essencial e o Organizacional). `instrumentSlug` continua existindo como
   // espelho do primeiro item — nenhuma linha antiga precisa ser reescrita.
   instrumentSlug  String?  @map("instrument_slug") // PRE_DIAGNOSTIC | PSYCHOSOCIAL | slug custom
   instrumentSlugs String[] @default([]) @map("instrument_slugs")
   addonIds        Json     @default("[]") @map("addon_ids") // moduleCode[] dos adicionais
-  active         Boolean @default(true)
-  updatedBy      String? @map("updated_by")
+  active          Boolean  @default(true)
+  updatedBy       String?  @map("updated_by")
 
   files AiCustomPromptFile[]
 
@@ -1010,7 +1010,7 @@ model AiCustomPromptFile {
   filename      String
   mimeType      String         @map("mime_type")
   sizeBytes     Int            @map("size_bytes")
-  extractedText String         @db.Text @map("extracted_text")
+  extractedText String         @map("extracted_text") @db.Text
   createdAt     DateTime       @default(now()) @map("created_at")
 
   @@map("ai_custom_prompt_files")
@@ -1190,7 +1190,7 @@ model Organization {
   /// Mínimo de respondentes para liberar resultados agregados NESTA empresa.
   /// null = usa o padrão global da Configuração do Motor (5). Existe para a
   /// microempresa (ex.: 3 funcionários), onde o padrão nunca liberaria nada.
-  minRespondents      Int?         @map("min_respondents")
+  minRespondents      Int?                 @map("min_respondents")
   psychosocialSlug    String?              @unique
   diagnosticLinks     DiagnosticLink[]
   diagnosticResponses DiagnosticResponse[]
@@ -1237,6 +1237,7 @@ model Organization {
   actionItemHistory   ActionItemHistory[]
   devolutivas         DevolutivaRecord[]
   diagnosticCycles    DiagnosticCycle[]
+  CampaignInvite      CampaignInvite[]
 
   @@map("organizations")
 }
@@ -1293,32 +1294,32 @@ model Team {
 // =====================================================================
 
 model User {
-  id              String       @id @default(uuid()) @db.Uuid
-  tenantId        String       @db.Uuid
-  org             Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  email           String
-  name            String
-  passwordHash    String
-  role            Role         @default(COLABORADOR)
-  active          Boolean      @default(true)
+  id                 String       @id @default(uuid()) @db.Uuid
+  tenantId           String       @db.Uuid
+  org                Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email              String
+  name               String
+  passwordHash       String
+  role               Role         @default(COLABORADOR)
+  active             Boolean      @default(true)
   // Revogação de sessão (segurança): incrementar invalida TODOS os JWTs do
   // usuário (logout, troca de senha, desativação). O token carrega `tv`; o
   // AuthGuard compara com este valor a cada request.
-  tokenVersion    Int          @default(0)
+  tokenVersion       Int          @default(0)
   // Senha definida PELA PLATAFORMA (criação do cliente, "enviar acesso" do CRM,
   // redefinição pelo super admin). Enquanto true, o portal EXIGE a troca antes de
   // liberar a navegação: a senha que trafegou por e-mail — e que fica visível na
   // tela do super admin — não pode valer indefinidamente. Volta a false quando o
   // próprio usuário define a senha (troca no portal ou recuperação por e-mail).
-  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  mustChangePassword Boolean      @default(false) @map("must_change_password")
   // Telas que o usuário pode acessar no portal (lista de rotas, ex.: ["dashboard","icd"]).
   // null = sem restrição (vê tudo que papel/módulo permitem). Controla a nav (F6).
-  screenAccess    Json?
+  screenAccess       Json?
   // Aceite de termos/LGPD no 1º acesso (Briefing · Matriz §Confidencialidade).
-  termsAcceptedAt DateTime?
-  termsVersion    String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  termsAcceptedAt    DateTime?
+  termsVersion       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   memberships              TeamMember[]
   passwordResetTokens      PasswordResetToken[]
@@ -1379,6 +1380,7 @@ model AssessmentCycle {
   updatedAt            DateTime     @updatedAt
 
   assessments Assessment[]
+  invites     CampaignInvite[]
 
   @@index([tenantId])
   @@index([sector])
@@ -1434,6 +1436,10 @@ model PsychosocialResponse {
   /// PROBABILIDADE da Matriz de Risco. null = respondido antes de existirem
   /// fatores; nesse caso a resposta é IGNORADA no cálculo do fator (nunca 0).
   byFactor             Json?        @map("by_factor")
+  /// Campanha (ciclo) em que esta resposta foi coletada. null = coleta avulsa
+  /// (link aberto ou autoavaliacao). E o que permite medir adesao e evolucao
+  /// POR CICLO — antes nenhuma resposta sabia a que campanha pertencia.
+  cycleId              String?      @map("cycle_id") @db.Uuid
   // MET1 — versão de metodologia PSYCHOSOCIAL que EFETIVAMENTE pontuou esta
   // resposta (pin no momento do score). Trilha de rastreabilidade: republicar a
   // metodologia não altera respostas já pontuadas. null = pontuada pelo padrão
@@ -2291,6 +2297,9 @@ model DiagnosticResponse {
   level                String // código da faixa da metodologia
   byDimension          Json // { slug: 0–100 }
   methodologyVersionId String?              @db.Uuid // pin MET1
+  /// Campanha (ciclo) em que esta resposta foi coletada — mesmo papel do campo
+  /// homonimo em psychosocial_responses. null = coleta avulsa.
+  cycleId              String?              @map("cycle_id") @db.Uuid
   submittedAt          DateTime             @default(now())
 
   @@index([tenantId])
@@ -2320,9 +2329,38 @@ model Collaborator {
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
+  invites CampaignInvite[]
+
   @@unique([tenantId, cpf])
   @@index([tenantId])
   @@map("collaborators")
+}
+
+/// Convite de um colaborador para UMA campanha (ciclo). O envio ao colaborador
+/// passa a acontecer sempre dentro de uma campanha — antes o e-mail saia apenas
+/// por existir cadastro importado, e a resposta nao pertencia a ciclo nenhum,
+/// entao "baseline e evolucao por ciclo" era impossivel de medir.
+/// O token do LINK vive aqui: o mesmo colaborador pode ser convidado de novo em
+/// outra campanha (novo convite, novo token) sem perder o historico do anterior.
+model CampaignInvite {
+  id             String          @id @default(uuid()) @db.Uuid
+  tenantId       String          @map("tenant_id") @db.Uuid
+  org            Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId        String          @map("cycle_id") @db.Uuid
+  cycle          AssessmentCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  collaboratorId String          @map("collaborator_id") @db.Uuid
+  collaborator   Collaborator    @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  token          String          @unique // /r/<token> — 128 bits de entropia
+  sentEmailAt    DateTime?       @map("sent_email_at")
+  sentWhatsappAt DateTime?       @map("sent_whatsapp_at")
+  respondedAt    DateTime?       @map("responded_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@unique([cycleId, collaboratorId])
+  @@index([tenantId])
+  @@index([cycleId])
+  @@map("campaign_invites")
 }
 
 /// Recuperação de senha do portal (auto-atendimento). O usuário pede pelo

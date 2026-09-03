@@ -54,6 +54,12 @@ export class ImportCollaboratorsDto {
 }
 
 /** Gate de CPF no acesso ao link público. */
+/** Envio de convite: a campanha é obrigatória — o convite nasce dentro dela. */
+export class SendInviteDto {
+  @IsString() @MaxLength(64)
+  cycleId!: string;
+}
+
 export class VerifyCpfDto {
   @IsString() @MaxLength(20)
   cpf!: string;

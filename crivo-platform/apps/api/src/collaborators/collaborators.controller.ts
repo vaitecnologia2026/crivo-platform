@@ -9,7 +9,7 @@ import { RequireScreen } from '../iam/require-screen.decorator';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { CollaboratorsService } from './collaborators.service';
-import { CreateCollaboratorDto, ImportCollaboratorsDto, UpdateCollaboratorDto } from './dto';
+import { CreateCollaboratorDto, ImportCollaboratorsDto, SendInviteDto, UpdateCollaboratorDto } from './dto';
 
 /** Cadastro de colaboradores do tenant (link único p/ o diagnóstico contratado).
  *  Gate pelo módulo "campanhas" (mesmo dos diagnósticos) + tela "colaboradores". */
@@ -53,15 +53,24 @@ export class CollaboratorsController {
     return this.svc.remove(user.tenantId, id);
   }
 
+  /** Convite SEMPRE dentro de uma campanha: o corpo traz o ciclo escolhido. */
   @Post(':id/send-email')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
-  sendEmail(@CurrentUser() user: SessionUser, @Param('id', new ParseUUIDPipe()) id: string) {
-    return this.svc.sendEmailInvite(user.tenantId, id);
+  sendEmail(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SendInviteDto,
+  ) {
+    return this.svc.sendEmailInvite(user.tenantId, id, dto.cycleId);
   }
 
   @Post(':id/send-whatsapp')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
-  sendWhatsapp(@CurrentUser() user: SessionUser, @Param('id', new ParseUUIDPipe()) id: string) {
-    return this.svc.sendWhatsappInvite(user.tenantId, id);
+  sendWhatsapp(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SendInviteDto,
+  ) {
+    return this.svc.sendWhatsappInvite(user.tenantId, id, dto.cycleId);
   }
 }

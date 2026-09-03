@@ -79,6 +79,9 @@ export class PsychosocialService {
     tenantId: string,
     dto: SubmitPsychosocialDto,
     beforeCreate?: (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => Promise<void>,
+    /** Campanha (ciclo) de onde veio a resposta. null = coleta avulsa (link
+     *  aberto ou autoavaliação) — é o que permite medir adesão por ciclo. */
+    cycleId?: string | null,
   ) {
     // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
     // MET1: capturamos o versionId da metodologia que pontuou, para pinar a trilha
@@ -135,6 +138,7 @@ export class PsychosocialService {
           // resposta nesse fator (nunca conta como zero).
           byFactor: (result.byFactor ?? null) as unknown as object,
           methodologyVersionId,
+          cycleId: cycleId ?? null,
         },
       });
       // Devolve só o resultado próprio (anônimo) — nenhum identificador é guardado.

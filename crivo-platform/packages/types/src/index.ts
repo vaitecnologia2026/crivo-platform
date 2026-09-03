@@ -3337,10 +3337,14 @@ export interface CampaignSummary {
   closedAt: string | null;
   status: 'OPEN' | 'CLOSED';
   createdAt: string;
+  /** Respostas do QUESTIONÁRIO coletadas neste ciclo (convite + link da campanha). */
   respondentes: number;
-  totalParticipantes: number;
-  adesao: number; // 0–100 (%)
-  icdMedio: number | null;
+  /** Colaboradores convidados para este ciclo (convites emitidos). */
+  convidados: number;
+  /** respondidos ÷ convidados, 0–100 (%). 0 quando ninguém foi convidado ainda. */
+  adesao: number;
+  /** Média do índice (0–100) das respostas do ciclo. null = sem respostas. */
+  indiceMedio: number | null;
 }
 
 /** Payload de criação de campanha (POST /icd/campaigns). */

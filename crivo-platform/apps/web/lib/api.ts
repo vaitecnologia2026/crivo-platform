@@ -942,11 +942,12 @@ export function deleteCollaborator(id: string): Promise<{ ok: boolean }> {
 export function importCollaborators(rows: CollaboratorInput[]): Promise<{ created: number; errors: { line: number; reason: string }[] }> {
   return apiFetch("/collaborators/import", { method: "POST", body: JSON.stringify({ rows }) });
 }
-export function sendCollaboratorEmail(id: string): Promise<{ ok: boolean; provider: string }> {
-  return apiFetch(`/collaborators/${id}/send-email`, { method: "POST" });
+/** Convite SEMPRE dentro de uma campanha: sem ciclo, a API recusa. */
+export function sendCollaboratorEmail(id: string, cycleId: string): Promise<{ ok: boolean; provider: string }> {
+  return apiFetch(`/collaborators/${id}/send-email`, { method: "POST", body: JSON.stringify({ cycleId }) });
 }
-export function sendCollaboratorWhatsapp(id: string): Promise<{ ok: boolean; provider: string }> {
-  return apiFetch(`/collaborators/${id}/send-whatsapp`, { method: "POST" });
+export function sendCollaboratorWhatsapp(id: string, cycleId: string): Promise<{ ok: boolean; provider: string }> {
+  return apiFetch(`/collaborators/${id}/send-whatsapp`, { method: "POST", body: JSON.stringify({ cycleId }) });
 }
 
 // Públicos (link /r/<token> — sem auth)

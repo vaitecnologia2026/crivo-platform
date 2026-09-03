@@ -94,31 +94,37 @@ export class IcdService {
     });
   }
 
-  /** Campanhas de diagnóstico (ciclos) com estatísticas: respondentes, adesão e ICD médio.
-   *  Filtro opcional por setor (Portal §7). */
+  /** Campanhas de diagnóstico (ciclos) com as estatísticas DO DIAGNÓSTICO:
+   *  convidados, respondentes, adesão e índice médio. Filtro opcional por setor. */
   async campaigns(tenantId: string, sector?: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {
-      // "Total de participantes" passa a respeitar o setor da campanha quando informado.
       const cycles = await tx.assessmentCycle.findMany({
         where: sector ? { sector } : undefined,
         orderBy: { createdAt: 'desc' },
-        include: { assessments: { include: { score: { select: { score: true } } } } },
       });
       return Promise.all(
         cycles.map(async (c) => {
-          const totalParticipantes = await tx.user.count({
-            where: { active: true, ...(c.sector ? { /* TODO: filtrar por setor quando User tiver campo */ } : {}) },
+          // A campanha passa a medir o DIAGNÓSTICO. Antes a adesão vinha das
+          // avaliações de líderes do ICD dividida por TODOS os usuários ativos
+          // da empresa (com um TODO admitindo que o filtro por setor faltava):
+          // uma campanha do questionário nunca aparecia ali.
+          const convidados = await tx.campaignInvite.count({ where: { cycleId: c.id } });
+          const respondidos = await tx.campaignInvite.count({
+            where: { cycleId: c.id, respondedAt: { not: null } },
           });
-          const respondentes = c.assessments.length;
-          const scores = c.assessments
-            .map((a) => a.score?.score)
-            .filter((n): n is number => typeof n === 'number');
-          const icdMedio = scores.length
+          // Respostas do ciclo pelos DOIS motores: psicossocial (Organizacional)
+          // e catálogo (Essencial). Inclui quem respondeu pelo link público da
+          // campanha, que não passa por convite.
+          const [psy, diag] = await Promise.all([
+            tx.psychosocialResponse.findMany({ where: { cycleId: c.id }, select: { score: true } }),
+            tx.diagnosticResponse.findMany({ where: { cycleId: c.id }, select: { score: true } }),
+          ]);
+          const scores = [...psy, ...diag].map((r) => r.score);
+          const respondentes = scores.length;
+          const indiceMedio = scores.length
             ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
             : null;
-          const adesao = totalParticipantes
-            ? Math.round((respondentes / totalParticipantes) * 100)
-            : 0;
+          const adesao = convidados ? Math.round((respondidos / convidados) * 100) : 0;
           return {
             id: c.id,
             name: c.name,
@@ -133,9 +139,9 @@ export class IcdService {
             status: c.status,
             createdAt: c.createdAt.toISOString(),
             respondentes,
-            totalParticipantes,
+            convidados,
             adesao,
-            icdMedio,
+            indiceMedio,
           };
         }),
       );
@@ -422,9 +428,11 @@ export class IcdService {
     // Mesmo par de destinos do link do colaborador: psicossocial grava em
     // psychosocial_responses; qualquer outro instrumento, em diagnostic_responses.
     // Os dois devolvem { ok, result }, então a página pública não muda.
+    // A resposta pertence à campanha — inclusive quem entrou pelo link público
+    // dela, que não passa por convite nominal.
     return (await usesPsychosocialEngine(this.prisma, instrument))
-      ? this.psychosocial.submit(cycle.tenantId, payload)
-      : this.diagnostics.submitForTenant(cycle.tenantId, instrument, payload);
+      ? this.psychosocial.submit(cycle.tenantId, payload, undefined, cycle.id)
+      : this.diagnostics.submitForTenant(cycle.tenantId, instrument, payload, undefined, cycle.id);
   }
 
   /**

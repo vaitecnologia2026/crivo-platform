@@ -9,9 +9,11 @@ import {
   importCollaborators,
   sendCollaboratorEmail,
   sendCollaboratorWhatsapp,
+  listCampaigns,
   type CollaboratorView,
   type CollaboratorInput,
 } from "@/lib/api";
+import type { CampaignSummary } from "@crivo/types";
 import { isValidCpf } from "@crivo/types";
 
 const EMPTY: CollaboratorInput = { name: "", phone: "", sector: "", email: "", cpf: "" };
@@ -92,17 +94,34 @@ export function ColaboradoresScreen() {
   const [flash, setFlash] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // O convite pertence a uma CAMPANHA: sem ciclo escolhido não há envio. Antes o
+  // e-mail saía só por existir cadastro importado e a resposta não pertencia a
+  // campanha nenhuma — a tela de campanhas não tinha como medir adesão.
+  const [campanhas, setCampanhas] = useState<CampaignSummary[]>([]);
+  const [campanhaId, setCampanhaId] = useState<string>("");
 
   async function load() {
     setStatus("loading");
     try {
-      setRows(await listCollaborators());
+      const [colabs, camps] = await Promise.all([
+        listCollaborators(),
+        listCampaigns().catch(() => [] as CampaignSummary[]),
+      ]);
+      setRows(colabs);
+      const abertas = camps.filter((c) => c.status === "OPEN");
+      setCampanhas(abertas);
+      // Uma campanha aberta só: já vem escolhida (nada a decidir).
+      setCampanhaId((atual) =>
+        atual && abertas.some((c) => c.id === atual) ? atual : abertas.length === 1 ? abertas[0].id : "",
+      );
       setStatus("ok");
     } catch {
       setStatus("error");
     }
   }
   useEffect(() => { void load(); }, []);
+
+  const nomeCampanha = () => campanhas.find((c) => c.id === campanhaId)?.name ?? "";
 
   function flashMsg(m: string) {
     setFlash(m);
@@ -175,11 +194,12 @@ export function ColaboradoresScreen() {
   }
 
   async function sendEmail(c: CollaboratorView) {
+    if (!campanhaId) { alert("Escolha a campanha antes de enviar o convite."); return; }
     setBusyId(c.id);
     try {
-      await sendCollaboratorEmail(c.id);
+      await sendCollaboratorEmail(c.id, campanhaId);
       await load();
-      flashMsg(`E-mail enviado para ${c.name}.`);
+      flashMsg(`E-mail enviado para ${c.name} — campanha "${nomeCampanha()}".`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao enviar e-mail.");
     } finally {
@@ -187,11 +207,12 @@ export function ColaboradoresScreen() {
     }
   }
   async function sendWa(c: CollaboratorView) {
+    if (!campanhaId) { alert("Escolha a campanha antes de enviar o convite."); return; }
     setBusyId(c.id);
     try {
-      await sendCollaboratorWhatsapp(c.id);
+      await sendCollaboratorWhatsapp(c.id, campanhaId);
       await load();
-      flashMsg(`WhatsApp enviado para ${c.name}.`);
+      flashMsg(`WhatsApp enviado para ${c.name} — campanha "${nomeCampanha()}".`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao enviar WhatsApp.");
     } finally {
@@ -246,6 +267,39 @@ export function ColaboradoresScreen() {
           <button className="btn btn--ghost btn--sm" onClick={downloadModel}>Baixar modelo CSV</button>
           <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={(e) => onImportFile(e.target.files?.[0] ?? null)} />
         </div>
+      </div>
+
+      {/* A campanha é o contexto do convite: sem ela o envio fica bloqueado, com o
+          caminho para criar uma. É o que liga a coleta ao ciclo e faz a adesão e a
+          evolução por campanha existirem. */}
+      <div className="card" style={{ padding: 14, marginBottom: 14 }}>
+        {campanhas.length === 0 ? (
+          <p className="card__sub" style={{ margin: 0 }}>
+            <strong>Nenhuma campanha aberta.</strong> O convite ao colaborador acontece dentro de uma
+            campanha — crie uma em <strong>Campanhas de Diagnóstico</strong> e volte aqui para enviar.
+            Copiar o link continua funcionando, mas a resposta não entra em nenhum ciclo.
+          </p>
+        ) : (
+          <label style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: 0 }}>
+            <span style={{ fontSize: 12, color: "var(--text-sec)" }}>Convidar para a campanha:</span>
+            <select
+              className="mod-select"
+              value={campanhaId}
+              onChange={(e) => setCampanhaId(e.target.value)}
+              style={{ minWidth: 260 }}
+            >
+              <option value="">— escolha a campanha —</option>
+              {campanhas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.sector ? ` · ${c.sector}` : ""}
+                </option>
+              ))}
+            </select>
+            <span className="card__sub" style={{ margin: 0 }}>
+              As respostas deste convite entram nesta campanha.
+            </span>
+          </label>
+        )}
       </div>
 
       {flash && <div className="dash-state" style={{ color: "var(--success,#2e7d5b)" }}>{flash}</div>}
@@ -309,8 +363,8 @@ export function ColaboradoresScreen() {
                 <td><span className={`addx-status ${STATUS_CLASS[c.status]}`}>{STATUS_LABEL[c.status]}{c.respondedAt ? ` · ${new Date(c.respondedAt).toLocaleDateString("pt-BR")}` : ""}</span></td>
                 <td className="addx-actions" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} onClick={() => copyLink(c)}>Copiar link</button>
-                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.email} title={c.email ? "" : "Sem e-mail"} onClick={() => sendEmail(c)}>E-mail</button>
-                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.phone} title={c.phone ? "" : "Sem telefone"} onClick={() => sendWa(c)}>WhatsApp</button>
+                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.email || !campanhaId} title={!c.email ? "Sem e-mail" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendEmail(c)}>E-mail</button>
+                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.phone || !campanhaId} title={!c.phone ? "Sem telefone" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendWa(c)}>WhatsApp</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} onClick={() => openEdit(c)}>Editar</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} style={{ color: "var(--danger,#b4453a)" }} onClick={() => remove(c)}>Remover</button>
                 </td>

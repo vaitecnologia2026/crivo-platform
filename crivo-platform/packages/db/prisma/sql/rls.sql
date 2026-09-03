@@ -57,7 +57,9 @@ DECLARE
                          -- Colaboradores: cadastro de funcionários por tenant (link único).
                          'collaborators',
                          -- Recuperação de senha: token de uso único por usuário.
-                         'password_reset_tokens'];
+                         'password_reset_tokens',
+                         -- Convite de colaborador para uma campanha (link /r/<token>).
+                         'campaign_invites'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

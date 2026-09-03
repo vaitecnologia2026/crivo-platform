@@ -226,7 +226,7 @@ export function CampanhasScreen() {
                 <th>Setor</th>
                 <th>Período</th>
                 <th>Adesão</th>
-                <th>ICD médio</th>
+                <th>Índice médio</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
@@ -241,10 +241,17 @@ export function CampanhasScreen() {
                     </td>
                     <td>{c.sector ?? <span className="card__sub">—</span>}</td>
                     <td>{periodOf(c.createdAt)}</td>
-                    <td>{c.adesao}% <span className="card__sub">({c.respondentes}/{c.totalParticipantes})</span></td>
+                    {/* Adesão do DIAGNÓSTICO: respondidos ÷ convidados desta campanha.
+                        Antes vinha das avaliações de líderes do ICD sobre todos os
+                        usuários ativos — número que nunca falava desta campanha. */}
                     <td>
-                      {c.icdMedio !== null
-                        ? <span className={`score-pill ${scorePillClass(c.icdMedio)}`}>{c.icdMedio}</span>
+                      {c.convidados
+                        ? <>{c.adesao}% <span className="card__sub">({c.respondentes}/{c.convidados})</span></>
+                        : <span className="card__sub">ninguém convidado</span>}
+                    </td>
+                    <td>
+                      {c.indiceMedio !== null
+                        ? <span className={`score-pill ${scorePillClass(c.indiceMedio)}`}>{c.indiceMedio}</span>
                         : <span className="card__sub">—</span>}
                     </td>
                     <td><span className="pattern-tag">{STATUS_LABEL[c.status] ?? c.status}</span></td>

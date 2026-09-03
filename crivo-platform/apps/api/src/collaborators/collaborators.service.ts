@@ -34,6 +34,16 @@ type CollaboratorRow = {
   createdAt: Date;
 };
 
+/** Convite de um colaborador para UMA campanha — dono do token do link. */
+type InviteRow = {
+  id: string;
+  tenantId: string;
+  cycleId: string;
+  collaboratorId: string;
+  token: string;
+  respondedAt: Date | null;
+};
+
 const portalUrl = (): string => process.env.PORTAL_URL ?? 'https://app.crivolegacy.com.br';
 const linkFor = (token: string): string => `${portalUrl()}/r/${token}`;
 /** ***.***.789-09 — esconde os 6 primeiros dígitos na listagem do portal. */
@@ -190,6 +200,36 @@ export class CollaboratorsService {
     return { created, errors };
   }
 
+  /**
+   * Convite do colaborador NAQUELA campanha (cria na primeira vez).
+   *
+   * O envio ao colaborador passa a acontecer sempre dentro de uma campanha: antes
+   * o e-mail saía apenas por existir cadastro importado e a resposta não
+   * pertencia a ciclo nenhum, então a tela de campanhas não tinha como medir
+   * adesão nem evolução. Um convite por (ciclo, colaborador), com token próprio —
+   * a mesma pessoa pode ser convidada de novo em outra campanha sem apagar o
+   * histórico da anterior.
+   */
+  private async ensureInvite(tenantId: string, collaboratorId: string, cycleId: string): Promise<InviteRow> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const cycle = await tx.assessmentCycle.findUnique({ where: { id: cycleId } });
+      if (!cycle || cycle.tenantId !== tenantId) {
+        throw new NotFoundException('Campanha não encontrada.');
+      }
+      if (cycle.status !== 'OPEN') {
+        throw new BadRequestException('Esta campanha não está aberta para novos convites.');
+      }
+      const existing = await tx.campaignInvite.findUnique({
+        where: { cycleId_collaboratorId: { cycleId, collaboratorId } },
+      });
+      if (existing) return existing as InviteRow;
+      const created = await tx.campaignInvite.create({
+        data: { tenantId, cycleId, collaboratorId, token: this.newToken() },
+      });
+      return created as InviteRow;
+    });
+  }
+
   private async loadOwn(tenantId: string, id: string): Promise<CollaboratorRow> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const c = await tx.collaborator.findUnique({ where: { id } });
@@ -198,11 +238,12 @@ export class CollaboratorsService {
     });
   }
 
-  async sendEmailInvite(tenantId: string, id: string) {
+  async sendEmailInvite(tenantId: string, id: string, cycleId: string) {
     const c = await this.loadOwn(tenantId, id);
     if (!c.email) throw new BadRequestException('Colaborador sem e-mail cadastrado.');
     if (!mailConfigured()) throw new BadRequestException('Envio de e-mail não está configurado.');
-    const url = linkFor(c.token);
+    const invite = await this.ensureInvite(tenantId, id, cycleId);
+    const url = linkFor(invite.token);
     const html = `
       <p>Olá, ${esc(c.name)}.</p>
       <p>Você foi convidado(a) a responder o diagnóstico da sua empresa na plataforma CRIVO™.</p>
@@ -210,35 +251,57 @@ export class CollaboratorsService {
       <p>Se o botão não funcionar, copie e cole no navegador:<br>${url}</p>`;
     const res = await sendMail({ to: c.email, subject: 'Responda o diagnóstico da sua empresa — CRIVO™', html });
     if (!res.ok) throw new BadRequestException('Não foi possível enviar o e-mail agora.');
-    await this.prisma.forTenant(tenantId, (tx) =>
-      tx.collaborator.update({ where: { id }, data: { inviteEmailAt: new Date() } }),
-    );
+    const agora = new Date();
+    await this.prisma.forTenant(tenantId, async (tx) => {
+      await tx.campaignInvite.update({ where: { id: invite.id }, data: { sentEmailAt: agora } });
+      // A coluna do colaborador segue como "último convite", que é o que a
+      // listagem mostra na coluna Status.
+      await tx.collaborator.update({ where: { id }, data: { inviteEmailAt: agora } });
+    });
     return { ok: true as const, provider: res.provider };
   }
 
-  async sendWhatsappInvite(tenantId: string, id: string) {
+  async sendWhatsappInvite(tenantId: string, id: string, cycleId: string) {
     const c = await this.loadOwn(tenantId, id);
     if (!c.phone) throw new BadRequestException('Colaborador sem telefone cadastrado.');
     if (!whatsappConfigured()) throw new BadRequestException('Envio por WhatsApp não está configurado.');
-    const url = linkFor(c.token);
+    const invite = await this.ensureInvite(tenantId, id, cycleId);
+    const url = linkFor(invite.token);
     const message = `Olá, ${c.name}! Você foi convidado(a) a responder o diagnóstico da sua empresa na CRIVO™. Responda aqui: ${url}`;
     const res = await sendWhatsapp({ to: c.phone, message, name: c.name });
     if (!res.ok) throw new BadRequestException('Não foi possível enviar o WhatsApp agora.');
-    await this.prisma.forTenant(tenantId, (tx) =>
-      tx.collaborator.update({ where: { id }, data: { inviteWhatsappAt: new Date() } }),
-    );
+    const agora = new Date();
+    await this.prisma.forTenant(tenantId, async (tx) => {
+      await tx.campaignInvite.update({ where: { id: invite.id }, data: { sentWhatsappAt: agora } });
+      await tx.collaborator.update({ where: { id }, data: { inviteWhatsappAt: agora } });
+    });
     return { ok: true as const, provider: res.provider };
   }
 
   // ── Fluxo público por token (o funcionário abre o link) ────────────────────
 
-  /** Resolve token → colaborador (sem expor dados pessoais antes do CPF). */
-  private async byToken(token: string): Promise<CollaboratorRow> {
+  /**
+   * Resolve token → colaborador + convite (sem expor dados pessoais antes do CPF).
+   *
+   * O token novo é o do CONVITE (um por campanha). O token antigo, do próprio
+   * colaborador, continua resolvendo: links já enviados antes desta mudança não
+   * podem morrer — eles simplesmente não pertencem a campanha nenhuma.
+   */
+  private async byToken(token: string): Promise<{ c: CollaboratorRow; invite: InviteRow | null }> {
     // Endpoint público (/r/<token>): o token de 128 bits é a credencial.
-    // rls-allow: resolve token→colaborador sem tenant no contexto; só leitura.
+    // rls-allow: resolve token→convite/colaborador sem tenant no contexto; leitura.
+    const invite = await this.prisma.admin.campaignInvite.findUnique({
+      where: { token },
+      include: { collaborator: true },
+    });
+    if (invite) {
+      const { collaborator, ...rest } = invite;
+      return { c: collaborator as CollaboratorRow, invite: rest as InviteRow };
+    }
+    // rls-allow: mesmo endpoint público — compatibilidade com o link antigo.
     const c = await this.prisma.admin.collaborator.findUnique({ where: { token } });
     if (!c) throw new NotFoundException('Link inválido ou expirado.');
-    return c as CollaboratorRow;
+    return { c: c as CollaboratorRow, invite: null };
   }
 
   private async tenantName(tenantId: string): Promise<string> {
@@ -252,15 +315,18 @@ export class CollaboratorsService {
 
   /** Etapa 0 — sem CPF ainda: só diz de quem é o link e se já respondeu. */
   async publicInfo(token: string) {
-    const c = await this.byToken(token);
-    return { tenantName: await this.tenantName(c.tenantId), answered: !!c.respondedAt };
+    const { c, invite } = await this.byToken(token);
+    // "Já respondeu" é POR CAMPANHA: quem participou do ciclo anterior pode (e
+    // deve) responder o próximo — é assim que a evolução por ciclo existe.
+    const respondeu = invite ? !!invite.respondedAt : !!c.respondedAt;
+    return { tenantName: await this.tenantName(c.tenantId), answered: respondeu };
   }
 
   /** Etapa 1 — valida CPF e libera as perguntas. */
   async verify(token: string, cpf: string) {
-    const c = await this.byToken(token);
+    const { c, invite } = await this.byToken(token);
     if (normalizeCpf(cpf) !== c.cpf) throw new BadRequestException('CPF não confere com o cadastro.');
-    if (c.respondedAt) return { answered: true as const };
+    if (invite ? invite.respondedAt : c.respondedAt) return { answered: true as const };
     return {
       answered: false as const,
       name: c.name,
@@ -281,15 +347,30 @@ export class CollaboratorsService {
 
   /** Etapa 2 — grava a resposta ANÔNIMA e marca participação atomicamente. */
   async submit(token: string, dto: SubmitByTokenDto) {
-    const c = await this.byToken(token);
+    const { c, invite } = await this.byToken(token);
     if (normalizeCpf(dto.cpf) !== c.cpf) throw new BadRequestException('CPF não confere com o cadastro.');
-    if (c.respondedAt) throw new ConflictException('Você já respondeu este diagnóstico.');
+    if (invite ? invite.respondedAt : c.respondedAt) {
+      throw new ConflictException('Você já respondeu este diagnóstico.');
+    }
     // O setor é o do CADASTRO (não do cliente). O hook marca respondedAt na mesma
     // transação do create da resposta — count!==1 significa que já respondeu (corrida).
     const marcarParticipacao = async (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => {
+      const agora = new Date();
+      if (invite) {
+        // Gate atômico NA CAMPANHA: é o convite que decide "já respondeu".
+        const r = await tx.campaignInvite.updateMany({
+          where: { id: invite.id, respondedAt: null },
+          data: { respondedAt: agora },
+        });
+        if (r.count !== 1) throw new ConflictException('Você já respondeu este diagnóstico.');
+        // No colaborador a marca é "última participação" — alimenta a coluna
+        // Status da listagem e não bloqueia campanhas futuras.
+        await tx.collaborator.update({ where: { id: c.id }, data: { respondedAt: agora } });
+        return;
+      }
       const r = await tx.collaborator.updateMany({
         where: { id: c.id, respondedAt: null },
-        data: { respondedAt: new Date() },
+        data: { respondedAt: agora },
       });
       if (r.count !== 1) throw new ConflictException('Você já respondeu este diagnóstico.');
     };
@@ -298,8 +379,11 @@ export class CollaboratorsService {
     // Cada método responde o SEU diagnóstico: Essencial → Diagnóstico Executivo
     // (diagnostic_responses); Organizacional → psicossocial. Nos dois casos a
     // resposta é anônima e a participação é marcada na mesma transação.
+    // A resposta carrega a campanha: é o que liga a coleta ao ciclo e faz a
+    // adesão/evolução da tela de campanhas medir o diagnóstico de verdade.
+    const cycleId = invite?.cycleId ?? null;
     return (await usesPsychosocialEngine(this.prisma, instrument))
-      ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao)
-      : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao);
+      ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao, cycleId)
+      : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao, cycleId);
   }
 }
