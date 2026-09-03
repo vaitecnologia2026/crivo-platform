@@ -583,12 +583,16 @@ export class PlatformLeadsService {
       }
     }
 
-    // Não regride a etapa: lead já em CONTRATO/ONBOARDING+ mantém a posição no funil.
-    const KEEP_STAGE = ['CONTRATO', 'ONBOARDING', 'IMPLANTACAO', 'ENTREGA', 'SUSTENTACAO', 'RENOVACAO', 'UPSELL'];
+    // Liberar o acesso É o começo do onboarding: o lead sai de "Fechado" e vai
+    // para "Cliente ativo" (a coluna que diz "Sistema liberado, em implantação").
+    // Antes ele parava em FECHADO/CONTRATO e ficava preso lá para sempre — o
+    // funil mostrava como pendente um cliente que já estava usando a plataforma.
+    // Quem já está adiante no pós-venda não regride.
+    const KEEP_STAGE = ['ONBOARDING', 'IMPLANTACAO', 'ENTREGA', 'SUSTENTACAO', 'RENOVACAO', 'UPSELL'];
     await this.prisma.admin.platformLead.update({
       where: { id: leadId },
       data: {
-        stage: KEEP_STAGE.includes(lead.stage) ? lead.stage : 'FECHADO',
+        stage: KEEP_STAGE.includes(lead.stage) ? lead.stage : 'ONBOARDING',
         convertedTenantId: result.tenant.id,
         productId: product.id,
       },

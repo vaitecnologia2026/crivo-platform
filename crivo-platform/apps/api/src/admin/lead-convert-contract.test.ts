@@ -74,6 +74,22 @@ async function contractPayload(potentialAddons: string[] = []) {
   return { tenantId, dto };
 }
 
+describe('convert() — etapa do funil', () => {
+  it('libera o acesso e MOVE o lead para "Cliente ativo" (ONBOARDING)', async () => {
+    // O lead parava em FECHADO/CONTRATO: o funil mostrava como pendente um
+    // cliente que já estava com o sistema liberado e em uso.
+    const { service, prisma } = build();
+
+    await service.convert(LEAD_ID, PRODUCT_ID, ACTOR);
+
+    const chamada = prisma.admin.platformLead.update.mock.calls[0] as unknown as
+      | [{ data: { stage?: string; convertedTenantId?: string } }]
+      | undefined;
+    expect(chamada?.[0]?.data?.stage).toBe('ONBOARDING');
+    expect(chamada?.[0]?.data?.convertedTenantId).toBe(TENANT_ID);
+  });
+});
+
 describe('convert() — contrato ativado na liberação', () => {
   it('cria o contrato ATIVO, não RASCUNHO', async () => {
     const { dto } = await contractPayload();
