@@ -137,6 +137,19 @@ describe('PlatformLeadsService.sendAccess (org vs tenant id)', () => {
     expect(bcrypt.compareSync('senha-antiga', adminUser.passwordHash)).toBe(false);
   });
 
+  it('marca a senha enviada como TEMPORÁRIA (troca obrigatória no 1o acesso)', async () => {
+    // Sem isto a senha que trafega por e-mail — e aparece na tela do super admin —
+    // valeria indefinidamente: o cliente entrava e nunca era obrigado a trocar.
+    const { service, userUpdate } = buildService();
+
+    await service.sendAccess(LEAD_ID, { id: 'super', email: 'super@crivo.platform' });
+
+    const chamada = userUpdate.mock.calls[0] as unknown as
+      | [{ data: { mustChangePassword?: boolean } }]
+      | undefined;
+    expect(chamada?.[0]?.data?.mustChangePassword).toBe(true);
+  });
+
   it('mantém o 404 quando o tenant convertido não tem usuário admin', async () => {
     const { service, prisma } = buildService();
     // Simula um tenant sem admin: user.findFirst sempre null.

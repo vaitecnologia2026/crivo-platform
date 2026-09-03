@@ -162,8 +162,8 @@ export function getMyPermissions(): Promise<string[]> {
 }
 
 /** Papel + nome do usuário logado (#51 — usado para HOME por papel). */
-export function getMyRole(): Promise<{ role: string; name: string }> {
-  return apiFetch<{ role: string; name: string }>('/me/role');
+export function getMyRole(): Promise<{ role: string; name: string; mustChangePassword?: boolean }> {
+  return apiFetch<{ role: string; name: string; mustChangePassword?: boolean }>('/me/role');
 }
 
 /** #68 — RBAC dinâmico: tenant-roles + usuários. */

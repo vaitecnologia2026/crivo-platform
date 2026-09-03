@@ -140,7 +140,12 @@ export class AuthService {
       // Trocar a senha revoga as sessões antigas (incrementa a versão de token).
       await tx.user.update({
         where: { id: userId },
-        data: { passwordHash: bcrypt.hashSync(newPassword, 12), tokenVersion: { increment: 1 } },
+        data: {
+          passwordHash: bcrypt.hashSync(newPassword, 12),
+          tokenVersion: { increment: 1 },
+          // A senha agora é do usuário: sai a exigência de troca no acesso.
+          mustChangePassword: false,
+        },
       });
       return { ok: true as const };
     });

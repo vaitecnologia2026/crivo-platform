@@ -69,11 +69,19 @@ function build(users = [USER_A]) {
             data,
           }: {
             where: { id: string };
-            data: { passwordHash: string; tokenVersion: { increment: number } };
+            data: {
+              passwordHash: string;
+              tokenVersion: { increment: number };
+              mustChangePassword?: boolean;
+            };
           }) => {
             const u = userRows.get(where.id)!;
             u.passwordHash = data.passwordHash;
             u.tokenVersion += data.tokenVersion.increment;
+            // Quem redefiniu foi o dono da conta: a senha deixa de ser temporária.
+            if (data.mustChangePassword !== undefined) {
+              (u as { mustChangePassword?: boolean }).mustChangePassword = data.mustChangePassword;
+            }
             return u;
           },
         ),

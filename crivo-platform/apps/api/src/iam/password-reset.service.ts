@@ -178,6 +178,9 @@ export class PasswordResetService {
         // Derruba TODAS as sessões abertas: se alguém entrou com a senha antiga,
         // perde o acesso agora — não no próximo login.
         tokenVersion: { increment: 1 },
+        // Quem redefiniu foi o próprio dono da conta (link no e-mail dele): a
+        // senha deixa de ser de primeiro acesso.
+        mustChangePassword: false,
       },
     });
     // Uso único, e qualquer outro link pendente da mesma conta morre junto.

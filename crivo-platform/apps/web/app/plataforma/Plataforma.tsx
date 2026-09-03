@@ -180,6 +180,9 @@ export function Plataforma() {
     // Vazio = fail-open (nenhum filtro/rename por método), como antes.
     let contractedList: { method: string; productName: string }[] = [];
     let removeBranding: (() => void) | null = null; // desfaz os overrides de tema (F5)
+    // Definido mais abaixo, junto do modal de senha: abre a troca OBRIGATÓRIA do
+    // primeiro acesso. Declarado aqui porque o enterApp (acima) precisa chamá-lo.
+    let exigirTrocaDeSenha: (() => void) | null = null;
     cleanups.push(() => removeBranding?.());
     const routeVisible = (route: string) => {
       const access = routeAccess[route];
@@ -385,6 +388,10 @@ export function Plataforma() {
               : [];
         // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
         if (me) applyUserChip(me.name, me.role, org?.name ?? null);
+        // Primeiro acesso: a senha veio sorteada pela plataforma (e-mail do CRM
+        // ou criação do cliente). Exige a troca ANTES de liberar a navegação —
+        // sem isso a senha que trafegou por e-mail valia indefinidamente.
+        if (me?.mustChangePassword) exigirTrocaDeSenha?.();
         // Empresa real no card da sidebar (corrige "Empresa Exemplo S.A." fixo).
         applyOrgCard(org?.name ?? null, diag?.productName ?? null);
         applyModuleVisibility();
@@ -481,7 +488,7 @@ export function Plataforma() {
     // #56 — Trocar senha: monta um portal modal on-demand e desmonta no close.
     let pwdRoot: ReturnType<typeof createRootForModal> | null = null;
     let pwdHost: HTMLDivElement | null = null;
-    function openChangePassword() {
+    function openChangePassword(obrigatorio = false) {
       if (pwdRoot) return;
       pwdHost = document.createElement("div");
       document.body.appendChild(pwdHost);
@@ -492,10 +499,14 @@ export function Plataforma() {
         if (r) setTimeout(() => r.unmount(), 0);
         if (h) setTimeout(() => h.remove(), 0);
       };
-      pwdRoot.render(<ChangePasswordModal onClose={close} />);
+      pwdRoot.render(<ChangePasswordModal onClose={close} obrigatorio={obrigatorio} />);
       cleanups.push(close);
     }
-    if (chgPwdBtn) on(chgPwdBtn, "click", openChangePassword);
+    if (chgPwdBtn) on(chgPwdBtn, "click", () => openChangePassword());
+    // Primeiro acesso com senha sorteada pela plataforma: a troca é obrigatória
+    // antes de qualquer navegação. `exigirTrocaDeSenha` é chamado pelo enterApp,
+    // depois que /me/role responde.
+    exigirTrocaDeSenha = () => openChangePassword(true);
 
     // Sineta de notificações → Dashboard (card "Notificações & travas
     // operacionais"). setRoute já degrada pro DEFAULT_ROUTE se o papel não

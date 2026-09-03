@@ -78,10 +78,17 @@ export class MeController {
     return [...(await this.permissions.effectiveForUser(user.tenantId, user.id, user.role))];
   }
 
-  /** Papel do usuário logado — define a HOME inicial e a área padrão (#51). */
+  /** Papel do usuário logado — define a HOME inicial e a área padrão (#51).
+   *  `mustChangePassword` acompanha: com a senha de PRIMEIRO ACESSO (sorteada
+   *  pela plataforma), o portal exige a troca antes de liberar a navegação. */
   @Get('role')
-  myRole(@CurrentUser() user: SessionUser): { role: string; name: string } {
-    return { role: user.role, name: user.name };
+  async myRole(
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ role: string; name: string; mustChangePassword: boolean }> {
+    const row = await this.prisma.forTenant(user.tenantId, (tx) =>
+      tx.user.findFirst({ where: { id: user.id }, select: { mustChangePassword: true } }),
+    );
+    return { role: user.role, name: user.name, mustChangePassword: row?.mustChangePassword ?? false };
   }
 
   /** F3 — Consolidado do Grupo Empresarial do usuário (403 se não autorizado). */

@@ -98,6 +98,10 @@ export class AdminUsersService {
         role: dto.role,
         screenAccess: normalizeScreens(dto.screenAccess) ?? undefined,
         passwordHash: bcrypt.hashSync(password, 12),
+        // Senha SORTEADA pela plataforma vira senha de primeiro acesso: o portal
+        // exige a troca antes de liberar a navegação. Senha escolhida pelo
+        // operador (dto.password) não marca — ele já a combinou com a pessoa.
+        mustChangePassword: generated,
       },
     });
 

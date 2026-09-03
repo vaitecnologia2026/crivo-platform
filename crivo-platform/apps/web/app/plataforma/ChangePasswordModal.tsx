@@ -1,11 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { changeMyPassword } from "@/lib/api";
+import { changeMyPassword, clearToken } from "@/lib/api";
 import { IconCheck } from "./Icons";
 
-/** Modal de troca de senha (#56). Conecta no PATCH /auth/password já existente. */
-export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+/**
+ * Modal de troca de senha (#56). Conecta no PATCH /auth/password já existente.
+ *
+ * `obrigatorio`: primeiro acesso com senha SORTEADA pela plataforma (criação do
+ * cliente, "enviar acesso" do CRM, redefinição pelo super admin). Aí não há
+ * "Cancelar" nem fechar pelo fundo — a senha que trafegou por e-mail não pode
+ * continuar valendo. Trocar a senha invalida o token no servidor, então ao fim
+ * a sessão é encerrada e a pessoa entra com a senha que acabou de definir.
+ */
+export function ChangePasswordModal({
+  onClose,
+  obrigatorio = false,
+}: {
+  onClose: () => void;
+  obrigatorio?: boolean;
+}) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -21,7 +35,16 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     try {
       await changeMyPassword(current, next);
       setDone(true);
-      setTimeout(onClose, 1400);
+      if (obrigatorio) {
+        // A troca derruba a sessão no servidor (tokenVersion): seguir navegando
+        // daria 401 na primeira chamada. Volta ao login já com a senha nova.
+        setTimeout(() => {
+          clearToken();
+          window.location.reload();
+        }, 1800);
+      } else {
+        setTimeout(onClose, 1400);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao trocar a senha.");
     } finally {
@@ -30,21 +53,31 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="terms-gate" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      className="terms-gate"
+      role="dialog"
+      aria-modal="true"
+      onClick={obrigatorio ? undefined : onClose}
+    >
       <div className="terms-card" onClick={(e) => e.stopPropagation()}>
-        <h2>Trocar senha</h2>
+        <h2>{obrigatorio ? "Defina a sua senha" : "Trocar senha"}</h2>
         {done ? (
           <p className="terms-body">
-            <IconCheck size={13} /> Senha atualizada. Você pode continuar usando o sistema normalmente.
+            <IconCheck size={13} />{" "}
+            {obrigatorio
+              ? "Senha definida. Entre novamente com a senha que você acabou de criar."
+              : "Senha atualizada. Você pode continuar usando o sistema normalmente."}
           </p>
         ) : (
           <>
             <p className="terms-body" style={{ fontSize: 13 }}>
-              Por segurança, informe sua senha atual e escolha uma nova com pelo menos 8 caracteres.
+              {obrigatorio
+                ? "Este é o seu primeiro acesso. A senha que você recebeu por e-mail é temporária — informe-a abaixo e escolha uma senha sua, com pelo menos 8 caracteres."
+                : "Por segurança, informe sua senha atual e escolha uma nova com pelo menos 8 caracteres."}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
               <label style={{ fontSize: 12, color: "var(--text-sec)" }}>
-                Senha atual
+                {obrigatorio ? "Senha temporária (a que você recebeu por e-mail)" : "Senha atual"}
                 <input
                   type="password"
                   value={current}
@@ -76,11 +109,13 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               <p className="dash-state dash-state--error" style={{ margin: "0 0 12px" }}>{error}</p>
             )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="btn btn--outline-dark btn--sm" onClick={onClose} disabled={busy}>
-                Cancelar
-              </button>
+              {!obrigatorio && (
+                <button className="btn btn--outline-dark btn--sm" onClick={onClose} disabled={busy}>
+                  Cancelar
+                </button>
+              )}
               <button className="btn btn--gold btn--sm" onClick={submit} disabled={busy || !current || !next}>
-                {busy ? "Trocando…" : "Trocar senha"}
+                {busy ? "Salvando…" : obrigatorio ? "Definir senha" : "Trocar senha"}
               </button>
             </div>
           </>

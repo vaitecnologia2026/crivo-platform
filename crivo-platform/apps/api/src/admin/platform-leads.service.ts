@@ -688,7 +688,9 @@ export class PlatformLeadsService {
     const tempPassword = this.genPassword();
     await this.prisma.admin.user.update({
       where: { id: admin.id },
-      data: { passwordHash: bcrypt.hashSync(tempPassword, 12) },
+      // Senha de PRIMEIRO ACESSO: trafega por e-mail e fica visível na tela do
+      // super admin, então o portal exige a troca antes de liberar a navegação.
+      data: { passwordHash: bcrypt.hashSync(tempPassword, 12), mustChangePassword: true },
     });
 
     const portalUrl = process.env.PORTAL_URL ?? 'https://app.crivolegacy.com.br';
@@ -853,7 +855,13 @@ export class PlatformLeadsService {
 
     await this.prisma.admin.user.update({
       where: { id: user.id },
-      data: { passwordHash: bcrypt.hashSync(password, 12), tokenVersion: { increment: 1 } },
+      // Definida pelo super admin e repassada por fora: também é senha de
+      // primeiro acesso — o cliente troca por uma que só ele conhece.
+      data: {
+        passwordHash: bcrypt.hashSync(password, 12),
+        tokenVersion: { increment: 1 },
+        mustChangePassword: true,
+      },
     });
 
     await this.audit.record({
