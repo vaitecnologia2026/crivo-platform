@@ -189,6 +189,12 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
+  /**
+   * UMA pergunta por tela, como no MAPA Executivo: 0 = abertura (escala),
+   * 1..N = perguntas, N+1 = revisão e conclusão. Na lista corrida era fácil
+   * pular um item e só descobrir no fim, no "Responda todas".
+   */
+  const [passo, setPasso] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -204,6 +210,13 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
   const answered = questions.filter((q) => answers[q.id]).length;
   const done = total > 0 && answered === total;
 
+  /** Marca a resposta e avança — a última leva à revisão, não ao envio direto. */
+  function escolher(questionId: number, value: number) {
+    setAnswers((x) => ({ ...x, [questionId]: value }));
+    // Pausa curta: quem responde VÊ o que marcou antes de a tela trocar.
+    setTimeout(() => setPasso((atual) => Math.min(atual + 1, questions.length + 1)), 260);
+  }
+
   async function submit() {
     setSaving(true);
     try {
@@ -216,32 +229,91 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
   if (status === "error")
     return <p className="dash-state dash-state--error">Não foi possível carregar as perguntas do diagnóstico.</p>;
 
+  const pergunta = passo >= 1 && passo <= total ? questions[passo - 1] : null;
+  const escolhido = pergunta ? answers[pergunta.id] : undefined;
+
   return (
     <div>
-      <ScaleHelpBox scale={scale.map((label, i) => ({ value: i + 1, label }))} />
-      <ol className="essencial-q">
-        {questions.map((q) => (
-          <li key={q.id}>
-            <p>{q.text}</p>
-            <div className="essencial-scale">
-              {scale.map((label, i) => (
-                <button
-                  key={i + 1}
-                  type="button"
-                  title={label}
-                  className={`essencial-opt${answers[q.id] === i + 1 ? " is-sel" : ""}`}
-                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: i + 1 }))}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <button className="btn btn--terra btn--sm" disabled={!done || saving} onClick={submit}>
-        {saving ? "Salvando…" : done ? "Concluir autoavaliação" : `Responda todas (${answered}/${total})`}
-      </button>
+      {/* Abertura: a escala e o "Começar". */}
+      {passo === 0 && (
+        <>
+          <ScaleHelpBox scale={scale.map((label, i) => ({ value: i + 1, label }))} />
+          <p className="card__sub">
+            {total === 1 ? "É 1 afirmação" : `São ${total} afirmações`} — uma por vez. Ao responder,
+            a próxima aparece sozinha.
+          </p>
+          <button className="btn btn--terra btn--sm" disabled={total === 0} onClick={() => setPasso(1)}>
+            {answered > 0 ? "Continuar de onde parei" : "Começar"}
+          </button>
+        </>
+      )}
+
+      {/* Uma pergunta por tela. */}
+      {pergunta && (
+        <>
+          <div className="essencial-progress" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={passo}>
+            <i style={{ width: `${(passo / total) * 100}%` }} />
+          </div>
+          <p className="card__sub" style={{ margin: "0 0 12px" }}>
+            Pergunta {passo} de {total}
+            {answered > 0 && answered < total && ` · ${answered} respondida(s)`}
+          </p>
+          <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 12px" }}>{pergunta.text}</p>
+          <div className="essencial-scale">
+            {scale.map((label, i) => (
+              <button
+                key={i + 1}
+                type="button"
+                title={label}
+                className={`essencial-opt${escolhido === i + 1 ? " is-sel" : ""}`}
+                onClick={() => escolher(pergunta.id, i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          {/* Com uma pergunta por tela cabe dizer por extenso o que foi escolhido. */}
+          <p className="card__sub" style={{ minHeight: 18, marginTop: 8 }}>
+            {escolhido ? scale[escolhido - 1] : "Escolha uma opção."}
+          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
+            <button className="btn btn--ghost btn--sm" onClick={() => setPasso((x) => x - 1)}>← Voltar</button>
+            {escolhido && (
+              <button className="btn btn--ghost btn--sm" onClick={() => setPasso((x) => x + 1)}>
+                {passo === total ? "Revisar e concluir →" : "Avançar →"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Revisão e conclusão. */}
+      {passo > total && total > 0 && (
+        <>
+          <div className="essencial-progress"><i style={{ width: "100%" }} /></div>
+          <p className="card__sub">
+            {done ? `Tudo respondido — ${total} de ${total}.` : `Faltam ${total - answered} de ${total}.`}
+          </p>
+          {!done && (
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ marginBottom: 10 }}
+              onClick={() => {
+                const falta = questions.findIndex((q) => !answers[q.id]);
+                setPasso(falta >= 0 ? falta + 1 : 1);
+              }}
+            >
+              Ir para a primeira sem resposta
+            </button>
+          )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="btn btn--ghost btn--sm" onClick={() => setPasso(total)}>← Rever a última</button>
+            <button className="btn btn--terra btn--sm" disabled={!done || saving} onClick={submit}>
+              {saving ? "Salvando…" : done ? "Concluir autoavaliação" : `Responda todas (${answered}/${total})`}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
