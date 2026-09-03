@@ -422,6 +422,8 @@ export class IcdService {
       questions,
       // A escala vem do Motor: o formulário público a mostrava cravada no código.
       scaleLabels: aberta ? await this.campaignScaleLabels(cycle.tenantId) : [],
+      // Setores do cadastro: o link aberto oferece lista em vez de texto livre.
+      sectors: aberta && !cycle.sector ? await this.psychosocial.sectorsOfTenant(cycle.tenantId) : [],
     };
   }
 

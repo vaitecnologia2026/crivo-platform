@@ -59,6 +59,12 @@ export class SendInviteDto {
   cycleId!: string;
 }
 
+/** Convite em lote: sem `ids`, convida todo o cadastro ainda não convidado. */
+export class InviteManyDto {
+  @IsOptional() @IsArray() @ArrayMaxSize(2000) @IsString({ each: true })
+  ids?: string[];
+}
+
 export class VerifyCpfDto {
   @IsString() @MaxLength(20)
   cpf!: string;

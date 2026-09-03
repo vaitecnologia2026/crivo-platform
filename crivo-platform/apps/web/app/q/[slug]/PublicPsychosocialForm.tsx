@@ -94,6 +94,8 @@ export function PublicPsychosocialForm({
     questions: PsychosocialQuestion[];
     /** Rótulos das 5 âncoras vindos do Motor. Ausente = escala padrão. */
     scaleLabels?: string[];
+    /** Setores do cadastro. Com lista, o respondente escolhe em vez de digitar. */
+    sectors?: string[];
   }>;
   enviar?: (
     slug: string,
@@ -108,6 +110,10 @@ export function PublicPsychosocialForm({
   // A escala vinha CRAVADA aqui: editar "Escalas e regras" no Motor não mudava
   // nada para quem responde, e as âncoras diziam só "Discordo/Concordo".
   const [scaleLabels, setScaleLabels] = useState<string[]>([...DEFAULT_SCALE_LABELS]);
+  // Setores do cadastro. Texto livre dividia o mesmo setor em grafias diferentes
+  // ("RH" vs "Recursos Humanos"), quebrando o agregado e a supressão por volume.
+  const [setores, setSetores] = useState<string[]>([]);
+  const [setorOutro, setSetorOutro] = useState(false);
   const [status, setStatus] = useState<"loading" | "invalid" | "ok">("loading");
   const [sector, setSector] = useState("");
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -129,6 +135,7 @@ export function PublicPsychosocialForm({
         setTenantName(d.tenantName);
         setQuestions(d.questions);
         if (d.scaleLabels?.length === 5) setScaleLabels(d.scaleLabels);
+        setSetores(d.sectors ?? []);
         setStatus("ok");
       })
       .catch(() => setStatus("invalid"));
@@ -284,14 +291,36 @@ export function PublicPsychosocialForm({
             {!setorFixo && (
               <div className={s.field}>
                 <label htmlFor="setor">Setor / Área (opcional)</label>
-                <input
-                  id="setor"
-                  type="text"
-                  placeholder="Ex.: Operações, Comercial, Administrativo…"
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value)}
-                  maxLength={120}
-                />
+                {setores.length > 0 && !setorOutro ? (
+                  <select
+                    id="setor"
+                    value={sector}
+                    onChange={(e) => {
+                      if (e.target.value === "__outro__") {
+                        setSetorOutro(true);
+                        setSector("");
+                      } else {
+                        setSector(e.target.value);
+                      }
+                    }}
+                  >
+                    <option value="">— não informar —</option>
+                    {setores.map((x) => (
+                      <option key={x} value={x}>{x}</option>
+                    ))}
+                    <option value="__outro__">Outro (digitar)</option>
+                  </select>
+                ) : (
+                  <input
+                    id="setor"
+                    type="text"
+                    placeholder="Ex.: Operações, Comercial, Administrativo…"
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    maxLength={120}
+                    autoFocus={setorOutro}
+                  />
+                )}
               </div>
             )}
             <ScaleHelpBox

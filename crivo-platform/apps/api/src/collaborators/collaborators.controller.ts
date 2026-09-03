@@ -9,7 +9,13 @@ import { RequireScreen } from '../iam/require-screen.decorator';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { CollaboratorsService } from './collaborators.service';
-import { CreateCollaboratorDto, ImportCollaboratorsDto, SendInviteDto, UpdateCollaboratorDto } from './dto';
+import {
+  CreateCollaboratorDto,
+  ImportCollaboratorsDto,
+  InviteManyDto,
+  SendInviteDto,
+  UpdateCollaboratorDto,
+} from './dto';
 
 /** Cadastro de colaboradores do tenant (link único p/ o diagnóstico contratado).
  *  Gate pelo módulo "campanhas" (mesmo dos diagnósticos) + tela "colaboradores". */
@@ -51,6 +57,23 @@ export class CollaboratorsController {
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   remove(@CurrentUser() user: SessionUser, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.svc.remove(user.tenantId, id);
+  }
+
+  /** Participantes de uma campanha (todo o cadastro + status DAQUELE ciclo). */
+  @Get('campaign/:cycleId')
+  participants(@CurrentUser() user: SessionUser, @Param('cycleId', new ParseUUIDPipe()) cycleId: string) {
+    return this.svc.participants(user.tenantId, cycleId);
+  }
+
+  /** Convite em lote pela tela da Campanha (sem ids = todos os pendentes). */
+  @Post('campaign/:cycleId/invite')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  inviteMany(
+    @CurrentUser() user: SessionUser,
+    @Param('cycleId', new ParseUUIDPipe()) cycleId: string,
+    @Body() dto: InviteManyDto,
+  ) {
+    return this.svc.inviteMany(user.tenantId, cycleId, dto.ids);
   }
 
   /** Convite SEMPRE dentro de uma campanha: o corpo traz o ciclo escolhido. */

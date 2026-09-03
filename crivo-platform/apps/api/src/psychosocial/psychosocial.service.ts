@@ -215,18 +215,36 @@ export class PsychosocialService {
     return cfg?.scaleLabels?.length === 5 ? cfg.scaleLabels : [...DEFAULT_SCALE_LABELS];
   }
 
+  /**
+   * Setores já cadastrados na empresa — o link público oferece a LISTA em vez de
+   * texto livre. Digitação livre dividia o mesmo setor em grafias diferentes
+   * ("RH" e "Recursos Humanos" viraram dois recortes na base antiga), o que
+   * quebra o agregado e a supressão por volume mínimo.
+   */
+  async sectorsOfTenant(tenantId: string): Promise<string[]> {
+    // rls-allow: endpoint público; devolve só NOMES DE SETOR da empresa do link.
+    const rows = await this.prisma.admin.collaborator.findMany({
+      where: { tenantId, NOT: { sector: null } },
+      select: { sector: true },
+      distinct: ['sector'],
+      orderBy: { sector: 'asc' },
+    });
+    return rows.map((r) => r.sector).filter((x): x is string => !!x && !!x.trim());
+  }
+
   /** Resolve um slug público → nome da empresa + perguntas (sem auth, sem dados internos). */
   async getPublicBySlug(slug: string) {
     // rls-allow: endpoint público anônimo (/q/<slug>), sem tenant no contexto; resolve slug→nome (select mínimo).
     const org = await this.prisma.admin.organization.findUnique({
       where: { psychosocialSlug: slug },
-      select: { name: true },
+      select: { id: true, name: true },
     });
     if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
     return {
       tenantName: org.name,
       questions: await this.publicQuestions(),
       scaleLabels: await this.publicScaleLabels(),
+      sectors: await this.sectorsOfTenant(org.id),
     };
   }
 

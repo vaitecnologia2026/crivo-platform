@@ -278,6 +278,71 @@ export class CollaboratorsService {
     return { ok: true as const, provider: res.provider };
   }
 
+  /**
+   * Participantes de UMA campanha: todo o cadastro, com o status DAQUELE ciclo.
+   *
+   * A ação de convidar mora aqui porque é o cadastro que ela consome, mas quem
+   * pergunta é a tela da Campanha — é lá que faz sentido ver quem já foi
+   * chamado, quem respondeu e quem falta.
+   */
+  async participants(tenantId: string, cycleId: string) {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const cycle = await tx.assessmentCycle.findUnique({ where: { id: cycleId } });
+      if (!cycle || cycle.tenantId !== tenantId) throw new NotFoundException('Campanha não encontrada.');
+      const [colabs, invites] = await Promise.all([
+        tx.collaborator.findMany({ orderBy: { name: 'asc' } }),
+        tx.campaignInvite.findMany({ where: { cycleId } }),
+      ]);
+      const porColaborador = new Map(invites.map((i) => [i.collaboratorId, i]));
+      return {
+        cycle: { id: cycle.id, name: cycle.name, sector: cycle.sector, status: cycle.status },
+        participants: colabs.map((c) => {
+          const inv = porColaborador.get(c.id);
+          return {
+            id: c.id,
+            name: c.name,
+            sector: c.sector,
+            email: c.email,
+            phone: c.phone,
+            // Status DESTA campanha — não a última atividade da pessoa.
+            status: inv?.respondedAt ? 'respondeu' : inv ? 'convidado' : 'pendente',
+            sentEmailAt: inv?.sentEmailAt ?? null,
+            sentWhatsappAt: inv?.sentWhatsappAt ?? null,
+            respondedAt: inv?.respondedAt ?? null,
+            link: inv ? linkFor(inv.token) : null,
+          };
+        }),
+      };
+    });
+  }
+
+  /**
+   * Convite em LOTE por e-mail. Sem `ids`, convida todo o cadastro que ainda não
+   * foi convidado nesta campanha. Quem não tem e-mail entra em `erros` — o lote
+   * não para por causa de um cadastro incompleto.
+   */
+  async inviteMany(tenantId: string, cycleId: string, ids?: string[]) {
+    const { participants } = await this.participants(tenantId, cycleId);
+    const alvo = participants.filter(
+      (p) => (ids ? ids.includes(p.id) : p.status === 'pendente') && p.status !== 'respondeu',
+    );
+    let enviados = 0;
+    const erros: { name: string; reason: string }[] = [];
+    for (const p of alvo) {
+      if (!p.email) {
+        erros.push({ name: p.name, reason: 'sem e-mail cadastrado' });
+        continue;
+      }
+      try {
+        await this.sendEmailInvite(tenantId, p.id, cycleId);
+        enviados++;
+      } catch (e) {
+        erros.push({ name: p.name, reason: e instanceof Error ? e.message : 'falha no envio' });
+      }
+    }
+    return { enviados, erros, total: alvo.length };
+  }
+
   // ── Fluxo público por token (o funcionário abre o link) ────────────────────
 
   /**

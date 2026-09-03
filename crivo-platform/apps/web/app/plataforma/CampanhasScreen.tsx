@@ -7,9 +7,12 @@ import {
   closeCampaign,
   createCampaign,
   getDiagnosticContext,
+  inviteCampaignParticipants,
   listCampaigns,
+  listCampaignParticipants,
   sendCampaignReminders,
   updateCampaign,
+  type CampaignParticipant,
 } from "@/lib/api";
 import { DIAGNOSTIC_METHOD_LABEL, type CampaignSummary, type DiagnosticMethod } from "@crivo/types";
 import { publicOrigin } from "@/lib/share-url";
@@ -103,6 +106,9 @@ export function CampanhasScreen() {
   const [sectorFilter, setSectorFilter] = useState<string>("");
   const [showNew, setShowNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Painel de participantes: quem foi convidado NAQUELA campanha, quem
+  // respondeu e quem falta — a ação de convidar mora onde ela faz sentido.
+  const [participantsFor, setParticipantsFor] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [qrFor, setQrFor] = useState<{ slug: string; name: string } | null>(null);
 
@@ -275,6 +281,13 @@ export function CampanhasScreen() {
                           <>
                             <button
                               className="lib-act"
+                              onClick={() => setParticipantsFor((id) => (id === c.id ? null : c.id))}
+                              title="Ver quem foi convidado e convidar o cadastro"
+                            >
+                              participantes
+                            </button>
+                            <button
+                              className="lib-act"
                               onClick={() => setEditingId((id) => (id === c.id ? null : c.id))}
                             >
                               {editingId === c.id ? "fechar" : "editar"}
@@ -311,6 +324,13 @@ export function CampanhasScreen() {
                       </div>
                     </td>
                   </tr>
+                  {participantsFor === c.id && (
+                    <tr className="camp-edit-row">
+                      <td colSpan={7}>
+                        <ParticipantsPanel cycleId={c.id} onChanged={() => load(sectorFilter)} />
+                      </td>
+                    </tr>
+                  )}
                   {editingId === c.id && (
                     <tr className="camp-edit-row">
                       <td colSpan={7}>
@@ -500,6 +520,114 @@ function CampaignForm({
           {busy ? "Salvando…" : isEdit ? "Salvar alterações" : "Criar campanha"}
         </button>
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * Participantes de uma campanha: todo o cadastro de colaboradores com o status
+ * DAQUELE ciclo. Convidar um a um pela tela Colaboradores funcionava, mas o
+ * lugar natural de "quem falta chamar" é a própria campanha.
+ */
+function ParticipantsPanel({ cycleId, onChanged }: { cycleId: string; onChanged: () => void }) {
+  const [rows, setRows] = useState<CampaignParticipant[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const r = await listCampaignParticipants(cycleId);
+      setRows(r.participants);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao carregar participantes.");
+    }
+  }
+  useEffect(() => { void load(); }, [cycleId]);
+
+  async function convidar(ids?: string[]) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await inviteCampaignParticipants(cycleId, ids);
+      setMsg(
+        r.enviados === 0 && r.erros.length === 0
+          ? "Ninguém pendente para convidar."
+          : `${r.enviados} convite(s) enviado(s)` +
+            (r.erros.length ? ` · ${r.erros.length} não enviado(s): ${r.erros.map((x) => `${x.name} (${x.reason})`).join("; ")}` : ""),
+      );
+      await load();
+      onChanged();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Falha ao convidar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (erro) return <p className="dash-state dash-state--error">{erro}</p>;
+  if (!rows) return <p className="card__sub">Carregando participantes…</p>;
+
+  const pendentes = rows.filter((r) => r.status === "pendente");
+  const responderam = rows.filter((r) => r.status === "respondeu").length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+        <strong style={{ fontSize: 14 }}>Participantes</strong>
+        <span className="card__sub">
+          {rows.length} no cadastro · {rows.length - pendentes.length} convidado(s) · {responderam} respondeu(ram)
+        </span>
+        <button
+          className="btn btn--gold btn--sm"
+          disabled={busy || pendentes.length === 0}
+          onClick={() => convidar()}
+          title={pendentes.length ? "" : "Todo o cadastro já foi convidado nesta campanha"}
+        >
+          {busy ? "Enviando…" : `Convidar pendentes (${pendentes.length})`}
+        </button>
+      </div>
+      {msg && <p className="card__sub" style={{ marginTop: 0 }}>{msg}</p>}
+      {rows.length === 0 ? (
+        <p className="card__sub">
+          Nenhum colaborador cadastrado. Cadastre ou importe em <strong>Colaboradores</strong>.
+        </p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr><th>Nome</th><th>Setor</th><th>Contato</th><th>Status nesta campanha</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr key={p.id}>
+                <td>{p.name}</td>
+                <td>{p.sector ?? <span className="card__sub">—</span>}</td>
+                <td className="card__sub">{p.email ?? p.phone ?? "sem contato"}</td>
+                <td>
+                  {p.status === "respondeu"
+                    ? <span className="pattern-tag">Respondeu</span>
+                    : p.status === "convidado"
+                      ? <span className="card__sub">Convite enviado</span>
+                      : <span className="card__sub">Pendente</span>}
+                </td>
+                <td>
+                  {p.status !== "respondeu" && (
+                    <button
+                      className="lib-act"
+                      disabled={busy || !p.email}
+                      title={p.email ? "" : "Sem e-mail cadastrado"}
+                      onClick={() => convidar([p.id])}
+                    >
+                      {p.status === "convidado" ? "reenviar" : "convidar"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

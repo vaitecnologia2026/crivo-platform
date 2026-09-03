@@ -805,6 +805,8 @@ export async function getPublicCampaign(slug: string): Promise<{
   questions: PsychosocialQuestion[];
   /** Rótulos das 5 âncoras da escala publicada no Motor. */
   scaleLabels?: string[];
+  /** Setores já cadastrados — o formulário oferece lista em vez de texto livre. */
+  sectors?: string[];
 }> {
   const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
     signal: AbortSignal.timeout(15000),
@@ -880,7 +882,12 @@ export async function submitPublicDiagnostic(
 
 export async function getPublicPsychosocial(
   slug: string,
-): Promise<{ tenantName: string; questions: PsychosocialQuestion[]; scaleLabels?: string[] }> {
+): Promise<{
+  tenantName: string;
+  questions: PsychosocialQuestion[];
+  scaleLabels?: string[];
+  sectors?: string[];
+}> {
   const res = await fetch(`${apiBase()}/public/psychosocial/${encodeURIComponent(slug)}`, {
     signal: AbortSignal.timeout(15000),
   });
@@ -944,6 +951,36 @@ export function deleteCollaborator(id: string): Promise<{ ok: boolean }> {
 export function importCollaborators(rows: CollaboratorInput[]): Promise<{ created: number; errors: { line: number; reason: string }[] }> {
   return apiFetch("/collaborators/import", { method: "POST", body: JSON.stringify({ rows }) });
 }
+/** Participantes de uma campanha: todo o cadastro + status DAQUELE ciclo. */
+export interface CampaignParticipant {
+  id: string;
+  name: string;
+  sector: string | null;
+  email: string | null;
+  phone: string | null;
+  status: "pendente" | "convidado" | "respondeu";
+  sentEmailAt: string | null;
+  sentWhatsappAt: string | null;
+  respondedAt: string | null;
+  link: string | null;
+}
+export function listCampaignParticipants(cycleId: string): Promise<{
+  cycle: { id: string; name: string; sector: string | null; status: string };
+  participants: CampaignParticipant[];
+}> {
+  return apiFetch(`/collaborators/campaign/${encodeURIComponent(cycleId)}`);
+}
+/** Convite em lote. Sem `ids`, convida todos os pendentes daquela campanha. */
+export function inviteCampaignParticipants(
+  cycleId: string,
+  ids?: string[],
+): Promise<{ enviados: number; total: number; erros: { name: string; reason: string }[] }> {
+  return apiFetch(`/collaborators/campaign/${encodeURIComponent(cycleId)}/invite`, {
+    method: "POST",
+    body: JSON.stringify(ids ? { ids } : {}),
+  });
+}
+
 /** Convite SEMPRE dentro de uma campanha: sem ciclo, a API recusa. */
 export function sendCollaboratorEmail(id: string, cycleId: string): Promise<{ ok: boolean; provider: string }> {
   return apiFetch(`/collaborators/${id}/send-email`, { method: "POST", body: JSON.stringify({ cycleId }) });
