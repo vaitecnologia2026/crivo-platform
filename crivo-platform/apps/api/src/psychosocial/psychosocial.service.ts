@@ -23,7 +23,9 @@ import {
   loadActiveMethodologyConfig,
   loadMethodologyConfigByVersion,
   resolveActiveMethodology,
+  resolveInstrumentForTenant,
   resolvePsychosocialInstrument,
+  usesPsychosocialEngine,
 } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 import { SubmitPsychosocialDto } from './dto';
@@ -168,8 +170,23 @@ export class PsychosocialService {
     });
   }
 
-  /** Gera (idempotente) o slug público da empresa. Retorna o existente se já houver. */
+  /**
+   * Gera (idempotente) o slug público da empresa. Retorna o existente se já houver.
+   *
+   * RECUSA quem contratou o Organizacional: ali a coleta acontece dentro de uma
+   * CAMPANHA (convite ao colaborador ou link da campanha). Um link solto coletava
+   * fora de qualquer ciclo — a resposta não entrava na adesão nem na comparação
+   * entre períodos, e ninguém percebia. A tela já não oferece o botão; este gate
+   * fecha a porta de fora (chamada direta à API).
+   */
   async ensureLink(tenantId: string): Promise<{ slug: string }> {
+    const instrumento = (await resolveInstrumentForTenant(this.prisma, tenantId)) ?? 'PSYCHOSOCIAL';
+    if (await usesPsychosocialEngine(this.prisma, instrumento)) {
+      throw new BadRequestException(
+        'O Diagnóstico Organizacional é respondido dentro de uma campanha: convide pela tela ' +
+          'Colaboradores ou use o link da campanha em Campanhas de Diagnóstico.',
+      );
+    }
     return this.prisma.forTenant(tenantId, async (tx) => {
       const org = await tx.organization.findUnique({
         where: { id: tenantId },
