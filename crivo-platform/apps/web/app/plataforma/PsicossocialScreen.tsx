@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  getPsychosocialQuestions,
+  submitPsychosocial,
   getPsychosocialResults,
   getPsychosocialLink,
   ensurePsychosocialLink,
@@ -11,6 +13,8 @@ import {
 import {
   PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_RISK_LABEL,
+  type PsychosocialQuestion,
+  type PsychosocialResult,
   type PsychosocialDimension,
   type PsychosocialRiskLevel,
   classifyTechnicalRisk,
@@ -25,6 +29,7 @@ import {
   type PsychosocialRiskClass,
   type PsychosocialRiskMatrixRow,
  } from "@crivo/types";
+import { ScaleHelpBox } from "@crivo/ui";
 import { publicOrigin } from "@/lib/share-url";
 import { IconCheck } from "./Icons";
 
@@ -34,6 +39,14 @@ import { IconCheck } from "./Icons";
  * agregado por setor com supressão §14). É distinto do ICD (líder) e do
  * Pré-Diagnóstico (maturidade). v1 — instrumento revisável com o cliente.
  */
+const LIKERT = [
+  { value: 1, label: "Discordo totalmente" },
+  { value: 2, label: "Discordo" },
+  { value: 3, label: "Neutro" },
+  { value: 4, label: "Concordo" },
+  { value: 5, label: "Concordo totalmente" },
+];
+
 const RISK_COLOR: Record<PsychosocialRiskLevel, string> = {
   BAIXO: "var(--green, #2f9e64)",
   MODERADO: "var(--gold-deep, #C4894A)",
@@ -54,16 +67,8 @@ const riskLabel = (src: unknown) => {
   return s.levelLabel ?? PSYCHOSOCIAL_RISK_LABEL[s.level as PsychosocialRiskLevel] ?? s.level ?? "—";
 };
 
-/**
- * Diagnóstico Organizacional (NR-1) no portal: LEITURA dos resultados.
- *
- * A aba "Responder" saiu: aqui quem responderia é o usuário logado — em geral o
- * RH ou o dono —, e o NR-1 exige coleta ampla e anônima entre os colaboradores.
- * Responder pelo painel é do Diagnóstico ESSENCIAL (autoavaliação do líder/dono,
- * na tela dele). A coleta do Organizacional acontece por Colaboradores (link
- * nominal, uma resposta por campanha) e por Campanhas (link aberto).
- */
 export function PsicossocialScreen() {
+  const [tab, setTab] = useState<"responder" | "resultados">("responder");
   return (
     <>
       <div className="route__head">
@@ -72,22 +77,176 @@ export function PsicossocialScreen() {
           <p className="page-sub">
             Diagnóstico organizacional amplo por colaborador (anônimo) — percepção de fatores
             psicossociais, agregada por setor. Confidencial (§14): recortes com menos de 5
-            respostas não são exibidos. A coleta é feita por <strong>link</strong>: convide pela
-            tela <strong>Colaboradores</strong> (dentro de uma campanha) ou use o link aberto em{" "}
-            <strong>Campanhas de Diagnóstico</strong>.
+            respostas não são exibidos.
           </p>
+        </div>
+        <div className="route__actions">
+          <div className="seg">
+            <button
+              className={`seg__btn ${tab === "responder" ? "is-active" : ""}`}
+              onClick={() => setTab("responder")}
+            >
+              Responder
+            </button>
+            <button
+              className={`seg__btn ${tab === "resultados" ? "is-active" : ""}`}
+              onClick={() => setTab("resultados")}
+            >
+              Resultados
+            </button>
+          </div>
         </div>
       </div>
 
-      <Resultados />
+      {tab === "responder" ? <Responder /> : <Resultados />}
     </>
   );
 }
 
-// A antiga aba "Responder" (questionário do usuário logado) foi removida: o NR-1
-// exige coleta ampla e anônima, feita por link (Colaboradores/Campanhas).
-// Responder pelo painel é do Diagnóstico ESSENCIAL, na tela dele.
+// ───────────────────────── Responder (anônimo) ─────────────────────────
+function Responder() {
+  const [questions, setQuestions] = useState<PsychosocialQuestion[]>([]);
+  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
+  const [sector, setSector] = useState("");
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "error">("idle");
+  const [result, setResult] = useState<PsychosocialResult | null>(null);
 
+  useEffect(() => {
+    getPsychosocialQuestions()
+      .then((qs) => {
+        setQuestions(qs);
+        setStatus("ok");
+      })
+      .catch(() => setStatus("error"));
+  }, []);
+
+  const answeredCount = questions.filter((q) => answers[q.id]).length;
+  const allAnswered = questions.length > 0 && answeredCount === questions.length;
+
+  async function submit() {
+    if (!allAnswered) return;
+    setSubmitState("submitting");
+    try {
+      const res = await submitPsychosocial({
+        sector: sector.trim() || undefined,
+        answers: questions.map((q) => ({ questionId: q.id, value: answers[q.id] })),
+      });
+      setResult(res.result);
+      setSubmitState("done");
+    } catch {
+      setSubmitState("error");
+    }
+  }
+
+  function reset() {
+    setAnswers({});
+    setResult(null);
+    setSubmitState("idle");
+  }
+
+  if (status === "loading") return <p className="dash-state">Carregando questionário…</p>;
+  if (status === "error")
+    return <div className="dash-state dash-state--error">Não foi possível carregar o questionário.</div>;
+
+  if (submitState === "done" && result) {
+    return (
+      <div className="card card--feature q-result">
+        <span className="card__eyebrow">RESPOSTA REGISTRADA · ANÔNIMA</span>
+        <strong className="big-num" style={{ color: riskColor(result.level) }}>
+          {result.score}
+          <small>/100</small>
+        </strong>
+        <span className="card__hint">
+          Proteção psicossocial percebida ·{" "}
+          <strong style={{ color: riskColor(result.level) }}>
+            {riskLabel(result)}
+          </strong>
+        </span>
+        <div className="q-result__dims">
+          {(Object.entries(result.byDimension) as [PsychosocialDimension, number][]).map(([k, v]) => (
+            <span key={k} className="dash-dist__item">
+              {dimLabel(result, k)}: <strong>{v}</strong>
+            </span>
+          ))}
+        </div>
+        <p className="card__hint">
+          Sua resposta é anônima — nenhum dado pessoal é guardado. Ela só aparece de forma agregada
+          (a partir de 5 respostas por recorte).
+        </p>
+        <button className="btn btn--gold btn--sm" onClick={reset}>
+          Nova resposta
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <label className="prod-field prod-field--full">
+          <span>Setor / Área (opcional)</span>
+          <input
+            type="text"
+            placeholder="Ex.: Operações, Comercial, Administrativo…"
+            value={sector}
+            onChange={(e) => setSector(e.target.value)}
+            maxLength={120}
+          />
+        </label>
+        <p className="card__sub" style={{ marginTop: 8, fontSize: 12 }}>
+          O setor ajuda a localizar onde o risco se concentra — sem identificar pessoas.
+        </p>
+      </div>
+
+      <ScaleHelpBox
+        scale={LIKERT}
+        hint="Avalie o quanto você concorda com cada afirmação sobre o seu trabalho."
+      />
+      <div className="q-list">
+        {questions.map((q, i) => (
+          <div className="card q-item" key={q.id} id={`pq-${q.id}`}>
+            <p className="q-item__text">
+              <span className="q-item__num">{i + 1}.</span> {q.text}
+            </p>
+            <div className="q-likert">
+              {LIKERT.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`q-opt ${answers[q.id] === opt.value ? "is-selected" : ""}`}
+                  onClick={() => setAnswers((a) => ({ ...a, [q.id]: opt.value }))}
+                  title={opt.label}
+                >
+                  {opt.value}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="q-submit">
+        {submitState === "error" && (
+          <span className="dash-state--error">Falha ao enviar. Tente novamente.</span>
+        )}
+        <button
+          className="btn btn--gold btn--block"
+          onClick={submit}
+          disabled={submitState === "submitting"}
+        >
+          {submitState === "submitting"
+            ? "Registrando…"
+            : !allAnswered
+              ? `Responda todas (${answeredCount}/${questions.length})`
+              : "Enviar resposta anônima →"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ───────────────────────── Resultados (RH/gestão) ─────────────────────────
 function Resultados() {
   const [data, setData] = useState<PsychosocialResults | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "forbidden" | "ok">("loading");
