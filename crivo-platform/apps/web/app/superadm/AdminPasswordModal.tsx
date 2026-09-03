@@ -45,7 +45,8 @@ export function AdminPasswordModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
+    {/* Clique fora NAO fecha: modal com formulario — fechar por engano apagava o que ja tinha sido digitado. Sai pelo X ou pelo Cancelar. */}
       <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <header className="modal__head">
           <h2>Trocar minha senha</h2>

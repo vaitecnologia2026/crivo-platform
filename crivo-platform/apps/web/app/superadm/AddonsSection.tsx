@@ -240,7 +240,8 @@ function AddonForm({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
+    {/* Clique fora NAO fecha: modal com formulario — fechar por engano apagava o que ja tinha sido digitado. Sai pelo X ou pelo Cancelar. */}
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <h2>{initial ? (initial.configured ? `Editar — ${initial.label}` : `Configurar — ${initial.label}`) : "Novo adicional"}</h2>

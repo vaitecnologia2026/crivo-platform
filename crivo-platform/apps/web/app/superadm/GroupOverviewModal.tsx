@@ -102,7 +102,8 @@ export function GroupOverviewModal({
   const c = data?.consolidated;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
+    {/* Clique fora NAO fecha: modal com formulario — fechar por engano apagava o que ja tinha sido digitado. Sai pelo X ou pelo Cancelar. */}
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
           <div>

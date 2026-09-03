@@ -1150,7 +1150,8 @@ function CommercialInfoModal({
   }) => void | Promise<void>;
 }) {
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
+    {/* Clique fora NAO fecha: modal com formulario — fechar por engano apagava o que ja tinha sido digitado. Sai pelo X ou pelo Cancelar. */}
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <h2>Informações Adicionais</h2>
@@ -1251,7 +1252,8 @@ function ConvertModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={done ? onConverted : onClose}>
+    <div className="modal-backdrop" onClick={done ? onConverted : undefined}>
+    {/* Clique fora NAO fecha: modal com formulario — fechar por engano apagava o que ja tinha sido digitado. Sai pelo X ou pelo Cancelar. */}
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <h2>{done ? "Cliente Habilitado ✓ · sistema liberado" : "Converter em cliente"}</h2>
