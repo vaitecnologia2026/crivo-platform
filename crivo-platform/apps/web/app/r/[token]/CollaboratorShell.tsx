@@ -16,7 +16,14 @@ function readTokenFromPath(): string | null {
   return token;
 }
 
-type Verified = { name: string; sector: string | null; tenantName: string; questions: PsychosocialQuestion[] };
+type Verified = {
+  name: string;
+  sector: string | null;
+  tenantName: string;
+  questions: PsychosocialQuestion[];
+  /** Escala publicada no Motor — o formulário a mostrava cravada no código. */
+  scaleLabels?: string[];
+};
 
 export function CollaboratorShell() {
   const [token, setToken] = useState<string | null>(null);
@@ -88,7 +95,11 @@ export function CollaboratorShell() {
         slug={token}
         rotulo="Diagnóstico da sua empresa"
         setorFixo={verified.sector}
-        carregar={async () => ({ tenantName: verified.tenantName, questions: verified.questions })}
+        carregar={async () => ({
+          tenantName: verified.tenantName,
+          questions: verified.questions,
+          scaleLabels: verified.scaleLabels,
+        })}
         enviar={async (_t, body) => submitCollab(token, { cpf: normalizeCpf(cpf), answers: body.answers })}
       />
     );

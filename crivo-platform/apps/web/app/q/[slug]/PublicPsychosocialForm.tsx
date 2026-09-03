@@ -6,6 +6,7 @@ import {
   submitPublicPsychosocial,
 } from "@/lib/api";
 import {
+  DEFAULT_SCALE_LABELS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_RISK_LABEL,
   type PsychosocialQuestion,
@@ -88,7 +89,12 @@ export function PublicPsychosocialForm({
   contexto = null,
 }: {
   slug: string;
-  carregar?: (slug: string) => Promise<{ tenantName: string; questions: PsychosocialQuestion[] }>;
+  carregar?: (slug: string) => Promise<{
+    tenantName: string;
+    questions: PsychosocialQuestion[];
+    /** Rótulos das 5 âncoras vindos do Motor. Ausente = escala padrão. */
+    scaleLabels?: string[];
+  }>;
   enviar?: (
     slug: string,
     body: { sector?: string; answers: { questionId: number; value: number }[] },
@@ -99,6 +105,9 @@ export function PublicPsychosocialForm({
 }) {
   const [tenantName, setTenantName] = useState("");
   const [questions, setQuestions] = useState<PsychosocialQuestion[]>([]);
+  // A escala vinha CRAVADA aqui: editar "Escalas e regras" no Motor não mudava
+  // nada para quem responde, e as âncoras diziam só "Discordo/Concordo".
+  const [scaleLabels, setScaleLabels] = useState<string[]>([...DEFAULT_SCALE_LABELS]);
   const [status, setStatus] = useState<"loading" | "invalid" | "ok">("loading");
   const [sector, setSector] = useState("");
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -113,6 +122,7 @@ export function PublicPsychosocialForm({
       .then((d) => {
         setTenantName(d.tenantName);
         setQuestions(d.questions);
+        if (d.scaleLabels?.length === 5) setScaleLabels(d.scaleLabels);
         setStatus("ok");
       })
       .catch(() => setStatus("invalid"));
@@ -237,7 +247,8 @@ export function PublicPsychosocialForm({
         {contexto && <p className={s.sub} style={{ marginTop: -4, fontWeight: 600 }}>{contexto}</p>}
         <p className={s.sub}>
           Sua percepção sobre o ambiente de trabalho ajuda a empresa a cuidar de riscos psicossociais
-          (NR-1). São 12 afirmações — responda de 1 (discordo totalmente) a 5 (concordo totalmente).
+          (NR-1). {questions.length === 1 ? "É 1 afirmação" : `São ${questions.length} afirmações`} —
+          responda de 1 ({scaleLabels[0].toLowerCase()}) a 5 ({scaleLabels[4].toLowerCase()}).
         </p>
         <p className={s.note}>
           {/* Ícone de traço, não emoji de sistema: esta tela é vista por todo
@@ -269,13 +280,7 @@ export function PublicPsychosocialForm({
         )}
 
         <ScaleHelpBox
-          scale={[
-            { value: 1, label: "Discordo totalmente" },
-            { value: 2, label: "Discordo" },
-            { value: 3, label: "Neutro" },
-            { value: 4, label: "Concordo" },
-            { value: 5, label: "Concordo totalmente" },
-          ]}
+          scale={scaleLabels.map((label, i) => ({ value: i + 1, label }))}
           hint="Avalie o quanto você concorda com cada afirmação. Suas respostas são anônimas."
         />
         {questions.map((q, i) => (
@@ -297,9 +302,11 @@ export function PublicPsychosocialForm({
                 </button>
               ))}
             </div>
+            {/* Âncoras = primeiro e último rótulo DA ESCALA PUBLICADA. Antes diziam
+                sempre "Discordo/Concordo", contradizendo a legenda acima. */}
             <div className={s.scale}>
-              <span>Discordo</span>
-              <span>Concordo</span>
+              <span>{scaleLabels[0]}</span>
+              <span>{scaleLabels[4]}</span>
             </div>
           </div>
         ))}

@@ -14,7 +14,7 @@ import {
   usesPsychosocialEngine,
 } from '../admin/methodology.service';
 import type { SubmitPsychosocialDto } from '../psychosocial/dto';
-import { MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
+import { DEFAULT_SCALE_LABELS, MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
 
 @Injectable()
 export class IcdService {
@@ -356,6 +356,17 @@ export class IcdService {
    *  ({ id, dimension, text }). Para o psicossocial delega ao serviço dele, que
    *  tem o fallback embutido para quando não há metodologia publicada — assim o
    *  caminho de hoje não muda em nada. */
+  /** Rótulos da escala do diagnóstico que a campanha aplica (fallback padrão). */
+  private async campaignScaleLabels(tenantId: string): Promise<string[]> {
+    const instrument = await this.campaignInstrument(tenantId);
+    if (await usesPsychosocialEngine(this.prisma, instrument)) {
+      return this.psychosocial.publicScaleLabels();
+    }
+    const active = await resolveActiveMethodology(this.prisma, instrument);
+    const labels = active?.config.scaleLabels ?? [];
+    return labels.length === 5 ? labels : [...DEFAULT_SCALE_LABELS];
+  }
+
   private async campaignQuestions(tenantId: string) {
     const instrument = await this.campaignInstrument(tenantId);
     if (await usesPsychosocialEngine(this.prisma, instrument)) return this.psychosocial.publicQuestions();
@@ -409,6 +420,8 @@ export class IcdService {
       tenantName: cycle.org.name,
       open: aberta,
       questions,
+      // A escala vem do Motor: o formulário público a mostrava cravada no código.
+      scaleLabels: aberta ? await this.campaignScaleLabels(cycle.tenantId) : [],
     };
   }
 

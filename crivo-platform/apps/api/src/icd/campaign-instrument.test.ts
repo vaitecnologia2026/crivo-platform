@@ -58,6 +58,10 @@ function build(cycle: Partial<Record<string, unknown>> = {}) {
   };
   const psychosocial = {
     publicQuestions: vi.fn(async () => PERGUNTAS_NR1),
+    // A campanha passou a servir também a ESCALA publicada no Motor.
+    publicScaleLabels: vi.fn(async () => [
+      'Discordo totalmente', 'Discordo', 'Neutro', 'Concordo', 'Concordo totalmente',
+    ]),
     submit: vi.fn(async () => ({ ok: true as const, result: { score: 80 } })),
   };
   const diagnostics = {

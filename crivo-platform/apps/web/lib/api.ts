@@ -803,6 +803,8 @@ export async function getPublicCampaign(slug: string): Promise<{
   // Mesmo shape de getPublicPsychosocial: as duas rotas servem a MESMA lista
   // (publicQuestions no backend), então o tipo tem de ser um só.
   questions: PsychosocialQuestion[];
+  /** Rótulos das 5 âncoras da escala publicada no Motor. */
+  scaleLabels?: string[];
 }> {
   const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
     signal: AbortSignal.timeout(15000),
@@ -878,7 +880,7 @@ export async function submitPublicDiagnostic(
 
 export async function getPublicPsychosocial(
   slug: string,
-): Promise<{ tenantName: string; questions: PsychosocialQuestion[] }> {
+): Promise<{ tenantName: string; questions: PsychosocialQuestion[]; scaleLabels?: string[] }> {
   const res = await fetch(`${apiBase()}/public/psychosocial/${encodeURIComponent(slug)}`, {
     signal: AbortSignal.timeout(15000),
   });
@@ -959,7 +961,7 @@ export async function getCollabInfo(token: string): Promise<{ tenantName: string
 export async function verifyCollab(
   token: string,
   cpf: string,
-): Promise<{ answered: boolean; name?: string; sector?: string | null; tenantName?: string; questions?: PsychosocialQuestion[] }> {
+): Promise<{ answered: boolean; name?: string; sector?: string | null; tenantName?: string; questions?: PsychosocialQuestion[]; scaleLabels?: string[] }> {
   const res = await fetch(`${apiBase()}/public/collab/${encodeURIComponent(token)}/verify`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cpf }), signal: AbortSignal.timeout(15000),
   });

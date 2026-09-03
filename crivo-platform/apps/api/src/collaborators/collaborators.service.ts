@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
+import { DEFAULT_SCALE_LABELS, isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
@@ -333,7 +333,19 @@ export class CollaboratorsService {
       sector: c.sector,
       tenantName: await this.tenantName(c.tenantId),
       questions: await this.questionsFor(c.tenantId),
+      scaleLabels: await this.scaleLabelsFor(c.tenantId),
     };
+  }
+
+  /** Rótulos da escala do diagnóstico contratado (fallback ao padrão). */
+  private async scaleLabelsFor(tenantId: string): Promise<string[]> {
+    const instrument = await this.instrumentFor(tenantId);
+    if (await usesPsychosocialEngine(this.prisma, instrument)) {
+      return this.psychosocial.publicScaleLabels();
+    }
+    const active = await resolveActiveMethodology(this.prisma, instrument);
+    const labels = active?.config.scaleLabels ?? [];
+    return labels.length === 5 ? labels : [...DEFAULT_SCALE_LABELS];
   }
 
   /** Perguntas do diagnóstico que a empresa contratou (Essencial ou NR-1). */

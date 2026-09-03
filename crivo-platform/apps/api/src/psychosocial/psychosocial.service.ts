@@ -14,6 +14,7 @@ import {
   PSYCHOSOCIAL_DIMENSIONS,
   PSYCHOSOCIAL_DIMENSION_LABEL,
   PSYCHOSOCIAL_QUESTIONS,
+  DEFAULT_SCALE_LABELS,
   type PsychosocialProfileRow,
   type PsychosocialRiskMatrixRow,
 } from '@crivo/types';
@@ -202,6 +203,18 @@ export class PsychosocialService {
       : PSYCHOSOCIAL_QUESTIONS;
   }
 
+  /**
+   * Rótulos da escala (5 âncoras) da metodologia ATIVA; fallback ao padrão.
+   *
+   * O formulário público trazia a escala CRAVADA no código ("Discordo totalmente
+   * … Concordo totalmente") — editar a aba "Escalas e regras" no Motor não mudava
+   * nada para quem responde.
+   */
+  async publicScaleLabels(): Promise<string[]> {
+    const cfg = await loadActiveMethodologyConfig(this.prisma, await resolvePsychosocialInstrument(this.prisma));
+    return cfg?.scaleLabels?.length === 5 ? cfg.scaleLabels : [...DEFAULT_SCALE_LABELS];
+  }
+
   /** Resolve um slug público → nome da empresa + perguntas (sem auth, sem dados internos). */
   async getPublicBySlug(slug: string) {
     // rls-allow: endpoint público anônimo (/q/<slug>), sem tenant no contexto; resolve slug→nome (select mínimo).
@@ -210,7 +223,11 @@ export class PsychosocialService {
       select: { name: true },
     });
     if (!org) throw new NotFoundException('Questionário não encontrado ou link inválido.');
-    return { tenantName: org.name, questions: await this.publicQuestions() };
+    return {
+      tenantName: org.name,
+      questions: await this.publicQuestions(),
+      scaleLabels: await this.publicScaleLabels(),
+    };
   }
 
   /** Submissão pública anônima via slug. Resolve o tenant e grava sob a RLS dele. */
