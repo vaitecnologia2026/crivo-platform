@@ -131,15 +131,22 @@ describe('sendDiagnosticEmail — a leitura do MAPA com o e-book, num e-mail só
     expect(mail.html).not.toContain('e-book');
   });
 
-  it('leva o diagnóstico: índice, nível, dimensões e ponto de atenção', async () => {
+  it('corpo enxuto: índice e leitura no e-mail, o detalhe no PDF anexo', async () => {
+    // Layout aprovado pelo cliente em 2026-09-04: o corpo carrega índice,
+    // leitura e anexos; o detalhe por dimensão foi para dentro do PDF.
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('rede fora'); }));
     const { svc } = build();
     await svc.sendDiagnosticEmail('lead-1');
 
-    const { html, subject } = mailSent();
+    const { html, subject, attachments } = mailSent();
     expect(subject).toContain('MAPA Executivo');
-    expect(html).toContain('72/100');
-    expect(html).toContain('Governança, Evidências e Plano de Ação');
+    expect(html).toContain('Seu índice preliminar');
+    expect(html).toContain('>72<');
+    expect(html).toContain('CONHECER A CRIVO');
+    expect(html).toContain('contato@crivolegacy.com.br');
+    // O que saiu do corpo tem de estar no anexo — não pode ter sumido.
+    expect(html).not.toContain('Governança, Evidências e Plano de Ação');
+    expect(attachments?.[0].filename).toContain('MAPA_Executivo_CRIVO_');
   });
 
   it('não depende da IA — nenhum serviço de IA é tocado', async () => {

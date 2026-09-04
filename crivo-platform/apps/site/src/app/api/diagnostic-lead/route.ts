@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { makeLogger, maskEmail, maskPhone, reasonOf, safeReqId, type SiteLogger } from "@/lib/log";
 
+import { leadEmailSubject, renderLeadEmailHtml } from "@crivo/types";
+
 export const runtime = "nodejs";
 
 // Diagnóstico Inicial da LP. Faz 3 coisas, todas best-effort (nunca trava o lead):
@@ -48,6 +50,10 @@ type DiagResult = {
 
 const EBOOK_URL = process.env.EBOOK_URL ?? "https://crivolegacy.com.br/ebook-crivo.pdf";
 const SITE_URL = process.env.SITE_URL ?? "https://crivolegacy.com.br";
+/** Mesma ressalva do e-mail da API (lá o texto é editável no super admin). */
+const NOTA_TECNICA =
+  "O MAPA Executivo CRIVO™ oferece uma leitura preliminar a partir das informações fornecidas " +
+  "e não substitui diagnóstico técnico ou avaliação especializada.";
 
 const LEVEL_LABEL: Record<string, string> = {
   CRITICO: "Crítico",
@@ -148,59 +154,6 @@ async function sendToPlatform(
   }
 }
 
-// ── E-mail profissional ao LEAD (HTML inline, email-safe) ────────────────────
-function leadEmailHtml(data: Payload, result?: DiagResult, hasEbook = false): string {
-  const empresa = data.company || "sua empresa";
-  const score = result?.score ?? null;
-  const nivel = levelLabel(result);
-  const atencao = attentionLabels(result);
-  const scoreBlock =
-    score != null
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
-           <td style="text-align:center;background:${NAVY};border-radius:16px;padding:22px 30px">
-             <div style="font:700 46px/1 Georgia,serif;color:#fff">${score}<span style="font-size:20px;color:${TERRA}">/100</span></div>
-             <div style="font:600 12px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c9d2e6;margin-top:6px">Índice preliminar</div>
-           </td></tr></table>`
-      : "";
-  const atencaoBlock = atencao.length
-    ? `<p style="margin:18px 0 6px;font:600 13px Arial,sans-serif;color:${NAVY}">Principais pontos de atenção:</p>
-       <ul style="margin:0;padding-left:18px;font:14px/1.6 Arial,sans-serif;color:#333">${atencao
-         .map((a) => `<li>${a}</li>`)
-         .join("")}</ul>`
-    : "";
-
-  return `<!DOCTYPE html><html><body style="margin:0;background:#f4f1ec;padding:24px 0">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(27,42,74,.08)">
-      <tr><td style="background:${NAVY};padding:26px 34px">
-        <div style="font:700 22px Georgia,serif;color:#fff;letter-spacing:.04em">CRIVO<span style="color:${TERRA}">™</span></div>
-        <div style="font:13px Arial,sans-serif;color:#c9d2e6;margin-top:2px">Inteligência decisória · Diagnóstico Inicial</div>
-      </td></tr>
-      <tr><td style="padding:30px 34px 8px">
-        <p style="margin:0 0 10px;font:16px/1.6 Georgia,serif;color:${NAVY}">Olá, ${firstName(data.name)}.</p>
-        <p style="margin:0 0 22px;font:14px/1.7 Arial,sans-serif;color:#444">
-          Recebemos o Diagnóstico Inicial de <strong>${empresa}</strong>. Abaixo, sua leitura preliminar${
-            hasEbook
-              ? " — e o <strong>e-book complementar</strong> segue em anexo neste e-mail"
-              : ""
-          }.</p>
-        ${scoreBlock}
-        <p style="margin:18px 0 0;font:14px/1.7 Arial,sans-serif;color:#444">
-          Nível de maturidade: <strong style="color:${NAVY}">${nivel}</strong>.</p>
-        ${atencaoBlock}
-      </td></tr>
-      <tr><td style="padding:24px 34px 8px">
-        <a href="${SITE_URL}" style="display:inline-block;background:${TERRA};color:#fff;text-decoration:none;font:600 14px Arial,sans-serif;padding:13px 26px;border-radius:10px">Conhecer a jornada CRIVO</a>
-      </td></tr>
-      <tr><td style="padding:18px 34px 28px">
-        <p style="margin:0;font:11px/1.6 Arial,sans-serif;color:#8a8a8a;border-top:1px solid #eee;padding-top:14px">
-          Esta é uma <strong>leitura preliminar</strong> com base nas respostas informadas — não substitui uma análise
-          técnica presencial. A equipe CRIVO poderá avaliar o diagnóstico mais adequado à realidade da sua operação.</p>
-        <p style="margin:10px 0 0;font:11px Arial,sans-serif;color:${TERRA};font-weight:700">CRIVO™ · O2 Legacy</p>
-      </td></tr>
-    </table>
-  </td></tr></table></body></html>`;
-}
 
 async function fetchEbook(log: SiteLogger): Promise<Buffer | null> {
   try {
@@ -227,8 +180,27 @@ async function sendLeadEmail(
     log.warn("mail.skipped motivo=lead_sem_email");
     return false;
   }
-  const html = leadEmailHtml(data, result, !!pdf);
-  const subject = pdf ? "Seu Diagnóstico Inicial CRIVO™ + e-book" : "Seu Diagnóstico Inicial CRIVO™";
+  // Mesmo layout do e-mail que a API envia: o lead nunca pode receber duas
+  // identidades visuais diferentes da CRIVO por causa de qual caminho atendeu.
+  const corpo = {
+    firstName: firstName(data.name),
+    company: data.company ?? null,
+    score: result?.score ?? null,
+    bandLabel: result ? levelLabel(result) : null,
+    attachments: pdf
+      ? [
+          {
+            label: "o e-book complementar CRIVO",
+            detail:
+              "com uma leitura ampliada sobre os temas que estão transformando a gestão das organizações",
+          },
+        ]
+      : [],
+    note: NOTA_TECNICA,
+    siteUrl: SITE_URL,
+  };
+  const html = renderLeadEmailHtml(corpo);
+  const subject = leadEmailSubject(data.company);
   const resendKey = process.env.RESEND_API_KEY;
 
   // Preferência: Resend (HTTP, ideal em serverless) se houver chave.

@@ -3996,3 +3996,5 @@ export function mensagemDeErroApi(corpo: unknown, status: number): string {
   }
   return generico;
 }
+
+export * from './lead-email';

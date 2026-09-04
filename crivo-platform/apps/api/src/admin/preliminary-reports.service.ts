@@ -12,11 +12,16 @@ import {
   type PreDiagnosticDimension,
   type PreDiagnosticResult,
   type PreliminaryReportData,
+  type LeadEmailAttachmentLine,
   findBandForScore,
+  leadEmailSubject,
+  renderLeadEmailHtml,
+  renderLeadEmailText,
 } from '@crivo/types';
 import { loadActiveMethodologyConfig } from './methodology.service';
 import {
   gerarMapaExecutivoPdf,
+  leituraParaBlocos,
   nomeArquivoMapa,
   type DadosMapaExecutivo,
 } from './mapa-executivo-pdf';
@@ -153,7 +158,7 @@ export class PreliminaryReportsService {
         to: recipient,
         leadName: lead.name,
         company: lead.company ?? null,
-        markdown: content,
+        report: content,
         footer,
         diagnostic,
       });
@@ -193,7 +198,7 @@ export class PreliminaryReportsService {
       to: sendTo,
       leadName: lead?.name ?? 'Cliente',
       company: lead?.company ?? null,
-      markdown: report.content,
+      report: report.content,
       footer,
       diagnostic: (lead?.diagnosticResult as unknown as PreDiagnosticResult) ?? null,
     });
@@ -258,18 +263,19 @@ export class PreliminaryReportsService {
     to: string;
     leadName: string;
     company: string | null;
-    markdown: string;
+    /**
+     * Relatório escrito pela IA. Vai DENTRO do PDF do MAPA — o corpo do e-mail
+     * ficou enxuto (índice + leitura + anexos), decisão do cliente em
+     * 2026-09-04. Ausente = o PDF usa os blocos determinísticos de reserva.
+     */
+    report?: string | null;
     footer: string;
     /** Assunto próprio — usado pelo envio de garantia, sem a leitura da IA. */
     subject?: string;
     /** Resultado do MAPA. Presente = o PDF do MAPA Executivo vai anexado. */
     diagnostic?: PreDiagnosticResult | null;
   }): Promise<{ ok: boolean; provider: string; reason?: string }> {
-    const subject =
-      input.subject ??
-      (input.company
-        ? `Seu Relatório Preliminar CRIVO — ${input.company}`
-        : 'Seu Relatório Preliminar CRIVO');
+    const subject = input.subject ?? leadEmailSubject(input.company);
     // Push para a equipe CRIVO (self-gate no pushEnabled do painel).
     await this.notifications.dispatchPush('relatorio_preliminar.enviado', {
       title: 'Relatório preliminar enviado',
@@ -296,18 +302,44 @@ export class PreliminaryReportsService {
     // cliente. Antes ele ia só no corpo do e-mail, e as tabelas chegavam em
     // markdown cru no leitor.
     const mapa = input.diagnostic
-      ? await this.loadMapaPdf(input.diagnostic, input.company, input.leadName)
+      ? await this.loadMapaPdf(
+          input.diagnostic,
+          input.company,
+          input.leadName,
+          input.report ?? null,
+        )
       : null;
     const anexos = [
       ...(mapa ? [{ filename: mapa.filename, content: mapa.content, contentType: 'application/pdf' }] : []),
       ...(ebook ? [{ filename: ebook.filename, content: ebook.content, contentType: 'application/pdf' }] : []),
     ];
-    const html = renderEmailHtml(input.leadName, input.markdown, input.footer, !!ebook, !!mapa);
+    // Só lista o que realmente foi anexado — prometer arquivo ausente era o
+    // defeito original desta mensagem.
+    const linhasAnexo: LeadEmailAttachmentLine[] = [
+      ...(mapa ? [{ label: 'seu Relatório Preliminar do MAPA Executivo CRIVO™' }] : []),
+      ...(ebook
+        ? [
+            {
+              label: 'o e-book complementar CRIVO',
+              detail:
+                'com uma leitura ampliada sobre os temas que estão transformando a gestão das organizações',
+            },
+          ]
+        : []),
+    ];
+    const corpo = {
+      firstName: input.leadName.split(' ')[0] ?? input.leadName,
+      company: input.company,
+      score: input.diagnostic?.score ?? null,
+      bandLabel: mapa?.faixaLabel ?? null,
+      attachments: linhasAnexo,
+      note: input.footer,
+    };
     const result = await sendMail({
       to: input.to,
       subject,
-      html,
-      text: input.markdown,
+      html: renderLeadEmailHtml(corpo),
+      text: renderLeadEmailText(corpo),
       attachments: anexos.length ? anexos : undefined,
     });
 
@@ -410,7 +442,9 @@ export class PreliminaryReportsService {
     diagnostic: PreDiagnosticResult,
     empresa: string | null,
     respondente: string,
-  ): Promise<{ filename: string; content: Buffer } | null> {
+    /** Relatório da IA, para virar as seções de leitura do PDF. */
+    report?: string | null,
+  ): Promise<{ filename: string; content: Buffer; faixaLabel: string } | null> {
     try {
       const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC').catch(() => null);
       const bands = cfg?.bands ?? [];
@@ -458,12 +492,13 @@ export class PreliminaryReportsService {
           : [],
         sintese: sinteseMapa(dimensoes),
         caminho: caminhoMapa(dimensoes),
+        leitura: report ? leituraParaBlocos(report) : [],
       };
 
       const content = await gerarMapaExecutivoPdf(dados);
       const filename = nomeArquivoMapa(nome, data);
       this.log.log(`MAPA Executivo anexado: ${filename} (${Math.round(content.length / 1024)} KB).`);
-      return { filename, content };
+      return { filename, content, faixaLabel };
     } catch (e) {
       this.log.warn(
         `Falha ao gerar o PDF do MAPA Executivo (${e instanceof Error ? e.message : e}) — e-mail seguira SEM o anexo do MAPA.`,
@@ -505,12 +540,9 @@ export class PreliminaryReportsService {
         to,
         leadName: lead.name,
         company: lead.company ?? null,
-        markdown: diagnosticMarkdown(lead.diagnosticResult as unknown as PreDiagnosticResult),
         footer,
         diagnostic: lead.diagnosticResult as unknown as PreDiagnosticResult,
-        subject: lead.company
-          ? `Seu MAPA Executivo CRIVO — ${lead.company}`
-          : 'Seu MAPA Executivo CRIVO',
+        subject: leadEmailSubject(lead.company),
       });
       if (send.ok) {
         // O envio de GARANTIA não escrevia nada em banco nem no log quando dava
@@ -590,29 +622,6 @@ function caminhoMapa(dimensoes: DimensaoMapa[]): string {
   );
 }
 
-function diagnosticMarkdown(d: PreDiagnosticResult): string {
-  const dims = Object.entries(d.byDimension ?? {})
-    .sort((a, b) => a[1] - b[1])
-    .map(
-      ([slug, v]) =>
-        `- ${PRE_DIAGNOSTIC_DIMENSION_LABEL[slug as PreDiagnosticDimension] ?? slug}: ${Math.round(v)}/100`,
-    );
-  const atencao = (d.topAttentions?.length ? d.topAttentions : d.topAttention ? [d.topAttention] : [])
-    .map((k) => PRE_DIAGNOSTIC_DIMENSION_LABEL[k] ?? null)
-    .filter((l): l is string => !!l);
-
-  const linhas = [
-    '# Sua leitura preliminar',
-    '',
-    `**Índice preliminar:** ${Math.round(d.score)}/100`,
-    `**Nível de maturidade:** ${MATURITY_LABEL[d.level] ?? d.level}`,
-  ];
-  if (dims.length) linhas.push('', '## Resultado por dimensão', ...dims);
-  if (atencao.length) {
-    linhas.push('', '## Principais pontos de atenção', ...atencao.map((a) => `- ${a}`));
-  }
-  return linhas.join('\n');
-}
 
 function toData(row: any): PreliminaryReportData {
   return {
@@ -746,104 +755,4 @@ Produza agora o Relatório Preliminar CRIVO conforme a estrutura definida.
 `.trim();
 }
 
-/**
- * Converte tabelas markdown (`| coluna | coluna |`) em `<table>`.
- *
- * O conversor de markdown daqui nunca soube ler tabela, e a leitura escrita
- * pela IA usa tabela para as dimensões — então o lead recebia os pipes crus
- * no meio do e-mail. Recebe o texto JÁ ESCAPADO; não introduz conteúdo novo,
- * só troca as linhas de pipe pela marcação da tabela.
- */
-function tabelasParaHtml(texto: string): string {
-  const linhas = texto.split('\n');
-  const saida: string[] = [];
-  let bloco: string[] = [];
 
-  const celulas = (linha: string) =>
-    linha
-      .replace(/^\s*\|/, '')
-      .replace(/\|\s*$/, '')
-      .split('|')
-      .map((c) => c.trim());
-  // Linha separadora do markdown (|---|:--:|) — não vira conteúdo.
-  const separadora = (linha: string) => /^\s*\|[\s:|-]+\|?\s*$/.test(linha);
-
-  const fecha = () => {
-    if (!bloco.length) return;
-    const corpo = bloco.filter((l) => !separadora(l));
-    const temCabecalho = bloco.length > 1 && separadora(bloco[1] ?? '');
-    const tr = (linha: string, tag: 'th' | 'td') => {
-      const estilo =
-        tag === 'th'
-          ? 'padding:6px 10px;border-bottom:2px solid #dcd7ce;text-align:left;color:#0d1f3c'
-          : 'padding:6px 10px;border-bottom:1px solid #e6e3dc';
-      return `<tr>${celulas(linha)
-        .map((c) => `<${tag} style="${estilo}">${c}</${tag}>`)
-        .join('')}</tr>`;
-    };
-    const linhasHtml = temCabecalho
-      ? [tr(corpo[0] ?? '', 'th'), ...corpo.slice(1).map((l) => tr(l, 'td'))]
-      : corpo.map((l) => tr(l, 'td'));
-    saida.push(
-      `<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:14px">${linhasHtml.join('')}</table>`,
-    );
-    bloco = [];
-  };
-
-  for (const linha of linhas) {
-    if (linha.trim().startsWith('|')) bloco.push(linha);
-    else {
-      fecha();
-      saida.push(linha);
-    }
-  }
-  fecha();
-  return saida.join('\n');
-}
-
-function renderEmailHtml(
-  leadName: string,
-  markdown: string,
-  footer: string,
-  hasEbook: boolean,
-  hasMapa: boolean,
-): string {
-  // Renderização HTML simples — preserva quebras e parágrafos. Não usa lib
-  // de markdown para manter o serviço sem dependências adicionais.
-  // Escapa entradas controladas (leadName do formulário público, footer do
-  // super admin) p/ evitar injeção de HTML no e-mail.
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const escaped = tabelasParaHtml(esc(markdown));
-  const html = escaped
-    .replace(/^# (.*)$/gm, '<h2 style="color:#0d1f3c">$1</h2>')
-    .replace(/^## (.*)$/gm, '<h3 style="color:#0d1f3c">$1</h3>')
-    .replace(/^### (.*)$/gm, '<h4>$1</h4>')
-    .replace(/^\* (.*)$/gm, '<li>$1</li>')
-    .replace(/^- (.*)$/gm, '<li>$1</li>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
-  return `
-<!doctype html>
-<html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#1c2540;line-height:1.55">
-  <p>Olá, ${esc(leadName.split(' ')[0] ?? '')}.</p>
-  <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades.</p>
-  ${
-    // Só promete o que realmente foi anexado — prometer arquivo ausente era o
-    // defeito original desta mensagem.
-    hasMapa || hasEbook
-      ? `<p>Em anexo neste mesmo e-mail: ${[
-          hasMapa ? 'o <strong>MAPA Executivo</strong> completo em PDF' : '',
-          hasEbook ? 'o <strong>e-book complementar</strong>' : '',
-        ]
-          .filter(Boolean)
-          .join(' e ')}.</p>`
-      : ''
-  }
-  <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
-  <div><p>${html}</p></div>
-  <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
-  <p style="font-size:12px;color:#727a8c">${esc(footer)}</p>
-</body></html>`.trim();
-}
