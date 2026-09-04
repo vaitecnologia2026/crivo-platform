@@ -151,13 +151,25 @@ export function PublicPsychosocialForm({
    * clique duplo) agendava DOIS avanços e a tela pulava uma pergunta.
    */
   function escolher(questionId: number, value: number) {
-    setAnswers((a) => ({ ...a, [questionId]: value }));
+    const depois = { ...answers, [questionId]: value };
+    setAnswers(depois);
     if (avancoRef.current) clearTimeout(avancoRef.current);
     // Pequena pausa: a pessoa VÊ o que escolheu antes da tela trocar.
     avancoRef.current = setTimeout(() => {
       avancoRef.current = null;
-      setPasso((atual) => Math.min(atual + 1, questions.length + 1));
+      setPasso((atual) => proximoPasso(atual, depois));
     }, 260);
+  }
+
+  /**
+   * Próxima tela. Sair da última pergunta só leva à REVISÃO quando tudo está
+   * respondido; faltando alguma, vai para ela — não faz sentido avançar sem ter
+   * respondido, e a revisão incompleta virava um beco sem saída.
+   */
+  function proximoPasso(atual: number, respostas: Record<number, number>): number {
+    if (atual < questions.length) return atual + 1;
+    const falta = questions.findIndex((q) => !respostas[q.id]);
+    return falta >= 0 ? falta + 1 : questions.length + 1;
   }
 
   const answered = questions.filter((q) => answers[q.id]).length;
@@ -397,7 +409,7 @@ export function PublicPsychosocialForm({
                   ← Voltar
                 </button>
                 {escolhido && (
-                  <button type="button" className={s.back} onClick={() => setPasso((x) => x + 1)}>
+                  <button type="button" className={s.back} onClick={() => setPasso((x) => proximoPasso(x, answers))}>
                     {passo === questions.length ? "Revisar e enviar →" : "Avançar →"}
                   </button>
                 )}

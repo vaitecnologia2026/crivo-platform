@@ -222,13 +222,26 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
    * de onde vinha o buraco.
    */
   function escolher(questionId: number, value: number) {
-    setAnswers((x) => ({ ...x, [questionId]: value }));
+    const depois = { ...answers, [questionId]: value };
+    setAnswers(depois);
     if (avancoRef.current) clearTimeout(avancoRef.current);
     // Pausa curta: quem responde VÊ o que marcou antes de a tela trocar.
     avancoRef.current = setTimeout(() => {
       avancoRef.current = null;
-      setPasso((atual) => Math.min(atual + 1, questions.length + 1));
+      setPasso((atual) => proximoPasso(atual, depois));
     }, 260);
+  }
+
+  /**
+   * Próxima tela. Sair da última pergunta só leva à REVISÃO quando tudo está
+   * respondido; faltando alguma, vai para ela. Antes dava para chegar na revisão
+   * com um item em aberto e ficar preso num "Responda todas (19/20)" sem saber
+   * qual faltava — não faz sentido avançar sem ter respondido.
+   */
+  function proximoPasso(atual: number, respostas: Record<number, number>): number {
+    if (atual < total) return atual + 1;
+    const falta = questions.findIndex((q) => !respostas[q.id]);
+    return falta >= 0 ? falta + 1 : total + 1;
   }
 
   async function submit() {
@@ -296,7 +309,7 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 10 }}>
             <button className="btn btn--ghost btn--sm" onClick={() => setPasso((x) => x - 1)}>← Voltar</button>
             {escolhido && (
-              <button className="btn btn--ghost btn--sm" onClick={() => setPasso((x) => x + 1)}>
+              <button className="btn btn--ghost btn--sm" onClick={() => setPasso((x) => proximoPasso(x, answers))}>
                 {passo === total ? "Revisar e concluir →" : "Avançar →"}
               </button>
             )}
