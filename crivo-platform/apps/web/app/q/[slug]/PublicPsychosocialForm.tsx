@@ -346,6 +346,12 @@ export function PublicPsychosocialForm({
                 Pergunta {passo} de {questions.length}
                 {answered > 0 && answered < questions.length && ` · ${answered} respondida(s)`}
               </p>
+              {/* A legenda acompanha a pergunta: com uma por tela, quem responde
+                  perdia de vista o que 1 e 5 significam ao trocar de tela. */}
+              <ScaleHelpBox
+                scale={scaleLabels.map((label, i) => ({ value: i + 1, label }))}
+                hint="Suas respostas são anônimas."
+              />
               <div className={s.q}>
                 <p className={s.qtext}>{q.text}</p>
                 <div className={s.likert}>

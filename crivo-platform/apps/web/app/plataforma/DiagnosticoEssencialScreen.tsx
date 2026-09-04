@@ -259,6 +259,9 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
             {answered > 0 && answered < total && ` · ${answered} respondida(s)`}
           </p>
           <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 12px" }}>{pergunta.text}</p>
+          {/* A legenda acompanha a pergunta: com uma por tela, quem responde
+              perdia de vista o que 1 e 5 significam ao trocar de tela. */}
+          <ScaleHelpBox scale={scale.map((label, i) => ({ value: i + 1, label }))} />
           <div className="essencial-scale">
             {scale.map((label, i) => (
               <button
