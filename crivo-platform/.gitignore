@@ -25,3 +25,8 @@ packages/db/prisma/*.db
 # typescript build info
 *.tsbuildinfo
 .vercel
+
+# Texto extraido de PDF durante analise — nunca versionar (repo publico).
+*_pdf.txt
+dossie_*.txt
+alvo.txt
