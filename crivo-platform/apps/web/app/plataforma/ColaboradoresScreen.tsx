@@ -11,6 +11,7 @@ import {
   sendCollaboratorWhatsapp,
   getCollaboratorInviteLink,
   listCampaigns,
+  listCampaignParticipants,
   type CollaboratorView,
   type CollaboratorInput,
 } from "@/lib/api";
@@ -23,6 +24,12 @@ const STATUS_LABEL: Record<CollaboratorView["status"], string> = {
   pending: "Pendente",
   invited: "Convite enviado",
   responded: "Respondeu",
+};
+/** O back fala em português no status por campanha; a tela usa o mesmo vocabulário. */
+const STATUS_DA_CAMPANHA: Record<"pendente" | "convidado" | "respondeu", CollaboratorView["status"]> = {
+  pendente: "pending",
+  convidado: "invited",
+  respondeu: "responded",
 };
 const STATUS_CLASS: Record<CollaboratorView["status"], string> = {
   pending: "addx-status--AGUARDANDO_DADOS",
@@ -100,6 +107,18 @@ export function ColaboradoresScreen() {
   // campanha nenhuma — a tela de campanhas não tinha como medir adesão.
   const [campanhas, setCampanhas] = useState<CampaignSummary[]>([]);
   const [campanhaId, setCampanhaId] = useState<string>("");
+  /**
+   * Status POR CAMPANHA.
+   *
+   * A lista de colaboradores devolve a última atividade da pessoa — quem já
+   * respondeu qualquer diagnóstico aparece como "Respondeu" para sempre. Só que
+   * o bloqueio de responder duas vezes é por CONVITE, então numa campanha nova
+   * essa mesma pessoa PODE responder. A tela dizia o contrário do que a regra
+   * faz, e parecia dado velho de outra empresa.
+   */
+  const [naCampanha, setNaCampanha] = useState<
+    Record<string, { status: CollaboratorView["status"]; respondedAt: string | null }>
+  >({});
 
   async function load() {
     setStatus("loading");
@@ -121,6 +140,26 @@ export function ColaboradoresScreen() {
     }
   }
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    if (!campanhaId) {
+      setNaCampanha({});
+      return;
+    }
+    let vivo = true;
+    void listCampaignParticipants(campanhaId)
+      .then((r) => {
+        if (!vivo) return;
+        const mapa: Record<string, { status: CollaboratorView["status"]; respondedAt: string | null }> = {};
+        for (const p of r.participants) {
+          mapa[p.id] = { status: STATUS_DA_CAMPANHA[p.status], respondedAt: p.respondedAt };
+        }
+        setNaCampanha(mapa);
+      })
+      // Falha aqui degrada para o status geral — não vale derrubar a tela.
+      .catch(() => { if (vivo) setNaCampanha({}); });
+    return () => { vivo = false; };
+  }, [campanhaId, rows]);
 
   const nomeCampanha = () => campanhas.find((c) => c.id === campanhaId)?.name ?? "";
 
@@ -365,7 +404,7 @@ export function ColaboradoresScreen() {
               <th>Setor</th>
               <th>Contato</th>
               <th>CPF</th>
-              <th>Status</th>
+              <th>{campanhaId ? "Status nesta campanha" : "Status (última atividade)"}</th>
               <th aria-label="Ações" />
             </tr>
           </thead>
@@ -379,7 +418,32 @@ export function ColaboradoresScreen() {
                   {c.phone ? <><br /><span className="card__sub">{c.phone}</span></> : null}
                 </td>
                 <td><code>{c.cpfMasked}</code></td>
-                <td><span className={`addx-status ${STATUS_CLASS[c.status]}`}>{STATUS_LABEL[c.status]}{c.respondedAt ? ` · ${new Date(c.respondedAt).toLocaleDateString("pt-BR")}` : ""}</span></td>
+                <td>
+                  {(() => {
+                    const nesta = campanhaId ? naCampanha[c.id] : undefined;
+                    const st = nesta?.status ?? c.status;
+                    const quando = nesta ? nesta.respondedAt : c.respondedAt;
+                    return (
+                      <>
+                        <span className={`addx-status ${STATUS_CLASS[st]}`}>
+                          {STATUS_LABEL[st]}
+                          {quando ? ` · ${new Date(quando).toLocaleDateString("pt-BR")}` : ""}
+                        </span>
+                        {/* Já respondeu antes, mas não NESTA campanha: dizer as
+                            duas coisas evita o "já respondeu" enganoso sem
+                            esconder o histórico. */}
+                        {nesta && nesta.status !== "responded" && c.respondedAt ? (
+                          <>
+                            <br />
+                            <span className="card__sub">
+                              respondeu em {new Date(c.respondedAt).toLocaleDateString("pt-BR")} (outra campanha)
+                            </span>
+                          </>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                </td>
                 <td className="addx-actions" style={{ whiteSpace: "nowrap" }}>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !campanhaId} title={campanhaId ? "" : "Escolha a campanha acima"} onClick={() => copyLink(c)}>Copiar link</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.email || !campanhaId} title={!c.email ? "Sem e-mail" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendEmail(c)}>E-mail</button>
