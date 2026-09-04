@@ -1028,6 +1028,21 @@ export function getEssencialResults(): Promise<DiagnosticAggregate> {
   return apiFetch<DiagnosticAggregate>("/essencial/results");
 }
 
+/**
+ * O que a Visão Geral precisa saber sobre o diagnóstico CONTRATADO.
+ * `engine` diz de qual motor o resultado vem: no psicossocial o card
+ * "Fatores Psicossociais" já é o dono do dado, e `aggregate` vem null.
+ */
+export interface DashboardDiagnostic {
+  engine: "PSYCHOSOCIAL" | "DIAGNOSTICS";
+  instrumentSlug: string;
+  instrumentName: string | null;
+  aggregate: DiagnosticAggregate | null;
+}
+export function getDashboardDiagnostic(): Promise<DashboardDiagnostic> {
+  return apiFetch<DashboardDiagnostic>("/dashboard/diagnostic");
+}
+
 /** Link do convite daquele colaborador NAQUELA campanha (cria se não existir). */
 export function getCollaboratorInviteLink(id: string, cycleId: string): Promise<{ link: string }> {
   return apiFetch(`/collaborators/${id}/link`, { method: "POST", body: JSON.stringify({ cycleId }) });

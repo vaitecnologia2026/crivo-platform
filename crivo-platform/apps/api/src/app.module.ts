@@ -27,6 +27,7 @@ import { PeopleAnalyticsModule } from './people-analytics/people-analytics.modul
 import { AlertsModule } from './alerts/alerts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { HealthController } from './health/health.controller';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { ClientErrorsController } from './common/client-errors.controller';
 
 @Module({
@@ -52,6 +53,7 @@ import { ClientErrorsController } from './common/client-errors.controller';
     PsychosocialModule,
     CollaboratorsModule,
     DiagnosticsModule,
+    DashboardModule,
     CnaeModule,
     InvisibleCostsModule,
     PeopleAnalyticsModule,

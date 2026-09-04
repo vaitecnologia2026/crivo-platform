@@ -27,6 +27,7 @@ import {
   submitSelfAssessment,
 } from "@/lib/api";
 import { ScaleHelpBox } from "@crivo/ui";
+import { ResultadoDiagnosticoCard } from "./ResultadoDiagnosticoCard";
 
 /** Diagnóstico Essencial (Briefing §5): autoavaliação + escuta/observação → Plano de Ação. */
 export function DiagnosticoEssencialScreen() {
@@ -534,85 +535,17 @@ function ResultadoAgregado() {
   if (status === "loading") return null;
   if (status === "error" || !data) return null;
 
-  const dims = data.byDimension ?? {};
-  const ordenadas = Object.entries(dims).sort((a, b) => a[1] - b[1]);
-
   return (
-    <div className="card" style={{ marginBottom: 18 }}>
-      <div className="card__head">
-        <div>
-          <h3>Resultado do diagnóstico (colaboradores)</h3>
-          <span className="card__sub">
-            Respostas anônimas e agregadas. <strong>Inclui a sua autoavaliação do bloco 1</strong>,
-            que conta como uma resposta — em empresa pequena a leitura do gestor pesa no resultado.
-          </span>
-        </div>
-      </div>
-
-      {data.suppressed ? (
-        <p className="card__sub">
-          <strong>{data.totalRespondents} resposta(s)</strong> recebida(s). O resultado é liberado a
-          partir de <strong>{data.minRespondents}</strong> — o mínimo que preserva o anonimato de quem
-          respondeu. {data.minRespondents > data.totalRespondents
-            ? `Faltam ${data.minRespondents - data.totalRespondents}.`
-            : ""}
-        </p>
-      ) : (
+    <ResultadoDiagnosticoCard
+      data={data}
+      title="Resultado do diagnóstico (colaboradores)"
+      subtitle={
         <>
-          <div className="kpi-row" style={{ marginBottom: 14 }}>
-            <div className="kpi">
-              <span className="kpi__label">Índice geral</span>
-              <strong className="kpi__value" style={{ color: data.levelColor ?? undefined }}>
-                {data.score}
-              </strong>
-              <span className="card__sub">{data.levelLabel}</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Respondentes</span>
-              <strong className="kpi__value">{data.totalRespondents}</strong>
-              <span className="card__sub">
-                respostas válidas
-                {data.selfAssessments
-                  ? ` · ${data.totalRespondents - data.selfAssessments} por link + ${data.selfAssessments} autoavaliação`
-                  : ""}
-              </span>
-            </div>
-          </div>
-          {data.methodologyMixed && (
-            <p className="card__sub">
-              Atenção: há respostas de versões diferentes do questionário — a comparação entre elas
-              não é direta.
-            </p>
-          )}
-          <table className="data-table">
-            <thead><tr><th>Dimensão</th><th style={{ width: 220 }}>Índice</th></tr></thead>
-            <tbody>
-              {ordenadas.map(([slug, valor]) => {
-                const banda = data.dimensionBands?.[slug];
-                return (
-                  <tr key={slug}>
-                    <td>{data.dimensionLabels?.[slug] ?? slug}</td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1, height: 8, background: "var(--line)", borderRadius: 999 }}>
-                          <div style={{
-                            width: `${valor}%`,
-                            height: "100%",
-                            borderRadius: 999,
-                            background: banda?.color ?? "var(--gold)",
-                          }} />
-                        </div>
-                        <strong style={{ minWidth: 34, textAlign: "right" }}>{valor}</strong>
-                      </div>
-                      {banda && <span className="card__sub">{banda.label}</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          Respostas anônimas e agregadas. <strong>Inclui a sua autoavaliação do bloco 1</strong>,
+          que conta como uma resposta — em empresa pequena a leitura do gestor pesa no resultado.
+          Este mesmo resultado aparece na <strong>Visão Geral</strong>.
         </>
-      )}
-    </div>
+      }
+    />
   );
 }

@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
-import { getPsychosocialResults, listActionPlans, listDocuments, type PsychosocialResults } from "@/lib/api";
+import {
+  getDashboardDiagnostic,
+  getPsychosocialResults,
+  listActionPlans,
+  listDocuments,
+  type DashboardDiagnostic,
+  type PsychosocialResults,
+} from "@/lib/api";
+import { ResultadoDiagnosticoCard } from "./ResultadoDiagnosticoCard";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OperationalAlerts } from "./OperationalAlerts";
 import {
@@ -258,6 +266,18 @@ export function DashboardScreen() {
   const { data, status, refresh } = useIcdDashboard();
   const { data: axesData, status: axesStatus } = useIcdAxes();
   const [plans, setPlans] = useState<ActionPlanData[] | null>(null);
+  // Resultado do diagnóstico CONTRATADO. Fica fora do gate de status do
+  // /icd/dashboard de propósito: era o dado que a empresa mais procurava e ele
+  // não podia sumir junto com os indicadores quando aquele endpoint falha.
+  const [diag, setDiag] = useState<DashboardDiagnostic | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getDashboardDiagnostic()
+      .then((d) => { if (alive) setDiag(d); })
+      .catch(() => { if (alive) setDiag(null); });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -298,6 +318,24 @@ export function DashboardScreen() {
 
       {/* Fileira executiva (mockup 22/07) — 6 KPIs reais no topo. */}
       <ExecutiveKpiRow plans={plans} />
+
+      {/* O resultado das respostas dos colaboradores. Só aparece no motor de
+          diagnósticos: no psicossocial quem mostra é o card "Fatores
+          Psicossociais", logo abaixo — o mesmo número duas vezes na tela
+          confunde mais do que informa. */}
+      {diag?.engine === "DIAGNOSTICS" && diag.aggregate && diag.aggregate.totalRespondents > 0 && (
+        <ResultadoDiagnosticoCard
+          data={diag.aggregate}
+          title="Resultado do diagnóstico (colaboradores)"
+          subtitle={
+            <>
+              Respostas anônimas e agregadas
+              {diag.instrumentName ? <> do <strong>{diag.instrumentName}</strong></> : null}.
+              Inclui a autoavaliação do gestor, quando houver.
+            </>
+          }
+        />
+      )}
 
       {status === "loading" && <p className="dash-state">Carregando indicadores…</p>}
 
