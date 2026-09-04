@@ -3341,6 +3341,8 @@ export interface CampaignSummary {
   respondentes: number;
   /** Colaboradores convidados para este ciclo (convites emitidos). */
   convidados: number;
+  /** Convidados que já responderam — numerador da adesão. */
+  respondidos: number;
   /** respondidos ÷ convidados, 0–100 (%). 0 quando ninguém foi convidado ainda. */
   adesao: number;
   /** Média do índice (0–100) das respostas do ciclo. null = sem respostas. */

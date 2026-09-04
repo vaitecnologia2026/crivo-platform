@@ -143,6 +143,10 @@ export class IcdService {
             createdAt: c.createdAt.toISOString(),
             respondentes,
             convidados,
+            // Convidados que responderam — é o numerador da adesão. Sem ele a
+            // tela mostrava "(respostas/convidados)", que dava 6/5 quando alguém
+            // entrou pelo link da campanha sem convite nominal.
+            respondidos,
             adesao,
             indiceMedio,
           };

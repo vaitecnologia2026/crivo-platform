@@ -251,9 +251,22 @@ export function CampanhasScreen() {
                         Antes vinha das avaliações de líderes do ICD sobre todos os
                         usuários ativos — número que nunca falava desta campanha. */}
                     <td>
-                      {c.convidados
-                        ? <>{c.adesao}% <span className="card__sub">({c.respondentes}/{c.convidados})</span></>
-                        : <span className="card__sub">ninguém convidado</span>}
+                      {c.convidados ? (
+                        <>
+                          {c.adesao}%{" "}
+                          <span className="card__sub">({c.respondidos}/{c.convidados})</span>
+                          {/* Quem entrou pelo link da campanha sem convite nominal
+                              conta no resultado, mas não na adesão — separar evita
+                              a leitura "6 de 5". */}
+                          {c.respondentes > c.respondidos && (
+                            <div className="card__sub">
+                              +{c.respondentes - c.respondidos} resposta(s) pelo link da campanha
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="card__sub">ninguém convidado</span>
+                      )}
                     </td>
                     <td>
                       {c.indiceMedio !== null

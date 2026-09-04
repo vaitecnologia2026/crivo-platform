@@ -124,9 +124,11 @@ export const NAV: NavGroup[] = [
         label: 'NR-1 · Riscos Psicossociais',
         icon: '◮',
         module: 'campanhas',
-        // ESSENCIAL também coleta pelo link psicossocial (/q/<slug>) — sem esta
-        // rota o tenant ESSENCIAL coletava e não via matriz/perfil completos.
-        methods: ['ORGANIZACIONAL', 'ESSENCIAL'],
+        // Só ORGANIZACIONAL. O item ficou visível para o ESSENCIAL enquanto ele
+        // não tinha tela de resultado própria — mas esta lê a tabela do
+        // psicossocial, que para o Essencial está SEMPRE vazia (as respostas dele
+        // vão para outra). O resultado do Essencial agora vive na tela dele.
+        methods: ['ORGANIZACIONAL'],
         // Mas o DONO é só ORGANIZACIONAL — o rename não deve usar o nome do
         // Essencial aqui (senão o item aparece "CRIVO Diagnóstico Essencial" 2×).
         ownerMethods: ['ORGANIZACIONAL'],
