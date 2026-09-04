@@ -453,7 +453,7 @@ export class IcdService {
       cycle.id,
       cpf,
     );
-    if (invite.respondedAt) return { answered: true as const };
+    if (invite?.respondedAt) return { answered: true as const };
     return {
       answered: false as const,
       name: collaborator.name,
@@ -471,11 +471,15 @@ export class IcdService {
     if (!aberta) {
       throw new BadRequestException('Esta campanha não está aberta para respostas no momento.');
     }
+    // No ENVIO o convite é criado se ainda não existir (quem entrou pelo QR sem
+    // ter sido convidado nominalmente também passa a constar na campanha).
     const { collaborator, invite } = await this.collaborators.resolveForCampaign(
       cycle.tenantId,
       cycle.id,
       dto.cpf,
+      true,
     );
+    if (!invite) throw new BadRequestException('Não foi possível registrar sua participação.');
     if (invite.respondedAt) throw new ConflictException('Você já respondeu esta campanha.');
     const marcarParticipacao = this.collaborators.hookDeParticipacao(invite.id, collaborator.id);
     const instrument = await this.campaignInstrument(cycle.tenantId);

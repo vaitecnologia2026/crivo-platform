@@ -367,7 +367,17 @@ export class CollaboratorsService {
    * para responder de novo e inflar a média (e o piso de anonimato conta
    * PESSOAS, não envios).
    */
-  async resolveForCampaign(tenantId: string, cycleId: string, cpf: string) {
+  async resolveForCampaign(
+    tenantId: string,
+    cycleId: string,
+    cpf: string,
+    /**
+     * Só o ENVIO cria o convite. Criar já na conferência do CPF inflaria o
+     * denominador da adesão com quem apenas abriu o link e desistiu — "convidados"
+     * passaria a significar "quem digitou o CPF alguma vez".
+     */
+    criarConvite = false,
+  ) {
     const normalizado = normalizeCpf(cpf);
     if (!isValidCpf(normalizado)) throw new BadRequestException('CPF inválido.');
     const c = await this.prisma.forTenant(tenantId, (tx) =>
@@ -378,7 +388,16 @@ export class CollaboratorsService {
         'CPF não encontrado no cadastro desta empresa. Fale com o RH para ser incluído.',
       );
     }
-    const invite = await this.ensureInvite(tenantId, c.id, cycleId);
+    const existente = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.campaignInvite.findUnique({
+        where: { cycleId_collaboratorId: { cycleId, collaboratorId: c.id } },
+      }),
+    );
+    const invite = existente
+      ? (existente as InviteRow)
+      : criarConvite
+        ? await this.ensureInvite(tenantId, c.id, cycleId)
+        : null;
     return { collaborator: c as CollaboratorRow, invite };
   }
 
