@@ -270,6 +270,10 @@ export function PublicPsychosocialForm({
       </div>
     );
 
+  // Pergunta corrente e a nota escolhida — derivadas antes do JSX.
+  const perguntaAtual = passo >= 1 && passo <= questions.length ? questions[passo - 1] : null;
+  const escolhido = perguntaAtual ? answers[perguntaAtual.id] : undefined;
+
   return (
     <div className={s.wrap}>
       <div className={s.card}>
@@ -346,11 +350,11 @@ export function PublicPsychosocialForm({
         )}
 
         {/* ── Uma pergunta por tela ──────────────────────────────────────── */}
-        {passo >= 1 && passo <= questions.length && (() => {
-          const q = questions[passo - 1];
-          const escolhido = answers[q.id];
-          return (
-            <>
+        {/* Sem IIFE: a lista de perguntas é derivada ANTES do return — chamar a
+            função de avanço (que usa um ref) dentro de um bloco executado em
+            tempo de render é erro de lint e esconde re-render acidental. */}
+        {perguntaAtual && (
+          <>
               <div className={s.progress} role="progressbar" aria-valuemin={1} aria-valuemax={questions.length} aria-valuenow={passo}>
                 <i style={{ width: `${(passo / questions.length) * 100}%` }} />
               </div>
@@ -365,14 +369,14 @@ export function PublicPsychosocialForm({
                 hint="Suas respostas são anônimas."
               />
               <div className={s.q}>
-                <p className={s.qtext}>{q.text}</p>
+                <p className={s.qtext}>{perguntaAtual.text}</p>
                 <div className={s.likert}>
                   {[1, 2, 3, 4, 5].map((v) => (
                     <button
                       key={v}
                       type="button"
                       className={`${s.opt} ${escolhido === v ? s.optSel : ""}`}
-                      onClick={() => escolher(q.id, v)}
+                      onClick={() => escolher(perguntaAtual.id, v)}
                       aria-pressed={escolhido === v}
                       title={scaleLabels[v - 1]}
                     >
@@ -399,8 +403,7 @@ export function PublicPsychosocialForm({
                 )}
               </div>
             </>
-          );
-        })()}
+        )}
 
         {/* ── Revisão e envio ────────────────────────────────────────────── */}
         {passo > questions.length && questions.length > 0 && (
