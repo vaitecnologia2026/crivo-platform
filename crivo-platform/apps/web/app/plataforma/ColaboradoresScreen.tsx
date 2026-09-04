@@ -9,6 +9,7 @@ import {
   importCollaborators,
   sendCollaboratorEmail,
   sendCollaboratorWhatsapp,
+  getCollaboratorInviteLink,
   listCampaigns,
   type CollaboratorView,
   type CollaboratorInput,
@@ -184,12 +185,30 @@ export function ColaboradoresScreen() {
     }
   }
 
+  /**
+   * Copia o link do convite DAQUELA campanha (criando o convite se preciso).
+   *
+   * Antes copiava o token do próprio colaborador, que responde fora de qualquer
+   * campanha: exigir campanha no envio por e-mail e deixar o link livre no botão
+   * ao lado anulava a regra — a resposta entrava no agregado sem pertencer a
+   * ciclo nenhum, e a campanha não a contava.
+   */
   async function copyLink(c: CollaboratorView) {
+    if (!campanhaId) { alert("Escolha a campanha antes de copiar o link."); return; }
+    setBusyId(c.id);
     try {
-      await navigator.clipboard.writeText(c.link);
-      flashMsg("Link copiado.");
-    } catch {
-      window.prompt("Copie o link do colaborador:", c.link);
+      const { link } = await getCollaboratorInviteLink(c.id, campanhaId);
+      try {
+        await navigator.clipboard.writeText(link);
+        flashMsg(`Link de ${c.name} copiado — campanha "${nomeCampanha()}".`);
+      } catch {
+        window.prompt("Copie o link do colaborador:", link);
+      }
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao gerar o link.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -362,7 +381,7 @@ export function ColaboradoresScreen() {
                 <td><code>{c.cpfMasked}</code></td>
                 <td><span className={`addx-status ${STATUS_CLASS[c.status]}`}>{STATUS_LABEL[c.status]}{c.respondedAt ? ` · ${new Date(c.respondedAt).toLocaleDateString("pt-BR")}` : ""}</span></td>
                 <td className="addx-actions" style={{ whiteSpace: "nowrap" }}>
-                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} onClick={() => copyLink(c)}>Copiar link</button>
+                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !campanhaId} title={campanhaId ? "" : "Escolha a campanha acima"} onClick={() => copyLink(c)}>Copiar link</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.email || !campanhaId} title={!c.email ? "Sem e-mail" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendEmail(c)}>E-mail</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.phone || !campanhaId} title={!c.phone ? "Sem telefone" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendWa(c)}>WhatsApp</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} onClick={() => openEdit(c)}>Editar</button>

@@ -76,6 +76,17 @@ export class CollaboratorsController {
     return this.svc.inviteMany(user.tenantId, cycleId, dto.ids);
   }
 
+  /** Link do convite para copiar — também dentro de uma campanha. */
+  @Post(':id/link')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
+  inviteLink(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SendInviteDto,
+  ) {
+    return this.svc.inviteLink(user.tenantId, id, dto.cycleId);
+  }
+
   /** Convite SEMPRE dentro de uma campanha: o corpo traz o ciclo escolhido. */
   @Post(':id/send-email')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')

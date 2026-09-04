@@ -343,6 +343,21 @@ export class CollaboratorsService {
     return { enviados, erros, total: alvo.length };
   }
 
+  /**
+   * Link do convite daquele colaborador NAQUELA campanha (cria se ainda não
+   * existe). Serve o botão "Copiar link" da tela.
+   *
+   * Antes o botão copiava o token do próprio colaborador, que responde FORA de
+   * qualquer campanha: exigir campanha no e-mail e deixar o link livre no botão
+   * ao lado anulava a regra — a resposta entrava no agregado da empresa sem
+   * pertencer a ciclo nenhum.
+   */
+  async inviteLink(tenantId: string, id: string, cycleId: string) {
+    await this.loadOwn(tenantId, id);
+    const invite = await this.ensureInvite(tenantId, id, cycleId);
+    return { link: linkFor(invite.token) };
+  }
+
   // ── Fluxo público por token (o funcionário abre o link) ────────────────────
 
   /**

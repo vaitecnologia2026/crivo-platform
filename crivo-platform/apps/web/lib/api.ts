@@ -981,6 +981,11 @@ export function inviteCampaignParticipants(
   });
 }
 
+/** Link do convite daquele colaborador NAQUELA campanha (cria se não existir). */
+export function getCollaboratorInviteLink(id: string, cycleId: string): Promise<{ link: string }> {
+  return apiFetch(`/collaborators/${id}/link`, { method: "POST", body: JSON.stringify({ cycleId }) });
+}
+
 /** Convite SEMPRE dentro de uma campanha: sem ciclo, a API recusa. */
 export function sendCollaboratorEmail(id: string, cycleId: string): Promise<{ ok: boolean; provider: string }> {
   return apiFetch(`/collaborators/${id}/send-email`, { method: "POST", body: JSON.stringify({ cycleId }) });
