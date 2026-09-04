@@ -296,7 +296,7 @@ export class PsychosocialService {
       where: { instrument: instrumento, status: 'ACTIVE' },
       select: {
         dimensions: { select: { slug: true, severity: true, parentSlug: true } },
-        factors: { select: { slug: true, label: true, severity: true, dimensionSlug: true }, orderBy: { order: 'asc' } },
+        factors: { select: { slug: true, label: true, severity: true, consequences: true, dimensionSlug: true }, orderBy: { order: 'asc' } },
         questions: { select: { dimensionSlug: true, factorSlugs: true } },
       },
     });
@@ -338,6 +338,8 @@ export class PsychosocialService {
       for (const [dim, n] of count) if (n > bestN) { best = dim; bestN = n; }
       return best;
     };
+    const rotuloDaDimensao = (slug?: string | null) =>
+      slug ? (dims.find((x) => x.slug === slug)?.label ?? null) : null;
     const matrixRows: MatrixSource[] = factors.length
       ? factors
           .map((f): MatrixSource | null => {
@@ -355,6 +357,8 @@ export class PsychosocialService {
                 sourceSlug: f.slug,
                 // A biblioteca de ações do Dossiê resolve por DIMENSÃO.
                 planSlug: dimForPlan,
+                consequences: f.consequences ?? null,
+                dimensionLabel: rotuloDaDimensao(dimForPlan),
               };
             }
             if (dimForPlan) {
@@ -365,6 +369,8 @@ export class PsychosocialService {
                 from: 'dimension' as const,
                 sourceSlug: dimForPlan,
                 planSlug: dimForPlan,
+                consequences: f.consequences ?? null,
+                dimensionLabel: rotuloDaDimensao(dimForPlan),
               };
             }
             return null; // sem perguntas e sem dimensão: fica fora da matriz
@@ -372,7 +378,16 @@ export class PsychosocialService {
           .filter((r): r is MatrixSource => r !== null)
       : dims
           .filter((d) => !d.parentSlug && d.severity != null)
-          .map((d) => ({ slug: d.slug, label: d.label, severity: d.severity as number, from: 'dimension' as const, sourceSlug: d.slug, planSlug: d.slug }));
+          .map((d) => ({
+            slug: d.slug,
+            label: d.label,
+            severity: d.severity as number,
+            from: 'dimension' as const,
+            sourceSlug: d.slug,
+            planSlug: d.slug,
+            consequences: null,
+            dimensionLabel: d.label,
+          }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.psychosocialResponse.findMany({
@@ -459,6 +474,10 @@ type MatrixSource = {
   sourceSlug: string;
   /** Chave da DIMENSÃO para a biblioteca de ações do Dossiê (pode ser null). */
   planSlug: string | null;
+  /** Possíveis agravos do fator — vão para o Inventário Técnico do Dossiê. */
+  consequences?: string | null;
+  /** Rótulo da dimensão de origem, para a coluna "Processo" do Inventário. */
+  dimensionLabel?: string | null;
 };
 
 /** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
@@ -585,6 +604,8 @@ function aggregate(
             severity,
             risk,
             riskClass,
+            consequences: d.consequences ?? null,
+            dimensionLabel: d.dimensionLabel ?? null,
             actionLabel: PSYCHOSOCIAL_RISK_CLASS_ACTION[riskClass],
             planRequired: PSYCHOSOCIAL_RISK_PLAN_REQUIRED[riskClass],
           };

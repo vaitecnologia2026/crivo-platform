@@ -195,7 +195,17 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) td { border: 0; padding: 4px 10px 4px 0; text-align: left; vertical-align: top; }
   .note { margin-top: 30px; padding: 14px 16px; background: #f6f4f0; border-left: 3px solid #a8693d; font-size: 11.5px; color: #3a4858; font-style: italic; }
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
-  @media print { body { margin: 0; } button { display: none; } }
+  /* Margem zero na PAGINA tira o cabecalho/rodape que o navegador imprime
+     por conta propria (data, titulo, URL blob: e numero de pagina). O
+     respiro volta como padding do proprio documento, no padrao CRIVO. */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { margin: 0; max-width: none; padding: 18mm 16mm; }
+    button { display: none; }
+    section { break-inside: avoid; }
+    table { break-inside: auto; }
+    tr { break-inside: avoid; }
+  }
 </style></head><body>
   <div class="brandbar">
     <svg viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

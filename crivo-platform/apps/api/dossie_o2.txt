@@ -1,0 +1,909 @@
+C R I V O
+D E C I S I O N I N T E L L I G E N C E
+Dossiê Técnico de Fatores de Riscos Psicossociais
+Relacionados ao Trabalho
+Template-base final · TPL-002 · Documento técnico controlado
+Empresa 	O2 Legacy 	Método aplicado 	Diagnóstico Organizacional
+Saída técnica 	Apoio à AEP + PGR 	Período avaliado 	04/09/2026 a 04/09/2026
+Respostas
+válidas/adesão
+5
+Declaração de escopo — Integração à AEP + GRO/PGR
+Este documento registra os fatores de risco psicossociais relacionados ao trabalho identificados no
+ciclo avaliado, com a finalidade de subsidiar a Avaliação Ergonômica Preliminar (AEP) e a
+integração ao GRO/PGR. Não substitui a AEP, o PGR, nem a validação da empresa ou do
+responsável técnico.
+Ressalva — rascunho sem plano de ação registrado
+Este documento é uma PRÉ-VISUALIZAÇÃO. O plano de ação vinculado não possui nenhuma ação
+registrada, portanto as tabelas de fatores de risco, plano aprovado, evidências e anexo de inventário
+saem sem conteúdo. Nada aqui atesta conformidade, ausência de risco ou inexistência de fatores —
+atesta apenas que o plano ainda não foi preenchido. A emissão oficial permanece bloqueada até que
+as ações sejam registradas em Plano de Evolução.
+1. Finalidade e limites
+Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental para
+identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais relacionados ao
+trabalho. A revisão, validação, assinatura e integração formal desses documentos à AEP, ao
+GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou
+do responsável técnico/designado.
+2. Escopo e fontes da avaliação
+Número de empregados —
+Áreas/Setores
+considerados Recursos Humanos
+Modelo de trabalho 	—
+Fontes utilizadas Questionário psicossocial CRIVO; Matriz técnica do diagnóstico; Plano de Evolução;
+Motor de Evidências
+Versão metodológica 	v1
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	1/12
+
+-- 1 of 12 --
+
+Regra de
+confidencialidade Recortes com menos de 5 respondentes são omitidos
+3. Síntese dos resultados
+Índice/resultado geral 	49
+Classificação geral 	Atenção crítica
+Principais fatores
+priorizados —
+Grupos/áreas
+prioritários —
+4. Resultados por dimensão
+Dimensão oficial 	Resultado 	Classificação
+Demandas e Ritmo de Trabalho 	39 	Atenção crítica
+Autonomia e Participação 	53 	Vulnerável
+Clareza de Papel e Conteúdo do Trabalho 	49 	Atenção crítica
+Recursos e Condições de Execução 	49 	Atenção crítica
+Liderança e Suporte 	45 	Atenção crítica
+Relações, Respeito e Segurança Psicológica 	51 	Vulnerável
+Reconhecimento e Justiça Organizacional 	52 	Vulnerável
+Mudanças e Previsibilidade 	43 	Atenção crítica
+Estabilidade e Segurança do Vínculo 	49 	Atenção crítica
+Jornada, Recuperação e Equilíbrio Trabalho-Vida 	55 	Vulnerável
+5. Análise por recorte
+Adesão por área/setor/turno. Recortes com menos de 5 respondentes exibem: "Dados omitidos por
+confidencialidade. Volume mínimo de respostas não atingido."
+Recorte 	Respondentes 	Exibição 	Observação
+Recursos Humanos 	5 	Exibido 	—
+6. Matriz técnica de fatores de risco
+ID Área/Processo 	Grupo exposto 	Fator 	Fonte/Circunstância 	Sev. Prob. 	Risco 	Ação
+— 	— 	— 	— 	— 	— 	— 	— 	—
+Matriz de Risco Psicossocial — leitura
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	2/12
+
+-- 2 of 12 --
+
+Probabilidade (1–5): frequência com que o risco é percebido, calculada pela exposição média das
+respostas vinculadas ao fator (exposição = 6 − resposta, pois as perguntas são afirmativas positivas);
+acima de 60% das respostas em exposição alta, a probabilidade é 5. Severidade (1–5): potencial de
+impacto do fator, fixo na metodologia. Risco = Probabilidade × Severidade (1–25): 1–4 Baixo
+(monitorar) · 5–9 Moderado (prevenir) · 10–15 Alto (corrigir) · 16–20 Muito alto (mitigar
+urgentemente) · 21–25 Crítico (ação imediata). A partir de 10, o plano de ação é obrigatório (NR-1,
+subitem 1.5.4.4.2).
+Matriz de Risco — Consolidado da organização (5 avaliados)
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Sobrecarga de
+trabalho
+3,80 	5 	4 	20 	Muito alto
+(Prioridade
+imediata)
+Mitigar
+urgentemente
+Obrigatório
+Violência grave /
+agressão física /
+evento traumático
+relacionado ao
+trabalho
+2,95 	3 	5 	15 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Demandas
+simultâneas e
+interrupções
+recorrentes
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Inadequação entre
+atividades e
+responsabilidades
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Processos
+inadequados e
+retrabalho
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Omissão da
+liderança diante de
+condições
+inadequadas
+3,80 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Baixa segurança
+psicológica
+2,60 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Assédio e condutas
+hostis
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Fragilidade na
+prevenção e
+tratamento de
+discriminação,
+agressão ou
+violência
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	3/12
+
+-- 3 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Imprevisibilidade
+operacional
+3,80 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Insegurança no
+emprego
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Ameaça de perda
+do emprego ou
+piora das
+condições como
+pressão
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Jornada
+inadequada e
+recuperação
+insuficiente
+3,20 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Extensão
+recorrente da
+jornada
+3,20 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Feedback
+insuficiente ou
+inadequado
+3,40 	5 	2 	10 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Pressão de tempo
+contínua
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Exigências
+emocionais
+elevadas
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Conflito de papel e
+prioridades
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Recursos
+insuficientes para
+execução
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de clareza da
+liderança
+2,80 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de suporte
+gerencial
+2,80 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	4/12
+
+-- 4 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Falta de
+reconhecimento
+3,20 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa
+transparência em
+reconhecimento e
+recompensas
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa justiça
+organizacional
+2,60 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Mudanças sem
+previsibilidade
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Comunicação
+inadequada de
+mudanças
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa participação
+em mudanças
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de
+transparência
+diante de
+incertezas
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Dimensionamento
+inadequado de
+pessoal
+2,20 	2 	4 	8 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Insegurança sobre
+condições de
+trabalho
+2,40 	2 	4 	8 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa autonomia 	3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Controle excessivo
+sobre a execução
+do trabalho
+2,00 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	5/12
+
+-- 5 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Baixa influência
+em decisões do
+trabalho
+3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa participação
+na melhoria do
+trabalho
+3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa clareza de
+papel
+2,60 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixo significado
+percebido do
+trabalho
+3,00 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de
+informação para
+execução
+3,40 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de apoio
+social no trabalho
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Tratamento
+inequitativo
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Pausas e intervalos
+insuficientes
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Hiperconectividade
+e interferência no
+descanso
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Matriz de Risco — Grupo: Recursos Humanos (5 avaliados)
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Sobrecarga de
+trabalho
+3,80 	5 	4 	20 	Muito alto
+(Prioridade
+imediata)
+Mitigar
+urgentemente
+Obrigatório
+Violência grave /
+agressão física /
+2,95 	3 	5 	15 	Alto (Requer
+plano de
+Corrigir 	Obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	6/12
+
+-- 6 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+evento traumático
+relacionado ao
+trabalho
+ação)
+Demandas
+simultâneas e
+interrupções
+recorrentes
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Inadequação entre
+atividades e
+responsabilidades
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Processos
+inadequados e
+retrabalho
+3,60 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Omissão da
+liderança diante de
+condições
+inadequadas
+3,80 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Baixa segurança
+psicológica
+2,60 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Assédio e condutas
+hostis
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Fragilidade na
+prevenção e
+tratamento de
+discriminação,
+agressão ou
+violência
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Imprevisibilidade
+operacional
+3,80 	4 	3 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Insegurança no
+emprego
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Ameaça de perda
+do emprego ou
+piora das
+condições como
+pressão
+3,40 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Jornada
+inadequada e
+recuperação
+insuficiente
+3,20 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	7/12
+
+-- 7 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Extensão
+recorrente da
+jornada
+3,20 	3 	4 	12 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Feedback
+insuficiente ou
+inadequado
+3,40 	5 	2 	10 	Alto (Requer
+plano de
+ação)
+Corrigir 	Obrigatório
+Pressão de tempo
+contínua
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Exigências
+emocionais
+elevadas
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Conflito de papel e
+prioridades
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Recursos
+insuficientes para
+execução
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de clareza da
+liderança
+2,80 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de suporte
+gerencial
+2,80 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de
+reconhecimento
+3,20 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa
+transparência em
+reconhecimento e
+recompensas
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa justiça
+organizacional
+2,60 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	8/12
+
+-- 8 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Mudanças sem
+previsibilidade
+3,40 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Comunicação
+inadequada de
+mudanças
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa participação
+em mudanças
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de
+transparência
+diante de
+incertezas
+3,00 	3 	3 	9 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Dimensionamento
+inadequado de
+pessoal
+2,20 	2 	4 	8 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Insegurança sobre
+condições de
+trabalho
+2,40 	2 	4 	8 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa autonomia 	3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Controle excessivo
+sobre a execução
+do trabalho
+2,00 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa influência
+em decisões do
+trabalho
+3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa participação
+na melhoria do
+trabalho
+3,20 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Baixa clareza de
+papel
+2,60 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	9/12
+
+-- 9 of 12 --
+
+Fator 	Exposição
+média
+Probabilidade Severidade Risco Classificação Ação
+recomendada
+Plano de
+ação
+Baixo significado
+percebido do
+trabalho
+3,00 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de
+informação para
+execução
+3,40 	3 	2 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Falta de apoio
+social no trabalho
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Tratamento
+inequitativo
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Pausas e intervalos
+insuficientes
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Hiperconectividade
+e interferência no
+descanso
+2,40 	2 	3 	6 	Moderado
+(Exige
+atenção
+pontual)
+Prevenir 	Não
+obrigatório
+Plano de Ação para Controle dos Riscos Psicossociais
+Ações recomendadas por dimensão, priorizadas pela classificação de risco (R = Probabilidade ×
+Severidade). Planos da biblioteca técnica CRIVO (referência Mapa HDS).
+8. Plano de ação aprovado — snapshot do ciclo
+Nenhum plano registrado. Este bloco NÃO cria nem edita ações — apenas reproduz o estado
+aprovado do Plano de Evolução no momento da emissão.
+ID 	Ação aprovada 	Responsável 	Prazo 	Indicador 	Evidência esperada 	Status
+— 	— 	— 	— 	— 	— 	—
+9. Evidências
+Nenhuma evidência anexada até o momento. A regra permanece: somente evidência aprovada
+compõe a documentação técnica — esta seção fica vazia até que haja evidência anexada e validada.
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	10/12
+
+-- 10 of 12 --
+
+Evidência 	Tipo 	Vínculo/Referência 	Status 	Validada em
+— 	— 	— 	— 	—
+11. Anexo técnico para integração ao inventário
+Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR pelo
+responsável técnico, após validação da empresa.
+ID
+risco
+Processo Fator
+psicossocial
+Fonte/Circunstância Grupo
+exposto
+Medida
+existente
+Risco Ação
+— 	— 	— 	— 	— 	— 	— 	—
+12. Indicação de integração documental
+Elemento do dossiê 	Destino recomendado
+Matriz de fatores 	Registro da AEP e base para inventário de riscos ocupacionais.
+Anexo técnico 	Inventário de riscos ocupacionais, após validação da empresa/responsável.
+Plano de ação aprovado 	Plano de ação do PGR/GRO ou plano preventivo vinculado à AEP.
+Evidências 	Registros de implementação e acompanhamento.
+Base Técnica da Recomendação
+Nenhuma classificação CNAE/NR-1 vinculada a esta empresa. Execute o Motor de Decisão
+CNAE/NR-1 (Super Admin) informando o CNPJ desta empresa para registrar a base técnica da
+recomendação.
+Conclusão e validação
+A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e às
+demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do responsável
+técnico/designado. A empresa baixa o documento, assina fora do sistema e o integra ao seu
+AEP/GRO/PGR.
+Responsável 	Nome 	Cargo 	Registro profissional 	Data 	Assinatura
+Empresa
+Responsável técnico/designado
+Controle documental
+Status do documento 	Rascunho (pré-visualização)
+Versão do documento 	Atribuída na emissão oficial
+Data de emissão 	—
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	11/12
+
+-- 11 of 12 --
+
+Validação 	Assinatura fora do sistema (empresa e responsável técnico)
+Hash/Identificador 	Atribuído na emissão oficial
+Os documentos gerados pela plataforma CRIVO têm caráter de apoio técnico, gerencial e documental à identificação, registro,
+gestão e acompanhamento dos fatores psicossociais relacionados ao trabalho. A revisão, validação, assinatura e integração formal
+desses documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou
+do responsável técnico/designado.
+CRIVO™ — Decision Intelligence · documento de apoio técnico, gerencial e documental.
+04/09/2026, 12:02 	Dossiê Técnico de Fatores de Riscos Psicossociais Relacionados ao Trabalho — O2 Legacy
+blob:https://app.crivolegacy.com.br/02917535-dd8f-42b7-a534-8d370bc88bbb 	12/12
+
+-- 12 of 12 --
+

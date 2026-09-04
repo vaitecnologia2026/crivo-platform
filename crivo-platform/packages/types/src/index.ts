@@ -755,6 +755,8 @@ export interface MethodologyConfigFactor {
   /** Dimensão usada como FALLBACK da probabilidade quando o fator ainda não tem
    *  perguntas vinculadas. Também é a chave da biblioteca de ações do dossiê. */
   dimensionSlug?: string | null;
+  /** Possíveis agravos (Orientação §5.1) — saem no Inventário do Dossiê. */
+  consequences?: string | null;
 }
 
 export interface MethodologyConfig {
@@ -1329,6 +1331,11 @@ export interface PsychosocialRiskMatrixRow {
   severity: number;
   risk: number;
   riskClass: PsychosocialRiskClass;
+  /** Possíveis agravos cadastrados no fator (Orientação §5.1). Alimentam o
+   *  Inventário Técnico do Dossiê — até aqui o campo era gravado e nunca lido. */
+  consequences?: string | null;
+  /** Rótulo da dimensão de origem — coluna "Processo/Dimensão" do Inventário. */
+  dimensionLabel?: string | null;
   /** Ação recomendada e obrigatoriedade do plano (§8.4), derivadas da classe. */
   actionLabel: string;
   planRequired: boolean;

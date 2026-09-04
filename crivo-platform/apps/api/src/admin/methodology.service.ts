@@ -23,7 +23,7 @@ type VersionWithContent = {
   rounding?: number | null;
   minValidCompletionPercent?: number | null;
   dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
-  factors?: { slug: string; label: string; severity: number; dimensionSlug?: string | null }[];
+  factors?: { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }[];
   questions: {
     dimensionSlug: string; factorSlugs?: string[]; text: string; weight: number; inverse: boolean; required?: boolean;
     scored?: boolean;
@@ -68,7 +68,17 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
     bands: v.bands.map((b) => ({ code: b.code, label: b.label, min: b.min, max: b.max, color: b.color ?? null })),
     // Fatores só alimentam a leitura de RISCO (matriz) — o motor de score ignora.
     ...(v.factors?.length
-      ? { factors: v.factors.map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, dimensionSlug: f.dimensionSlug ?? null })) }
+      ? {
+          factors: v.factors.map((f) => ({
+            slug: f.slug,
+            label: f.label,
+            severity: f.severity,
+            // Sem isto o Dossiê nunca via os "possíveis agravos": o campo era
+            // gravado, clonado no rascunho e descartado aqui.
+            consequences: f.consequences ?? null,
+            dimensionSlug: f.dimensionSlug ?? null,
+          })),
+        }
       : {}),
     ...(aggregation ? { aggregation } : {}),
     ...(v.scaleLabels && v.scaleLabels.length ? { scaleLabels: v.scaleLabels } : {}),

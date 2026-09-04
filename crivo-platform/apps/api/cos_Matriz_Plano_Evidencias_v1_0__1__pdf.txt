@@ -1,0 +1,530 @@
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+CRIVO
+DECISION INTELLIGENCE
+Orientação Funcional Prioritária
+Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Documento único para alinhamento com desenvolvedor e agente de IA de programação
+Objetivo imediato
+Resolver a etapa de Diagnósticos de forma correta, simples e coesa: perguntas respondidas geram riscos/fatores,
+riscos/fatores geram matriz 5x5, matriz gera plano sugerido, plano gera evidências e tudo consolida no relatório/dossiê. As
+demais funcionalidades devem ser retomadas depois, sem criar sistemas paralelos.
+Campo Definição
+Versão 1.0 - Orientação prioritária de implantação
+Data 26/08/2026
+Uso Documento operacional para desenvolvedor, CÓDEX/agente de
+IA e validação interna CRIVO
+Escopo Diagnósticos, perguntas, dimensões, riscos/fatores, severidade,
+probabilidade, matriz 5x5, plano de ação, evidências,
+relatório/dossiê e dashboards básicos por recorte
+Fora do escopo desta etapa Academia completa, Mentor/App, Workforce, governança de IA
+avançada, automações complexas, comercial, portal completo e
+recursos avançados de entrega
+
+-- 1 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+1. Contexto e decisão de escopo
+Revisei o que havia sido enviado nos cadernos anteriores para garantir que esta orientação não cria uma nova
+arquitetura. A lógica já estava prevista: o Motor de Diagnósticos deveria ser configurável; o Plano de Evolução deveria
+ser a fonte única das ações; Evidências e Relatórios/Dossiês deveriam consolidar o ciclo; e a IA deveria sugerir
+enquanto uma pessoa autorizada valida. O que faltava agora era transformar essa arquitetura em uma orientação curta,
+prática e executável para quem não participou desde o início do projeto.
+Decisão desta etapa
+Não reenviar todos os cadernos antigos. Usar este documento como orientação única para fechar a lógica de Diagnóstico,
+Matriz 5x5, Plano de Ação, Evidências e Relatório/Dossiê. Os cadernos anteriores ficam apenas como referência interna de
+suporte.
+O que estava previsto Como fica agora, de forma simples
+Diagnósticos configuráveis, perguntas, escalas, regras, fórmulas
+e templates
+Manter a estrutura atual, mas garantir que cada pergunta tenha
+vínculo com um Risco/Fator Psicossocial.
+Fator/Subdimensão conectando análise, ação e relatório A dimensão e subdimensão organizam. O Risco/Fator é a
+unidade técnica da matriz e do plano.
+Biblioteca de ações/evidências Ações modelo e evidências esperadas devem ser vinculadas ao
+Risco/Fator e alimentar o Plano de Evolução.
+IA sugere; humano valida IA apoia leitura, redação e sugestão; não altera cálculo, não
+aprova plano e não libera dossiê.
+Plano de Evolução como fonte única da verdade Ação real/aprovada deve nascer no Motor de Evolução, nunca
+em uma lista paralela.
+2. O que resolver agora
+Resolver agora Não resolver nesta etapa
+Dimensões, subdimensões, perguntas e escala. Reorganização completa de todos os menus do SuperAdmin.
+Biblioteca de Riscos/Fatores Psicossociais. Academia, trilhas, mentorias e App do Líder em profundidade.
+Vínculo de cada pergunta com um risco/fator. Workforce, Governança de IA e People Analytics avançado.
+Cálculo de exposição, probabilidade, severidade e matriz 5x5. Automação avançada de agentes de IA.
+Plano de ação sugerido a partir do risco/fator. Portal completo com todas as jornadas comerciais.
+Evidência esperada e evidência anexada. Benchmark, custos invisíveis e análises preditivas.
+Relatório/Dossiê com riscos, matriz, plano e evidências. Novos produtos e novas soluções comerciais.
+Dashboard básico com recortes seguros. Cruzamentos avançados ou análises individuais.
+3. Regra funcional central
+Regra-mãe
+Dimensão organiza. Subdimensão agrupa. Pergunta coleta resposta. Risco/Fator Psicossocial classifica tecnicamente.
+Probabilidade vem das respostas. Severidade vem do risco/fator. Matriz 5x5 nasce do risco/fator. Plano de ação nasce do
+risco/fator classificado. Evidências comprovam. Relatório/Dossiê consolida. IA apoia, mas não aprova.
+Elemento Função correta
+Dimensão Organiza o questionário e o dashboard executivo. Não é a
+unidade técnica principal da matriz.
+Subdimensão Agrupa perguntas dentro da dimensão. Pode ajudar a leitura,
+mas não substitui o risco/fator.
+Pergunta Coleta a percepção. Toda pergunta publicada deve ter um
+Risco/Fator vinculado.
+Risco/Fator Psicossocial Unidade técnica da matriz 5x5, plano de ação, evidência e
+dossiê.
+Severidade Fixa no cadastro do Risco/Fator. Não deve ficar na dimensão
+nem ser digitada livremente na pergunta.
+Probabilidade Calculada pelas respostas válidas vinculadas ao Risco/Fator.
+Plano de Ação Nasce como sugestão e vira ação aprovada somente após
+
+-- 2 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+validação humana.
+Evidências Comprovam a execução do plano aprovado.
+IA Apoia redação, resumo, sugestão e adaptação; não decide nem
+aprova.
+4. Ajuste nas telas atuais
+A tela atual por dimensão, subdimensão e perguntas pode ser mantida. O ajuste é de vínculo e regra de cálculo, não de
+reconstrução visual.
+Tela/aba atual Manter Alterar ou incluir
+Estrutura Dimensão, subdimensão, pergunta,
+escala, peso, obrigatória, invertida e
+pontua.
+Incluir em cada pergunta o campo
+obrigatório "Risco/Fator Psicossocial
+vinculado".
+Templates e Bibliotecas Perguntas modelo podem continuar, mas
+como função secundária.
+Transformar em Bibliotecas Técnicas do
+Diagnóstico, começando por
+Riscos/Fatores Psicossociais.
+Recursos da Entrega Manter como catálogo de ações modelo,
+textos, checklists, mentorias e conteúdos.
+A Biblioteca de Ações deve ser vinculada
+a riscos/fatores e alimentar plano
+sugerido, não virar plano paralelo.
+Motor de Evolução Manter como tela oficial de ações
+aprovadas.
+Receber ações sugeridas oriundas dos
+riscos/fatores classificados.
+Evidências Manter como comprovação e histórico. Vincular evidência esperada/anexada ao
+plano aprovado e ao risco/fator.
+Relatórios e Dossiês Manter como área de emissão. Consolidar metodologia, riscos/fatores,
+matriz 5x5, planos, evidências e
+validações.
+5. Bibliotecas técnicas necessárias
+5.1 Biblioteca de Riscos/Fatores Psicossociais
+Esta é a biblioteca prioritária. Sem ela, a matriz fica presa à dimensão e perde rastreabilidade técnica.
+Campo mínimo Uso
+Código Identificador estável. Ex.: RPS-001.
+Nome do risco/fator Nome técnico exibido na matriz e no relatório. Ex.: Sobrecarga
+de trabalho.
+Definição Descrição curta e objetiva do risco/fator.
+Dimensão relacionada Ajuda dashboard e organização. Não é usada como severidade.
+Severidade-base Valor fixo de 1 a 5 usado na matriz 5x5.
+Fonte/circunstância padrão Texto base para indicar fonte ou circunstância do risco.
+Possíveis consequências Efeitos plausíveis para fins preventivos e documentais, sem
+diagnóstico clínico individual.
+Status Ativo, inativo ou arquivado.
+Versão Versão metodológica para auditoria e rastreabilidade.
+Exemplo Valor
+Código RPS-001
+Nome Sobrecarga de trabalho
+Definição Volume ou ritmo de trabalho acima da capacidade disponível.
+Dimensão relacionada Demandas e Ritmo de Trabalho
+Severidade-base 4
+Fonte/circunstância padrão Desequilíbrio entre volume de demandas, prazos, complexidade
+e capacidade disponível.
+Possíveis consequências Fadiga, queda de desempenho e maior risco de absenteísmo.
+Status/versão Ativo / v1.0
+Regra de publicação
+
+-- 3 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+Nenhuma pergunta deve ser publicada no diagnóstico sem estar vinculada a um Risco/Fator Psicossocial ativo.
+5.2 Perguntas modelo
+O banco de perguntas é útil, mas secundário. Ele serve para reaproveitar perguntas em instrumentos futuros. Não deve
+ser tratado como base principal da matriz. A base da matriz são os Riscos/Fatores Psicossociais.
+Campo da pergunta Regra
+Texto Afirmativa positiva, simples e ligada à realidade de trabalho.
+Dimensão/Subdimensão Organização do questionário e do dashboard.
+Escala 1 a 5, conforme escala de concordância definida.
+Obrigatória / pontua Configuração atual pode ser mantida.
+Invertida Para esta etapa, manter todas as perguntas positivas e não usar
+inversão manual.
+Risco/Fator vinculado Campo obrigatório, selecionado da biblioteca de Riscos/Fatores.
+Peso Pode ser usado em dashboards de dimensão. Para a matriz
+técnica, usar a exposição vinculada ao risco/fator.
+6. Cálculo da matriz 5x5
+6.1 Escala e exposição
+As perguntas da CRIVO são afirmativas positivas. Portanto, resposta alta indica condição melhor e menor exposição ao
+risco; resposta baixa indica condição pior e maior exposição ao risco.
+Resposta do trabalhador Condição interpretada Exposição ao risco
+1 - Discordo totalmente Condição ruim 5 - Exposição muito alta
+2 - Discordo Condição frágil 4 - Exposição alta
+3 - Nem concordo nem discordo Condição intermediária 3 - Exposição média
+4 - Concordo Condição boa 2 - Exposição baixa
+5 - Concordo totalmente Condição muito boa 1 - Exposição mínima
+exposicao = 6 - resposta
+Explicação simples
+Resposta mede concordância. Exposição mede risco. Como a pergunta é positiva, o sistema precisa inverter a resposta para
+calcular a exposição.
+6.2 Probabilidade
+A probabilidade do risco/fator será calculada a partir das exposições das respostas válidas vinculadas ao mesmo
+risco/fator, dentro do escopo analisado: empresa, área, GHE, gênero, faixa etária, líder etc.
+probabilidade_do_risco = media(exposicoes_validas_vinculadas_ao_risco)
+Exposição média Probabilidade
+1,00 a 1,49 1 - Rara
+1,50 a 2,49 2 - Improvável
+2,50 a 3,49 3 - Possível
+3,50 a 4,49 4 - Provável
+4,50 a 5,00 5 - Altamente provável
+Regra adicional recomendada: para probabilidade 5, considerar também se mais de 60% dos respondentes válidos
+ficaram em exposição alta, ou seja, respostas 1 ou 2 nas perguntas positivas vinculadas ao risco/fator.
+
+-- 4 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+6.3 Severidade e risco final
+A severidade vem automaticamente da biblioteca de Riscos/Fatores Psicossociais. Ela não deve ser calculada pela
+dimensão e não deve ser digitada livremente na pergunta.
+risco_final = probabilidade x severidade_base
+Resultado Classificação Plano de ação
+1 a 4 Baixo / Tolerável Não obrigatório
+5 a 9 Moderado / Atenção pontual Não obrigatório, salvo decisão técnica
+10 a 15 Alto / Requer plano de ação Obrigatório
+16 a 20 Muito alto / Prioridade imediata Obrigatório
+21 a 25 Crítico / Intolerável Obrigatório
+6.4 Exemplo completo
+Etapa Exemplo
+Pergunta O volume de trabalho é compatível com o tempo disponível para
+realizá-lo.
+Risco/Fator vinculado Sobrecarga de trabalho
+Severidade herdada 4
+Média das respostas 2,0
+Exposição média 6 - 2,0 = 4,0
+Probabilidade 4 - Provável
+Risco final 4 x 4 = 16
+Classificação Muito alto / prioridade imediata
+Ação exigida Sim
+7. Plano de ação
+Regra principal
+Ação recomendada não é plano aprovado. Ação recomendada é sugestão. O plano aprovado nasce no Motor de Evolução
+após validação humana.
+Quando um risco/fator atingir classificação que exige ação, o sistema deve buscar ações modelo vinculadas àquele
+risco/fator e gerar um plano sugerido no Motor de Evolução.
+Origem Função
+Biblioteca de Riscos/Fatores Identifica o risco/fator, severidade, fonte/circunstância e
+possíveis consequências.
+Recursos da Entrega - Biblioteca de Ações Guarda ações modelo e evidências esperadas vinculadas ao
+risco/fator.
+IA da Plataforma Pode sugerir redação, adaptação, prazo, prioridade e evidência,
+sem aprovar.
+Motor de Evolução Recebe a ação sugerida e vira a fonte oficial após validação.
+Evidências Recebe anexos e registros que comprovam execução.
+Campo mínimo do plano Regra
+Risco/Fator vinculado Obrigatório. Mantém rastreabilidade até a matriz.
+Ação Texto claro e executável. Pode nascer de ação modelo.
+Descrição Objetivo e escopo da intervenção.
+Responsável Pessoa ou área responsável. Obrigatório para ação aprovada.
+Prazo Obrigatório para ação aprovada.
+Prioridade Derivada da classificação do risco, com ajuste humano
+permitido.
+Status Sugerida, aprovada, em andamento, concluída, cancelada ou
+reaberta.
+Evidência esperada O que deve comprovar a execução.
+Evidência anexada Arquivo, link, registro, ata, print ou justificativa validada.
+Validação Pessoa autorizada e data.
+
+-- 5 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+7.1 Como usar Recursos da Entrega nesta etapa
+Recursos da Entrega não deve virar outro motor de plano. Ele é um catálogo de ações modelo, checklists, roteiros,
+textos, mentorias e conteúdos que ajudam o cliente a executar o plano. A ação real e aprovada continua no Motor de
+Evolução.
+Em Recursos da Entrega Uso correto
+Biblioteca de Ações Ações modelo vinculadas a riscos/fatores, com evidência
+esperada. Alimenta plano sugerido.
+Textos editáveis Convites, devolutivas, comunicações e orientações vinculáveis
+ao plano ou relatório.
+Mentorias/encontros Apoio de execução quando contratado, com registro e evidência.
+Academia/trilhas Conteúdo de desenvolvimento quando contratado, vinculado à
+ação ou plano.
+8. Evidências
+Evidência é parte central da entrega. Sem evidência, não há rastreabilidade suficiente para relatório, dossiê ou
+acompanhamento de evolução.
+Conceito Regra
+Evidência esperada Definida na ação modelo ou no plano. Ex.: ata, checklist,
+política, registro de reunião, plano de capacidade.
+Evidência anexada Arquivo, link, print, comentário, registro ou justificativa validada
+que comprova execução.
+Ação sugerida Não exige evidência anexada.
+Ação aprovada/em andamento Deve ter evidência esperada. Pode não ter evidência anexada
+ainda.
+Ação concluída Não deve ser concluída sem evidência anexada ou justificativa
+formal validada.
+Ação efetiva Só deve ser marcada após evidência, validação e/ou nova
+leitura do ciclo.
+9. Papel da IA nesta etapa
+Regra de segurança
+A IA apoia a redação e a adaptação. A IA não altera cálculo, não muda severidade, não aprova plano, não valida evidência e
+não libera dossiê final.
+IA pode fazer IA não pode fazer
+Resumir principais achados por risco/fator. Alterar cálculo, probabilidade ou severidade.
+Gerar minuta de texto do relatório e devolutiva. Aprovar plano de ação.
+Sugerir ações com base nas ações modelo. Validar evidências.
+Adaptar linguagem ao contexto da empresa. Concluir ação como efetiva.
+Apontar risco alto sem ação, responsável, prazo ou evidência. Liberar dossiê final automaticamente.
+Sugerir prazo, prioridade e evidência esperada. Prometer conformidade legal ou garantia de aprovação.
+Para o agente de IA de programação, a orientação é objetiva: os cálculos devem ser determinísticos por regra de
+sistema. A IA deve atuar apenas em campos textuais, sugestões e checagens de consistência.
+Input da IA: risco/fator, dimensao, probabilidade, severidade, classificacao, perguntas
+criticas, acoes modelo, evidencias esperadas.
+Output da IA: minuta de leitura, sugestao de acao, sugestao de evidencia, alerta de
+inconsistencias.
+Bloqueio: IA nao escreve nos campos de calculo e nao aprova nada sem acao humana.
+
+-- 6 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+10. Relatório, dossiê e dashboard
+10.1 Relatório/Dossiê mínimo desta etapa
+Bloco do relatório/dossiê Conteúdo mínimo
+Identificação Empresa, CNPJ/unidade, período avaliado, diagnóstico
+aplicado, versão metodológica.
+Metodologia Escala, cálculo de exposição, probabilidade, severidade, matriz
+5x5, critérios de confidencialidade.
+Resultados por dimensão Leitura executiva e dashboard temático.
+Inventário por risco/fator Risco/fator, definição, dimensão, probabilidade, severidade,
+risco final, classificação.
+Fonte/circunstância Texto padrão ajustável para explicar o contexto do risco/fator.
+Possíveis consequências Texto preventivo e documental, sem diagnóstico individual.
+Plano de ação Ações sugeridas/aprovadas, responsável, prazo, status,
+evidência esperada.
+Evidências Evidências anexadas ou pendentes, com status.
+Validação Registro de validação humana, quando aplicável.
+Limitações e responsabilidade Declaração de apoio técnico/gerencial/documental e
+responsabilidade da empresa/ responsável técnico/designado.
+Texto obrigatório de responsabilidade
+Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental para identificação, registro,
+gestão e acompanhamento dos fatores de risco psicossociais relacionados ao trabalho. A revisão, validação, assinatura e
+integração formal desses documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da
+empresa contratante e/ou do responsável técnico/designado.
+Texto sobre possíveis consequências
+As possíveis lesões ou agravos à saúde indicados neste dossiê têm caráter preventivo e documental, com base nos fatores
+de risco psicossociais relacionados ao trabalho. Não constituem diagnóstico clínico, médico ou psicológico individual.
+10.2 Quebras no dashboard do cliente
+As quebras devem ser informadas agora, porque impactam cadastro de respondentes, modelagem dos dados, filtros e
+regras de confidencialidade. Porém, nesta etapa, elas devem ser implementadas como dashboard e filtros básicos, não
+como análise avançada.
+Quebra/filtro Regra
+Empresa / CNPJ / unidade Obrigatória quando houver múltiplos CNPJs ou unidades no
+contrato.
+Área / departamento Exibir somente com mínimo de respostas válidas.
+GHE / função / grupo de exposição Importante para relatório técnico e inventário; exibir conforme
+cadastro e confidencialidade.
+Líder Exibir grupo sob responsabilidade do líder, nunca ranking
+individual ou avaliação psicológica do líder.
+Gênero Permitido apenas agregado, com mínimo de respostas válidas.
+Faixa etária Usar faixas, não idade exata, e respeitar mínimo de respostas
+válidas.
+Turno/local/modelo de trabalho Quando houver no cadastro e fizer sentido para o contrato.
+Critério de confidencialidade
+Resultados por recorte só devem ser exibidos quando houver pelo menos 5 respostas válidas no recorte. Abaixo disso,
+exibir: "Dados omitidos por confidencialidade. Volume mínimo de respostas válidas não atingido." Nunca exibir respostas
+individuais.
+
+-- 7 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+11. O que não fazer agora
+ Não calcular matriz 5x5 pela dimensão.
+ Não manter severidade como campo funcional da dimensão.
+ Não deixar severidade digitada livremente na pergunta.
+ Não tratar banco de perguntas como base principal da matriz.
+ Não criar outro motor de plano dentro de Recursos da Entrega.
+ Não aprovar ação automaticamente a partir de ação modelo.
+ Não liberar relatório/dossiê final sem validação humana quando houver exigência de validação.
+ Não exibir recortes com menos de 5 respostas válidas.
+ Não criar ranking nominal de líderes ou trabalhadores.
+ Não incluir Academy, Mentor, Workforce ou IA avançada como pré-requisito para fechar esta etapa.
+12. Critérios de aceite para esta entrega
+Teste Critério de aceite
+Cadastro de risco/fator Conseguir cadastrar risco/fator com código, nome, definição,
+severidade, dimensão, fonte/circunstância, possíveis
+consequências, status e versão.
+Vínculo da pergunta Toda pergunta publicada deve exigir Risco/Fator vinculado.
+Cálculo de exposição Resposta 1 vira exposição 5; resposta 5 vira exposição 1.
+Cálculo de probabilidade Probabilidade do risco/fator calculada pela média das
+exposições válidas.
+Cálculo da matriz Risco final = probabilidade x severidade.
+Plano sugerido Risco >= 10 gera ação sugerida vinculada ao risco/fator, com
+status pendente de validação.
+Plano aprovado Ação aprovada precisa de responsável, prazo, status e
+evidência esperada.
+Evidência Ação concluída exige evidência anexada ou justificativa formal
+validada.
+Dashboard por recorte Área/GHE/gênero/faixa etária/líder só aparecem com 5+
+respostas válidas.
+Relatório/Dossiê Consolida riscos/fatores, matriz, plano, evidências, validação e
+responsabilidade.
+IA IA gera textos/sugestões, mas não altera cálculo nem aprova
+plano/evidência/dossiê.
+13. Modelo lógico mínimo para programação
+Os nomes abaixo são apenas sugestão. O importante é preservar os vínculos.
+Entidade Campos essenciais
+diagnostic_template id, nome, tipo, versão, status, data_vigência
+dimension id, diagnostic_template_id, nome, descrição, peso, ordem
+subdimension id, dimension_id, nome, descrição, ordem
+risk_factor id, codigo, nome, definição, dimension_id, severity_base,
+source_context, possible_consequences, status, version
+question id, dimension_id, subdimension_id, texto, escala, obrigatória,
+pontua, peso, risk_factor_id, status, version
+response id, cycle_id, respondent_id_hash, question_id, resposta, data
+risk_assessment id, cycle_id, scope_id, risk_factor_id, probability, severity,
+risk_score, classification
+action_model id, risk_factor_id, nome, descrição, prioridade_sugerida,
+prazo_sugerido, evidencia_esperada, status
+evolution_plan id, client_id, cycle_id, risk_assessment_id, action_model_id,
+título, responsável, prazo, status, evidencia_esperada, validador
+evidence id, evolution_plan_id, tipo, arquivo/link/texto, status, data,
+validador
+
+-- 8 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+Para cada recorte autorizado:
+para cada risk_factor ativo:
+respostas = respostas_validas das perguntas vinculadas ao risk_factor
+exposicoes = [6 - resposta for resposta in respostas]
+probabilidade = classificar(media(exposicoes))
+severidade = risk_factor.severity_base
+risco = probabilidade * severidade
+classificacao = faixa(risco)
+salvar risk_assessment
+se risco >= 10:
+buscar action_model vinculada ao risk_factor
+criar plano sugerido no Motor de Evolucao, status = "Sugerido - pendente de
+validacao"
+14. Lista inicial sugerida de Riscos/Fatores CRIVO
+A primeira carga da biblioteca deve conter pelo menos os riscos/fatores usados pelas perguntas ativas. A lista abaixo é
+ponto de partida, não limite metodológico.
+Código Risco/Fator Dimensão relacionada Sev.
+RPS-001 Sobrecarga de trabalho Demandas e Ritmo de
+Trabalho
+4
+RPS-002 Pressão de tempo contínua Demandas e Ritmo de
+Trabalho
+3
+RPS-003 Demandas simultâneas e
+urgências recorrentes
+Demandas e Ritmo de
+Trabalho
+3
+RPS-004 Exigências emocionais
+elevadas sem suporte
+adequado
+Demandas e Ritmo de
+Trabalho
+4
+RPS-005 Baixa autonomia Autonomia e Participação 3
+RPS-006 Baixa participação em
+decisões que afetam o
+trabalho
+Autonomia e Participação 3
+RPS-007 Ambiguidade de papel e baixa
+clareza de responsabilidades
+Papel, Clareza e Conteúdo do
+Trabalho
+3
+RPS-008 Demandas conflitantes ou
+orientação inconsistente
+Papel, Clareza e Conteúdo do
+Trabalho
+4
+RPS-009 Falta de recursos ou
+condições de execução
+Recursos e Condições de
+Execução
+3
+RPS-010 Capacidade insuficiente frente
+à demanda
+Recursos e Condições de
+Execução
+4
+RPS-011 Falta de apoio da liderança Liderança e Suporte 4
+RPS-012 Feedback escasso ou pouco
+útil
+Liderança e Suporte 3
+RPS-013 Baixa segurança psicológica /
+medo de retaliação
+Relações, Respeito e
+Segurança Psicológica
+4
+RPS-014 Assédio, discriminação,
+intimidação ou violência
+Relações, Respeito e
+Segurança Psicológica
+5
+RPS-015 Falta de reconhecimento ou
+justiça organizacional
+Reconhecimento e Justiça
+Organizacional
+3
+RPS-016 Mudanças mal geridas ou
+pouco comunicadas
+Mudanças e Previsibilidade 3
+RPS-017 Insegurança no vínculo ou nas
+condições relevantes de
+trabalho
+Estabilidade e Segurança do
+Vínculo
+4
+RPS-018 Pressão por perda de
+emprego ou ameaça
+recorrente
+Estabilidade e Segurança do
+Vínculo
+5
+RPS-019 Jornada sem recuperação
+adequada
+Jornada, Recuperação e
+Equilíbrio Trabalho-Vida
+4
+RPS-020 Interferência recorrente no
+descanso e na desconexão
+Jornada, Recuperação e
+Equilíbrio Trabalho-Vida
+4
+
+-- 9 of 10 --
+
+CRIVO | Orientação Funcional Prioritária - Diagnósticos, Matriz 5x5, Plano de Ação e Evidências
+Uso interno CRIVO - versão 1.0 - 26/08/2026
+15. Referências consideradas
+Este documento foi preparado a partir da revisão das orientações internas já enviadas e dos exemplos técnicos
+discutidos nesta etapa. Não é uma nova arquitetura; é a compilação operacional prioritária para implantação dos
+diagnósticos.
+ CRIVO - Blueprint Funcional v1.3 - Motor de Diagnósticos, Evolução, Evidências, IA, Workforce e CRIVO Plus.
+ CRIVO - Master Plan Estratégico, Comercial e Funcional v1.1.
+ CRIVO - Caderno Final de Ajustes do SuperAdmin para Programador v1.0.
+ Talentflix - Gestão de Riscos Psicossociais - Inventário de Riscos e Planos de Ação - relatório de demonstração de
+24/08/2026.
+ Ministério do Trabalho e Emprego - NR-1/GRO/PGR, Guia de Informações sobre Fatores de Riscos Psicossociais
+Relacionados ao Trabalho e Manual de interpretação/aplicação do capítulo 1.5 da NR-1.
+Frase final para o desenvolvedor
+Nesta etapa, não criar funcionalidades paralelas. Fazer o fluxo principal funcionar: pergunta -> risco/fator -> matriz 5x5 ->
+plano sugerido -> validação -> evidência -> relatório/dossiê. Tudo com recortes seguros e IA apenas como apoio.
+
+-- 10 of 10 --
+

@@ -11,6 +11,8 @@ import {
   type PsychosocialRiskMatrixRow,
   type RiskLevel3,
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
+  psychosocialRiskClass,
+  type PsychosocialRiskClass,
   PSYCHOSOCIAL_RISK_CLASS_ACTION,
   fillReportPlaceholders,
 } from '@crivo/types';
@@ -162,13 +164,108 @@ type CnaeDecisionRow = {
   createdAt: Date;
   decisionResult: unknown;
 };
+/** Cores das classes de risco — as mesmas da tela do portal. */
+const COR_CLASSE: Record<PsychosocialRiskClass, string> = {
+  BAIXO: '#2E7D4F',
+  MODERADO: '#8A6D1F',
+  ALTO: '#C4671D',
+  MUITO_ALTO: '#B3541E',
+  CRITICO: '#8E2F1B',
+};
+
+const escapaHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * Matriz 5x5 desenhada — Probabilidade no eixo X, Severidade no eixo Y.
+ *
+ * A Orientação Funcional §6 define a matriz como grade; até aqui o Dossiê só
+ * trazia a lista de fatores, e quem lia não via a distribuição do risco. Cada
+ * célula mostra quantos fatores caíram nela; a cor vem da classificação de
+ * P × S, pela régua da Orientação (1–4 · 5–9 · 10–15 · 16–20 · 21–25).
+ */
+function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
+  const porCelula = new Map<string, string[]>();
+  for (const r of rows) {
+    const k = `${r.probability}:${r.severity}`;
+    porCelula.set(k, [...(porCelula.get(k) ?? []), r.label]);
+  }
+  const celula = (p: number, s: number) => {
+    const risco = p * s;
+    const cls = psychosocialRiskClass(risco);
+    const cor = COR_CLASSE[cls];
+    const fatores = porCelula.get(`${p}:${s}`) ?? [];
+    const cheia = fatores.length > 0;
+    const fundo = cheia ? cor : `${cor}1A`;
+    const texto = cheia ? '#fff' : '#6b6459';
+    const titulo = fatores.length ? ` title="${escapaHtml(fatores.join(' · '))}"` : '';
+    return (
+      `<td${titulo} style="background:${fundo};color:${texto};text-align:center;` +
+      `padding:8px 4px;border:1px solid #fff;font-size:11px;line-height:1.25">` +
+      `<div style="font-weight:700;font-size:${cheia ? '15px' : '11px'}">${cheia ? fatores.length : ''}</div>` +
+      `<div style="opacity:${cheia ? '.85' : '.6'}">${risco}</div></td>`
+    );
+  };
+  const linhas: string[] = [];
+  for (let s = 5; s >= 1; s--) {
+    const tds = [1, 2, 3, 4, 5].map((p) => celula(p, s)).join('');
+    linhas.push(
+      `<tr><th style="text-align:right;padding:4px 8px;font-size:11px;color:#6b6459;font-weight:600">${s}</th>${tds}</tr>`,
+    );
+  }
+  const cabecalho = [1, 2, 3, 4, 5]
+    .map((p) => `<th style="padding:4px;font-size:11px;color:#6b6459;font-weight:600">${p}</th>`)
+    .join('');
+  const legenda = (Object.keys(COR_CLASSE) as PsychosocialRiskClass[])
+    .map(
+      (c) =>
+        `<span style="display:inline-block;margin-right:12px;font-size:10.5px;color:#4a4a4a">` +
+        `<span style="display:inline-block;width:10px;height:10px;background:${COR_CLASSE[c]};` +
+        `border-radius:2px;margin-right:4px;vertical-align:middle"></span>${PSYCHOSOCIAL_RISK_CLASS_LABEL[c]}</span>`,
+    )
+    .join('');
+  return (
+    `<div style="margin:10px 0 4px"><table style="border-collapse:collapse;margin:0 auto">` +
+    `<tr><th></th>${cabecalho}</tr>${linhas.join('')}` +
+    `<tr><th></th><td colspan="5" style="text-align:center;padding-top:6px;font-size:10.5px;color:#6b6459">` +
+    `Probabilidade &rarr;</td></tr></table>` +
+    `<p style="text-align:center;margin:2px 0 8px;font-size:10.5px;color:#6b6459">` +
+    `Eixo vertical: Severidade &uarr; &nbsp;·&nbsp; número na célula: quantos fatores; abaixo dele, o risco (P × S).</p>` +
+    `<p style="text-align:center;margin:0">${legenda}</p></div>`
+  );
+}
+
+/** Dimensões em barras: o quadro numérico sozinho não mostra a diferença. */
+function barrasDimensoesHtml(
+  itens: { label: string; value: number; faixa: string; cor?: string | null }[],
+): string {
+  const linhas = itens
+    .map((d) => {
+      const cor = d.cor ?? '#A8693D';
+      const largura = Math.max(2, Math.min(100, d.value));
+      return (
+        `<tr><td style="padding:4px 10px 4px 0;font-size:11.5px;color:#0d1f3c;width:38%">${escapaHtml(d.label)}</td>` +
+        `<td style="padding:4px 0"><div style="background:#e6e3dc;border-radius:6px;height:9px;width:100%">` +
+        `<div style="background:${cor};height:9px;border-radius:6px;width:${largura}%"></div></div></td>` +
+        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${d.value}</td>` +
+        `<td style="padding:4px 0 4px 10px;font-size:10.5px;color:${cor};white-space:nowrap">${escapaHtml(d.faixa)}</td></tr>`
+      );
+    })
+    .join('');
+  return `<table style="width:100%;border-collapse:collapse;margin:8px 0">${linhas}</table>`;
+}
+
 function buildBaseTecnicaSection(decision: CnaeDecisionRow | null): DocumentSection {
   if (!decision) {
     return {
       heading: 'Base Técnica da Recomendação',
+      // O texto anterior mandava o LEITOR do dossiê "executar o Motor de Decisão
+      // no Super Admin" — instrução operacional interna da CRIVO, dentro do
+      // documento do cliente. Aqui só cabe dizer o que o documento tem ou não.
       body:
-        'Nenhuma classificação CNAE/NR-1 vinculada a esta empresa. Execute o Motor de Decisão ' +
-        'CNAE/NR-1 (Super Admin) informando o CNPJ desta empresa para registrar a base técnica da recomendação.',
+        'A classificação CNAE/NR-1 desta organização não está registrada nesta emissão. ' +
+        'O enquadramento setorial deve ser confirmado pela empresa e pelo responsável técnico ' +
+        'na integração ao GRO/PGR.',
     };
   }
   const r = (decision.decisionResult ?? {}) as Record<string, unknown>;
@@ -761,7 +858,9 @@ export class DocumentsService {
       // o relatório sair na ORDEM e no formato do modelo, em vez de empilhar os
       // blocos dinâmicos no fim.
       const wants = (key: string) => tplHtml.includes(`{{${key}}}`);
-      const matrixSections = wants('matriz_risco') ? await this.psychosocialMatrixSections(tenantId) : [];
+      const matrixSections = wants('matriz_risco')
+        ? (await this.psychosocialMatrixSections(tenantId)).sections
+        : [];
       const adhesion = wants('participacao') ? await this.sectorAdhesion(tenantId) : null;
 
       const filled = fillReportPlaceholders(tplHtml, (key) => {
@@ -1246,14 +1345,16 @@ export class DocumentsService {
   /** Seções do Dossiê com a Matriz de Risco Psicossocial vinda do DIAGNÓSTICO
    *  organizacional (P × S por dimensão, por GHE/setor), no formato do relatório
    *  de referência. Reusa o MESMO cálculo da tela de resultados (results()). */
-  private async psychosocialMatrixSections(tenantId: string): Promise<DocumentSection[]> {
+  private async psychosocialMatrixSections(
+    tenantId: string,
+  ): Promise<{ sections: DocumentSection[]; matrix: PsychosocialRiskMatrixRow[] }> {
     let res: Awaited<ReturnType<PsychosocialService['results']>> | null = null;
     try {
       res = await this.psychosocial.results(tenantId);
     } catch {
-      return [];
+      return { sections: [], matrix: [] };
     }
-    if (!res || res.totalRespondents < res.minRespondents) return [];
+    if (!res || res.totalRespondents < res.minRespondents) return { sections: [], matrix: [] };
     const table = (rows: PsychosocialRiskMatrixRow[]) => ({
       columns: ['Fator', 'Exposição média', 'Probabilidade', 'Severidade', 'Risco', 'Classificação', 'Ação recomendada', 'Plano de ação'],
       data: rows.map((r) => [
@@ -1281,14 +1382,28 @@ export class DocumentsService {
         'obrigatório (NR-1, subitem 1.5.4.4.2).',
     });
     const overall = res.overall && !res.overall.suppressed ? res.overall : null;
-    if (overall && 'riskMatrix' in overall && overall.riskMatrix.length) {
+    const consolidada =
+      overall && 'riskMatrix' in overall && overall.riskMatrix.length ? overall.riskMatrix : [];
+    if (consolidada.length) {
+      sections.push({
+        heading: 'Distribuição do risco na matriz 5 × 5',
+        body:
+          'Cada célula cruza a Probabilidade (eixo horizontal) com a Severidade (eixo vertical). ' +
+          'O número em destaque é a quantidade de fatores naquela posição; o número abaixo é o ' +
+          'risco resultante (P × S).',
+        html: grade5x5Html(consolidada),
+      });
       sections.push({
         heading: `Matriz de Risco — Consolidado da organização (${res.totalRespondents} avaliados)`,
-        table: table(overall.riskMatrix),
+        table: table(consolidada),
       });
     }
     for (const s of res.sectors) {
       if (s.suppressed || !('riskMatrix' in s) || !s.riskMatrix || !s.riskMatrix.length) continue;
+      // Recorte que cobre a MESMA população do consolidado repetiria a tabela
+      // inteira sem acrescentar leitura nenhuma (é o caso de empresa com um
+      // único setor). O consolidado já responde por esse grupo.
+      if (consolidada.length && s.respondents === res.totalRespondents) continue;
       sections.push({
         heading: `Matriz de Risco — Grupo: ${s.sector} (${s.respondents} avaliados)`,
         table: table(s.riskMatrix),
@@ -1332,13 +1447,16 @@ export class DocumentsService {
       );
       const originNote =
         origin === 'IA'
-          ? 'Planos elaborados com apoio da IA da plataforma.'
-          : 'Planos da biblioteca técnica CRIVO (referência Mapa HDS).';
+          ? 'Redação apoiada pela IA da plataforma, sobre a biblioteca técnica CRIVO.'
+          : 'Conteúdo da biblioteca técnica CRIVO.';
       sections.push({
-        heading: 'Plano de Ação para Controle dos Riscos Psicossociais',
+        heading: 'Tratamento sugerido — proposta técnica, ainda NÃO aprovada',
         body:
-          'Ações recomendadas por dimensão, priorizadas pela classificação de risco ' +
-          `(R = Probabilidade × Severidade). ${originNote}`,
+          'As medidas abaixo são SUGESTÃO técnica derivada da classificação de risco ' +
+          '(R = Probabilidade × Severidade) e não constituem plano aprovado. Elas só passam a ' +
+          'valer depois de aceitas, editadas ou substituídas pela organização no Plano de ' +
+          'Evolução — o que está aprovado aparece na seção 8. ' +
+          `${originNote}`,
       });
       for (const r of planMatrix) {
         // A biblioteca é chaveada pela DIMENSÃO. Com fatores cadastrados a linha
@@ -1347,11 +1465,11 @@ export class DocumentsService {
         const entry = planEntryFor(plans, r);
         if (!entry) continue;
         sections.push({
-          heading: `Plano de Ação — ${r.label} (Classificação: ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]})`,
+          heading: `Sugestão — ${r.label} (Classificação: ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]})`,
           body: `${entry.descricao}\n\nObjetivo do plano de ação: ${entry.objetivo}`,
         });
         sections.push({
-          heading: 'Ações',
+          heading: 'Ações sugeridas (pendentes de validação)',
           table: {
             columns: ['Ação', 'Prazo', 'Objetivo', 'Etapas', 'Indicadores'],
             data: entry.acoes.map((a) => [a.titulo, a.prazo, a.objetivo, a.etapas, a.indicadores]),
@@ -1359,7 +1477,7 @@ export class DocumentsService {
         });
       }
     }
-    return sections;
+    return { sections, matrix: consolidada.length ? consolidada : planMatrix };
   }
 
   // ── TPL-002 · Dossiê Técnico (template ÚNICO, 14 seções na ordem oficial) ──
@@ -1421,13 +1539,13 @@ export class DocumentsService {
     // emit(); aqui tratamos a pré-visualização, que segue livre de propósito.
     if (!items.length) {
       sections.push({
-        heading: 'Ressalva — rascunho sem plano de ação registrado',
+        heading: 'Ressalva — documento ainda sem plano de ação aprovado',
         body:
-          'Este documento é uma PRÉ-VISUALIZAÇÃO. O plano de ação vinculado não possui nenhuma ação ' +
-          'registrada, portanto as tabelas de fatores de risco, plano aprovado, evidências e anexo de ' +
-          'inventário saem sem conteúdo. Nada aqui atesta conformidade, ausência de risco ou ' +
-          'inexistência de fatores — atesta apenas que o plano ainda não foi preenchido. ' +
-          'A emissão oficial permanece bloqueada até que as ações sejam registradas em Plano de Evolução.',
+          'A avaliação técnica dos fatores e a matriz de risco estão completas e valem como ' +
+          'leitura. O que falta é a decisão da organização: nenhuma ação foi aprovada no Plano de ' +
+          'Evolução, então as seções de plano aprovado e de evidências saem sem conteúdo e as ' +
+          'medidas apresentadas permanecem como sugestão. Nada aqui atesta conformidade nem ' +
+          'ausência de risco. A emissão oficial ocorre depois que a organização aprovar as ações.',
       });
     }
 
@@ -1488,8 +1606,28 @@ export class DocumentsService {
 
     // 4. Resultados por dimensão (classificação pela régua do instrumento).
     if (!psy.suppressed && psy.byDimension.length) {
+      // A faixa nao guarda cor neste shape; a cor sai da POSICAO da faixa na
+      // regua (pior -> melhor), para a barra ler igual a tabela.
+      const RAMPA = ["#8E2F1B", "#C4671D", "#8A6D1F", "#2E7D4F"];
+      const corDaFaixa = (v: number) => {
+        const ordenadas = [...psy.bands].sort((a, b) => a.min - b.min);
+        const i = ordenadas.findIndex((b) => v >= b.min && v <= b.max);
+        if (i < 0 || ordenadas.length < 2) return null;
+        const passo = (RAMPA.length - 1) / (ordenadas.length - 1);
+        return RAMPA[Math.min(RAMPA.length - 1, Math.round(i * passo))] ?? null;
+      };
       sections.push({
         heading: '4. Resultados por dimensão',
+        // O quadro numérico sozinho não mostra a diferença entre as dimensões;
+        // a barra na cor da faixa é a leitura visual pedida pelo modelo.
+        html: barrasDimensoesHtml(
+          psy.byDimension.map((d) => ({
+            label: d.label,
+            value: d.value,
+            faixa: bandLabelOf(d.value, psy.bands),
+            cor: corDaFaixa(d.value),
+          })),
+        ),
         table: {
           columns: ['Dimensão oficial', 'Resultado', 'Classificação'],
           data: psy.byDimension.map((d) => [d.label, String(d.value), bandLabelOf(d.value, psy.bands)]),
@@ -1526,26 +1664,52 @@ export class DocumentsService {
       });
     }
 
-    // 6. Matriz técnica de fatores de risco (colunas oficiais).
-    sections.push({
-      heading: '6. Matriz técnica de fatores de risco',
-      table: {
-        columns: ['ID', 'Área/Processo', 'Grupo exposto', 'Fator', 'Fonte/Circunstância', 'Sev.', 'Prob.', 'Risco', 'Ação'],
-        data: items.length
-          ? items.map((i, n) => [
-              `FP-${String(n + 1).padStart(3, '0')}`,
-              i.areaProcess ?? '—',
-              i.exposedGroup ?? '—',
-              i.point,
-              i.origin ?? '—',
-              asRisk3(i.severity) ?? '—',
-              asRisk3(i.probability) ?? '—',
-              factorRisk(i).label,
-              i.action,
-            ])
-          : [['—', '—', '—', '—', '—', '—', '—', '—', '—']],
-      },
-    });
+    // 6. Matriz técnica de fatores de risco.
+    //
+    // Esta seção lia o PLANO DE AÇÃO (items). Sem ação registrada ela saía com
+    // uma linha de traços — mesmo com a matriz inteira já calculada. A fonte
+    // correta é a matriz do diagnóstico; o plano fica como origem alternativa
+    // para quem cadastrou fatores apenas lá.
+    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
+    if (psyMatriz.matrix.length) {
+      sections.push({
+        heading: '6. Matriz técnica de fatores de risco',
+        table: {
+          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Nº de expostos', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
+          data: psyMatriz.matrix.map((r, n) => [
+            `FP-${String(n + 1).padStart(3, '0')}`,
+            r.label,
+            r.dimensionLabel ?? '—',
+            String(r.respondents),
+            String(r.probability),
+            String(r.severity),
+            String(r.risk),
+            PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+            r.planRequired ? 'Obrigatório' : 'Não obrigatório',
+          ]),
+        },
+      });
+    } else {
+      sections.push({
+        heading: '6. Matriz técnica de fatores de risco',
+        table: {
+          columns: ['ID', 'Área/Processo', 'Grupo exposto', 'Fator', 'Fonte/Circunstância', 'Sev.', 'Prob.', 'Risco', 'Ação'],
+          data: items.length
+            ? items.map((i, n) => [
+                `FP-${String(n + 1).padStart(3, '0')}`,
+                i.areaProcess ?? '—',
+                i.exposedGroup ?? '—',
+                i.point,
+                i.origin ?? '—',
+                asRisk3(i.severity) ?? '—',
+                asRisk3(i.probability) ?? '—',
+                factorRisk(i).label,
+                i.action,
+              ])
+            : [['—', '—', '—', '—', '—', '—', '—', '—', '—']],
+        },
+      });
+    }
     const semMatriz = items.filter((i) => !factorRisk(i).derived).length;
     if (semMatriz > 0) {
       sections.push({
@@ -1556,7 +1720,7 @@ export class DocumentsService {
       });
     }
     // 6b. Matriz de Risco Psicossocial vinda do diagnóstico organizacional (P × S por GHE).
-    for (const sec of await this.psychosocialMatrixSections(tenantId)) sections.push(sec);
+    for (const sec of psyMatriz.sections) sections.push(sec);
     // 7. Medidas existentes — SÓ quando a empresa informou (bloco opcional do
     // dicionário: sem dado, oculta; nunca inventado pelo sistema).
     const withMeasure = items.filter((i) => i.existingMeasure?.trim());
@@ -1648,21 +1812,37 @@ export class DocumentsService {
         body:
           'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
           'pelo responsável técnico, após validação da empresa.',
-        table: {
-          columns: ['ID risco', 'Processo', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Medida existente', 'Risco', 'Ação'],
-          data: items.length
-            ? items.map((i, n) => [
+        table: psyMatriz.matrix.length
+          ? {
+              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Nº de expostos', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
+              data: psyMatriz.matrix.map((r, n) => [
                 `R-${String(n + 1).padStart(3, '0')}`,
-                i.areaProcess ?? '—',
-                i.point,
-                i.origin ?? '—',
-                i.exposedGroup ?? '—',
-                i.existingMeasure ?? '—',
-                factorRisk(i).label,
-                i.action,
-              ])
-            : [['—', '—', '—', '—', '—', '—', '—', '—']],
-        },
+                r.dimensionLabel ?? '—',
+                r.label,
+                String(r.respondents),
+                // Campo cadastrado no fator (Orientação 5.1) que até aqui era
+                // gravado e nunca lido por ninguém.
+                r.consequences ?? '—',
+                `${r.probability} x ${r.severity} = ${r.risk}`,
+                PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+                r.planRequired ? 'Obrigatório' : 'Não obrigatório',
+              ]),
+            }
+          : {
+              columns: ['ID risco', 'Processo', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Medida existente', 'Risco', 'Ação'],
+              data: items.length
+                ? items.map((i, n) => [
+                    `R-${String(n + 1).padStart(3, '0')}`,
+                    i.areaProcess ?? '—',
+                    i.point,
+                    i.origin ?? '—',
+                    i.exposedGroup ?? '—',
+                    i.existingMeasure ?? '—',
+                    factorRisk(i).label,
+                    i.action,
+                  ])
+                : [['—', '—', '—', '—', '—', '—', '—', '—']],
+            },
       });
     }
 
@@ -1702,7 +1882,9 @@ export class DocumentsService {
     return {
       type: 'dossie_tecnico',
       title: DOCUMENT_TYPE_LABEL['dossie_tecnico'],
-      subtitle: 'Template-base final · TPL-002 · Documento técnico controlado',
+      // O código do template é controle interno da CRIVO; não é informação do
+      // documento que a empresa recebe e integra ao GRO/PGR.
+      subtitle: 'Documento técnico de apoio · NR-1 / GRO / PGR',
       company: ctx.company,
       generatedAt: new Date().toISOString(),
       meta,
