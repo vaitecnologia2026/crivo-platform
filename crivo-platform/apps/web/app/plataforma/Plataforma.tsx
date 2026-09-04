@@ -131,7 +131,14 @@ export function Plataforma() {
     const quizLog = log.child("quiz");
     const chatLog = log.child("chat");
     const cleanups: Array<() => void> = [];
-    const on = (el: Element | Window | null, ev: string, fn: EventListener, opts?: AddEventListenerOptions) => {
+    /** Quando esta aba carregou os dados que estao na tela. */
+    let carregadoEm = Date.now();
+    const on = (
+      el: Element | Window | Document | null,
+      ev: string,
+      fn: EventListener,
+      opts?: AddEventListenerOptions,
+    ) => {
       if (!el) return;
       el.addEventListener(ev, fn, opts);
       cleanups.push(() => el.removeEventListener(ev, fn, opts));
@@ -388,6 +395,7 @@ export function Plataforma() {
       // placeholders do markup ("Rafael Moreira" / "Empresa Exemplo S.A.") como
       // se fossem reais ate os fetches responderem.
       resetIdentityChrome();
+      carregadoEm = Date.now();
       let accessLoaded = false;
       try {
         // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
@@ -518,6 +526,79 @@ export function Plataforma() {
       removeBranding = null;
       setRoute(DEFAULT_ROUTE);
     });
+
+    /**
+     * O token vive em localStorage, COMPARTILHADO entre as abas da mesma origem.
+     * Logar em outra empresa numa segunda aba trocava a sessao de TODAS, e a aba
+     * antiga seguia exibindo os dados da empresa anterior — agora sob a sessao
+     * nova. Rotulo de uma empresa com dado de outra; recarregar e a unica saida
+     * honesta. O evento nao dispara na aba que fez a mudanca, entao nao ha laco.
+     */
+    on(window, "storage", ((e: Event) => {
+      const ev = e as StorageEvent;
+      if (ev.key !== "crivo_token") return;
+      authLog.warn("sessao alterada em outra aba — recarregando");
+      location.reload();
+    }) as EventListener);
+
+    /**
+     * Aba parada nao sabia que estava parada: as telas buscavam dados so na
+     * montagem e nunca revalidavam. Uma aba aberta as 14h45 mostrava, as 21h,
+     * campanha "Ativa" com "0 convidados" enquanto o banco ja registrava a
+     * campanha encerrada com 5 respostas — e isso foi lido como dado atual.
+     * Avisar, em vez de mentir. Nao recarrega sozinho: pode haver formulario
+     * preenchido na tela.
+     */
+    const AVISO_APOS_MS = 10 * 60 * 1000;
+    let avisoEl: HTMLDivElement | null = null;
+    const mostrarAvisoDeAba = () => {
+      if (avisoEl || !app.classList.contains("is-active")) return;
+      const hora = new Date(carregadoEm).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      avisoEl = document.createElement("div");
+      avisoEl.setAttribute("role", "status");
+      avisoEl.style.cssText =
+        "position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9999;" +
+        "display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;" +
+        "background:#0d1f3c;color:#fff;font:13px/1.4 system-ui,sans-serif;" +
+        "box-shadow:0 8px 24px rgba(13,31,60,.28)";
+      const txt = document.createElement("span");
+      txt.textContent = `Esta aba carregou os dados as ${hora}. Podem estar desatualizados.`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Atualizar";
+      btn.style.cssText =
+        "background:#a8693d;color:#fff;border:0;border-radius:6px;padding:6px 12px;" +
+        "font:600 13px system-ui,sans-serif;cursor:pointer";
+      btn.onclick = () => location.reload();
+      const fechar = document.createElement("button");
+      fechar.type = "button";
+      fechar.setAttribute("aria-label", "Dispensar aviso");
+      fechar.textContent = "✕";
+      fechar.style.cssText =
+        "background:transparent;color:#9fb0cd;border:0;font-size:14px;cursor:pointer";
+      fechar.onclick = () => {
+        avisoEl?.remove();
+        avisoEl = null;
+        // Dispensou sabendo: o relogio recomeca, o aviso nao volta em seguida.
+        carregadoEm = Date.now();
+      };
+      avisoEl.append(txt, btn, fechar);
+      document.body.appendChild(avisoEl);
+    };
+    cleanups.push(() => {
+      avisoEl?.remove();
+      avisoEl = null;
+    });
+    const talvezAvisar = () => {
+      if (Date.now() - carregadoEm > AVISO_APOS_MS) mostrarAvisoDeAba();
+    };
+    on(document, "visibilitychange", () => {
+      if (document.visibilityState === "visible") talvezAvisar();
+    });
+    on(window, "focus", talvezAvisar);
 
     // #56 — Trocar senha: monta um portal modal on-demand e desmonta no close.
     let pwdRoot: ReturnType<typeof createRootForModal> | null = null;

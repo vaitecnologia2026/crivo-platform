@@ -112,10 +112,16 @@ export function CampanhasScreen() {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [qrFor, setQrFor] = useState<{ slug: string; name: string } | null>(null);
 
+  // O painel de participantes é um componente próprio que só buscava na
+  // montagem: "Atualizar" recarregava a lista de campanhas e deixava os
+  // participantes congelados na tela.
+  const [recarga, setRecarga] = useState(0);
+
   async function load(sector?: string) {
     setStatus("loading");
     try {
       setData(await listCampaigns(sector || undefined));
+      setRecarga((n) => n + 1);
       setStatus("ok");
     } catch {
       setStatus("error");
@@ -340,7 +346,7 @@ export function CampanhasScreen() {
                   {participantsFor === c.id && (
                     <tr className="camp-edit-row">
                       <td colSpan={7}>
-                        <ParticipantsPanel cycleId={c.id} onChanged={() => load(sectorFilter)} />
+                        <ParticipantsPanel cycleId={c.id} recarga={recarga} onChanged={() => load(sectorFilter)} />
                       </td>
                     </tr>
                   )}
@@ -543,7 +549,16 @@ function CampaignForm({
  * DAQUELE ciclo. Convidar um a um pela tela Colaboradores funcionava, mas o
  * lugar natural de "quem falta chamar" é a própria campanha.
  */
-function ParticipantsPanel({ cycleId, onChanged }: { cycleId: string; onChanged: () => void }) {
+function ParticipantsPanel({
+  cycleId,
+  onChanged,
+  recarga,
+}: {
+  cycleId: string;
+  onChanged: () => void;
+  /** Muda a cada "Atualizar" do pai — sem isso o painel ficava congelado. */
+  recarga: number;
+}) {
   const [rows, setRows] = useState<CampaignParticipant[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -557,7 +572,7 @@ function ParticipantsPanel({ cycleId, onChanged }: { cycleId: string; onChanged:
       setErro(e instanceof Error ? e.message : "Falha ao carregar participantes.");
     }
   }
-  useEffect(() => { void load(); }, [cycleId]);
+  useEffect(() => { void load(); }, [cycleId, recarga]);
 
   async function convidar(ids?: string[]) {
     setBusy(true);
