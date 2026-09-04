@@ -224,7 +224,7 @@ export class DiagnosticsService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.diagnosticResponse.findMany({
         where: { instrumentSlug },
-        select: { sector: true, score: true, byDimension: true, methodologyVersionId: true },
+        select: { sector: true, score: true, byDimension: true, methodologyVersionId: true, origin: true },
       });
       const total = rows.length;
       if (total < minRespondents) {
@@ -247,6 +247,10 @@ export class DiagnosticsService {
       return {
         minRespondents,
         totalRespondents: total,
+        // A autoavaliação do gestor é espelhada aqui de propósito (conta no
+        // resultado oficial, o que importa em empresa pequena). Devolver o
+        // número deixa a composição explícita para quem lê o agregado.
+        selfAssessments: rows.filter((r) => r.origin === 'SELF_ASSESSMENT').length,
         suppressed: false as const,
         score,
         level: band?.code ?? '',

@@ -543,8 +543,8 @@ function ResultadoAgregado() {
         <div>
           <h3>Resultado do diagnóstico (colaboradores)</h3>
           <span className="card__sub">
-            Respostas recebidas pelos links — anônimas e agregadas. Não inclui a sua autoavaliação
-            do bloco 1, que é a leitura do gestor.
+            Respostas anônimas e agregadas. <strong>Inclui a sua autoavaliação do bloco 1</strong>,
+            que conta como uma resposta — em empresa pequena a leitura do gestor pesa no resultado.
           </span>
         </div>
       </div>
@@ -570,7 +570,12 @@ function ResultadoAgregado() {
             <div className="kpi">
               <span className="kpi__label">Respondentes</span>
               <strong className="kpi__value">{data.totalRespondents}</strong>
-              <span className="card__sub">respostas válidas</span>
+              <span className="card__sub">
+                respostas válidas
+                {data.selfAssessments
+                  ? ` · ${data.totalRespondents - data.selfAssessments} por link + ${data.selfAssessments} autoavaliação`
+                  : ""}
+              </span>
             </div>
           </div>
           {data.methodologyMixed && (
