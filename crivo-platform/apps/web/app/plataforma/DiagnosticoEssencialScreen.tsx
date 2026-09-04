@@ -20,6 +20,8 @@ import {
   getDiagnosticContext,
   getSelfAssessment,
   getSelfAssessmentInstrument,
+  getEssencialResults,
+  type DiagnosticAggregate,
   listAppliedDiagnostics,
   listEssentialRecords,
   submitSelfAssessment,
@@ -80,6 +82,11 @@ export function DiagnosticoEssencialScreen() {
             </div>
             {assessment ? <AssessmentResult a={assessment} onRedo={() => setAssessment(null)} /> : <AssessmentForm onDone={refresh} />}
           </div>
+
+      {/* Resultado das respostas que chegaram pelos links: a empresa coletava e
+          não tinha onde ver — a única tela de resultados do portal lê a tabela
+          do psicossocial, vazia para quem contratou o Essencial. */}
+      <ResultadoAgregado />
 
       {/* O MESMO questionário do bloco 1 pode ser respondido pelos colaboradores
           por link individual (com CPF), o que importa em empresas pequenas: cada
@@ -504,5 +511,103 @@ function RecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () => 
         <button type="submit" className="btn btn--terra btn--sm" disabled={saving || !f.title.trim()}>{saving ? "Salvando…" : "Salvar registro"}</button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Agregado das respostas dos colaboradores no diagnóstico contratado.
+ * Respeita a supressão por volume mínimo (Configuração do Motor): abaixo do
+ * piso não mostra número nenhum, só quantas faltam.
+ */
+function ResultadoAgregado() {
+  const [data, setData] = useState<DiagnosticAggregate | null>(null);
+  const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
+
+  useEffect(() => {
+    let alive = true;
+    getEssencialResults()
+      .then((d) => { if (alive) { setData(d); setStatus("ok"); } })
+      .catch(() => { if (alive) setStatus("error"); });
+    return () => { alive = false; };
+  }, []);
+
+  if (status === "loading") return null;
+  if (status === "error" || !data) return null;
+
+  const dims = data.byDimension ?? {};
+  const ordenadas = Object.entries(dims).sort((a, b) => a[1] - b[1]);
+
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card__head">
+        <div>
+          <h3>Resultado do diagnóstico (colaboradores)</h3>
+          <span className="card__sub">
+            Respostas recebidas pelos links — anônimas e agregadas. Não inclui a sua autoavaliação
+            do bloco 1, que é a leitura do gestor.
+          </span>
+        </div>
+      </div>
+
+      {data.suppressed ? (
+        <p className="card__sub">
+          <strong>{data.totalRespondents} resposta(s)</strong> recebida(s). O resultado é liberado a
+          partir de <strong>{data.minRespondents}</strong> — o mínimo que preserva o anonimato de quem
+          respondeu. {data.minRespondents > data.totalRespondents
+            ? `Faltam ${data.minRespondents - data.totalRespondents}.`
+            : ""}
+        </p>
+      ) : (
+        <>
+          <div className="kpi-row" style={{ marginBottom: 14 }}>
+            <div className="kpi">
+              <span className="kpi__label">Índice geral</span>
+              <strong className="kpi__value" style={{ color: data.levelColor ?? undefined }}>
+                {data.score}
+              </strong>
+              <span className="card__sub">{data.levelLabel}</span>
+            </div>
+            <div className="kpi">
+              <span className="kpi__label">Respondentes</span>
+              <strong className="kpi__value">{data.totalRespondents}</strong>
+              <span className="card__sub">respostas válidas</span>
+            </div>
+          </div>
+          {data.methodologyMixed && (
+            <p className="card__sub">
+              Atenção: há respostas de versões diferentes do questionário — a comparação entre elas
+              não é direta.
+            </p>
+          )}
+          <table className="data-table">
+            <thead><tr><th>Dimensão</th><th style={{ width: 220 }}>Índice</th></tr></thead>
+            <tbody>
+              {ordenadas.map(([slug, valor]) => {
+                const banda = data.dimensionBands?.[slug];
+                return (
+                  <tr key={slug}>
+                    <td>{data.dimensionLabels?.[slug] ?? slug}</td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ flex: 1, height: 8, background: "var(--line)", borderRadius: 999 }}>
+                          <div style={{
+                            width: `${valor}%`,
+                            height: "100%",
+                            borderRadius: 999,
+                            background: banda?.color ?? "var(--gold)",
+                          }} />
+                        </div>
+                        <strong style={{ minWidth: 34, textAlign: "right" }}>{valor}</strong>
+                      </div>
+                      {banda && <span className="card__sub">{banda.label}</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }

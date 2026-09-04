@@ -29,6 +29,12 @@ export class EssencialController {
     return this.svc.listAppliedDiagnostics(user.tenantId);
   }
 
+  /** Agregado das respostas dos colaboradores (respeita o mínimo de respondentes). */
+  @Get('results')
+  results(@CurrentUser() user: SessionUser) {
+    return this.svc.results(user.tenantId);
+  }
+
   @Get('self-assessment')
   latest(@CurrentUser() user: SessionUser) {
     return this.svc.latestSelfAssessment(user.tenantId);

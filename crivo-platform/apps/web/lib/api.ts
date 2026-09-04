@@ -981,6 +981,24 @@ export function inviteCampaignParticipants(
   });
 }
 
+/** Agregado das respostas dos colaboradores no diagnóstico contratado. */
+export interface DiagnosticAggregate {
+  minRespondents: number;
+  totalRespondents: number;
+  suppressed: boolean;
+  score?: number;
+  level?: string;
+  levelLabel?: string;
+  levelColor?: string | null;
+  byDimension?: Record<string, number>;
+  dimensionLabels?: Record<string, string>;
+  dimensionBands?: Record<string, { code: string; label: string; color: string | null }>;
+  methodologyMixed?: boolean;
+}
+export function getEssencialResults(): Promise<DiagnosticAggregate> {
+  return apiFetch<DiagnosticAggregate>("/essencial/results");
+}
+
 /** Link do convite daquele colaborador NAQUELA campanha (cria se não existir). */
 export function getCollaboratorInviteLink(id: string, cycleId: string): Promise<{ link: string }> {
   return apiFetch(`/collaborators/${id}/link`, { method: "POST", body: JSON.stringify({ cycleId }) });

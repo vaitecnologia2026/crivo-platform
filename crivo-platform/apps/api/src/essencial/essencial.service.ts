@@ -14,6 +14,7 @@ import {
   type SubmitSelfAssessmentRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { DiagnosticsService } from '../diagnostics/diagnostics.service';
 import { resolveActiveMethodology, resolveInstrumentForTenant } from '../admin/methodology.service';
 
 /** Instrumento built-in que o Motor chama de "Diagnóstico Executivo". É ELE que
@@ -37,7 +38,24 @@ const SELF_ASSESSMENT_SCALE = PRE_DIAGNOSTIC_SCALE.map((s) => s.label);
  */
 @Injectable()
 export class EssencialService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly diagnostics: DiagnosticsService,
+  ) {}
+
+  /**
+   * Resultado AGREGADO do diagnóstico contratado — as respostas que chegaram
+   * pelos links dos colaboradores e pelas campanhas.
+   *
+   * Faltava no portal: a empresa coletava dezenas de respostas e a única tela de
+   * resultados (NR-1 · Riscos Psicossociais) lê a tabela do psicossocial, que
+   * fica vazia para quem contratou o Essencial. O agregado só existia no painel
+   * do super admin. Mesmo cálculo, mesma supressão por volume mínimo.
+   */
+  async results(tenantId: string) {
+    const instrument = await this.instrumentOf(tenantId);
+    return this.diagnostics.results(tenantId, instrument);
+  }
 
   /**
    * Perguntas e escala da autoavaliação, lidas da metodologia ATIVA do
