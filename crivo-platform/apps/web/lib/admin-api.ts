@@ -1541,6 +1541,7 @@ export interface MethodologyFactor {
   label: string;
   severity: number;
   consequences?: string | null;
+  code?: string | null; definition?: string | null; sourceContext?: string | null; status?: string | null; factorVersion?: string | null;
   dimensionSlug?: string | null;
   order?: number;
 }
@@ -1597,7 +1598,7 @@ export function updateMethodologyDraft(
     dimensions?: Array<{ slug: string; label: string; weight?: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null }>;
     questions?: Array<{ dimensionSlug: string; factorSlugs?: string[]; text: string; weight?: number; inverse?: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null }>;
     bands?: Array<{ kind: MethodologyBandKind; code: string; label: string; min: number; max: number; color?: string | null }>;
-    factors?: Array<{ slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }>;
+    factors?: Array<{ slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null; code?: string | null; definition?: string | null; sourceContext?: string | null; status?: string | null; factorVersion?: string | null; }>;
   },
 ) {
   return adminFetch<MethodologyVersion>(`/admin/methodology/version/${id}`, {

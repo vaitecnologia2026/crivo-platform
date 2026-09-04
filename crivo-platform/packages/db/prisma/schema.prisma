@@ -2468,6 +2468,18 @@ model MethodologyFactor {
   version       MethodologyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
   slug          String
   label         String
+  /// Codigo estavel da biblioteca de riscos (Orientacao Funcional 5.1).
+  /// Ex.: RPS-001. Vira o ID do fator no Dossie quando preenchido.
+  code          String?
+  /// Descricao curta e objetiva do risco/fator (5.1).
+  definition    String?
+  /// Fonte/circunstancia padrao: o contexto de trabalho que origina o risco (5.1).
+  sourceContext String?            @map("source_context")
+  /// ATIVO | INATIVO | ARQUIVADO (5.1). Só ATIVO entra na matriz.
+  status        String             @default("ATIVO")
+  /// Versao metodologica do proprio fator, para auditoria (5.1). O campo
+  /// `version` acima ja e a relacao com MethodologyVersion, por isso o nome.
+  factorVersion String?            @map("factor_version")
   /// S-base (1-5): magnitude da consequencia possivel do fator.
   severity      Int
   /// Possiveis agravos/consequencias documentados — justificam a severidade e

@@ -53,6 +53,22 @@ class FactorDto {
 
   @IsOptional() @IsString() @MaxLength(80)
   dimensionSlug?: string | null;
+
+  // Biblioteca de Riscos/Fatores — Orientação Funcional 5.1.
+  @IsOptional() @IsString() @MaxLength(40)
+  code?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(600)
+  definition?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(600)
+  sourceContext?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(20)
+  status?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  factorVersion?: string | null;
 }
 
 class QuestionDto {

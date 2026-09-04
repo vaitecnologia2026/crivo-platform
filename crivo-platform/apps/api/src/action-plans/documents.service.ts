@@ -1675,11 +1675,14 @@ export class DocumentsService {
       sections.push({
         heading: '6. Matriz técnica de fatores de risco',
         table: {
-          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Nº de expostos', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
+          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Fonte/Circunstância', 'Nº de expostos', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
           data: psyMatriz.matrix.map((r, n) => [
-            `FP-${String(n + 1).padStart(3, '0')}`,
+            // Código da biblioteca de riscos quando cadastrado (Orientação 5.1);
+            // sem ele, um identificador sequencial só para referência interna.
+            r.code ?? `FP-${String(n + 1).padStart(3, '0')}`,
             r.label,
             r.dimensionLabel ?? '—',
+            r.sourceContext ?? '—',
             String(r.respondents),
             String(r.probability),
             String(r.severity),
@@ -1814,11 +1817,13 @@ export class DocumentsService {
           'pelo responsável técnico, após validação da empresa.',
         table: psyMatriz.matrix.length
           ? {
-              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Nº de expostos', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
+              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Nº de expostos', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
               data: psyMatriz.matrix.map((r, n) => [
-                `R-${String(n + 1).padStart(3, '0')}`,
+                r.code ?? `R-${String(n + 1).padStart(3, '0')}`,
                 r.dimensionLabel ?? '—',
                 r.label,
+                r.definition ?? '—',
+                r.sourceContext ?? '—',
                 String(r.respondents),
                 // Campo cadastrado no fator (Orientação 5.1) que até aqui era
                 // gravado e nunca lido por ninguém.

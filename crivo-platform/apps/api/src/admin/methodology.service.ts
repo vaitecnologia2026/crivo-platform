@@ -23,7 +23,18 @@ type VersionWithContent = {
   rounding?: number | null;
   minValidCompletionPercent?: number | null;
   dimensions: { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregationMode | null }[];
-  factors?: { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }[];
+  factors?: {
+    slug: string;
+    label: string;
+    severity: number;
+    consequences?: string | null;
+    dimensionSlug?: string | null;
+    code?: string | null;
+    definition?: string | null;
+    sourceContext?: string | null;
+    status?: string | null;
+    factorVersion?: string | null;
+  }[];
   questions: {
     dimensionSlug: string; factorSlugs?: string[]; text: string; weight: number; inverse: boolean; required?: boolean;
     scored?: boolean;
@@ -77,6 +88,11 @@ function toConfig(v: VersionWithContent, aggregation?: ScoreAggregationMode): Me
             // gravado, clonado no rascunho e descartado aqui.
             consequences: f.consequences ?? null,
             dimensionSlug: f.dimensionSlug ?? null,
+            code: f.code ?? null,
+            definition: f.definition ?? null,
+            sourceContext: f.sourceContext ?? null,
+            status: f.status ?? 'ATIVO',
+            factorVersion: f.factorVersion ?? null,
           })),
         }
       : {}),
@@ -245,7 +261,21 @@ export class MethodologyService {
           ? { create: active.bands.map((b) => ({ kind: b.kind, code: b.code, label: b.label, min: b.min, max: b.max, color: b.color, order: b.order })) }
           : undefined,
         factors: active
-          ? { create: active.factors.map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences, dimensionSlug: f.dimensionSlug, order: f.order })) }
+          ? {
+              create: active.factors.map((f) => ({
+                slug: f.slug,
+                label: f.label,
+                severity: f.severity,
+                consequences: f.consequences,
+                dimensionSlug: f.dimensionSlug,
+                code: f.code,
+                definition: f.definition,
+                sourceContext: f.sourceContext,
+                status: f.status,
+                factorVersion: f.factorVersion,
+                order: f.order,
+              })),
+            }
           : undefined,
       },
       include: CONTENT_INCLUDE,
@@ -274,7 +304,18 @@ export class MethodologyService {
         factorSlugs?: string[];
       }[];
       bands?: { kind: 'MATURITY' | 'RISK'; code: string; label: string; min: number; max: number; color?: string }[];
-      factors?: { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null }[];
+      factors?: {
+        slug: string;
+        label: string;
+        severity: number;
+        consequences?: string | null;
+        dimensionSlug?: string | null;
+        code?: string | null;
+        definition?: string | null;
+        sourceContext?: string | null;
+        status?: string | null;
+        factorVersion?: string | null;
+      }[];
     },
     actor: Actor,
   ) {
@@ -324,7 +365,20 @@ export class MethodologyService {
       if (dto.factors) {
         await tx.methodologyFactor.deleteMany({ where: { versionId: id } });
         await tx.methodologyFactor.createMany({
-          data: dto.factors.map((f, i) => ({ versionId: id, slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences ?? null, dimensionSlug: f.dimensionSlug ?? null, order: i })),
+          data: dto.factors.map((f, i) => ({
+            versionId: id,
+            slug: f.slug,
+            label: f.label,
+            severity: f.severity,
+            consequences: f.consequences ?? null,
+            dimensionSlug: f.dimensionSlug ?? null,
+            code: f.code ?? null,
+            definition: f.definition ?? null,
+            sourceContext: f.sourceContext ?? null,
+            status: f.status ?? 'ATIVO',
+            factorVersion: f.factorVersion ?? null,
+            order: i,
+          })),
         });
       }
     });

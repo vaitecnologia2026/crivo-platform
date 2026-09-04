@@ -296,7 +296,7 @@ export class PsychosocialService {
       where: { instrument: instrumento, status: 'ACTIVE' },
       select: {
         dimensions: { select: { slug: true, severity: true, parentSlug: true } },
-        factors: { select: { slug: true, label: true, severity: true, consequences: true, dimensionSlug: true }, orderBy: { order: 'asc' } },
+        factors: { select: { slug: true, label: true, severity: true, consequences: true, dimensionSlug: true, code: true, definition: true, sourceContext: true, status: true }, orderBy: { order: 'asc' } },
         questions: { select: { dimensionSlug: true, factorSlugs: true } },
       },
     });
@@ -322,7 +322,11 @@ export class PsychosocialService {
     // probabilidade sai da dimensão vinculada. Sem fatores, cai no comportamento
     // anterior (dimensão de topo com severidade) — nada muda para quem já
     // parametrizou assim.
-    const factors = activeVersion?.factors ?? [];
+    // Fator INATIVO ou ARQUIVADO sai da matriz (Orientacao 5.1). Todo fator
+    // existente nasceu ATIVO na migration, entao nada muda hoje.
+    const factors = (activeVersion?.factors ?? []).filter(
+      (f) => (f.status ?? 'ATIVO') === 'ATIVO',
+    );
     const activeQuestions = activeVersion?.questions ?? [];
     /** Dimensão majoritária entre as perguntas do fator — mantém a chave da
      *  biblioteca de ações do Dossiê (que é por DIMENSÃO) quando o fator não
@@ -359,6 +363,9 @@ export class PsychosocialService {
                 planSlug: dimForPlan,
                 consequences: f.consequences ?? null,
                 dimensionLabel: rotuloDaDimensao(dimForPlan),
+                code: f.code ?? null,
+                definition: f.definition ?? null,
+                sourceContext: f.sourceContext ?? null,
               };
             }
             if (dimForPlan) {
@@ -371,6 +378,9 @@ export class PsychosocialService {
                 planSlug: dimForPlan,
                 consequences: f.consequences ?? null,
                 dimensionLabel: rotuloDaDimensao(dimForPlan),
+                code: f.code ?? null,
+                definition: f.definition ?? null,
+                sourceContext: f.sourceContext ?? null,
               };
             }
             return null; // sem perguntas e sem dimensão: fica fora da matriz
@@ -387,6 +397,9 @@ export class PsychosocialService {
             planSlug: d.slug,
             consequences: null,
             dimensionLabel: d.label,
+            code: null,
+            definition: null,
+            sourceContext: null,
           }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
@@ -478,6 +491,10 @@ type MatrixSource = {
   consequences?: string | null;
   /** Rótulo da dimensão de origem, para a coluna "Processo" do Inventário. */
   dimensionLabel?: string | null;
+  /** Código, definição e fonte/circunstância da biblioteca de riscos (5.1). */
+  code?: string | null;
+  definition?: string | null;
+  sourceContext?: string | null;
 };
 
 /** Média do score geral + por dimensão + nível + dimensão de maior risco. Config-driven.
@@ -606,6 +623,9 @@ function aggregate(
             riskClass,
             consequences: d.consequences ?? null,
             dimensionLabel: d.dimensionLabel ?? null,
+            code: d.code ?? null,
+            definition: d.definition ?? null,
+            sourceContext: d.sourceContext ?? null,
             actionLabel: PSYCHOSOCIAL_RISK_CLASS_ACTION[riskClass],
             planRequired: PSYCHOSOCIAL_RISK_PLAN_REQUIRED[riskClass],
           };

@@ -54,7 +54,7 @@ const AGG_LABEL: Record<ScoreAggregation, string> = {
 type Dim = { slug: string; label: string; weight: number; parentSlug?: string | null; aggregation?: ScoreAggregation | null; severity?: number | null };
 type Q = { dimensionSlug: string; factorSlugs?: string[]; text: string; weight: number; inverse: boolean; required?: boolean; scored?: boolean; showWhenQuestionId?: number | null; showWhenOperator?: string | null; showWhenValue?: number | null };
 /** Fator de risco: severidade (S) própria + dimensão que fornece a probabilidade. */
-type Fator = { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null };
+type Fator = { slug: string; label: string; severity: number; consequences?: string | null; dimensionSlug?: string | null; code?: string | null; definition?: string | null; sourceContext?: string | null; status?: string | null; factorVersion?: string | null; };
 type Band = { kind: "MATURITY" | "RISK"; code: string; label: string; min: number; max: number; color?: string | null };
 
 export function MethodologySection() {
@@ -128,7 +128,20 @@ export function MethodologySection() {
       showWhenValue: x.showWhenValue ?? null,
     })));
     setBands(d.bands.map((x) => ({ kind: x.kind, code: x.code, label: x.label, min: x.min, max: x.max, color: x.color ?? null })));
-    setFactors((d.factors ?? []).map((f) => ({ slug: f.slug, label: f.label, severity: f.severity, consequences: f.consequences ?? null, dimensionSlug: f.dimensionSlug ?? null })));
+    setFactors(
+      (d.factors ?? []).map((f) => ({
+        slug: f.slug,
+        label: f.label,
+        severity: f.severity,
+        consequences: f.consequences ?? null,
+        dimensionSlug: f.dimensionSlug ?? null,
+        code: f.code ?? null,
+        definition: f.definition ?? null,
+        sourceContext: f.sourceContext ?? null,
+        status: f.status ?? "ATIVO",
+        factorVersion: f.factorVersion ?? null,
+      })),
+    );
     setScaleLabels(d.scaleLabels && d.scaleLabels.length === 5 ? d.scaleLabels : [...DEFAULT_SCALE_LABELS]);
     setRounding(d.rounding ?? 1);
     setMinCoverage(d.minValidCompletionPercent ?? 70);
@@ -1432,6 +1445,64 @@ function DraftEditor({
                   placeholder="Possíveis agravos (ex.: fadiga, estresse relacionado ao trabalho, afastamento) — justificam a severidade e saem no Inventário do Dossiê."
                   onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, consequences: e.target.value } : x)))}
                 />
+                {/* Biblioteca de Riscos/Fatores — Orientação Funcional 5.1. Os
+                    quatro campos abaixo são o que faltava para o Inventário do
+                    Dossiê sair completo; todos opcionais. */}
+                <div className="meth-row" style={{ marginTop: 8, gap: 8 }}>
+                  <label className="meth-w" title="Código estável da biblioteca de riscos (ex.: RPS-001). Vira o ID do fator no Dossiê.">
+                    código
+                    <input
+                      className="meth-in"
+                      style={{ width: 110 }}
+                      maxLength={40}
+                      value={f.code ?? ""}
+                      placeholder="RPS-001"
+                      onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))}
+                    />
+                  </label>
+                  <label className="meth-w" title="Status do fator. Só ATIVO entra na Matriz de Risco.">
+                    status
+                    <select
+                      className="meth-in"
+                      style={{ width: 130 }}
+                      value={f.status ?? "ATIVO"}
+                      onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, status: e.target.value } : x)))}
+                    >
+                      <option value="ATIVO">Ativo</option>
+                      <option value="INATIVO">Inativo</option>
+                      <option value="ARQUIVADO">Arquivado</option>
+                    </select>
+                  </label>
+                  <label className="meth-w" title="Versão metodológica deste fator, para auditoria.">
+                    versão
+                    <input
+                      className="meth-in"
+                      style={{ width: 90 }}
+                      maxLength={40}
+                      value={f.factorVersion ?? ""}
+                      placeholder="v1.0"
+                      onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, factorVersion: e.target.value } : x)))}
+                    />
+                  </label>
+                </div>
+                <textarea
+                  className="meth-in"
+                  rows={2}
+                  maxLength={600}
+                  style={{ width: "100%", marginTop: 6, resize: "vertical" }}
+                  value={f.definition ?? ""}
+                  placeholder="Definição — descrição curta e objetiva do risco/fator (sai no Inventário do Dossiê)."
+                  onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, definition: e.target.value } : x)))}
+                />
+                <textarea
+                  className="meth-in"
+                  rows={2}
+                  maxLength={600}
+                  style={{ width: "100%", marginTop: 6, resize: "vertical" }}
+                  value={f.sourceContext ?? ""}
+                  placeholder="Fonte/circunstância padrão — o contexto de trabalho que origina o risco (sai na matriz técnica e no Inventário)."
+                  onChange={(e) => setFactors(factors.map((x, j) => (j === i ? { ...x, sourceContext: e.target.value } : x)))}
+                />
               </div>
             ))}
           </div>
@@ -1445,7 +1516,23 @@ function DraftEditor({
           <button
             className="btn btn--outline-dark btn--sm"
             style={{ marginTop: 12 }}
-            onClick={() => setFactors([...factors, { slug: freeFactorSlug(), label: "", severity: 3, consequences: "", dimensionSlug: topDims[0]?.slug ?? null }])}
+            onClick={() =>
+              setFactors([
+                ...factors,
+                {
+                  slug: freeFactorSlug(),
+                  label: "",
+                  severity: 3,
+                  consequences: "",
+                  dimensionSlug: topDims[0]?.slug ?? null,
+                  code: "",
+                  definition: "",
+                  sourceContext: "",
+                  status: "ATIVO",
+                  factorVersion: "",
+                },
+              ])
+            }
           >
             + fator
           </button>

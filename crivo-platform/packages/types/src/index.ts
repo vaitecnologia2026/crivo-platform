@@ -757,6 +757,16 @@ export interface MethodologyConfigFactor {
   dimensionSlug?: string | null;
   /** Possíveis agravos (Orientação §5.1) — saem no Inventário do Dossiê. */
   consequences?: string | null;
+  /** Codigo estavel da biblioteca de riscos (Orientacao 5.1). Ex.: RPS-001. */
+  code?: string | null;
+  /** Descricao curta do risco/fator. */
+  definition?: string | null;
+  /** Fonte/circunstancia padrao do risco. */
+  sourceContext?: string | null;
+  /** ATIVO | INATIVO | ARQUIVADO. So ATIVO entra na matriz. */
+  status?: string | null;
+  /** Versao metodologica do fator, para auditoria. */
+  factorVersion?: string | null;
 }
 
 export interface MethodologyConfig {
@@ -1334,6 +1344,12 @@ export interface PsychosocialRiskMatrixRow {
   /** Possíveis agravos cadastrados no fator (Orientação §5.1). Alimentam o
    *  Inventário Técnico do Dossiê — até aqui o campo era gravado e nunca lido. */
   consequences?: string | null;
+  /** Código da biblioteca de riscos (RPS-001…): vira o ID do fator no Dossiê. */
+  code?: string | null;
+  /** Definição curta do risco/fator, para o Inventário Técnico. */
+  definition?: string | null;
+  /** Fonte/circunstância padrão — coluna exigida pelo modelo do Inventário. */
+  sourceContext?: string | null;
   /** Rótulo da dimensão de origem — coluna "Processo/Dimensão" do Inventário. */
   dimensionLabel?: string | null;
   /** Ação recomendada e obrigatoriedade do plano (§8.4), derivadas da classe. */
