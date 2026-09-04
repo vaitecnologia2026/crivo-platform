@@ -152,7 +152,7 @@ export class PreliminaryReportsService {
       // #60 — Rodapé do e-mail editável pelo Super Admin sem deploy.
       const footer = await this.texts.render(
         'EMAIL_PRELIMINARY_FOOTER',
-        'Este é um relatório preliminar gerado por IA a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
+        'O MAPA Executivo CRIVO™ oferece uma leitura preliminar a partir das informações fornecidas e não substitui diagnóstico técnico ou avaliação especializada. Não é avaliação individual de performance nem diagnóstico clínico. Para uma análise completa, agende uma conversa com nosso time.',
       );
       const send = await this.sendEmail({
         to: recipient,
@@ -192,7 +192,7 @@ export class PreliminaryReportsService {
     });
     const footer = await this.texts.render(
       'EMAIL_PRELIMINARY_FOOTER',
-      'Este é um relatório preliminar gerado por IA a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
+      'O MAPA Executivo CRIVO™ oferece uma leitura preliminar a partir das informações fornecidas e não substitui diagnóstico técnico ou avaliação especializada. Não é avaliação individual de performance nem diagnóstico clínico. Para uma análise completa, agende uma conversa com nosso time.',
     );
     const send = await this.sendEmail({
       to: sendTo,
@@ -534,7 +534,7 @@ export class PreliminaryReportsService {
 
       const footer = await this.texts.render(
         'EMAIL_PRELIMINARY_FOOTER',
-        'Esta é uma leitura preliminar gerada a partir do Diagnóstico Inicial CRIVO. Não substitui o CRIVO Diagnóstico™ Essencial ou Organizacional, nem é avaliação individual de performance ou diagnóstico clínico. Para análise completa, agende uma conversa com nosso time.',
+        'O MAPA Executivo CRIVO™ oferece uma leitura preliminar a partir das informações fornecidas e não substitui diagnóstico técnico ou avaliação especializada. Não é avaliação individual de performance nem diagnóstico clínico. Para uma análise completa, agende uma conversa com nosso time.',
       );
       const send = await this.sendEmail({
         to,

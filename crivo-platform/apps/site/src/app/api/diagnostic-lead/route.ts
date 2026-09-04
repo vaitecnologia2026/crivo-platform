@@ -53,7 +53,9 @@ const SITE_URL = process.env.SITE_URL ?? "https://crivolegacy.com.br";
 /** Mesma ressalva do e-mail da API (lá o texto é editável no super admin). */
 const NOTA_TECNICA =
   "O MAPA Executivo CRIVO™ oferece uma leitura preliminar a partir das informações fornecidas " +
-  "e não substitui diagnóstico técnico ou avaliação especializada.";
+  "e não substitui diagnóstico técnico ou avaliação especializada. Não é avaliação individual " +
+  "de performance nem diagnóstico clínico. Para uma análise completa, agende uma conversa com " +
+  "nosso time.";
 
 const LEVEL_LABEL: Record<string, string> = {
   CRITICO: "Crítico",
