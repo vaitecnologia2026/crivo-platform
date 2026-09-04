@@ -819,9 +819,36 @@ export async function getPublicCampaign(slug: string): Promise<{
 }
 
 /** Submissão anônima pela campanha (/p/c/<slug>). O setor vem da campanha. */
+/** Etapa 1 do QR/link da campanha: CPF → pessoa do cadastro daquela empresa. */
+export async function verifyPublicCampaign(
+  slug: string,
+  cpf: string,
+): Promise<{
+  answered: boolean;
+  name?: string;
+  sector?: string | null;
+  tenantName?: string;
+  questions?: PsychosocialQuestion[];
+  scaleLabels?: string[];
+}> {
+  const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cpf }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? 'CPF não confere');
+  }
+  return res.json();
+}
+
 export async function submitPublicCampaign(
   slug: string,
-  dto: { sector?: string; answers: { questionId: number; value: number }[] },
+  // O CPF acompanha o envio: a campanha passou a ser nominal (uma resposta por
+  // pessoa por ciclo), embora a resposta gravada siga anônima.
+  dto: { cpf: string; sector?: string; answers: { questionId: number; value: number }[] },
 ): Promise<{ ok: true; result: PsychosocialResult }> {
   const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
     method: 'POST',

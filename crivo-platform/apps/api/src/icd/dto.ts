@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -118,4 +119,31 @@ export class ListCampaignsQueryDto {
   @IsString()
   @MaxLength(60)
   sector?: string;
+}
+
+class CampaignAnswerDto {
+  @IsInt()
+  questionId!: number;
+
+  @IsInt() @Min(1) @Max(5)
+  value!: number;
+}
+
+/**
+ * Resposta pela campanha pública (QR/link): agora NOMINAL. O CPF identifica a
+ * pessoa no cadastro de colaboradores — antes o link não pedia nada e aceitava
+ * resposta repetida, inflando média e o piso de anonimato (que conta PESSOAS).
+ */
+export class CampaignCpfDto {
+  @IsString() @MaxLength(20)
+  cpf!: string;
+}
+
+/** Envio pela campanha pública: CPF + respostas. */
+export class SubmitCampaignDto extends CampaignCpfDto {
+  @IsOptional() @IsString() @MaxLength(120)
+  sector?: string;
+
+  @IsArray() @ArrayMaxSize(200) @ValidateNested({ each: true }) @Type(() => CampaignAnswerDto)
+  answers!: CampaignAnswerDto[];
 }

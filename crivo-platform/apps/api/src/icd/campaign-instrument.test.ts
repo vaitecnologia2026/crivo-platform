@@ -67,14 +67,23 @@ function build(cycle: Partial<Record<string, unknown>> = {}) {
   const diagnostics = {
     submitForTenant: vi.fn(async () => ({ ok: true as const, result: { score: 70 } })),
   };
+  // O QR/link da campanha passou a resolver a pessoa pelo CPF do cadastro.
+  const collaborators = {
+    resolveForCampaign: vi.fn(async () => ({
+      collaborator: { id: 'colab-1', name: 'Maria', sector: 'RH' },
+      invite: { id: 'invite-1', respondedAt: null },
+    })),
+    hookDeParticipacao: vi.fn(() => async () => undefined),
+  };
   const service = new IcdService(
     prisma as never,
     {} as never,
     {} as never,
     psychosocial as never,
     diagnostics as never,
+    collaborators as never,
   );
-  return { service, psychosocial, diagnostics };
+  return { service, psychosocial, diagnostics, collaborators };
 }
 
 beforeEach(() => {
@@ -94,7 +103,7 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     const info = await service.getPublicBySlug(SLUG);
     expect(info.questions).toEqual(PERGUNTAS_NR1);
 
-    await service.submitPublicByCampaignSlug(SLUG, { answers: [{ questionId: 1, value: 3 }] } as never);
+    await service.submitPublicByCampaignSlug(SLUG, { cpf: '529.982.247-25', answers: [{ questionId: 1, value: 3 }] } as never);
     expect(psychosocial.submit).toHaveBeenCalledOnce();
     // O caminho antigo NÃO pode passar pelo serviço de diagnósticos do catálogo.
     expect(diagnostics.submitForTenant).not.toHaveBeenCalled();
@@ -112,7 +121,7 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     expect(info.questions).toEqual(PERGUNTAS_NR1);
     expect(psychosocial.publicQuestions).toHaveBeenCalledOnce();
 
-    await service.submitPublicByCampaignSlug(SLUG, { answers: [{ questionId: 1, value: 2 }] } as never);
+    await service.submitPublicByCampaignSlug(SLUG, { cpf: '529.982.247-25', answers: [{ questionId: 1, value: 2 }] } as never);
     expect(psychosocial.submit).toHaveBeenCalledOnce();
     expect(diagnostics.submitForTenant).not.toHaveBeenCalled();
   });
@@ -129,7 +138,7 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     expect(info.questions).toEqual([{ id: 1, dimension: 'clareza', text: 'Pergunta do Essencial' }]);
     expect(psychosocial.publicQuestions).not.toHaveBeenCalled();
 
-    await service.submitPublicByCampaignSlug(SLUG, { answers: [{ questionId: 1, value: 4 }] } as never);
+    await service.submitPublicByCampaignSlug(SLUG, { cpf: '529.982.247-25', answers: [{ questionId: 1, value: 4 }] } as never);
     expect(psychosocial.submit).not.toHaveBeenCalled();
     expect(diagnostics.submitForTenant).toHaveBeenCalledOnce();
     const chamada = diagnostics.submitForTenant.mock.calls[0] as unknown as
@@ -138,6 +147,7 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     expect(chamada?.[0]).toBe(TENANT);
     expect(chamada?.[1]).toBe('essencial');
     // O setor é o da campanha — o respondente não escolhe.
+    // O setor vem da CAMPANHA (ou do cadastro) — o respondente não digita.
     expect(chamada?.[2]?.sector).toBe('Operações');
   });
 
@@ -165,7 +175,7 @@ describe('campanha pública — instrumento pelo método contratado', () => {
     expect(info.questions).toEqual([]);
     expect(info.open).toBe(false);
     await expect(
-      service.submitPublicByCampaignSlug(SLUG, { answers: [] } as never),
+      service.submitPublicByCampaignSlug(SLUG, { cpf: '529.982.247-25', answers: [] } as never),
     ).rejects.toThrow(/não está aberta/);
     expect(diagnostics.submitForTenant).not.toHaveBeenCalled();
   });

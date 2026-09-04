@@ -1,12 +1,13 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { mailConfigured, sendMail } from '../common/mailer';
 import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
-import type { SubmitIcdDto } from './dto';
+import type { SubmitIcdDto, SubmitCampaignDto } from './dto';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
+import { CollaboratorsService } from '../collaborators/collaborators.service';
 import {
   resolveActiveMethodology,
   resolveInstrumentForTenant,
@@ -27,6 +28,8 @@ export class IcdService {
     // os dois serviços mantém UM caminho de coleta por instrumento.
     private readonly psychosocial: PsychosocialService,
     private readonly diagnostics: DiagnosticsService,
+    // O QR/link da campanha resolve a pessoa pelo CPF do cadastro.
+    private readonly collaborators: CollaboratorsService,
   ) {}
 
   /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
@@ -433,21 +436,66 @@ export class IcdService {
    * próprio criaria resposta órfã: o time responderia e nada apareceria no
    * Dashboard. O setor vem da campanha (o respondente não escolhe).
    */
-  async submitPublicByCampaignSlug(slug: string, dto: SubmitPsychosocialDto) {
+  /**
+   * Etapa 1 do QR/link da campanha: CPF → pessoa do cadastro.
+   *
+   * O link era anônimo e aceitava resposta repetida — a média inflava e o piso
+   * de anonimato, que conta PESSOAS, passava a contar ENVIOS. Agora o mesmo QR
+   * serve a todos, mas cada um se identifica e responde uma vez por campanha.
+   */
+  async verifyCampaignCpf(slug: string, cpf: string) {
     const { cycle, aberta } = await this.resolveOpenCampaign(slug);
     if (!aberta) {
       throw new BadRequestException('Esta campanha não está aberta para respostas no momento.');
     }
+    const { collaborator, invite } = await this.collaborators.resolveForCampaign(
+      cycle.tenantId,
+      cycle.id,
+      cpf,
+    );
+    if (invite.respondedAt) return { answered: true as const };
+    return {
+      answered: false as const,
+      name: collaborator.name,
+      // O setor da CAMPANHA manda; sem ele, o do cadastro. O respondente não digita.
+      sector: cycle.sector ?? collaborator.sector,
+      tenantName: cycle.org.name,
+      questions: await this.campaignQuestions(cycle.tenantId),
+      scaleLabels: await this.campaignScaleLabels(cycle.tenantId),
+    };
+  }
+
+  /** Etapa 2: grava a resposta ANÔNIMA e marca a participação atomicamente. */
+  async submitPublicByCampaignSlug(slug: string, dto: SubmitCampaignDto) {
+    const { cycle, aberta } = await this.resolveOpenCampaign(slug);
+    if (!aberta) {
+      throw new BadRequestException('Esta campanha não está aberta para respostas no momento.');
+    }
+    const { collaborator, invite } = await this.collaborators.resolveForCampaign(
+      cycle.tenantId,
+      cycle.id,
+      dto.cpf,
+    );
+    if (invite.respondedAt) throw new ConflictException('Você já respondeu esta campanha.');
+    const marcarParticipacao = this.collaborators.hookDeParticipacao(invite.id, collaborator.id);
     const instrument = await this.campaignInstrument(cycle.tenantId);
-    const payload = { ...dto, sector: cycle.sector ?? dto.sector };
+    // O setor vem da campanha ou do CADASTRO — não do que a pessoa digita.
+    const payload = {
+      answers: dto.answers,
+      sector: cycle.sector ?? collaborator.sector ?? undefined,
+    };
     // Mesmo par de destinos do link do colaborador: psicossocial grava em
     // psychosocial_responses; qualquer outro instrumento, em diagnostic_responses.
     // Os dois devolvem { ok, result }, então a página pública não muda.
-    // A resposta pertence à campanha — inclusive quem entrou pelo link público
-    // dela, que não passa por convite nominal.
     return (await usesPsychosocialEngine(this.prisma, instrument))
-      ? this.psychosocial.submit(cycle.tenantId, payload, undefined, cycle.id)
-      : this.diagnostics.submitForTenant(cycle.tenantId, instrument, payload, undefined, cycle.id);
+      ? this.psychosocial.submit(cycle.tenantId, payload, marcarParticipacao, cycle.id)
+      : this.diagnostics.submitForTenant(
+          cycle.tenantId,
+          instrument,
+          payload,
+          marcarParticipacao,
+          cycle.id,
+        );
   }
 
   /**

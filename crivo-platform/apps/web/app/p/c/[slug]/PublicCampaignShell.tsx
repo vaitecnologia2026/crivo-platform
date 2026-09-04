@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { getPublicCampaign, submitPublicCampaign } from "@/lib/api";
+import { getPublicCampaign, submitPublicCampaign, verifyPublicCampaign } from "@/lib/api";
+import { formatCpf, normalizeCpf } from "@crivo/types";
 import type { PsychosocialQuestion } from "@crivo/types";
 import { PublicPsychosocialForm } from "../../../q/[slug]/PublicPsychosocialForm";
 
@@ -82,6 +83,25 @@ export function PublicCampaignShell() {
   // concreto (ex.: o diagnóstico do método contratado ainda não publicado no
   // Motor), e "link inválido" mandaria a pessoa procurar o erro no lugar errado.
   const [erro, setErro] = useState<string | null>(null);
+  // Porta de CPF do QR/link da campanha (ver comentário no render).
+  const [cpf, setCpf] = useState("");
+  const [validando, setValidando] = useState(false);
+  const [erroCpf, setErroCpf] = useState<string | null>(null);
+  const [verificado, setVerificado] = useState<Awaited<ReturnType<typeof verifyPublicCampaign>> | null>(null);
+
+  async function acessar() {
+    if (!slug) return;
+    setValidando(true);
+    setErroCpf(null);
+    try {
+      setVerificado(await verifyPublicCampaign(slug, cpf));
+    } catch (e) {
+      setErroCpf(e instanceof Error ? e.message : "Não foi possível validar o CPF.");
+    } finally {
+      setValidando(false);
+    }
+  }
+
 
   useEffect(() => {
     setSlug(readSlug());
@@ -135,14 +155,72 @@ export function PublicCampaignShell() {
   // aqui seria negar a própria promessa. O cartão informativo abaixo fica só
   // para campanha encerrada/fora da janela, que é quando não há o que responder.
   if (data.open) {
+    // Porta de CPF: o QR é um só para todo mundo, mas cada pessoa se identifica
+    // no cadastro e responde UMA vez por campanha. Antes o link era anônimo e
+    // aceitava resposta repetida — a média inflava e o piso de anonimato, que
+    // conta PESSOAS, passava a contar envios.
+    if (!verificado) {
+      return (
+        <div style={WRAP}>
+          <div style={CARD}>
+            <Brand />
+            <p style={{ marginTop: 14, fontWeight: 600 }}>{data.name}</p>
+            <p style={{ marginTop: 6, color: "#6b6459", fontSize: 14 }}>
+              {data.tenantName} — para responder, informe o seu <strong>CPF</strong>. Ele serve
+              apenas para conferir que você está no cadastro e evitar resposta duplicada; a sua
+              resposta continua <strong>anônima</strong>.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 320, margin: "16px auto 0" }}>
+              <input
+                inputMode="numeric"
+                autoComplete="off"
+                value={cpf}
+                placeholder="000.000.000-00"
+                onChange={(e) => setCpf(formatCpf(normalizeCpf(e.target.value)))}
+                onKeyDown={(e) => { if (e.key === "Enter") void acessar(); }}
+                style={{ padding: "12px 14px", border: "1px solid #DCD7CE", borderRadius: 8, font: "inherit", textAlign: "center" }}
+              />
+              <button
+                className="btn btn--terra btn--block"
+                disabled={validando}
+                onClick={acessar}
+                style={{ padding: "12px 14px" }}
+              >
+                {validando ? "Validando…" : "Acessar o questionário"}
+              </button>
+              {erroCpf && <p style={{ color: "#c0392b", fontSize: 13, margin: 0, textAlign: "center" }}>{erroCpf}</p>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (verificado.answered) {
+      return (
+        <div style={WRAP}>
+          <div style={CARD}>
+            <Brand />
+            <p style={{ marginTop: 16 }}>
+              <strong>Você já respondeu esta campanha.</strong> Obrigado — sua resposta está
+              registrada e conta no resultado da empresa.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <PublicPsychosocialForm
         slug={slug!}
-        carregar={getPublicCampaign}
-        enviar={submitPublicCampaign}
-        // O setor é o da campanha: quem responde não escolhe, e o agregado por
-        // setor sai certo sem depender do que cada um digitou.
-        setorFixo={data.sector}
+        carregar={async () => ({
+          tenantName: verificado.tenantName ?? data.tenantName,
+          questions: verificado.questions ?? [],
+          scaleLabels: verificado.scaleLabels,
+        })}
+        enviar={(s2, body) => submitPublicCampaign(s2, { ...body, cpf })}
+        // O setor é o da campanha (ou o do cadastro): quem responde não escolhe,
+        // e o agregado por setor sai certo sem depender do que cada um digitou.
+        setorFixo={verificado.sector ?? data.sector}
         rotulo="Campanha de Diagnóstico"
         contexto={data.sector ? `${data.name} · ${data.sector}` : data.name}
       />

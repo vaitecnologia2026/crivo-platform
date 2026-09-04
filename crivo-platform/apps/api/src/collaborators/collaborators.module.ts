@@ -13,5 +13,7 @@ import { CollaboratorsService } from './collaborators.service';
   imports: [IamModule, PsychosocialModule, DiagnosticsModule],
   controllers: [CollaboratorsController, PublicCollaboratorsController],
   providers: [CollaboratorsService],
+  // IcdModule usa o cadastro/CPF para a campanha pública (QR nominal).
+  exports: [CollaboratorsService],
 })
 export class CollaboratorsModule {}

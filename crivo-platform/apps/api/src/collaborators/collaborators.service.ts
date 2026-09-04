@@ -358,6 +358,46 @@ export class CollaboratorsService {
     return { link: linkFor(invite.token) };
   }
 
+  /**
+   * CPF → colaborador + convite DAQUELA campanha (cria o convite se não houver).
+   *
+   * É o que transforma o QR/link aberto da campanha em coleta nominal: um código
+   * só para todo mundo, mas cada pessoa se identifica pelo CPF do cadastro e
+   * responde UMA vez por campanha. Antes o link aberto não pedia nada — dava
+   * para responder de novo e inflar a média (e o piso de anonimato conta
+   * PESSOAS, não envios).
+   */
+  async resolveForCampaign(tenantId: string, cycleId: string, cpf: string) {
+    const normalizado = normalizeCpf(cpf);
+    if (!isValidCpf(normalizado)) throw new BadRequestException('CPF inválido.');
+    const c = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.collaborator.findFirst({ where: { cpf: normalizado } }),
+    );
+    if (!c) {
+      throw new NotFoundException(
+        'CPF não encontrado no cadastro desta empresa. Fale com o RH para ser incluído.',
+      );
+    }
+    const invite = await this.ensureInvite(tenantId, c.id, cycleId);
+    return { collaborator: c as CollaboratorRow, invite };
+  }
+
+  /**
+   * Hook que marca a participação NA MESMA transação do create da resposta:
+   * ou grava os dois, ou nenhum. A resposta segue sem identificador nenhum.
+   */
+  hookDeParticipacao(inviteId: string, collaboratorId: string) {
+    return async (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => {
+      const agora = new Date();
+      const r = await tx.campaignInvite.updateMany({
+        where: { id: inviteId, respondedAt: null },
+        data: { respondedAt: agora },
+      });
+      if (r.count !== 1) throw new ConflictException('Você já respondeu esta campanha.');
+      await tx.collaborator.update({ where: { id: collaboratorId }, data: { respondedAt: agora } });
+    };
+  }
+
   // ── Fluxo público por token (o funcionário abre o link) ────────────────────
 
   /**

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { IcdService } from './icd.service';
-import { SubmitPsychosocialDto } from '../psychosocial/dto';
+import { CampaignCpfDto, SubmitCampaignDto } from './dto';
 
 /**
  * Endpoint PÚBLICO (Portal §7) — sem AuthGuard. Resolve um slug de campanha
@@ -24,9 +24,16 @@ export class PublicCampaignsController {
    * cumprir o que a caixa "respondentes acessam sem login" promete. Mesmo limite
    * de taxa do /q/<slug>: leitura é barata, escrita não.
    */
+  /** Etapa 1: CPF → pessoa do cadastro (e o convite daquela campanha). */
+  @Post(':slug/verify')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  verify(@Param('slug') slug: string, @Body() dto: CampaignCpfDto) {
+    return this.icd.verifyCampaignCpf(slug, dto.cpf);
+  }
+
   @Post(':slug')
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  submit(@Param('slug') slug: string, @Body() dto: SubmitPsychosocialDto) {
+  submit(@Param('slug') slug: string, @Body() dto: SubmitCampaignDto) {
     return this.icd.submitPublicByCampaignSlug(slug, dto);
   }
 }
