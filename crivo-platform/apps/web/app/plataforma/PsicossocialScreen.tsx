@@ -123,8 +123,7 @@ function ResultadosBody({
       <>
         <div className="dash-state">
           Ainda não há respostas neste diagnóstico. Convide pela tela <strong>Colaboradores</strong> ou
-          use o link da campanha em <strong>Campanhas de Diagnóstico</strong>. O resultado agregado do
-          diagnóstico que a sua empresa contratou aparece na <strong>Visão Geral</strong>.
+          use o link da campanha em <strong>Campanhas de Diagnóstico</strong>.
         </div>
         {/* A matriz técnica vem do PLANO (independe do questionário); o heatmap
             mostra seu estado vazio honesto — mockup 22/07. */}

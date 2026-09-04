@@ -74,7 +74,12 @@ export function ResultadoDiagnosticoCard({
             </p>
           )}
           <table className="data-table">
-            <thead><tr><th>Dimensão</th><th style={{ width: 220 }}>Índice</th></tr></thead>
+            <thead>
+              <tr>
+                <th scope="col">Dimensão</th>
+                <th scope="col" style={{ width: 220 }}>Índice</th>
+              </tr>
+            </thead>
             <tbody>
               {ordenadas.map(([slug, valor]) => {
                 const banda = data.dimensionBands?.[slug];
@@ -83,7 +88,10 @@ export function ResultadoDiagnosticoCard({
                     <td>{data.dimensionLabels?.[slug] ?? slug}</td>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ flex: 1, height: 8, background: "var(--line)", borderRadius: 999 }}>
+                        <div
+                          aria-hidden="true"
+                          style={{ flex: 1, height: 8, background: "var(--line)", borderRadius: 999 }}
+                        >
                           <div style={{
                             width: `${valor}%`,
                             height: "100%",

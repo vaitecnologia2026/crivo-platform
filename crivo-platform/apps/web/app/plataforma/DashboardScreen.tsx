@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
 import {
   getDashboardDiagnostic,
@@ -36,7 +36,7 @@ import {
  * (mesmo endpoint do ExecutiveKpiRow) e mostra a leitura real quando há dado,
  * mantendo o texto de origem apenas como estado vazio/suprimido.
  */
-function FatoresPsicossociaisCard() {
+function FatoresPsicossociaisCard({ diag }: { diag: DashboardDiagnostic | null }) {
   const [psy, setPsy] = useState<PsychosocialResults | null>(null);
   useEffect(() => {
     let alive = true;
@@ -46,6 +46,12 @@ function FatoresPsicossociaisCard() {
 
   const hasData = psy != null && psy.totalRespondents > 0;
   const overall = psy && !psy.overall.suppressed ? psy.overall : null;
+
+  // Empresa que nao contratou o Organizacional nao pode ver "sera habilitado
+  // quando o modulo NR-1 for aplicado": e outro produto, e a frase aparecia ao
+  // lado do resultado do diagnostico que ela DE FATO contratou. Some so com
+  // prova positiva — enquanto o contrato nao chega (null), o card segue como era.
+  if (diag?.engine === "DIAGNOSTICS" && !hasData) return null;
 
   return (
     <div className="card">
@@ -205,7 +211,7 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
  * documentos liberados pelo contrato. Sem número inventado: célula sem dado
  * mostra "—" e explica a origem.
  */
-function ExecutiveKpiRow({ plans }: { plans: ActionPlanData[] | null }) {
+function ExecutiveKpiRow({ plans, diag }: { plans: ActionPlanData[] | null; diag: DashboardDiagnostic | null }) {
   const [psy, setPsy] = useState<PsychosocialResults | null>(null);
   const [docsAvail, setDocsAvail] = useState<number | null>(null);
   const [docsTotal, setDocsTotal] = useState<number | null>(null);
@@ -231,11 +237,20 @@ function ExecutiveKpiRow({ plans }: { plans: ActionPlanData[] | null }) {
   const emAndamento = items.filter((i) => i.status === "EM_ANDAMENTO" || i.status === "APROVADA").length;
   const concluidas = items.filter((i) => i.status === "CONCLUIDA").length;
   const evidencias = items.reduce((n, i) => n + i.evidences.length, 0);
-  const setores = psy ? psy.sectors.length : null;
-  const respondentes = psy ? psy.totalRespondents : null;
+  // A participacao tem de vir do motor que a empresa contratou. Lendo so o
+  // psicossocial, o tenant do Essencial via "Participacao 0" a dois cards de
+  // distancia do card que dizia "Respondentes 12" — a mesma tela se contradizia.
+  const doMotor = diag?.engine === "DIAGNOSTICS" ? diag.aggregate : null;
+  const setores = doMotor ? null : psy ? psy.sectors.length : null;
+  const respondentes = doMotor ? doMotor.totalRespondents : psy ? psy.totalRespondents : null;
+  const nomeDoDiagnostico = doMotor
+    ? diag?.instrumentName ?? "diagnóstico contratado"
+    : "diagnóstico organizacional";
 
   const cells: { label: string; value: string; sub: string }[] = [
-    { label: "Participação", value: respondentes === null ? "—" : String(respondentes), sub: "respondentes · diagnóstico organizacional" },
+    { label: "Participação", value: respondentes === null ? "—" : String(respondentes), sub: `respondentes · ${nomeDoDiagnostico}` },
+    // Recorte por setor so existe no motor psicossocial: para os demais o campo
+    // fica "—" em vez de um zero que parece resultado.
     { label: "Setores avaliados", value: setores === null ? "—" : String(setores), sub: "recortes com supressão de anonimato" },
     { label: "Riscos altos", value: plans ? String(highRisks) : "—", sub: "matriz Severidade × Probabilidade" },
     { label: "Ações em andamento", value: plans ? String(emAndamento) : "—", sub: `${concluidas} concluída(s)` },
@@ -270,14 +285,19 @@ export function DashboardScreen() {
   // /icd/dashboard de propósito: era o dado que a empresa mais procurava e ele
   // não podia sumir junto com os indicadores quando aquele endpoint falha.
   const [diag, setDiag] = useState<DashboardDiagnostic | null>(null);
+  const [diagErro, setDiagErro] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const carregarDiag = useCallback(() => {
+    let vivo = true;
     getDashboardDiagnostic()
-      .then((d) => { if (alive) setDiag(d); })
-      .catch(() => { if (alive) setDiag(null); });
-    return () => { alive = false; };
+      .then((d) => { if (vivo) { setDiag(d); setDiagErro(false); } })
+      .catch(() => { if (vivo) { setDiag(null); setDiagErro(true); } });
+    return () => { vivo = false; };
   }, []);
+
+  useEffect(() => carregarDiag(), [carregarDiag]);
+
+  const atualizarTudo = () => { refresh(); carregarDiag(); };
 
   useEffect(() => {
     let alive = true;
@@ -296,7 +316,10 @@ export function DashboardScreen() {
   const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
   const orgAttention = attention(icdScore); // proxy temporário até termos Índice Geral CRIVO próprio
   // #17 — estado vazio profissional: sem ICD e sem plano = nenhum diagnóstico concluído ainda.
-  const isEmpty = icdScore === null && (!plans || plans.length === 0);
+  const temResultado = !!diag?.aggregate && diag.aggregate.totalRespondents > 0;
+  // Sem isto a tela mostrava "Nenhum diagnostico concluido ainda" logo abaixo do
+  // card com indice e respondentes.
+  const isEmpty = icdScore === null && (!plans || plans.length === 0) && !temResultado;
   const goToRoute = (route: string) =>
     document.querySelector<HTMLElement>(`[data-route="${route}"]`)?.click();
 
@@ -310,19 +333,25 @@ export function DashboardScreen() {
           </p>
         </div>
         <div className="route__actions">
-          <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>
+          <button className="btn btn--outline-dark btn--sm" onClick={atualizarTudo} disabled={status === "loading"}>
             {status === "loading" ? "Atualizando…" : "Atualizar"}
           </button>
         </div>
       </div>
 
       {/* Fileira executiva (mockup 22/07) — 6 KPIs reais no topo. */}
-      <ExecutiveKpiRow plans={plans} />
+      <ExecutiveKpiRow plans={plans} diag={diag} />
 
       {/* O resultado das respostas dos colaboradores. Só aparece no motor de
           diagnósticos: no psicossocial quem mostra é o card "Fatores
           Psicossociais", logo abaixo — o mesmo número duas vezes na tela
           confunde mais do que informa. */}
+      {diagErro && (
+        <p className="dash-state">
+          Não foi possível carregar o resultado do diagnóstico. Use <strong>Atualizar</strong>.
+        </p>
+      )}
+
       {diag?.engine === "DIAGNOSTICS" && diag.aggregate && diag.aggregate.totalRespondents > 0 && (
         <ResultadoDiagnosticoCard
           data={diag.aggregate}
@@ -452,7 +481,7 @@ export function DashboardScreen() {
               </p>
             </div>
 
-            <FatoresPsicossociaisCard />
+            <FatoresPsicossociaisCard diag={diag} />
           </div>
 
           {/* ─── GOVERNANÇA E PLANO DE AÇÃO ──────────────────────────────── */}
