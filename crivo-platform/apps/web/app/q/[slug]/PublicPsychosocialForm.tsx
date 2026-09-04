@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getPublicPsychosocial,
   submitPublicPsychosocial,
@@ -127,6 +127,9 @@ export function PublicPsychosocialForm({
    * virava uma rolagem longa, em que era fácil pular item sem perceber.
    */
   const [passo, setPasso] = useState(0);
+  // Um único avanço pendente por vez (ver `escolher`).
+  const avancoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (avancoRef.current) clearTimeout(avancoRef.current); }, []);
 
   useEffect(() => {
     setAvisoRepeticao(jaRespondeuNesteDispositivo(slug));
@@ -141,11 +144,20 @@ export function PublicPsychosocialForm({
       .catch(() => setStatus("invalid"));
   }, [slug, carregar]);
 
-  /** Marca a resposta e avança — a última leva à revisão, não ao envio direto. */
+  /**
+   * Marca a resposta e avança — a última leva à revisão, não ao envio direto.
+   *
+   * O timer é ÚNICO e cancelado a cada clique: antes, trocar a nota (ou um
+   * clique duplo) agendava DOIS avanços e a tela pulava uma pergunta.
+   */
   function escolher(questionId: number, value: number) {
     setAnswers((a) => ({ ...a, [questionId]: value }));
+    if (avancoRef.current) clearTimeout(avancoRef.current);
     // Pequena pausa: a pessoa VÊ o que escolheu antes da tela trocar.
-    setTimeout(() => setPasso((atual) => Math.min(atual + 1, questions.length + 1)), 260);
+    avancoRef.current = setTimeout(() => {
+      avancoRef.current = null;
+      setPasso((atual) => Math.min(atual + 1, questions.length + 1));
+    }, 260);
   }
 
   const answered = questions.filter((q) => answers[q.id]).length;

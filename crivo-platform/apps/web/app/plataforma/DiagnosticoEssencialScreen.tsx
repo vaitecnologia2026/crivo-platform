@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ESSENTIAL_RECORD_LABEL,
   MATURITY_LABEL,
@@ -195,6 +195,9 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
    * pular um item e só descobrir no fim, no "Responda todas".
    */
   const [passo, setPasso] = useState(0);
+  // Um único avanço pendente por vez (ver `escolher`).
+  const avancoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (avancoRef.current) clearTimeout(avancoRef.current); }, []);
 
   useEffect(() => {
     let alive = true;
@@ -210,11 +213,22 @@ function AssessmentForm({ onDone }: { onDone: () => void }) {
   const answered = questions.filter((q) => answers[q.id]).length;
   const done = total > 0 && answered === total;
 
-  /** Marca a resposta e avança — a última leva à revisão, não ao envio direto. */
+  /**
+   * Marca a resposta e avança — a última leva à revisão, não ao envio direto.
+   *
+   * O timer é ÚNICO e cancelado a cada clique: antes, trocar a nota (ou um
+   * clique duplo) agendava DOIS avanços e a tela pulava uma pergunta, que ficava
+   * sem resposta — o "Concluir" travava com "faltam 1 de N" e ninguém entendia
+   * de onde vinha o buraco.
+   */
   function escolher(questionId: number, value: number) {
     setAnswers((x) => ({ ...x, [questionId]: value }));
+    if (avancoRef.current) clearTimeout(avancoRef.current);
     // Pausa curta: quem responde VÊ o que marcou antes de a tela trocar.
-    setTimeout(() => setPasso((atual) => Math.min(atual + 1, questions.length + 1)), 260);
+    avancoRef.current = setTimeout(() => {
+      avancoRef.current = null;
+      setPasso((atual) => Math.min(atual + 1, questions.length + 1));
+    }, 260);
   }
 
   async function submit() {
