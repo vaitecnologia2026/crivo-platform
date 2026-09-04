@@ -105,6 +105,35 @@ export class CollaboratorsService {
     });
   }
 
+  /**
+   * E-mail é ÚNICO por empresa quando informado — é o canal do convite: dois
+   * cadastros com o mesmo endereço fazem os links de duas pessoas caírem na
+   * mesma caixa, e quem abrir primeiro responde no lugar do outro. A identidade
+   * continua sendo o CPF; o e-mail é a entrega. Validado na aplicação (e não por
+   * constraint) para não quebrar cadastros que já existem com repetição.
+   */
+  private async assertEmailLivre(
+    tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0],
+    email: string | null,
+    exceptId?: string,
+  ) {
+    if (!email) return;
+    const dono = await tx.collaborator.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+      },
+      select: { name: true },
+    });
+    if (dono) {
+      throw new ConflictException(
+        `O e-mail ${email} já está no cadastro de ${dono.name}. Cada pessoa precisa do próprio ` +
+          'e-mail: é para ele que vai o link individual. Quem não tem e-mail pode receber por ' +
+          'WhatsApp ou pelo link copiado.',
+      );
+    }
+  }
+
   private newToken(): string {
     return randomBytes(16).toString('hex'); // 128 bits
   }
@@ -115,6 +144,7 @@ export class CollaboratorsService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const exists = await tx.collaborator.findFirst({ where: { cpf }, select: { id: true } });
       if (exists) throw new ConflictException('Já existe um colaborador com este CPF.');
+      await this.assertEmailLivre(tx, dto.email?.trim() || null);
       const c = await tx.collaborator.create({
         data: {
           tenantId,
@@ -143,6 +173,7 @@ export class CollaboratorsService {
           if (dup) throw new ConflictException('Já existe um colaborador com este CPF.');
         }
       }
+      if (dto.email !== undefined) await this.assertEmailLivre(tx, dto.email.trim() || null, id);
       const c = await tx.collaborator.update({
         where: { id },
         data: {
@@ -172,9 +203,12 @@ export class CollaboratorsService {
     let created = 0;
     const seenInBatch = new Set<string>();
     await this.prisma.forTenant(tenantId, async (tx) => {
-      const existing = new Set(
-        (await tx.collaborator.findMany({ select: { cpf: true } })).map((c) => c.cpf),
+      const cadastrados = await tx.collaborator.findMany({ select: { cpf: true, email: true } });
+      const existing = new Set(cadastrados.map((c) => c.cpf));
+      const emailsExistentes = new Set(
+        cadastrados.map((c) => c.email?.trim().toLowerCase()).filter(Boolean) as string[],
       );
+      const emailsNoLote = new Set<string>();
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         const line = i + 1;
@@ -182,7 +216,15 @@ export class CollaboratorsService {
         const cpf = normalizeCpf(r.cpf);
         if (!isValidCpf(cpf)) { errors.push({ line, reason: `CPF inválido (${r.cpf ?? ''})` }); continue; }
         if (existing.has(cpf) || seenInBatch.has(cpf)) { errors.push({ line, reason: 'CPF duplicado' }); continue; }
+        const email = r.email?.trim() || null;
+        const chaveEmail = email?.toLowerCase();
+        if (chaveEmail && (emailsExistentes.has(chaveEmail) || emailsNoLote.has(chaveEmail))) {
+          // Mesmo motivo do CPF: o link individual vai para o e-mail informado.
+          errors.push({ line, reason: `E-mail duplicado (${email})` });
+          continue;
+        }
         seenInBatch.add(cpf);
+        if (chaveEmail) emailsNoLote.add(chaveEmail);
         await tx.collaborator.create({
           data: {
             tenantId,
