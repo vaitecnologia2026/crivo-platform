@@ -129,6 +129,8 @@ describe('convite do colaborador — sempre dentro de uma campanha', () => {
 describe('resposta pelo link do convite', () => {
   it('leva o ciclo até o motor de coleta (é o que mede a campanha)', async () => {
     const { service, prisma, psychosocial, colaborador } = build();
+    // Fake do Prisma: substitui o findUnique do cliente owner. Sem conexao real
+    // rls-allow: mock de teste, nao ha query de negocio aqui.
     prisma.admin.campaignInvite.findUnique = vi.fn(async () => ({
       id: 'invite-1', tenantId: TENANT, cycleId: CICLO, collaboratorId: COLAB,
       token: 'tk', respondedAt: null, collaborator: colaborador,

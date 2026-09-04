@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * A entrega do MAPA Executivo ao lead é UM e-mail só: a leitura do diagnóstico
- * com o e-book anexado. Estes testes protegem as três coisas que, se
- * quebrarem, reproduzem exatamente o que o cliente relatou — o diagnóstico
- * chegando sem o e-book, e o texto prometendo um anexo que não foi:
- *   1. o e-book importado no painel vira anexo;
- *   2. sem ele, o PDF publicado (EBOOK_URL) assume;
- *   3. quando nenhum dos dois vem, o e-mail sai mesmo assim — sem prometer anexo.
+ * A entrega do MAPA Executivo ao lead é UM e-mail só: o MAPA em PDF (layout do
+ * modelo aprovado pelo cliente) mais o e-book, ambos anexados. Estes testes
+ * protegem o que, se quebrar, reproduz o que o cliente relatou — o diagnóstico
+ * chegando sem anexo, ou o texto prometendo arquivo que não foi:
+ *   1. o MAPA sai SEMPRE em PDF, com nome no padrão, junto do e-book do painel;
+ *   2. sem o e-book importado, o PDF publicado (EBOOK_URL) assume;
+ *   3. sem e-book nenhum, o e-mail sai com o MAPA e não promete e-book.
  */
 
 const { sendMailMock } = vi.hoisted(() => ({ sendMailMock: vi.fn() }));
@@ -84,16 +84,25 @@ afterEach(() => {
 });
 
 describe('sendDiagnosticEmail — a leitura do MAPA com o e-book, num e-mail só', () => {
-  it('anexa o e-book importado no painel e avisa disso no texto', async () => {
+  it('anexa o MAPA em PDF e o e-book importado, e avisa disso no texto', async () => {
     const { svc } = build({ ebookRow: EBOOK_ROW });
     const r = await svc.sendDiagnosticEmail('lead-1');
 
     expect(r.ok).toBe(true);
     const mail = mailSent();
     expect(mail.to).toBe('lead@exemplo.com');
-    expect(mail.attachments).toHaveLength(1);
-    expect(mail.attachments?.[0].filename).toBe(EBOOK_ROW.fileName);
-    expect(mail.attachments?.[0].content.toString()).toContain('%PDF');
+    expect(mail.attachments).toHaveLength(2);
+
+    // O MAPA vem primeiro: é o documento que o lead pediu.
+    const mapa = mail.attachments?.[0];
+    expect(mapa?.filename).toMatch(
+      /^MAPA_Executivo_CRIVO_Empresa_Exemplo_Ltda_[0-9]{4}-[0-9]{2}-[0-9]{2}\.pdf$/,
+    );
+    expect(mapa?.content.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+
+    expect(mail.attachments?.[1].filename).toBe(EBOOK_ROW.fileName);
+    expect(mail.attachments?.[1].content.toString()).toContain('%PDF');
+    expect(mail.html).toContain('MAPA Executivo');
     expect(mail.html).toContain('e-book');
   });
 
@@ -105,18 +114,21 @@ describe('sendDiagnosticEmail — a leitura do MAPA com o e-book, num e-mail só
     const { svc } = build();
     await svc.sendDiagnosticEmail('lead-1');
 
-    expect(mailSent().attachments).toHaveLength(1);
+    // MAPA + e-book da URL.
+    expect(mailSent().attachments).toHaveLength(2);
   });
 
-  it('sem e-book nenhum: o e-mail SAI, e o texto NÃO promete anexo', async () => {
+  it('sem e-book nenhum: o e-mail SAI com o MAPA e NÃO promete e-book', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('rede fora'); }));
     const { svc } = build();
     const r = await svc.sendDiagnosticEmail('lead-1');
 
     expect(r.ok).toBe(true);
     const mail = mailSent();
-    expect(mail.attachments).toBeUndefined();
-    expect(mail.html).not.toContain('em anexo');
+    expect(mail.attachments).toHaveLength(1);
+    expect(mail.attachments?.[0].filename).toContain('MAPA_Executivo_CRIVO_');
+    expect(mail.html).toContain('MAPA Executivo');
+    expect(mail.html).not.toContain('e-book');
   });
 
   it('leva o diagnóstico: índice, nível, dimensões e ponto de atenção', async () => {

@@ -12,7 +12,14 @@ import {
   type PreDiagnosticDimension,
   type PreDiagnosticResult,
   type PreliminaryReportData,
+  findBandForScore,
 } from '@crivo/types';
+import { loadActiveMethodologyConfig } from './methodology.service';
+import {
+  gerarMapaExecutivoPdf,
+  nomeArquivoMapa,
+  type DadosMapaExecutivo,
+} from './mapa-executivo-pdf';
 
 
 /**
@@ -148,6 +155,7 @@ export class PreliminaryReportsService {
         company: lead.company ?? null,
         markdown: content,
         footer,
+        diagnostic,
       });
       const final = await this.prisma.admin.preliminaryReport.update({
         where: { id: report.id },
@@ -187,6 +195,7 @@ export class PreliminaryReportsService {
       company: lead?.company ?? null,
       markdown: report.content,
       footer,
+      diagnostic: (lead?.diagnosticResult as unknown as PreDiagnosticResult) ?? null,
     });
     const updated = await this.prisma.admin.preliminaryReport.update({
       where: { id },
@@ -253,6 +262,8 @@ export class PreliminaryReportsService {
     footer: string;
     /** Assunto próprio — usado pelo envio de garantia, sem a leitura da IA. */
     subject?: string;
+    /** Resultado do MAPA. Presente = o PDF do MAPA Executivo vai anexado. */
+    diagnostic?: PreDiagnosticResult | null;
   }): Promise<{ ok: boolean; provider: string; reason?: string }> {
     const subject =
       input.subject ??
@@ -281,15 +292,23 @@ export class PreliminaryReportsService {
     // lead (diagnóstico + e-book numa mensagem só). O texto só menciona o anexo
     // quando ele realmente existe — prometer arquivo que não foi era o defeito.
     const ebook = await this.loadEbook();
-    const html = renderEmailHtml(input.leadName, input.markdown, input.footer, !!ebook);
+    // O MAPA Executivo vai como PDF anexo, no layout do modelo aprovado pelo
+    // cliente. Antes ele ia só no corpo do e-mail, e as tabelas chegavam em
+    // markdown cru no leitor.
+    const mapa = input.diagnostic
+      ? await this.loadMapaPdf(input.diagnostic, input.company, input.leadName)
+      : null;
+    const anexos = [
+      ...(mapa ? [{ filename: mapa.filename, content: mapa.content, contentType: 'application/pdf' }] : []),
+      ...(ebook ? [{ filename: ebook.filename, content: ebook.content, contentType: 'application/pdf' }] : []),
+    ];
+    const html = renderEmailHtml(input.leadName, input.markdown, input.footer, !!ebook, !!mapa);
     const result = await sendMail({
       to: input.to,
       subject,
       html,
       text: input.markdown,
-      attachments: ebook
-        ? [{ filename: ebook.filename, content: ebook.content, contentType: 'application/pdf' }]
-        : undefined,
+      attachments: anexos.length ? anexos : undefined,
     });
 
     if (result.provider === 'stub') {
@@ -377,6 +396,83 @@ export class PreliminaryReportsService {
   }
 
   /**
+   * O MAPA Executivo do lead em PDF, no layout do modelo aprovado pelo cliente.
+   *
+   * As faixas (rotulo e cor) saem da versao ATIVA do PRE_DIAGNOSTIC no Motor de
+   * Diagnosticos — o mesmo lugar que o admin edita e que a LP ja usa. Sem
+   * metodologia publicada, cai nos rotulos de maturidade embutidos, para o
+   * anexo nunca deixar de sair por falta de parametrizacao.
+   *
+   * Nunca lanca: o e-mail do lead vale mais que o anexo. Falhou, sai sem o PDF
+   * (com aviso no log) e o corpo do e-mail nao promete o que nao foi.
+   */
+  private async loadMapaPdf(
+    diagnostic: PreDiagnosticResult,
+    empresa: string | null,
+    respondente: string,
+  ): Promise<{ filename: string; content: Buffer } | null> {
+    try {
+      const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC').catch(() => null);
+      const bands = cfg?.bands ?? [];
+      const rotulos = new Map(
+        (cfg?.dimensions ?? []).filter((d) => !d.parentSlug).map((d) => [d.slug, d.label]),
+      );
+
+      const faixaDe = (v: number): { label: string; color?: string | null } => {
+        const b = bands.length ? findBandForScore(bands, v) : null;
+        if (b) return { label: b.label, color: b.color ?? null };
+        return { label: MATURITY_LABEL[maturityOfScore(v)] ?? '', color: null };
+      };
+
+      const dimensoes = Object.entries(diagnostic.byDimension ?? {})
+        .sort((a, b) => b[1] - a[1])
+        .map(([slug, v]) => {
+          const f = faixaDe(v);
+          return {
+            label:
+              rotulos.get(slug) ??
+              PRE_DIAGNOSTIC_DIMENSION_LABEL[slug as PreDiagnosticDimension] ??
+              slug,
+            score: v,
+            faixaLabel: f.label,
+            faixaColor: f.color,
+          };
+        });
+
+      const geral = faixaDe(diagnostic.score);
+      const faixaLabel = geral.label || (MATURITY_LABEL[diagnostic.level] ?? diagnostic.level);
+      const nome = (empresa ?? '').trim() || respondente;
+      const data = new Date();
+
+      const dados: DadosMapaExecutivo = {
+        empresa: nome,
+        respondente,
+        data,
+        score: diagnostic.score,
+        faixaLabel,
+        faixaColor: geral.color,
+        panorama: panoramaMapa(diagnostic.score, faixaLabel, dimensoes.length),
+        dimensoes,
+        faixas: bands.length
+          ? bands.map((b) => ({ label: b.label, min: b.min, max: b.max, color: b.color ?? null }))
+          : [],
+        sintese: sinteseMapa(dimensoes),
+        caminho: caminhoMapa(dimensoes),
+      };
+
+      const content = await gerarMapaExecutivoPdf(dados);
+      const filename = nomeArquivoMapa(nome, data);
+      this.log.log(`MAPA Executivo anexado: ${filename} (${Math.round(content.length / 1024)} KB).`);
+      return { filename, content };
+    } catch (e) {
+      this.log.warn(
+        `Falha ao gerar o PDF do MAPA Executivo (${e instanceof Error ? e.message : e}) — e-mail seguira SEM o anexo do MAPA.`,
+      );
+      return null;
+    }
+  }
+
+  /**
    * Envio de GARANTIA: a leitura do MAPA Executivo + o e-book, sem depender da
    * IA. É o que sai quando a geração do relatório falha ou a IA está desligada
    * — antes, nesses casos, o lead simplesmente não recebia nada, porque o site
@@ -411,6 +507,7 @@ export class PreliminaryReportsService {
         company: lead.company ?? null,
         markdown: diagnosticMarkdown(lead.diagnosticResult as unknown as PreDiagnosticResult),
         footer,
+        diagnostic: lead.diagnosticResult as unknown as PreDiagnosticResult,
         subject: lead.company
           ? `Seu MAPA Executivo CRIVO — ${lead.company}`
           : 'Seu MAPA Executivo CRIVO',
@@ -436,6 +533,63 @@ export class PreliminaryReportsService {
  * conteúdo que o e-mail do site levava (índice, nível, dimensões e pontos de
  * atenção) — agora do lado da plataforma, que passou a ser a dona do envio.
  */
+type DimensaoMapa = DadosMapaExecutivo['dimensoes'][number];
+
+const umaCasa = (n: number) => n.toFixed(1).replace('.', ',');
+
+/** Mesmas fronteiras de `computePreDiagnostic` — usado só quando o Motor não
+ *  tem faixas publicadas para o PRE_DIAGNOSTIC. */
+function maturityOfScore(score: number): MaturityLevel {
+  return score >= 80
+    ? 'AVANCADO'
+    : score >= 60
+      ? 'ESTRUTURADO'
+      : score >= 40
+        ? 'EM_ESTRUTURACAO'
+        : 'INICIAL';
+}
+
+/** Texto do bloco "Panorama" — descreve o número, sem prometer conclusão técnica. */
+function panoramaMapa(score: number, faixa: string, qtdDimensoes: number): string {
+  return (
+    `A leitura preliminar da organização aponta índice ${umaCasa(score)} de 100, na faixa ` +
+    `"${faixa}". O resultado resume ${qtdDimensoes} dimensões de gestão avaliadas a partir das ` +
+    'respostas do MAPA Executivo e indica onde a estrutura já sustenta a operação e onde ela ' +
+    'depende de esforço individual para funcionar.'
+  );
+}
+
+/** Síntese executiva: o que sustenta e o que pressiona, sempre com números. */
+function sinteseMapa(dimensoes: DimensaoMapa[]): string {
+  if (!dimensoes.length) return 'Sem dimensões avaliadas nesta leitura.';
+  const melhor = dimensoes[0];
+  const pior = dimensoes[dimensoes.length - 1];
+  if (dimensoes.length === 1) {
+    return `A leitura concentra-se em ${melhor.label}, com ${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel}).`;
+  }
+  return (
+    `${melhor.label} é hoje o ponto mais sustentado da organização, com ${umaCasa(melhor.score)} ` +
+    `de 100 (${melhor.faixaLabel}). No outro extremo, ${pior.label} responde por ` +
+    `${umaCasa(pior.score)} de 100 (${pior.faixaLabel}) e é onde a operação mais depende de ` +
+    'correção informal. A diferença entre as duas mostra o quanto o resultado atual está ' +
+    'apoiado em pessoas, e não em processo.'
+  );
+}
+
+/** Caminho recomendado: próximo passo concreto, sem prometer conformidade. */
+function caminhoMapa(dimensoes: DimensaoMapa[]): string {
+  if (!dimensoes.length) {
+    return 'Aplique o CRIVO Diagnóstico™ para obter a leitura completa da organização.';
+  }
+  const pior = dimensoes[dimensoes.length - 1];
+  return (
+    `Comece por ${pior.label}: é a dimensão de menor sustentação e a que mais devolve resultado ` +
+    'no curto prazo. O passo seguinte é aplicar o CRIVO Diagnóstico™ (Essencial ou ' +
+    'Organizacional), que amplia esta leitura para o time inteiro, mede os fatores de risco ' +
+    'psicossociais e transforma o achado em plano de ação com responsável, prazo e evidência.'
+  );
+}
+
 function diagnosticMarkdown(d: PreDiagnosticResult): string {
   const dims = Object.entries(d.byDimension ?? {})
     .sort((a, b) => a[1] - b[1])
@@ -592,11 +746,67 @@ Produza agora o Relatório Preliminar CRIVO conforme a estrutura definida.
 `.trim();
 }
 
+/**
+ * Converte tabelas markdown (`| coluna | coluna |`) em `<table>`.
+ *
+ * O conversor de markdown daqui nunca soube ler tabela, e a leitura escrita
+ * pela IA usa tabela para as dimensões — então o lead recebia os pipes crus
+ * no meio do e-mail. Recebe o texto JÁ ESCAPADO; não introduz conteúdo novo,
+ * só troca as linhas de pipe pela marcação da tabela.
+ */
+function tabelasParaHtml(texto: string): string {
+  const linhas = texto.split('\n');
+  const saida: string[] = [];
+  let bloco: string[] = [];
+
+  const celulas = (linha: string) =>
+    linha
+      .replace(/^\s*\|/, '')
+      .replace(/\|\s*$/, '')
+      .split('|')
+      .map((c) => c.trim());
+  // Linha separadora do markdown (|---|:--:|) — não vira conteúdo.
+  const separadora = (linha: string) => /^\s*\|[\s:|-]+\|?\s*$/.test(linha);
+
+  const fecha = () => {
+    if (!bloco.length) return;
+    const corpo = bloco.filter((l) => !separadora(l));
+    const temCabecalho = bloco.length > 1 && separadora(bloco[1] ?? '');
+    const tr = (linha: string, tag: 'th' | 'td') => {
+      const estilo =
+        tag === 'th'
+          ? 'padding:6px 10px;border-bottom:2px solid #dcd7ce;text-align:left;color:#0d1f3c'
+          : 'padding:6px 10px;border-bottom:1px solid #e6e3dc';
+      return `<tr>${celulas(linha)
+        .map((c) => `<${tag} style="${estilo}">${c}</${tag}>`)
+        .join('')}</tr>`;
+    };
+    const linhasHtml = temCabecalho
+      ? [tr(corpo[0] ?? '', 'th'), ...corpo.slice(1).map((l) => tr(l, 'td'))]
+      : corpo.map((l) => tr(l, 'td'));
+    saida.push(
+      `<table style="width:100%;border-collapse:collapse;margin:12px 0;font-size:14px">${linhasHtml.join('')}</table>`,
+    );
+    bloco = [];
+  };
+
+  for (const linha of linhas) {
+    if (linha.trim().startsWith('|')) bloco.push(linha);
+    else {
+      fecha();
+      saida.push(linha);
+    }
+  }
+  fecha();
+  return saida.join('\n');
+}
+
 function renderEmailHtml(
   leadName: string,
   markdown: string,
   footer: string,
   hasEbook: boolean,
+  hasMapa: boolean,
 ): string {
   // Renderização HTML simples — preserva quebras e parágrafos. Não usa lib
   // de markdown para manter o serviço sem dependências adicionais.
@@ -604,7 +814,7 @@ function renderEmailHtml(
   // super admin) p/ evitar injeção de HTML no e-mail.
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const escaped = esc(markdown);
+  const escaped = tabelasParaHtml(esc(markdown));
   const html = escaped
     .replace(/^# (.*)$/gm, '<h2 style="color:#0d1f3c">$1</h2>')
     .replace(/^## (.*)$/gm, '<h3 style="color:#0d1f3c">$1</h3>')
@@ -618,9 +828,19 @@ function renderEmailHtml(
 <!doctype html>
 <html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#1c2540;line-height:1.55">
   <p>Olá, ${esc(leadName.split(' ')[0] ?? '')}.</p>
-  <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades${
-    hasEbook ? ' — e o <strong>e-book complementar</strong> vai em anexo neste mesmo e-mail' : ''
-  }.</p>
+  <p>Segue o <strong>seu Relatório Preliminar CRIVO</strong> — leitura executiva e prioridades.</p>
+  ${
+    // Só promete o que realmente foi anexado — prometer arquivo ausente era o
+    // defeito original desta mensagem.
+    hasMapa || hasEbook
+      ? `<p>Em anexo neste mesmo e-mail: ${[
+          hasMapa ? 'o <strong>MAPA Executivo</strong> completo em PDF' : '',
+          hasEbook ? 'o <strong>e-book complementar</strong>' : '',
+        ]
+          .filter(Boolean)
+          .join(' e ')}.</p>`
+      : ''
+  }
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
   <div><p>${html}</p></div>
   <hr style="border:0;border-top:1px solid #e6e3dc;margin:20px 0"/>
