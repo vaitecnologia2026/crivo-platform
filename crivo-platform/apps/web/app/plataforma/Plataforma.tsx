@@ -45,16 +45,42 @@ function applyUserChip(name: string, role: string, orgName?: string | null) {
 }
 /** Card da empresa no rodapé da sidebar: o markup traz "Empresa Exemplo S.A."
  *  como placeholder pré-login; aqui entra o tenant real + a solução contratada.
- *  Só sobrescreve o que veio preenchido (falha de fetch mantém o placeholder). */
+ *
+ *  Falha de fetch escreve "—", não mantém o valor anterior: com o mesmo e-mail
+ *  em várias empresas, preservar o texto antigo faz o portal rotular os dados
+ *  da empresa NOVA com o nome da empresa ANTERIOR. */
 function applyOrgCard(orgName: string | null, productName: string | null) {
   const card = document.querySelector(".org-card");
   if (!card) return;
   const nameEl = card.querySelector("strong");
   const planEl = card.querySelector("span:not(.org-card__avatar)");
   const avatar = card.querySelector(".org-card__avatar");
-  if (nameEl && orgName) nameEl.textContent = orgName;
-  if (avatar && orgName) avatar.textContent = initialsOf(orgName);
-  if (planEl && productName) planEl.textContent = productName;
+  if (nameEl) nameEl.textContent = orgName ?? "—";
+  if (avatar) avatar.textContent = orgName ? initialsOf(orgName) : "—";
+  if (planEl) planEl.textContent = productName ?? "";
+}
+
+/**
+ * Zera a identidade escrita na tela (chip do topo + card da empresa no rodapé).
+ *
+ * As duas funções acima escrevem DIRETO no DOM do markup estático, e o logout
+ * limpava só o token, o papel em cache e o branding. Quem saía de uma empresa e
+ * entrava em outra NA MESMA ABA continuava lendo o nome da empresa anterior —
+ * com os dados da empresa nova embaixo. Não é dado velho: é rótulo errado, que
+ * é pior, porque o operador acha que está numa empresa e está em outra.
+ */
+function resetIdentityChrome() {
+  const chip = document.querySelector(".user-chip");
+  if (chip) {
+    const nameEl = chip.querySelector("strong");
+    const roleEl = chip.querySelector("span");
+    const avatar = chip.querySelector(".user-chip__avatar");
+    if (nameEl) nameEl.textContent = "—";
+    if (roleEl) roleEl.textContent = "";
+    if (avatar) avatar.textContent = "—";
+    (chip as HTMLElement).removeAttribute("title");
+  }
+  applyOrgCard(null, null);
 }
 import { applyBranding } from "@/lib/branding";
 import { DashboardScreen } from "./DashboardScreen";
@@ -358,6 +384,10 @@ export function Plataforma() {
     // não cai numa tela de módulo que a empresa não tem (sem isto, com acesso=null o
     // routeVisible é fail-open). Sem acesso confirmado, entra no DEFAULT_ROUTE.
     const enterApp = async (role: string | null): Promise<void> => {
+      // Sessao restaurada tambem comeca do zero: sem isso o shell mostra os
+      // placeholders do markup ("Rafael Moreira" / "Empresa Exemplo S.A.") como
+      // se fossem reais ate os fetches responderem.
+      resetIdentityChrome();
       let accessLoaded = false;
       try {
         // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
@@ -450,6 +480,9 @@ export function Plataforma() {
         authLog.info(`sessão aberta · ${r.user.email} (${r.user.role})`);
         // Header com o usuário REAL do login JÁ — robusto: não depende dos
         // fetches de acesso do enterApp (que podem falhar/competir e pular o chip).
+        // Zera antes de escrever: sem isso o "· <empresa>" e o card do rodapé
+        // sobrevivem da sessão anterior até o fetch de acesso responder.
+        resetIdentityChrome();
         applyUserChip(r.user.name, r.user.role);
         const homeRole: string | null = r.user.role ?? null;
         if (homeRole) cacheRole(homeRole);
@@ -477,6 +510,7 @@ export function Plataforma() {
       void logout().catch(() => {}); // revoga a sessão no servidor (best-effort) antes de limpar local
       clearToken();
       clearCachedRole();
+      resetIdentityChrome();
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
