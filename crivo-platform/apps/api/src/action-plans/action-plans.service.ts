@@ -42,6 +42,12 @@ export class ActionPlansService {
   ) {}
 
   async list(tenantId: string): Promise<ActionPlanData[]> {
+    // A ação NASCE aqui. A IA recomenda a partir do risco/fator já classificado
+    // e a recomendação entra direto no Plano de Evolução como SUGERIDA, com o
+    // vínculo do fator e do cálculo que a originou. Não é criada no Diagnóstico
+    // nem no Dossiê e copiada para cá: existe uma ação só, num plano só.
+    // Idempotente por `@@unique([planId, suggestionKey])`.
+    await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plans = await tx.actionPlan.findMany({
         orderBy: { createdAt: 'desc' },

@@ -34,7 +34,6 @@ import {
 } from '../admin/preliminary-reports.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
-import { RiskSuggestionsService } from './risk-suggestions.service';
 import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
 
 type DiagnosticMethodLike = string | null;
@@ -521,7 +520,6 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly psychosocial: PsychosocialService,
     private readonly aiSettings: AiSettingsService,
-    private readonly riskSuggestions: RiskSuggestionsService,
   ) {}
 
   private async context(tenantId: string) {
@@ -1763,23 +1761,37 @@ export class DocumentsService {
       });
     }
 
-    // 8. Plano de ação aprovado — snapshot do ciclo.
+    // 8. Plano de ação aprovado — VISÃO das ações validadas no Plano de Evolução.
+    //
+    // Só entra o que a organização aprovou. Sugestão pendente fica no bloco de
+    // tratamento sugerido: apresentar recomendação da IA como ação aprovada da
+    // empresa afirmaria uma decisão que ninguém tomou. O Dossiê consulta.
+    const aprovadas = items.filter(
+      (i) =>
+        i.status === 'APROVADA' ||
+        i.status === 'EM_ANDAMENTO' ||
+        i.status === 'CONCLUIDA' ||
+        i.status === 'REAVALIADA',
+    );
+    const aguardando = items.length - aprovadas.length;
     sections.push({
-      heading: '8. Plano de ação — snapshot do ciclo',
+      heading: '8. Plano de ação aprovado — snapshot do ciclo',
       body:
         (plan
           ? plan.validatedAt
             ? `Plano "${plan.title}" validado por ${plan.validatedBy ?? '—'} em ${fmt(plan.validatedAt)}. `
-            : `Plano "${plan.title}" gerado a partir da matriz de risco e ainda não validado. `
+            : `Plano "${plan.title}". `
           : 'Nenhum plano registrado. ') +
-        'As ações são geradas automaticamente a partir dos fatores que exigem plano e ficam no ' +
-        'Plano de Evolução, onde a organização valida, ajusta, acrescenta ou substitui. A coluna ' +
-        'Status mostra em que ponto cada ação está no momento da emissão; este bloco apenas ' +
-        'reproduz esse estado, não cria nem edita ações.',
+        'Visão das ações APROVADAS no Plano de Evolução, vinculadas aos fatores deste ciclo. ' +
+        'Este bloco não cria nem edita ações.' +
+        (aguardando
+          ? ` ${aguardando} ação(ões) permanece(m) como sugestão pendente de validação e aparece(m) ` +
+            'apenas no bloco de tratamento sugerido.'
+          : ''),
       table: {
         columns: ['ID', 'Ação aprovada', 'Responsável', 'Prazo', 'Indicador', 'Evidência esperada', 'Status'],
-        data: items.length
-          ? items.map((i, n) => [
+        data: aprovadas.length
+          ? aprovadas.map((i, n) => [
               `A-${String(n + 1).padStart(3, '0')}`,
               i.action,
               i.responsible ?? '—',
@@ -2303,13 +2315,6 @@ export class DocumentsService {
   ): Promise<GeneratedDocument> {
     // emit() passa o contexto que ele já leu — a emissão oficial congela UM
     // retrato do banco do começo ao fim (gate, conteúdo e hash).
-    // O plano do dossiê é gerado pela IA na hora, sem validação humana
-    // (decisão de 2026-09-08). Idempotente: `@@unique([planId, suggestionKey])`
-    // impede duplicar em pré-visualizações sucessivas. Roda ANTES de ler o
-    // contexto, senão o documento sairia sem as ações recém-criadas.
-    if (type === 'dossie_tecnico') {
-      await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
-    }
     const ctx = ctxIn ?? (await this.context(tenantId));
     const { contract, method, org, company, plans, cnaeDecision } = ctx;
     const isTemplate = type.startsWith('tpl:');
@@ -2548,12 +2553,6 @@ export class DocumentsService {
    * O preview (GET) continua dinâmico; a emissão nunca é reprocessada.
    */
   async emit(tenantId: string, type: string, actorEmail?: string) {
-    // O plano é gerado ANTES do snapshot: `emit()` congela um retrato do banco,
-    // e sem isto a primeira emissão leria um plano vazio (a geração acontece
-    // dentro de generate(), que roda depois).
-    if (type === 'dossie_tecnico') {
-      await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
-    }
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
     const ctxEmissao = await this.context(tenantId);
