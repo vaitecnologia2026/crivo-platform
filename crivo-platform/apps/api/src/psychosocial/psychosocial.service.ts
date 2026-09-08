@@ -284,9 +284,14 @@ export class PsychosocialService {
     // Limiar de supressão DEFINIDO na Configuração do Motor (não mais hardcoded).
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     // Dimensões/faixas da metodologia ATIVA (Fase 1C); fallback ao padrão.
-    // O instrumento é o do método ORGANIZACIONAL (configurável no Motor): sem
-    // isto, a matriz continuaria lendo o slug legado e saindo vazia.
-    const instrumento = await resolvePsychosocialInstrument(this.prisma);
+    // O instrumento é o CONTRATADO pela empresa. Fixá-lo no Organizacional
+    // deixava a matriz — e com ela o Dossiê e as sugestões de plano — vazia
+    // para quem contratou o Essencial, cujas respostas vivem na outra tabela.
+    // Para tenant Organizacional o resultado é idêntico ao de antes.
+    const instrumento =
+      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
+      (await resolvePsychosocialInstrument(this.prisma));
+    const motorPsicossocial = await usesPsychosocialEngine(this.prisma, instrumento);
     const cfg = await loadActiveMethodologyConfig(this.prisma, instrumento);
     // Severidade e hierarquia (escala × fator) vêm DIRETO da versão ativa, não do
     // MethodologyConfig: o motor de score não usa severidade, e manter o contrato
@@ -403,9 +408,19 @@ export class PsychosocialService {
           }));
     const bands = cfg?.bands ?? null;
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const rows = await tx.psychosocialResponse.findMany({
-        select: { sector: true, score: true, byDimension: true, byFactor: true, answers: true, methodologyVersionId: true },
-      });
+      // As duas tabelas têm as mesmas colunas que a matriz usa. `byFactor` só
+      // existe na psicossocial e não entra no cálculo: a exposição é
+      // recalculada das respostas CRUAS, nunca dos agregados normalizados.
+      const rows = motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({
+            select: { sector: true, score: true, byDimension: true, byFactor: true, answers: true, methodologyVersionId: true },
+          })
+        : (
+            await tx.diagnosticResponse.findMany({
+              where: { instrumentSlug: instrumento },
+              select: { sector: true, score: true, byDimension: true, answers: true, methodologyVersionId: true },
+            })
+          ).map((r) => ({ ...r, byFactor: null }));
 
       // §6.1/§6.2 — EXPOSIÇÃO por resposta, recalculada das respostas CRUAS contra
       // a config da versão que pontuou (os agregados 0–100 gravados já vêm

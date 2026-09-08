@@ -17,7 +17,11 @@ import {
   fillReportPlaceholders,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { resolveActiveMethodology, resolvePsychosocialInstrument } from '../admin/methodology.service';
+import {
+  resolveActiveMethodology,
+  resolveInstrumentForTenant,
+  resolvePsychosocialInstrument,
+} from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 // MESMAS funções que montam o PDF do MAPA enviado por e-mail: o relatório do
 // portal e o anexo do lead têm de ser o mesmo documento, não dois parecidos.
@@ -711,7 +715,17 @@ export class DocumentsService {
     const psy = await this.psychosocial.results(tenantId).catch(() => null);
     const diagOk = !!psy && psy.totalRespondents >= psy.minRespondents;
     // Nome do diagnóstico que origina o Dossiê (aparece na lista de Documentos).
-    const dossieDiag = 'Diagnóstico Organizacional (NR-1)';
+    // Era fixo em "Diagnóstico Organizacional (NR-1)" — e uma empresa que
+    // contratou o Essencial via na lista o nome de um diagnóstico que não é o
+    // dela. Agora vem do instrumento contratado.
+    const slugContratado = await resolveInstrumentForTenant(this.prisma, tenantId);
+    const instrumentoDoDossie = slugContratado
+      ? // rls-allow: DiagnosticInstrument é catálogo GLOBAL (control-plane), sem tenantId.
+        await this.prisma.admin.diagnosticInstrument
+          .findFirst({ where: { slug: slugContratado }, select: { name: true } })
+          .catch(() => null)
+      : null;
+    const dossieDiag = instrumentoDoDossie?.name ?? 'Diagnóstico Organizacional (NR-1)';
     if (output === 'AEP' || output === 'AEP_PGR') {
       const ok = dossieOk || diagOk;
       add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag);
