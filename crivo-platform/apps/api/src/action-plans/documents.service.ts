@@ -1992,13 +1992,34 @@ export class DocumentsService {
         'e a efetividade das medidas entre ciclos formais de diagnóstico.',
     });
 
-    // 2. SÍNTESE DA EVOLUÇÃO — texto APROVADO pela equipe CRIVO (F3).
+    // 2. SÍNTESE DA EVOLUÇÃO.
+    //
+    // A emissão oficial não espera mais aprovação da equipe CRIVO, então este
+    // bloco não pode sair com "pendente de aprovação" congelado num documento
+    // entregue. A síntese automática abaixo é factual: conta o que a própria
+    // comparação mostra. O texto aprovado no Super Admin, quando existir,
+    // continua vencendo.
+    const evolucao = curFactors.reduce(
+      (acc, f) => {
+        const antes = prevByPoint.get(norm(f.point));
+        const r = evolutionResult(antes?.risk ?? null, f.risk);
+        if (r === 'Risco reduzido') acc.reduzidos += 1;
+        else if (r === 'Risco agravado') acc.agravados += 1;
+        else if (r === 'Novo neste ciclo') acc.novos += 1;
+        else if (r === 'Estável') acc.estaveis += 1;
+        return acc;
+      },
+      { reduzidos: 0, agravados: 0, novos: 0, estaveis: 0 },
+    );
+    const sinteseAutomatica =
+      `Comparação entre ${previous.label} e ${current.label}: ${curFactors.length} fator(es) no ` +
+      `ciclo atual e ${prevFactors.length} no anterior. ${evolucao.reduzidos} com risco reduzido, ` +
+      `${evolucao.estaveis} estável(is), ${evolucao.agravados} agravado(s) e ${evolucao.novos} ` +
+      `novo(s) neste ciclo. ${compat}. A leitura de causas e a decisão sobre as próximas medidas ` +
+      'são da organização.';
     sections.push({
       heading: '2. Síntese da evolução',
-      body:
-        approvedTexts['sintese_evolucao'] ??
-        'Síntese da evolução pendente de aprovação pela equipe CRIVO (a IA da Plataforma rascunha, ' +
-          'a equipe revisa e aprova no Super Admin). A emissão oficial inclui a síntese aprovada.',
+      body: approvedTexts['sintese_evolucao'] ?? sinteseAutomatica,
     });
 
     // 3. COMPARATIVO DOS FATORES — união dos fatores dos dois snapshots.
@@ -2545,68 +2566,22 @@ export class DocumentsService {
       }
     }
 
-    // F3/F4 (dicionário do pacote: variável OBRIGATÓRIA ausente = bloqueia a
-    // emissão): os textos obrigatórios precisam estar APROVADOS pela equipe
-    // CRIVO (decisão 1-A). O rascunho/pré-visualização continua livre.
-    const requiredText: Record<string, { field: string; label: string }[]> = {
-      relatorio_executivo: [{ field: 'sintese_executiva', label: 'Síntese executiva' }],
-      dossie_tecnico: [{ field: 'conclusao_tecnica', label: 'Conclusão técnica' }],
-      relatorio_evolucao: [
-        { field: 'sintese_evolucao', label: 'Síntese da evolução' },
-        { field: 'conclusao_evolucao', label: 'Conclusão' },
-      ],
-    };
-    // Mensagem em tom de CLIENTE — quem emite é o portal do tenant, e a
-    // aprovação é uma etapa da equipe CRIVO (o cliente não tem essa tela).
-    const reqs = requiredText[type] ?? [];
-    const requiredTextError = (labels: string[]) =>
-      new BadRequestException(
-        `Emissão aguardando aprovação da equipe CRIVO — texto(s) obrigatório(s) em elaboração/revisão: ` +
-          `${labels.join(', ')}. A pré-visualização (rascunho) continua disponível; a emissão oficial ` +
-          'é liberada assim que a equipe CRIVO aprovar.',
-      );
-    if (reqs.length) {
-      const approved = await this.approvedTextsOf(tenantId, type);
-      const missing = reqs.filter((r) => !approved[r.field]).map((r) => r.label);
-      if (missing.length) throw requiredTextError(missing);
-    }
-
-    // F4: os textos do Relatório de Evolução são aprovados SOBRE um comparativo
-    // específico. Se um ciclo foi encerrado DEPOIS da aprovação, o par comparado
-    // mudou — o texto antigo descreveria outra comparação. Exige reaprovação.
-    if (type === 'relatorio_evolucao') {
-      const comparable = await this.comparableCycles(tenantId);
-      if (comparable.ok && comparable.current.closedAt) {
-        // rls-allow: approved_texts é control-plane (owner) — leitura de metadado.
-        const rows = await this.prisma.admin.approvedText.findMany({
-          where: { tenantId, docType: type, field: { in: reqs.map((r) => r.field) } },
-          select: { field: true, approvedAt: true },
-        });
-        const cutoff = comparable.current.closedAt.getTime();
-        const stale = reqs
-          .filter((r) => {
-            const at = rows.find((x) => x.field === r.field)?.approvedAt;
-            return !at || at.getTime() < cutoff;
-          })
-          .map((r) => r.label);
-        if (stale.length) {
-          throw new BadRequestException(
-            `Emissão aguardando reaprovação da equipe CRIVO — o ciclo atual foi encerrado depois da ` +
-              `aprovação de: ${stale.join(', ')}. O texto precisa ser reaprovado sobre o comparativo novo.`,
-          );
-        }
-      }
-    }
+    // A emissão oficial NÃO depende mais de aprovação de texto pela equipe
+    // CRIVO (decisão do cliente em 2026-09-08). Antes, três documentos ficavam
+    // presos esperando um texto que só existe no Super Admin — tela que o
+    // cliente não tem —, e a empresa simplesmente não conseguia emitir.
+    //
+    // O que sustenta soltar o gate: todo campo que ele exigia tem hoje conteúdo
+    // automático de verdade. `sintese_executiva` cai na síntese do MAPA,
+    // `sintese_evolucao` na síntese automática da comparação, e
+    // `conclusao_tecnica`/`conclusao_evolucao` sempre foram PREFIXO opcional de
+    // um texto de responsabilidade que já sai completo. Nenhum documento é
+    // emitido com placeholder.
+    //
+    // O texto aprovado continua VENCENDO quando existe: a revisão editorial da
+    // equipe segue valendo, deixou apenas de ser obrigatória.
 
     const doc = await this.generate(tenantId, type, ctxEmissao); // reaplica elegibilidade + bloqueios
-    // Re-checagem PÓS-geração (TOCTOU): se a aprovação for revogada entre o
-    // gate acima e a leitura feita pelo gerador, o documento sairia com o
-    // placeholder "pendente de aprovação" congelado numa emissão oficial.
-    if (reqs.length) {
-      const stillApproved = await this.approvedTextsOf(tenantId, type);
-      const missing = reqs.filter((r) => !stillApproved[r.field]).map((r) => r.label);
-      if (missing.length) throw requiredTextError(missing);
-    }
     // Hash de integridade sobre o CONTEÚDO estável — generatedAt muda a cada
     // geração e não pode participar, senão a idempotência nunca dispara.
     const { generatedAt: _volatile, ...stable } = doc;
