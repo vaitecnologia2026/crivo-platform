@@ -232,17 +232,34 @@ export function ColaboradoresScreen() {
    * ao lado anulava a regra — a resposta entrava no agregado sem pertencer a
    * ciclo nenhum, e a campanha não a contava.
    */
+  async function copiaParaAreaDeTransferencia(link: string, aviso: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      flashMsg(aviso);
+    } catch {
+      // Sem permissão de clipboard (http, iframe, navegador antigo): mostrar o
+      // link para copiar à mão é melhor do que falhar em silêncio.
+      window.prompt("Copie o link do colaborador:", link);
+    }
+  }
+
   async function copyLink(c: CollaboratorView) {
-    if (!campanhaId) { alert("Escolha a campanha antes de copiar o link."); return; }
+    // SEM campanha aberta, copia o link PESSOAL do colaborador (/r/<token>),
+    // que já vem na listagem. O aviso no topo da tela sempre prometeu isso
+    // ("copiar o link continua funcionando, mas a resposta não entra em nenhum
+    // ciclo") — era só o botão que exigia campanha e travava a coleta.
+    if (!campanhaId) {
+      if (!c.link) { alert("Este colaborador ainda não tem link. Recarregue a tela."); return; }
+      await copiaParaAreaDeTransferencia(
+        c.link,
+        `Link pessoal de ${c.name} copiado — a resposta NÃO entra em nenhuma campanha.`,
+      );
+      return;
+    }
     setBusyId(c.id);
     try {
       const { link } = await getCollaboratorInviteLink(c.id, campanhaId);
-      try {
-        await navigator.clipboard.writeText(link);
-        flashMsg(`Link de ${c.name} copiado — campanha "${nomeCampanha()}".`);
-      } catch {
-        window.prompt("Copie o link do colaborador:", link);
-      }
+      await copiaParaAreaDeTransferencia(link, `Link de ${c.name} copiado — campanha "${nomeCampanha()}".`);
       await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao gerar o link.");
@@ -445,7 +462,18 @@ export function ColaboradoresScreen() {
                   })()}
                 </td>
                 <td className="addx-actions" style={{ whiteSpace: "nowrap" }}>
-                  <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !campanhaId} title={campanhaId ? "" : "Escolha a campanha acima"} onClick={() => copyLink(c)}>Copiar link</button>
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    disabled={busyId === c.id}
+                    title={
+                      campanhaId
+                        ? `Link do convite na campanha "${nomeCampanha()}"`
+                        : "Link pessoal — funciona, mas a resposta não entra em nenhuma campanha"
+                    }
+                    onClick={() => copyLink(c)}
+                  >
+                    Copiar link
+                  </button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.email || !campanhaId} title={!c.email ? "Sem e-mail" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendEmail(c)}>E-mail</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id || !c.phone || !campanhaId} title={!c.phone ? "Sem telefone" : !campanhaId ? "Escolha a campanha acima" : ""} onClick={() => sendWa(c)}>WhatsApp</button>
                   <button className="btn btn--ghost btn--sm" disabled={busyId === c.id} onClick={() => openEdit(c)}>Editar</button>
