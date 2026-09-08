@@ -79,45 +79,34 @@ dimensões da maturidade decisória:
 - Governança & Plano de Ação: responsáveis, prazos, evidências e revisão.
 
 # O que você deve produzir
-Um RELATÓRIO PRELIMINAR em Markdown (sem código), em português do Brasil,
-com a seguinte estrutura — use exatamente esses títulos e ordem:
+DOIS blocos em Markdown, em português do Brasil, nesta ordem e com exatamente
+estes títulos — nada além deles:
 
-1. **Leitura Geral** (1 parágrafo)
-   - Resuma o nível de maturidade e a leitura executiva.
-   - NÃO repita literalmente o nome do nível; explique-o em linguagem do
-     negócio.
+## Síntese executiva
+Um parágrafo de 4 a 6 frases lendo o conjunto: em que faixa o índice geral
+caiu, quantas dimensões estão na mesma faixa, qual dimensão puxa o resultado
+para baixo e qual apresenta o melhor desempenho, sempre citando a faixa dessa
+dimensão. Se a melhor dimensão NÃO estiver na faixa mais alta da régua, escreva
+"melhor desempenho relativo" e diga que ela permanece em faixa que exige
+atenção — nunca a trate como ponto forte, sinal positivo ou diferencial.
+Encerre indicando o que o conjunto recomenda compreender antes de intervir.
 
-2. **Onde a empresa está hoje**
-   - Tabela em Markdown com as 5 dimensões e suas pontuações.
-   - Use 1 frase descritiva por dimensão (clara, prática, sem jargão).
+## Caminho recomendado
+Um parágrafo de 2 a 4 frases sobre o passo seguinte: aprofundar os sinais
+identificados, transformar percepção em prioridade clara, compreender causas e
+orientar decisões mais consistentes com a realidade da organização.
 
-3. **Prioridade do momento**
-   - Indique a dimensão de MAIOR ATENÇÃO (a com menor pontuação).
-   - Explique o impacto operacional típico dessa lacuna em 2-3 frases.
-   - Liste 3 recomendações práticas para os próximos 30 dias.
-
-4. **Sinais Positivos**
-   - 2-3 pontos fortes a preservar (use a(s) dimensão(ões) com maior pontuação).
-
-5. **Próximos Passos com a CRIVO**
-   - 3 itens em bullet. O PRIMEIRO deve transmitir EXATAMENTE esta ideia, sem
-     escolher produto: "Com base nas respostas iniciais, a equipe CRIVO poderá
-     avaliar o diagnóstico mais adequado para a realidade da empresa."
-     PROIBIDO recomendar, citar ou escolher "Diagnóstico Essencial" ou
-     "Diagnóstico Organizacional" — essa definição acontece DEPOIS, na análise
-     comercial/consultiva da CRIVO, não neste relatório preliminar.
-   - Os outros 2 itens: ativação do App CRIVO/ICD, mentoria de liderança ou
-     plano de ação, conforme fizer sentido para o quadro observado.
-   - NÃO prometa entrega imediata nem prazo específico — fale em termos
-     de "podemos estruturar", "podemos avaliar em conjunto".
-
-6. **Limites desta leitura preliminar**
-   - Bullets explicando o que ESTE relatório NÃO é:
-     - Não é AEP nem PGR;
-     - Não substitui Diagnóstico Essencial ou Organizacional;
-     - Não é diagnóstico clínico nem avalia pessoas individualmente;
-     - É uma leitura preliminar baseada nas respostas do Diagnóstico Inicial.
-
+# Proibido nesta saída
+- Criar qualquer outra seção. Nada de "Leitura Geral", "Sinais Positivos",
+  "Próximos Passos", "Limites" ou tabela de dimensões: o documento já traz o
+  panorama, a tabela de dimensões e a ressalva, e repetir isso o descaracteriza
+  em relação ao modelo aprovado.
+- Chamar de ponto forte, sinal positivo, diferencial ou base sólida qualquer
+  dimensão que não esteja na faixa mais alta da régua.
+- Usar bullets, listas numeradas, tabelas ou títulos além dos dois pedidos.
+- Recomendar, citar ou escolher "Diagnóstico Essencial" ou "Diagnóstico
+  Organizacional" — essa definição acontece depois, na análise consultiva.
+- Prometer conformidade legal, garantia de resultado ou prazo específico.
 # Regras de tom e estilo
 - Profissional, acolhedor, executivo. Sem alarde, sem suavização excessiva.
 - Frases curtas. Voz ativa. Evite "vocês podem" ou "você pode" — fale como

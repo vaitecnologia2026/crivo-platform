@@ -38,54 +38,8 @@ export interface DadosMapaExecutivo {
   faixas: FaixaMapa[];
   sintese: string;
   caminho: string;
-  /**
-   * Leitura escrita pela IA, já quebrada em seções.
-   *
-   * Quando existe, ELA é o relatório: o e-mail passou a ser enxuto e o texto
-   * que antes ia no corpo agora vive aqui dentro. Vazia = a IA está desligada
-   * e valem os blocos determinísticos (síntese/caminho).
-   */
-  leitura?: { titulo: string; corpo: string }[];
 }
 
-/**
- * Converte o relatório em Markdown da IA nas seções do PDF.
- *
- * Descarta as linhas de tabela: a tabela de dimensões já é desenhada acima,
- * com barra e cor de faixa — repeti-la em texto puro só polui o documento.
- */
-export function leituraParaBlocos(markdown: string): { titulo: string; corpo: string }[] {
-  const blocos: { titulo: string; corpo: string }[] = [];
-  let titulo = 'Leitura executiva';
-  let linhas: string[] = [];
-  const limpa = (s: string) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`/g, '').trim();
-  const fecha = () => {
-    const corpo = linhas.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-    if (corpo) blocos.push({ titulo, corpo });
-    linhas = [];
-  };
-  for (const bruta of markdown.split(/\r?\n/)) {
-    const linha = bruta.trim();
-    if (linha.startsWith('|')) continue;
-    const h =
-      /^#{1,6}\s+(.*)$/.exec(linha) ??
-      /^\d+\.\s*\*\*(.+?)\*\*:?$/.exec(linha) ??
-      /^\*\*(.+?)\*\*:?$/.exec(linha);
-    if (h) {
-      fecha();
-      titulo = limpa(h[1] ?? '');
-      continue;
-    }
-    if (!linha) {
-      linhas.push('');
-      continue;
-    }
-    const item = /^[-*]\s+(.*)$/.exec(linha);
-    linhas.push(item ? `• ${limpa(item[1] ?? '')}` : limpa(linha));
-  }
-  fecha();
-  return blocos;
-}
 
 const num = (n: number) => n.toFixed(1).replace('.', ',');
 const dataBr = (d: Date) =>
@@ -233,25 +187,30 @@ export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
         .text(corpo, L, doc.y, { width: largura, align: 'justify' });
       doc.moveDown(0.9);
     };
-    if (d.leitura?.length) {
-      // Com a leitura da IA, ela É o relatório — os blocos abaixo seriam eco.
-      for (const s of d.leitura) bloco(s.titulo, s.corpo);
-    } else {
-      bloco('Síntese executiva', d.sintese);
+    bloco('Síntese executiva', d.sintese);
 
-      const melhor = [...d.dimensoes].sort((a, b) => b.score - a.score)[0];
-      const pior = [...d.dimensoes].sort((a, b) => a.score - b.score)[0];
-      if (melhor) {
-        bloco(
-          'Maior pontuação',
-          `${melhor.label} - ${num(melhor.score)} / 100 - ${melhor.faixaLabel}`,
-        );
-      }
-      if (pior) {
-        bloco('Maior atenção', `${pior.label} - ${num(pior.score)} / 100 - ${pior.faixaLabel}`);
-      }
-      bloco('Caminho recomendado', d.caminho);
+    const melhor = [...d.dimensoes].sort((a, b) => b.score - a.score)[0];
+    const pior = [...d.dimensoes].sort((a, b) => a.score - b.score)[0];
+    if (melhor) {
+      // "Maior pontuação" fazia uma dimensão em faixa Vulnerável ser lida como
+      // ponto forte. Só é ponto forte quem alcança a faixa mais alta da régua;
+      // fora disso, o que existe é o MENOR desgaste do conjunto — e o
+      // documento diz isso com todas as letras.
+      const topo = [...d.faixas].sort((a, b) => b.max - a.max)[0];
+      const forte = topo ? melhor.score >= topo.min : melhor.score >= 80;
+      bloco(
+        forte ? 'Melhor desempenho' : 'Melhor desempenho relativo',
+        `${melhor.label} - ${num(melhor.score)} / 100 - ${melhor.faixaLabel}` +
+          (forte
+            ? '.'
+            : '. É o ponto menos pressionado do conjunto, mas permanece em faixa que exige ' +
+              'atenção — não deve ser lido como ponto forte.'),
+      );
     }
+    if (pior) {
+      bloco('Maior atenção', `${pior.label} - ${num(pior.score)} / 100 - ${pior.faixaLabel}`);
+    }
+    bloco('Caminho recomendado', d.caminho);
 
     // Ressalva (texto do modelo oficial)
     if (doc.y > doc.page.height - 110) doc.addPage();

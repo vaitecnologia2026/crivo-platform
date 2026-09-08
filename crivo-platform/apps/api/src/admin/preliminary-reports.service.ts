@@ -21,7 +21,6 @@ import {
 import { loadActiveMethodologyConfig } from './methodology.service';
 import {
   gerarMapaExecutivoPdf,
-  leituraParaBlocos,
   nomeArquivoMapa,
   type DadosMapaExecutivo,
 } from './mapa-executivo-pdf';
@@ -473,6 +472,7 @@ export class PreliminaryReportsService {
           };
         });
 
+      const daIa = report ? sinteseECaminhoDaIa(report) : {};
       const geral = faixaDe(diagnostic.score);
       const faixaLabel = geral.label || (MATURITY_LABEL[diagnostic.level] ?? diagnostic.level);
       const nome = (empresa ?? '').trim() || respondente;
@@ -490,9 +490,10 @@ export class PreliminaryReportsService {
         faixas: bands.length
           ? bands.map((b) => ({ label: b.label, min: b.min, max: b.max, color: b.color ?? null }))
           : [],
-        sintese: sinteseMapa(dimensoes),
-        caminho: caminhoMapa(dimensoes),
-        leitura: report ? leituraParaBlocos(report) : [],
+        // O MAPA tem a forma do modelo aprovado: dois blocos de prosa. Com a
+        // IA ligada é ela quem os escreve; senão valem os determinísticos.
+        sintese: daIa.sintese ?? sinteseMapa(dimensoes, bands),
+        caminho: daIa.caminho ?? caminhoMapa(dimensoes),
       };
 
       const content = await gerarMapaExecutivoPdf(dados);
@@ -592,19 +593,54 @@ function panoramaMapa(score: number, faixa: string, qtdDimensoes: number): strin
 }
 
 /** Síntese executiva: o que sustenta e o que pressiona, sempre com números. */
-function sinteseMapa(dimensoes: DimensaoMapa[]): string {
+/**
+ * Extrai a Síntese executiva e o Caminho recomendado do texto da IA.
+ *
+ * Comparação sem acento é dispensável: "ntese" e "aminho" já identificam os
+ * dois títulos sem depender de normalização.
+ */
+function sinteseECaminhoDaIa(markdown: string): { sintese?: string; caminho?: string } {
+  const blocos = new Map<string, string[]>();
+  let atual = '';
+  for (const bruta of markdown.split(/\r?\n/)) {
+    const linha = bruta.trim();
+    const h = /^#{1,6}\s+(.*)$/.exec(linha) ?? /^\*\*(.+?)\*\*:?$/.exec(linha);
+    if (h) {
+      atual = (h[1] ?? '').toLowerCase().trim();
+      blocos.set(atual, []);
+      continue;
+    }
+    if (!atual || !linha || linha.startsWith('|')) continue;
+    blocos.get(atual)?.push(linha.replace(/\*\*(.+?)\*\*/g, '$1'));
+  }
+  const pega = (chave: string) => {
+    for (const [k, v] of blocos) {
+      if (k.includes(chave)) return v.join(' ').trim() || undefined;
+    }
+    return undefined;
+  };
+  return { sintese: pega('ntese'), caminho: pega('aminho') };
+}
+
+function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: number }[] = []): string {
   if (!dimensoes.length) return 'Sem dimensões avaliadas nesta leitura.';
   const melhor = dimensoes[0];
   const pior = dimensoes[dimensoes.length - 1];
   if (dimensoes.length === 1) {
     return `A leitura concentra-se em ${melhor.label}, com ${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel}).`;
   }
+  // Dizer "ponto mais sustentado" de uma dimensão em faixa de atenção era ler
+  // como força o que é apenas o menor desgaste. Só a faixa mais alta da régua
+  // autoriza a leitura positiva.
+  const topo = [...faixas].sort((a, b) => b.max - a.max)[0];
+  const forte = topo ? melhor.score >= topo.min : melhor.score >= 80;
   return (
-    `${melhor.label} é hoje o ponto mais sustentado da organização, com ${umaCasa(melhor.score)} ` +
-    `de 100 (${melhor.faixaLabel}). No outro extremo, ${pior.label} responde por ` +
-    `${umaCasa(pior.score)} de 100 (${pior.faixaLabel}) e é onde a operação mais depende de ` +
-    'correção informal. A diferença entre as duas mostra o quanto o resultado atual está ' +
-    'apoiado em pessoas, e não em processo.'
+    `${melhor.label} apresenta o melhor desempenho ${forte ? '' : 'relativo '}do conjunto, com ` +
+    `${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel})` +
+    (forte ? '. ' : ' — ainda em faixa que exige atenção, portanto não configura ponto forte. ') +
+    `No outro extremo, ${pior.label} responde por ${umaCasa(pior.score)} de 100 ` +
+    `(${pior.faixaLabel}) e é onde a operação mais depende de correção informal. O conjunto ` +
+    'recomenda compreender causas, contexto e prioridades antes de estruturar intervenções.'
   );
 }
 
@@ -670,45 +706,34 @@ dimensões da maturidade decisória:
 - Governança & Plano de Ação: responsáveis, prazos, evidências e revisão.
 
 # O que você deve produzir
-Um RELATÓRIO PRELIMINAR em Markdown (sem código), em português do Brasil,
-com a seguinte estrutura — use exatamente esses títulos e ordem:
+DOIS blocos em Markdown, em português do Brasil, nesta ordem e com exatamente
+estes títulos — nada além deles:
 
-1. **Leitura Geral** (1 parágrafo)
-   - Resuma o nível de maturidade e a leitura executiva.
-   - NÃO repita literalmente o nome do nível; explique-o em linguagem do
-     negócio.
+## Síntese executiva
+Um parágrafo de 4 a 6 frases lendo o conjunto: em que faixa o índice geral
+caiu, quantas dimensões estão na mesma faixa, qual dimensão puxa o resultado
+para baixo e qual apresenta o melhor desempenho, sempre citando a faixa dessa
+dimensão. Se a melhor dimensão NÃO estiver na faixa mais alta da régua, escreva
+"melhor desempenho relativo" e diga que ela permanece em faixa que exige
+atenção — nunca a trate como ponto forte, sinal positivo ou diferencial.
+Encerre indicando o que o conjunto recomenda compreender antes de intervir.
 
-2. **Onde a empresa está hoje**
-   - Tabela em Markdown com as 5 dimensões e suas pontuações.
-   - Use 1 frase descritiva por dimensão (clara, prática, sem jargão).
+## Caminho recomendado
+Um parágrafo de 2 a 4 frases sobre o passo seguinte: aprofundar os sinais
+identificados, transformar percepção em prioridade clara, compreender causas e
+orientar decisões mais consistentes com a realidade da organização.
 
-3. **Prioridade do momento**
-   - Indique a dimensão de MAIOR ATENÇÃO (a com menor pontuação).
-   - Explique o impacto operacional típico dessa lacuna em 2-3 frases.
-   - Liste 3 recomendações práticas para os próximos 30 dias.
-
-4. **Sinais Positivos**
-   - 2-3 pontos fortes a preservar (use a(s) dimensão(ões) com maior pontuação).
-
-5. **Próximos Passos com a CRIVO**
-   - 3 itens em bullet. O PRIMEIRO deve transmitir EXATAMENTE esta ideia, sem
-     escolher produto: "Com base nas respostas iniciais, a equipe CRIVO poderá
-     avaliar o diagnóstico mais adequado para a realidade da empresa."
-     PROIBIDO recomendar, citar ou escolher "Diagnóstico Essencial" ou
-     "Diagnóstico Organizacional" — essa definição acontece DEPOIS, na análise
-     comercial/consultiva da CRIVO, não neste relatório preliminar.
-   - Os outros 2 itens: ativação do App CRIVO/ICD, mentoria de liderança ou
-     plano de ação, conforme fizer sentido para o quadro observado.
-   - NÃO prometa entrega imediata nem prazo específico — fale em termos
-     de "podemos estruturar", "podemos avaliar em conjunto".
-
-6. **Limites desta leitura preliminar**
-   - Bullets explicando o que ESTE relatório NÃO é:
-     - Não é AEP nem PGR;
-     - Não substitui Diagnóstico Essencial ou Organizacional;
-     - Não é diagnóstico clínico nem avalia pessoas individualmente;
-     - É uma leitura preliminar baseada nas respostas do Diagnóstico Inicial.
-
+# Proibido nesta saída
+- Criar qualquer outra seção. Nada de "Leitura Geral", "Sinais Positivos",
+  "Próximos Passos", "Limites" ou tabela de dimensões: o documento já traz o
+  panorama, a tabela de dimensões e a ressalva, e repetir isso o descaracteriza
+  em relação ao modelo aprovado.
+- Chamar de ponto forte, sinal positivo, diferencial ou base sólida qualquer
+  dimensão que não esteja na faixa mais alta da régua.
+- Usar bullets, listas numeradas, tabelas ou títulos além dos dois pedidos.
+- Recomendar, citar ou escolher "Diagnóstico Essencial" ou "Diagnóstico
+  Organizacional" — essa definição acontece depois, na análise consultiva.
+- Prometer conformidade legal, garantia de resultado ou prazo específico.
 # Regras de tom e estilo
 - Profissional, acolhedor, executivo. Sem alarde, sem suavização excessiva.
 - Frases curtas. Voz ativa. Evite "vocês podem" ou "você pode" — fale como
