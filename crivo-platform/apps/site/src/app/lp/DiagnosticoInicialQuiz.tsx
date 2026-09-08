@@ -296,6 +296,10 @@ export function DiagnosticoInicialQuiz() {
     setLocked(false);
     setResult(null);
     setSent("idle");
+    // Sem isto o formulario reabria na ETAPA 2: quem chegou ao resultado
+    // passou pela 2, e o passo ficava gravado. "Refazer" tem de comecar
+    // do inicio, com os dados de contato ainda preenchidos para revisao.
+    setEtapa(1);
     setStep("form");
   }
 
