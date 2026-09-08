@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsEmail,
   IsEnum,
   IsInt,
   IsObject,
@@ -188,6 +189,17 @@ export class SetLeadCommercialDto {
 export class ConvertLeadDto {
   @IsUUID()
   productId!: string;
+
+  /**
+   * E-mail do administrador da empresa nova.
+   *
+   * Sem isto valia sempre o e-mail do lead, e um e-mail já vinculado a outra
+   * empresa travava a conversão com "informe outro e-mail para esta" — uma
+   * instrução que a tela não tinha como cumprir. O lead mantém o e-mail dele;
+   * só o acesso do admin usa este.
+   */
+  @IsOptional() @IsEmail() @MaxLength(160)
+  adminEmail?: string;
 }
 
 /** Cria um lead a partir de uma consulta de CNPJ (Dashboard). productId opcional → já converte. */

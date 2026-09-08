@@ -522,10 +522,11 @@ export function setLeadNotes(id: string, notes: string): Promise<PlatformLeadSum
 }
 
 /** Converte o lead em cliente provisionando pela estrutura do produto. */
-export function convertLead(id: string, productId: string): Promise<ProvisionResult> {
+/** `adminEmail` sobrepõe o e-mail do lead no acesso do admin (o lead não muda). */
+export function convertLead(id: string, productId: string, adminEmail?: string): Promise<ProvisionResult> {
   return adminFetch<ProvisionResult>(`/admin/leads/${id}/convert`, {
     method: "POST",
-    body: JSON.stringify({ productId }),
+    body: JSON.stringify(adminEmail ? { productId, adminEmail } : { productId }),
   });
 }
 

@@ -1198,6 +1198,9 @@ function ConvertModal({
 }) {
   const [products, setProducts] = useState<ProductSummary[] | null>(null);
   const [productId, setProductId] = useState("");
+  // Editável: cada e-mail pertence a uma única empresa, então converter um lead
+  // cujo e-mail já está preso a outra exige informar outro AQUI.
+  const [adminEmail, setAdminEmail] = useState(lead.email ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<ProvisionResult | null>(null);
@@ -1231,7 +1234,7 @@ function ConvertModal({
     setSaving(true);
     setError(null);
     try {
-      setDone(await convertLead(lead.id, productId));
+      setDone(await convertLead(lead.id, productId, adminEmail.trim() || undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na conversão");
     } finally {
@@ -1312,8 +1315,22 @@ function ConvertModal({
               <p className="convert-lead">
                 Lead: <strong>{lead.name}</strong>{lead.company ? ` · ${lead.company}` : ""} · {lead.email ?? "sem e-mail"}
               </p>
-              {!lead.email && (
-                <p className="convert-warn">Este lead não tem e-mail — necessário para criar o acesso do admin.</p>
+              <label className="prod-field prod-field--full" style={{ marginTop: 10 }}>
+                <span>E-mail do administrador</span>
+                <input
+                  type="email"
+                  value={adminEmail}
+                  placeholder="admin@empresa.com.br"
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                />
+              </label>
+              <p className="prod-note" style={{ marginTop: 4 }}>
+                É com este e-mail que o admin da empresa nova vai entrar. Cada e-mail pertence a
+                uma única empresa: se este já tiver acesso a outra, informe um diferente aqui — o
+                cadastro do lead continua com o e-mail original.
+              </p>
+              {!adminEmail.trim() && (
+                <p className="convert-warn">Informe o e-mail do administrador para criar o acesso.</p>
               )}
               <label className="prod-field prod-field--full" style={{ marginTop: 10 }}>
                 <span>Solução contratada</span>
@@ -1350,7 +1367,7 @@ function ConvertModal({
               <button className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
               <button
                 className="btn btn--terra btn--sm"
-                disabled={saving || !productId || !lead.email}
+                disabled={saving || !productId || !adminEmail.trim()}
                 onClick={confirm}
               >
                 {saving ? "Provisionando…" : "Converter e provisionar"}

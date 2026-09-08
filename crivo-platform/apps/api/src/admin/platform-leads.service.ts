@@ -552,11 +552,23 @@ export class PlatformLeadsService {
    * produto. A empresa fica ligada ao produto (perguntas + IA herdadas). O lead
    * vai para FECHADO com convertedTenantId.
    */
-  async convert(leadId: string, productId: string, actor: Actor): Promise<ProvisionResult> {
+  async convert(
+    leadId: string,
+    productId: string,
+    actor: Actor,
+    /** Sobrepõe o e-mail do admin. O lead segue com o e-mail original. */
+    adminEmail?: string,
+  ): Promise<ProvisionResult> {
     const lead = await this.prisma.admin.platformLead.findUnique({ where: { id: leadId } });
     if (!lead) throw new NotFoundException('Lead não encontrado');
     if (lead.convertedTenantId) throw new ConflictException('Lead já convertido em cliente');
-    if (!lead.email) throw new BadRequestException('Lead sem e-mail — necessário para criar o acesso do admin');
+    // Cada e-mail pertence a uma única empresa. Quando o do lead já está preso a
+    // outra, o operador informa outro aqui — antes a única saída era editar o
+    // cadastro do lead, e a mensagem de erro pedia algo que a tela não fazia.
+    const emailDoAdmin = adminEmail?.trim() || lead.email;
+    if (!emailDoAdmin) {
+      throw new BadRequestException('Informe o e-mail do administrador — necessário para criar o acesso');
+    }
 
     const product = await this.prisma.admin.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundException('Produto não encontrado');
@@ -567,7 +579,7 @@ export class PlatformLeadsService {
     const result = await this.provisioning.provisionFromProduct({
       companyName: lead.company?.trim() || lead.name,
       adminName: lead.name,
-      adminEmail: lead.email,
+      adminEmail: emailDoAdmin,
       plan: (product.plan ?? 'BASE') as Plan,
       productId: product.id,
       modules: Array.isArray(product.modules) ? (product.modules as string[]) : [],

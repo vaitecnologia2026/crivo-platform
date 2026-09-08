@@ -128,7 +128,7 @@ export class PlatformLeadsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ConvertLeadDto,
   ) {
-    return this.leads.convert(id, dto.productId, { id: admin.id, email: admin.email });
+    return this.leads.convert(id, dto.productId, { id: admin.id, email: admin.email }, dto.adminEmail);
   }
 
   /** Cria um lead a partir da consulta de CNPJ (Dashboard); converte se houver productId. */
