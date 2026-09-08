@@ -34,6 +34,7 @@ import {
 } from '../admin/preliminary-reports.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
+import { RiskSuggestionsService } from './risk-suggestions.service';
 import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
 
 type DiagnosticMethodLike = string | null;
@@ -133,38 +134,19 @@ export function dossierScopeSection(output: string): { heading: string; body: st
  * validada no SERVIDOR: fator Alto exige responsável, prazo e evidência
  * esperada; e nenhuma ação pode estar sugerida ou em revisão.
  */
-export function dossierBlockers(items: FactorItem[]): string[] {
-  const out: string[] = [];
-  const pendentes = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO');
-  if (pendentes.length) {
-    out.push(
-      `${pendentes.length} ação(ões) ainda sugerida(s) ou em revisão — o dossiê final exige plano aprovado.`,
-    );
-  }
-  const altosIncompletos = items.filter((i) => {
-    if (!factorRisk(i).isHigh) return false;
-    return !i.responsible || !i.dueDate || !i.expectedEvidence;
-  });
-  if (altosIncompletos.length) {
-    out.push(
-      `${altosIncompletos.length} fator(es) de risco Alto sem responsável, prazo ou evidência esperada.`,
-    );
-  }
-  // A3 (residual): fator Alto exige evidência REAL e APROVADA no Motor de
-  // Evidências — só o TEXTO "evidência esperada" não sustenta um dossiê final
-  // (regra do pacote v3.1: somente evidência aprovada compõe a documentação).
-  const altosSemEvidenciaAprovada = items.filter((i) => {
-    if (!factorRisk(i).isHigh) return false;
-    return !(i.evidences ?? []).some((e) => e.status === 'APROVADA');
-  });
-  if (altosSemEvidenciaAprovada.length) {
-    // Mensagem ACIONÁVEL pelo cliente: anexar é dele; aprovar é da CRIVO.
-    out.push(
-      `${altosSemEvidenciaAprovada.length} fator(es) de risco Alto sem evidência aprovada — anexe a ` +
-        'evidência na ação e aguarde a validação da equipe CRIVO (o status aparece em cada evidência).',
-    );
-  }
-  return out;
+export function dossierBlockers(_items: FactorItem[]): string[] {
+  // Decisão do cliente em 2026-09-08: relatórios, dossiê e plano saem
+  // automaticamente, gerados pela IA, sem validação humana. Isto contraria a
+  // Orientação Funcional §9 ("a IA sugere; não aprova plano, não valida
+  // evidência e não libera dossiê") e o critério de aceite §12 — registrado
+  // aqui porque a decisão é do cliente, mas a regra que ela substitui era
+  // deliberada, não um esquecimento.
+  //
+  // Os três bloqueios que existiam (ação sugerida/em revisão, fator Alto sem
+  // responsável/prazo/evidência esperada, fator Alto sem evidência aprovada)
+  // dependiam todos de ação humana e travavam a emissão.
+  return [];
+
 }
 
 /** Seção "Base Técnica da Recomendação" — classificação CNAE/NR-1 que embasou o método. */
@@ -527,6 +509,7 @@ export class DocumentsService {
     private readonly prisma: PrismaService,
     private readonly psychosocial: PsychosocialService,
     private readonly aiSettings: AiSettingsService,
+    private readonly riskSuggestions: RiskSuggestionsService,
   ) {}
 
   private async context(tenantId: string) {
@@ -682,12 +665,12 @@ export class DocumentsService {
     // Como generate() revalida via available() (C2), isto também barra a rota direta.
     const validated = plans.find((p) => p.validatedAt) ?? plans[0];
     const blockers = validated ? dossierBlockers(validated.items as FactorItem[]) : [];
-    const dossieOk = hasValidated && blockers.length === 0;
-    const dossieReason = !hasValidated
-      ? 'Requer plano de ação validado'
-      : blockers.length
-        ? blockers.join(' ')
-        : undefined;
+    // O plano deixou de ser pré-requisito: ele é GERADO na emissão, a partir da
+    // matriz de risco (decisão de 2026-09-08). `hasValidated`/`blockers` ficam
+    // apenas informativos.
+    void hasValidated;
+    const dossieOk = blockers.length === 0;
+    const dossieReason = blockers.length ? blockers.join(' ') : undefined;
     const docs: DocumentDescriptor[] = [];
     const add = (type: string, available: boolean, reason?: string, subtitle?: string) =>
       docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason, subtitle });
@@ -1763,14 +1746,17 @@ export class DocumentsService {
 
     // 8. Plano de ação aprovado — snapshot do ciclo.
     sections.push({
-      heading: '8. Plano de ação aprovado — snapshot do ciclo',
+      heading: '8. Plano de ação — snapshot do ciclo',
       body:
         (plan
           ? plan.validatedAt
             ? `Plano "${plan.title}" validado por ${plan.validatedBy ?? '—'} em ${fmt(plan.validatedAt)}. `
-            : `Plano "${plan.title}" ainda não validado. `
+            : `Plano "${plan.title}" gerado a partir da matriz de risco e ainda não validado. `
           : 'Nenhum plano registrado. ') +
-        'Este bloco NÃO cria nem edita ações — apenas reproduz o estado aprovado do Plano de Evolução no momento da emissão.',
+        'As ações são geradas automaticamente a partir dos fatores que exigem plano e ficam no ' +
+        'Plano de Evolução, onde a organização valida, ajusta, acrescenta ou substitui. A coluna ' +
+        'Status mostra em que ponto cada ação está no momento da emissão; este bloco apenas ' +
+        'reproduz esse estado, não cria nem edita ações.',
       table: {
         columns: ['ID', 'Ação aprovada', 'Responsável', 'Prazo', 'Indicador', 'Evidência esperada', 'Status'],
         data: items.length
@@ -2287,6 +2273,13 @@ export class DocumentsService {
   ): Promise<GeneratedDocument> {
     // emit() passa o contexto que ele já leu — a emissão oficial congela UM
     // retrato do banco do começo ao fim (gate, conteúdo e hash).
+    // O plano do dossiê é gerado pela IA na hora, sem validação humana
+    // (decisão de 2026-09-08). Idempotente: `@@unique([planId, suggestionKey])`
+    // impede duplicar em pré-visualizações sucessivas. Roda ANTES de ler o
+    // contexto, senão o documento sairia sem as ações recém-criadas.
+    if (type === 'dossie_tecnico') {
+      await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
+    }
     const ctx = ctxIn ?? (await this.context(tenantId));
     const { contract, method, org, company, plans, cnaeDecision } = ctx;
     const isTemplate = type.startsWith('tpl:');
@@ -2525,28 +2518,22 @@ export class DocumentsService {
    * O preview (GET) continua dinâmico; a emissão nunca é reprocessada.
    */
   async emit(tenantId: string, type: string, actorEmail?: string) {
+    // O plano é gerado ANTES do snapshot: `emit()` congela um retrato do banco,
+    // e sem isto a primeira emissão leria um plano vazio (a geração acontece
+    // dentro de generate(), que roda depois).
+    if (type === 'dossie_tecnico') {
+      await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
+    }
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
     const ctxEmissao = await this.context(tenantId);
     const { contract, method, org, plans } = ctxEmissao;
 
-    // EMISSÃO FINAL — plano validado mas SEM ações não sustenta documento técnico.
-    // dossierBlockers() não pega este caso: seus três filtros rodam SOBRE a lista
-    // de ações, então com a lista vazia nenhum dispara e o gate liberava um
-    // dossiê cujo corpo afirma "plano aprovado" (§8) e "somente evidência
-    // aprovada compõe a documentação" (§9) — com zero de cada, e sem ressalva.
-    // Mesma decisão dos demais gates de emissão: o rascunho segue livre.
-    if (type === 'dossie_tecnico' || type === 'plano_acao') {
-      const base = plans.find((p) => p.validatedAt) ?? plans[0];
-      if (!base?.items.length) {
-        throw new BadRequestException(
-          'Emissão final bloqueada — o plano de ação não tem nenhuma ação registrada. ' +
-            'Um documento técnico emitido neste estado afirmaria plano aprovado e evidência ' +
-            'aprovada sem ter nenhum dos dois. Registre as ações em Plano de Evolução; ' +
-            'a pré-visualização (rascunho) continua disponível.',
-        );
-      }
-    }
+    // O bloqueio de "plano sem nenhuma ação" saiu junto com os demais gates
+    // (2026-09-08). Ele existia porque a seção 8 afirmava "plano aprovado";
+    // hoje ela declara o estado real de cada ação, e o plano é gerado logo
+    // acima — então plano vazio significa apenas que nenhum fator atingiu
+    // risco suficiente para exigir ação, e o documento diz isso.
 
     // EMISSÃO FINAL (decisão do cliente 27/07): o rascunho/pré-visualização é
     // livre, mas os documentos TÉCNICOS só são emitidos com a identificação

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
+  actionTermDays,
   type PsychosocialRiskMatrixRow,
   type RiskActionSuggestion,
   type RiskActionSuggestions,
@@ -32,6 +33,79 @@ export class RiskSuggestionsService {
     private readonly psychosocial: PsychosocialService,
     private readonly aiSettings: AiSettingsService,
   ) {}
+
+  /**
+   * Gera o plano automaticamente a partir da matriz de risco.
+   *
+   * Decisão do cliente em 2026-09-08: relatório, dossiê e plano saem sem
+   * depender de alguém apertar um botão. As ações nascem com o status PADRÃO
+   * (SUGERIDA) de propósito — o mesmo cliente pediu que o plano "também deve
+   * ser validado e ajustado". Marcá-las como APROVADA seria registrar no banco
+   * uma validação humana que não aconteceu, e o dossiê sairia afirmando que a
+   * organização aprovou o que a IA escreveu.
+   *
+   * O que muda em relação a antes é o GATILHO, não a regra: as ações passam a
+   * existir sozinhas no Plano de Evolução, onde a organização valida, ajusta,
+   * acrescenta ou substitui. O que trava a emissão do dossiê é que deixou de
+   * existir (ver `dossierBlockers`).
+   *
+   * Idempotente por `@@unique([planId, suggestionKey])`: pré-visualizar o
+   * dossiê várias vezes não duplica ação nenhuma.
+   */
+  async gerarPlanoAutomatico(tenantId: string): Promise<number> {
+    const { suggestions } = await this.list(tenantId);
+    const novas = suggestions.filter((s) => !s.alreadyInPlan);
+    if (!novas.length) return 0;
+    const instrumento = await resolvePsychosocialInstrument(this.prisma);
+
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const plano =
+        (await tx.actionPlan.findFirst({ orderBy: { createdAt: 'asc' } })) ??
+        (await tx.actionPlan.create({
+          data: {
+            tenantId,
+            title: 'Plano de Evolução — gerado pelo diagnóstico',
+            source: 'questionário',
+            sourceInstrumentSlug: instrumento,
+          },
+        }));
+
+      let criadas = 0;
+      for (const x of novas) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + actionTermDays(x.prazo));
+        const item = await tx.actionItem.create({
+          data: {
+            tenantId,
+            planId: plano.id,
+            point: x.factorLabel,
+            action: `${x.title} — ${x.etapas}`.slice(0, 600),
+            origin: 'questionário',
+            sourceInstrumentSlug: instrumento,
+            dueDate,
+            indicator: x.indicadores,
+            // severity/probability (a matriz 3x3 em texto) ficam VAZIOS: as duas
+            // réguas não derivam uma da outra e a classificação técnica do
+            // dossiê é decisão da empresa.
+            riskFactorSlug: x.factorSlug,
+            riskProbability: x.probability,
+            riskSeverity: x.severity,
+            suggestionKey: x.key,
+          },
+        });
+        await tx.actionItemHistory.create({
+          data: {
+            tenantId,
+            actionItemId: item.id,
+            change: `Ação gerada automaticamente a partir da matriz de risco (${riskOriginLabel(x)}) — pendente de validação e ajuste pela organização`,
+            changedBy: null,
+          },
+        });
+        criadas += 1;
+      }
+      return criadas;
+    });
+  }
 
   /**
    * Sugestões para o plano informado (ou para o tenant, quando nenhum plano é
