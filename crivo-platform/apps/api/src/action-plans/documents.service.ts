@@ -122,10 +122,9 @@ export function dossierScopeSection(output: string): { heading: string; body: st
     heading: 'Declaração de escopo — documento técnico e gerencial',
     body:
       'Este documento registra os fatores de risco psicossociais relacionados ao trabalho ' +
-      'identificados no ciclo avaliado, em caráter técnico, gerencial e documental. O contrato ' +
-      'vigente não prevê integração formal à AEP nem ao GRO/PGR; se a empresa vier a contratar ' +
-      'essa integração, este dossiê pode subsidiá-la. Não substitui a AEP, o PGR, nem a validação ' +
-      'da empresa ou do responsável técnico.',
+      'identificados no ciclo avaliado, em caráter técnico, gerencial e documental. A validação ' +
+      'deste conteúdo e a integração aos documentos de SST da organização são de ' +
+      'responsabilidade da empresa contratante e/ou do responsável técnico/designado.',
   };
 }
 
@@ -191,25 +190,35 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
     const cor = COR_CLASSE[cls];
     const fatores = porCelula.get(`${p}:${s}`) ?? [];
     const cheia = fatores.length > 0;
-    const fundo = cheia ? cor : `${cor}1A`;
-    const texto = cheia ? '#fff' : '#6b6459';
+    // Célula ocupada: cor cheia da classe, número grande e contorno branco.
+    // Célula vazia: a MESMA cor bem clara, para o mapa de calor continuar
+    // legível sem competir com o que tem fator. Só a apresentação muda —
+    // classe, risco e cores das classes seguem as mesmas.
+    const fundo = cheia ? cor : `${cor}14`;
+    const texto = cheia ? '#fff' : '#8a8378';
     const titulo = fatores.length ? ` title="${escapaHtml(fatores.join(' · '))}"` : '';
     return (
       `<td${titulo} style="background:${fundo};color:${texto};text-align:center;` +
-      `padding:8px 4px;border:1px solid #fff;font-size:11px;line-height:1.25">` +
-      `<div style="font-weight:700;font-size:${cheia ? '15px' : '11px'}">${cheia ? fatores.length : ''}</div>` +
-      `<div style="opacity:${cheia ? '.85' : '.6'}">${risco}</div></td>`
+      `padding:10px 6px;border:2px solid #fff;border-radius:3px;font-size:11px;` +
+      `line-height:1.3;min-width:46px">` +
+      `<div style="font-weight:700;font-size:${cheia ? '17px' : '12px'}">` +
+      `${cheia ? fatores.length : '·'}</div>` +
+      `<div style="opacity:${cheia ? '.9' : '.75'};font-size:10px">${risco}</div></td>`
     );
   };
   const linhas: string[] = [];
   for (let s = 5; s >= 1; s--) {
     const tds = [1, 2, 3, 4, 5].map((p) => celula(p, s)).join('');
     linhas.push(
-      `<tr><th style="text-align:right;padding:4px 8px;font-size:11px;color:#6b6459;font-weight:600">${s}</th>${tds}</tr>`,
+      `<tr><th style="text-align:right;padding:4px 10px;font-size:12px;color:#0d1f3c;` +
+        `font-weight:700">${s}</th>${tds}</tr>`,
     );
   }
   const cabecalho = [1, 2, 3, 4, 5]
-    .map((p) => `<th style="padding:4px;font-size:11px;color:#6b6459;font-weight:600">${p}</th>`)
+    .map(
+      (p) =>
+        `<th style="padding:6px 4px;font-size:12px;color:#0d1f3c;font-weight:700">${p}</th>`,
+    )
     .join('');
   const legenda = (Object.keys(COR_CLASSE) as PsychosocialRiskClass[])
     .map(
@@ -220,12 +229,15 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
     )
     .join('');
   return (
-    `<div style="margin:10px 0 4px"><table style="border-collapse:collapse;margin:0 auto">` +
-    `<tr><th></th>${cabecalho}</tr>${linhas.join('')}` +
-    `<tr><th></th><td colspan="5" style="text-align:center;padding-top:6px;font-size:10.5px;color:#6b6459">` +
-    `Probabilidade &rarr;</td></tr></table>` +
-    `<p style="text-align:center;margin:2px 0 8px;font-size:10.5px;color:#6b6459">` +
-    `Eixo vertical: Severidade &uarr; &nbsp;·&nbsp; número na célula: quantos fatores; abaixo dele, o risco (P × S).</p>` +
+    `<div style="margin:12px 0 6px">` +
+    `<table style="border-collapse:separate;border-spacing:0;margin:0 auto">` +
+    `<tr><th style="font-size:10px;color:#8a8378;font-weight:600;padding-right:8px">S&uarr;</th>` +
+    `${cabecalho}</tr>${linhas.join('')}` +
+    `<tr><th></th><td colspan="5" style="text-align:center;padding-top:8px;font-size:11px;` +
+    `color:#0d1f3c;font-weight:600">Probabilidade &rarr;</td></tr></table>` +
+    `<p style="text-align:center;margin:4px 0 10px;font-size:10.5px;color:#6b6459">` +
+    `Linha = Severidade · Coluna = Probabilidade. O número em destaque é quantos fatores caíram ` +
+    `na célula; abaixo dele, o risco resultante (P × S).</p>` +
     `<p style="text-align:center;margin:0">${legenda}</p></div>`
   );
 }
@@ -1385,7 +1397,7 @@ export class DocumentsService {
         'potencial de impacto do fator, fixo na metodologia. Risco = Probabilidade × Severidade (1–25): ' +
         '1–4 Baixo (monitorar) · 5–9 Moderado (prevenir) · 10–15 Alto (corrigir) · 16–20 Muito alto ' +
         '(mitigar urgentemente) · 21–25 Crítico (ação imediata). A partir de 10, o plano de ação é ' +
-        'obrigatório (NR-1, subitem 1.5.4.4.2).',
+        'obrigatório — corte definido pela metodologia CRIVO para priorizar o tratamento.',
     });
     const overall = res.overall && !res.overall.suppressed ? res.overall : null;
     const consolidada =
@@ -1522,7 +1534,6 @@ export class DocumentsService {
       { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
       { label: 'Unidade/Estabelecimento', value: ctx.org?.establishment ?? '—' },
       { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
-      { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
       { label: 'Período avaliado', value: psy.period },
       { label: 'Público elegível', value: ctx.org?.employeesCount ?? '—' },
       { label: 'Respostas válidas/adesão', value: adhesionLabel(psy.totalRespondents, ctx.org?.employeesCount) },
@@ -1587,8 +1598,19 @@ export class DocumentsService {
       ],
     });
 
+    // A matriz calculada é lida uma vez e serve à síntese (§3), à matriz
+    // técnica (§6) e ao inventário (§11).
+    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
+    // "Principais fatores priorizados" vinha do PLANO e saía "—" enquanto não
+    // houvesse ação registrada. A priorização já está calculada na matriz:
+    // ela vem ordenada por risco desc, então os primeiros são os prioritários.
+    const priorizados = psyMatriz.matrix
+      .filter((r) => r.planRequired)
+      .slice(0, 5)
+      .map((r) => `${r.label} (R ${r.risk} · ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]})`);
     // 3. Síntese dos resultados (agregado psicossocial + fatores priorizados).
     const altos = items.filter((i) => factorRisk(i).isHigh);
+    const fatoresPriorizados = priorizados.join('; ') || altos.map((i) => i.point).join('; ') || '—';
     sections.push({
       heading: '3. Síntese dos resultados',
       rows: psy.suppressed
@@ -1597,12 +1619,12 @@ export class DocumentsService {
               label: 'Índice/resultado geral',
               value: `Dados omitidos por confidencialidade — volume mínimo de respostas não atingido (${psy.totalRespondents}/${psy.minRespondents})`,
             },
-            { label: 'Principais fatores priorizados', value: altos.map((i) => i.point).join('; ') || '—' },
+            { label: 'Principais fatores priorizados', value: fatoresPriorizados },
           ]
         : [
             { label: 'Índice/resultado geral', value: String(psy.score) },
             { label: 'Classificação geral', value: psy.levelLabel },
-            { label: 'Principais fatores priorizados', value: altos.map((i) => i.point).join('; ') || '—' },
+            { label: 'Principais fatores priorizados', value: fatoresPriorizados },
             {
               label: 'Grupos/áreas prioritários',
               value: [...new Set(altos.map((i) => i.exposedGroup).filter(Boolean))].join(', ') || '—',
@@ -1634,10 +1656,6 @@ export class DocumentsService {
             cor: corDaFaixa(d.value),
           })),
         ),
-        table: {
-          columns: ['Dimensão oficial', 'Resultado', 'Classificação'],
-          data: psy.byDimension.map((d) => [d.label, String(d.value), bandLabelOf(d.value, psy.bands)]),
-        },
       });
     }
 
@@ -1676,12 +1694,14 @@ export class DocumentsService {
     // uma linha de traços — mesmo com a matriz inteira já calculada. A fonte
     // correta é a matriz do diagnóstico; o plano fica como origem alternativa
     // para quem cadastrou fatores apenas lá.
-    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
     if (psyMatriz.matrix.length) {
       sections.push({
         heading: '6. Matriz técnica de fatores de risco',
         table: {
-          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Fonte/Circunstância', 'Nº de expostos', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
+          // "Nº de expostos" saiu: a coluna vinha do número de RESPONDENTES, e
+          // quem respondeu não é quem está exposto — o grupo exposto/GHE é
+          // cadastro da empresa, que o sistema não tem. Melhor não afirmar.
+          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Fonte/Circunstância', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
           data: psyMatriz.matrix.map((r, n) => [
             // Código da biblioteca de riscos quando cadastrado (Orientação 5.1);
             // sem ele, um identificador sequencial só para referência interna.
@@ -1689,7 +1709,6 @@ export class DocumentsService {
             r.label,
             r.dimensionLabel ?? '—',
             r.sourceContext ?? '—',
-            String(r.respondents),
             String(r.probability),
             String(r.severity),
             String(r.risk),
@@ -1826,14 +1845,13 @@ export class DocumentsService {
           'pelo responsável técnico, após validação da empresa.',
         table: psyMatriz.matrix.length
           ? {
-              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Nº de expostos', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
+              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
               data: psyMatriz.matrix.map((r, n) => [
                 r.code ?? `R-${String(n + 1).padStart(3, '0')}`,
                 r.dimensionLabel ?? '—',
                 r.label,
                 r.definition ?? '—',
                 r.sourceContext ?? '—',
-                String(r.respondents),
                 // Campo cadastrado no fator (Orientação 5.1) que até aqui era
                 // gravado e nunca lido por ninguém.
                 r.consequences ?? '—',
@@ -1875,7 +1893,9 @@ export class DocumentsService {
     });
 
     // Base Técnica da Recomendação (Motor CNAE/NR-1) — complementa o dossiê.
-    sections.push(buildBaseTecnicaSection(ctx.cnaeDecision));
+    // O bloco "Base Técnica da Recomendação" (CNAE/NR-1) saiu do dossiê a
+    // pedido do cliente: é insumo comercial de enquadramento, não conteúdo
+    // do documento técnico entregue à empresa.
 
     // 13. Conclusão e validação — assinatura FORA do sistema (decisão 27/07).
     // F3: a CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO abre a seção; o texto
@@ -1892,6 +1912,16 @@ export class DocumentsService {
 
     // 14. Controle documental.
     sections.push(docControlSection());
+
+    // Numeração contínua. As seções 7, 10 e 11 são CONDICIONAIS (medidas
+    // informadas, devolutiva registrada, saída AEP+PGR): quando não saem, a
+    // numeração fixa no código pulava — o documento ia de "9" para "12".
+    // Só os títulos que já começam com número entram na contagem.
+    let n = 0;
+    for (const s of sections) {
+      const m = /^(\d+)\.\s+(.*)$/.exec(s.heading);
+      if (m) s.heading = `${(n += 1)}. ${m[2]}`;
+    }
 
     return {
       type: 'dossie_tecnico',
