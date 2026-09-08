@@ -19,6 +19,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology, resolvePsychosocialInstrument } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
+// MESMAS funções que montam o PDF do MAPA enviado por e-mail: o relatório do
+// portal e o anexo do lead têm de ser o mesmo documento, não dois parecidos.
+import { destaquesDoMapa } from '../admin/mapa-executivo-pdf';
+import {
+  caminhoMapa,
+  panoramaMapa,
+  sinteseMapa,
+  umaCasa,
+} from '../admin/preliminary-reports.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
@@ -1261,31 +1270,51 @@ export class DocumentsService {
       [...forces, ...attentions].map((d) => d.code),
     );
 
+    // O MAPA do portal é O MESMO documento que vai anexo ao e-mail do lead:
+    // mesma ordem de blocos do modelo aprovado e MESMAS funções de texto.
+    // Antes esta tela tinha estrutura própria — inclusive um bloco "Principais
+    // sinais" que rotulava de "Força" a dimensão de maior nota mesmo em faixa
+    // de atenção, o oposto do que o modelo diz.
+    const faixaGeral = bandLabelOf(mapa.score, mapa.bands);
+    const dimsMapa = dimRows
+      .filter((d) => d.value != null)
+      .map((d) => ({
+        label: d.name,
+        score: d.value as number,
+        faixaLabel: bandLabelOf(d.value as number, mapa.bands),
+      }))
+      .sort((a, b) => b.score - a.score);
+    const faixas = mapa.bands.map((b) => ({ min: b.min, max: b.max }));
+    const RAMPA = ['#8E2F1B', '#C4671D', '#8A6D1F', '#2E7D4F'];
+    const corDaFaixa = (v: number) => {
+      const ordenadas = [...mapa.bands].sort((a, b) => a.min - b.min);
+      const i = ordenadas.findIndex((b) => v >= b.min && v <= b.max);
+      if (i < 0 || ordenadas.length < 2) return null;
+      const passo = (RAMPA.length - 1) / (ordenadas.length - 1);
+      return RAMPA[Math.min(RAMPA.length - 1, Math.round(i * passo))] ?? null;
+    };
+
     const sections: DocumentSection[] = [
       {
-        heading: 'Documento executivo preliminar',
-        body:
-          'O MAPA Executivo CRIVO™ é uma leitura preliminar executiva. Não é diagnóstico técnico, ' +
-          'AEP, PGR, dossiê NR-1, avaliação clínica ou evidência normativa isolada.',
-      },
-      {
-        heading: '1. Síntese executiva',
-        body:
-          approved['sintese_executiva'] ??
-          'Síntese executiva pendente de aprovação pela equipe CRIVO (a IA da Plataforma rascunha, ' +
-            'a equipe revisa e aprova no Super Admin). A emissão oficial inclui a síntese aprovada.',
-      },
-      {
-        heading: '2. Resultado geral',
+        heading: 'Panorama',
         rows: [
-          { label: 'Score geral', value: String(mapa.score) },
-          { label: 'Classificação', value: bandLabelOf(mapa.score, mapa.bands) },
+          { label: 'Índice preliminar', value: `${umaCasa(mapa.score)} / 100` },
+          { label: 'Faixa', value: faixaGeral },
         ],
+        body: panoramaMapa(mapa.score, faixaGeral, dimsMapa.length),
       },
       {
-        heading: '3. Dimensões oficiais',
+        heading: 'Dimensões',
+        html: barrasDimensoesHtml(
+          dimsMapa.map((d) => ({
+            label: d.label,
+            value: d.score,
+            faixa: d.faixaLabel,
+            cor: corDaFaixa(d.score),
+          })),
+        ),
         table: {
-          columns: ['Código', 'Dimensão', 'Score', 'Classificação'],
+          columns: ['Código', 'Dimensão', 'Score', 'Faixa'],
           data: dimRows.map((d) => [
             d.code,
             d.name,
@@ -1295,39 +1324,19 @@ export class DocumentsService {
         },
       },
       {
-        heading: '4. Principais sinais',
-        body:
-          'Forças = dimensões com maior resultado; Atenções = menor resultado. Cada leitura ' +
-          'narrativa é aprovada pela equipe CRIVO antes de entrar no documento.' +
-          (sinais.prose ? `\n\n${sinais.prose}` : ''),
-        table: {
-          columns: ['Tipo', 'Dimensão/Fator', 'Leitura aprovada'],
-          data: [
-            ...forces.map((d) => ['Força', `${d.code} · ${d.name} (${d.value})`, sinais.byCode[d.code] ?? '—']),
-            ...attentions.map((d) => ['Atenção', `${d.code} · ${d.name} (${d.value})`, sinais.byCode[d.code] ?? '—']),
-          ],
-        },
+        heading: 'Síntese executiva',
+        // O texto aprovado pela equipe CRIVO no Super Admin continua vencendo:
+        // é revisão editorial deliberada, não divergência acidental.
+        body: approved['sintese_executiva'] ?? sinteseMapa(dimsMapa, faixas),
       },
+      ...destaquesDoMapa(dimsMapa, faixas).map((b) => ({ heading: b.titulo, body: b.corpo })),
+      { heading: 'Caminho recomendado', body: caminhoMapa(dimsMapa) },
       {
-        heading: '5. Recomendação de próximo passo',
-        rows: [
-          {
-            label: 'Recomendação',
-            value: ctx.cnaeDecision?.recommendedMethod
-              ? METHOD_LABEL[ctx.cnaeDecision.recommendedMethod] ?? ctx.cnaeDecision.recommendedMethod
-              : 'Conversa com a equipe CRIVO para definição do método',
-          },
-          {
-            label: 'Justificativa',
-            value:
-              approved['proximo_passo_justificativa'] ??
-              (ctx.cnaeDecision
-                ? 'Recomendação técnica derivada do enquadramento CNAE/NR-1 registrado para a empresa.'
-                : '—'),
-          },
-        ],
+        heading: 'Sobre esta leitura',
+        body:
+          'O MAPA Executivo é uma visão preliminar de gestão. Não substitui diagnóstico ' +
+          'técnico ou avaliação especializada.',
       },
-      docControlSection(),
     ];
 
     return {

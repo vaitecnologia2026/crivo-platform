@@ -568,7 +568,7 @@ export class PreliminaryReportsService {
  */
 type DimensaoMapa = DadosMapaExecutivo['dimensoes'][number];
 
-const umaCasa = (n: number) => n.toFixed(1).replace('.', ',');
+export const umaCasa = (n: number) => n.toFixed(1).replace('.', ',');
 
 /** Mesmas fronteiras de `computePreDiagnostic` — usado só quando o Motor não
  *  tem faixas publicadas para o PRE_DIAGNOSTIC. */
@@ -583,7 +583,7 @@ function maturityOfScore(score: number): MaturityLevel {
 }
 
 /** Texto do bloco "Panorama" — descreve o número, sem prometer conclusão técnica. */
-function panoramaMapa(score: number, faixa: string, qtdDimensoes: number): string {
+export function panoramaMapa(score: number, faixa: string, qtdDimensoes: number): string {
   return (
     `A leitura preliminar da organização aponta índice ${umaCasa(score)} de 100, na faixa ` +
     `"${faixa}". O resultado resume ${qtdDimensoes} dimensões de gestão avaliadas a partir das ` +
@@ -622,7 +622,7 @@ function sinteseECaminhoDaIa(markdown: string): { sintese?: string; caminho?: st
   return { sintese: pega('ntese'), caminho: pega('aminho') };
 }
 
-function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: number }[] = []): string {
+export function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: number }[] = []): string {
   if (!dimensoes.length) return 'Sem dimensões avaliadas nesta leitura.';
   const melhor = dimensoes[0];
   const pior = dimensoes[dimensoes.length - 1];
@@ -645,7 +645,7 @@ function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: numb
 }
 
 /** Caminho recomendado: próximo passo concreto, sem prometer conformidade. */
-function caminhoMapa(dimensoes: DimensaoMapa[]): string {
+export function caminhoMapa(dimensoes: DimensaoMapa[]): string {
   if (!dimensoes.length) {
     return 'Aplique o CRIVO Diagnóstico™ para obter a leitura completa da organização.';
   }

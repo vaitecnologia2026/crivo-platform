@@ -70,6 +70,43 @@ export function nomeArquivoMapa(empresa: string, data: Date): string {
   return `MAPA_Executivo_CRIVO_${limpo}_${iso}.pdf`;
 }
 
+/**
+ * Blocos "Melhor desempenho" e "Maior atenção" do modelo.
+ *
+ * Exportado porque o MAPA aparece em DOIS lugares — o PDF que vai por e-mail e
+ * o Relatório Executivo do portal. Antes cada um montava o seu, e o do portal
+ * chamava de "Força" a dimensão de maior nota mesmo em faixa de atenção.
+ * Só a faixa mais alta da régua autoriza a leitura positiva.
+ */
+export function destaquesDoMapa(
+  dimensoes: { label: string; score: number; faixaLabel: string }[],
+  faixas: { min: number; max: number }[],
+): { titulo: string; corpo: string }[] {
+  const melhor = [...dimensoes].sort((a, b) => b.score - a.score)[0];
+  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
+  const topo = [...faixas].sort((a, b) => b.max - a.max)[0];
+  const out: { titulo: string; corpo: string }[] = [];
+  if (melhor) {
+    const forte = topo ? melhor.score >= topo.min : melhor.score >= 80;
+    out.push({
+      titulo: forte ? 'Melhor desempenho' : 'Melhor desempenho relativo',
+      corpo:
+        `${melhor.label} - ${num(melhor.score)} / 100 - ${melhor.faixaLabel}` +
+        (forte
+          ? '.'
+          : '. É o ponto menos pressionado do conjunto, mas permanece em faixa que exige ' +
+            'atenção — não deve ser lido como ponto forte.'),
+    });
+  }
+  if (pior) {
+    out.push({
+      titulo: 'Maior atenção',
+      corpo: `${pior.label} - ${num(pior.score)} / 100 - ${pior.faixaLabel}`,
+    });
+  }
+  return out;
+}
+
 export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: 'MAPA Executivo CRIVO' } });
@@ -189,27 +226,7 @@ export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
     };
     bloco('Síntese executiva', d.sintese);
 
-    const melhor = [...d.dimensoes].sort((a, b) => b.score - a.score)[0];
-    const pior = [...d.dimensoes].sort((a, b) => a.score - b.score)[0];
-    if (melhor) {
-      // "Maior pontuação" fazia uma dimensão em faixa Vulnerável ser lida como
-      // ponto forte. Só é ponto forte quem alcança a faixa mais alta da régua;
-      // fora disso, o que existe é o MENOR desgaste do conjunto — e o
-      // documento diz isso com todas as letras.
-      const topo = [...d.faixas].sort((a, b) => b.max - a.max)[0];
-      const forte = topo ? melhor.score >= topo.min : melhor.score >= 80;
-      bloco(
-        forte ? 'Melhor desempenho' : 'Melhor desempenho relativo',
-        `${melhor.label} - ${num(melhor.score)} / 100 - ${melhor.faixaLabel}` +
-          (forte
-            ? '.'
-            : '. É o ponto menos pressionado do conjunto, mas permanece em faixa que exige ' +
-              'atenção — não deve ser lido como ponto forte.'),
-      );
-    }
-    if (pior) {
-      bloco('Maior atenção', `${pior.label} - ${num(pior.score)} / 100 - ${pior.faixaLabel}`);
-    }
+    for (const b of destaquesDoMapa(d.dimensoes, d.faixas)) bloco(b.titulo, b.corpo);
     bloco('Caminho recomendado', d.caminho);
 
     // Ressalva (texto do modelo oficial)
