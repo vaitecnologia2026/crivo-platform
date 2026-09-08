@@ -59,6 +59,13 @@ export class RiskSuggestionsService {
     const instrumento = await resolvePsychosocialInstrument(this.prisma);
 
     return this.prisma.forTenant(tenantId, async (tx) => {
+      // Ciclo de diagnóstico aberto no momento — é o que amarra a ação ao ciclo
+      // que a originou. Sem ciclo aberto a ação nasce sem carimbo, e o rastro
+      // vai até o fator; melhor isso do que inventar um vínculo.
+      const cicloAberto = await tx.diagnosticCycle.findFirst({
+        where: { status: 'ABERTO' },
+        select: { id: true },
+      });
       const plano =
         (await tx.actionPlan.findFirst({ orderBy: { createdAt: 'asc' } })) ??
         (await tx.actionPlan.create({
@@ -91,6 +98,7 @@ export class RiskSuggestionsService {
             riskProbability: x.probability,
             riskSeverity: x.severity,
             suggestionKey: x.key,
+            cycleId: cicloAberto?.id ?? null,
           },
         });
         await tx.actionItemHistory.create({

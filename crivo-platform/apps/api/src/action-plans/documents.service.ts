@@ -52,6 +52,7 @@ const OUTPUT_LABEL: Record<string, string> = {
 const ACTION_LABEL: Record<string, string> = {
   SUGERIDA: 'Sugerida', EM_REVISAO: 'Em revisão', APROVADA: 'Aprovada',
   EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Concluída', REAVALIADA: 'Reavaliada',
+  NAO_ADOTADA: 'Não adotada',
 };
 const CNAE_RISK_LABEL: Record<string, string> = {
   BAIXO: 'Baixo', BAIXO_MEDIO: 'Baixo/Médio', MEDIO: 'Médio', MEDIO_ALTO: 'Médio/Alto', ALTO: 'Alto',
@@ -1773,7 +1774,10 @@ export class DocumentsService {
         i.status === 'CONCLUIDA' ||
         i.status === 'REAVALIADA',
     );
-    const aguardando = items.length - aprovadas.length;
+    // Recusada não está aguardando nada: a organização já decidiu.
+    const aguardando = items.filter(
+      (i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO',
+    ).length;
     sections.push({
       heading: '8. Plano de ação aprovado — snapshot do ciclo',
       body:

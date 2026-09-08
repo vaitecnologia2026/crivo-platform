@@ -144,6 +144,10 @@ enum ActionStatus {
   EM_ANDAMENTO
   CONCLUIDA
   REAVALIADA
+  /// Sugestao avaliada e recusada pela organizacao. Guarda o rastro da
+  /// recomendacao: antes, "nao adotar" so existia apagando a acao, e a
+  /// recomendacao sumia como se nunca tivesse sido feita.
+  NAO_ADOTADA
 }
 
 // Tipo de registro do Diagnóstico Essencial (Briefing §5): escuta com empregados
@@ -1567,6 +1571,11 @@ model ActionItem {
   /// Idempotência da sugestão (<dimensão>|<título da ação>): gerar duas vezes
   /// não duplica a ação no mesmo plano.
   suggestionKey        String?               @map("suggestion_key")
+  /// Ciclo de diagnóstico que originou a ação. Fecha o rastro
+  /// risco/fator -> classificação -> ação -> ciclo. Referência textual (mesmo
+  /// padrão de dimensionSlug/factorSlugs): sem FK para não amarrar a exclusão
+  /// de um ciclo à ação que ele originou.
+  cycleId              String?               @map("cycle_id") @db.Uuid
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 

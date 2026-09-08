@@ -1851,6 +1851,7 @@ export const ACTION_STATUSES = [
   'EM_ANDAMENTO',
   'CONCLUIDA',
   'REAVALIADA',
+  'NAO_ADOTADA',
 ] as const;
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
 export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
@@ -1860,6 +1861,7 @@ export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
   EM_ANDAMENTO: 'Em andamento',
   CONCLUIDA: 'Concluída',
   REAVALIADA: 'Reavaliada',
+  NAO_ADOTADA: 'Não adotada',
 };
 
 export interface EvidenceData {
