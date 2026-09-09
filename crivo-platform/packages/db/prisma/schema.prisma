@@ -984,6 +984,40 @@ model AiPrompt {
 // adicionais contratados. `addonIds` guarda moduleCode[] (não Addon.id): é o
 // único identificador que o catálogo do front expõe e o único que existe para
 // adicionais ainda não configurados no banco. Control plane (owner-only).
+/// Plano de acao de um FATOR, escrito pela IA e GUARDADO.
+///
+/// E a rede de seguranca do Plano de Evolucao. A biblioteca embutida em codigo
+/// e chaveada por 6 slugs fixos da metodologia psicossocial original; numa
+/// metodologia montada pelo cliente (dim-1, dim-2, ...) ela nunca casa, e sem
+/// IA a tela ficava com ZERO sugestao. Aqui fica o texto que a propria IA ja
+/// escreveu para aquele fator: se depois ela cair, ficar sem cota ou demorar,
+/// o sistema serve o ultimo texto dela em vez de nada.
+///
+/// NAO guarda dado de empresa: o prompt so leva o rotulo do fator e os numeros
+/// de risco, entao a entrada e reaproveitavel por qualquer tenant do mesmo
+/// instrumento. Por isso e control-plane (sem tenantId), como ai_custom_prompts.
+model FactorActionPlan {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// Instrumento do Motor que produziu a matriz (PSYCHOSOCIAL, essencial, ...).
+  instrumentSlug String   @map("instrument_slug")
+  /// Slug do fator na metodologia ativa.
+  factorSlug     String   @map("factor_slug")
+  /// Rotulo no momento em que foi gerado — para auditoria e para a tela.
+  factorLabel    String   @map("factor_label")
+  descricao      String
+  objetivo       String
+  /// [{ titulo, prazo, objetivo, etapas, indicadores }]
+  acoes          Json
+  /// Quem escreveu: IA hoje; deixa espaco para revisao humana depois.
+  origin         String   @default("IA")
+  generatedAt    DateTime @default(now()) @map("generated_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([instrumentSlug, factorSlug])
+  @@index([instrumentSlug])
+  @@map("factor_action_plans")
+}
+
 model AiCustomPrompt {
   id              String   @id @default(uuid()) @db.Uuid
   name            String

@@ -236,6 +236,75 @@ async function umLote(
 }
 
 /**
+ * Planos que a IA JA escreveu para estes fatores, guardados em
+ * `factor_action_plans`. E a rede de seguranca: quando a IA cai, fica sem cota
+ * ou demora, o sistema serve o ultimo texto dela em vez de nada.
+ *
+ * Antes o unico fallback era a biblioteca embutida, chaveada por 6 slugs fixos
+ * que nao existem numa metodologia montada pelo cliente — dava ZERO sugestao.
+ */
+async function guardados(
+  deps: ActionPlansDeps,
+  instrumentSlug: string,
+  matrix: PsychosocialRiskMatrixRow[],
+): Promise<Record<string, PsychosocialActionLibraryEntry>> {
+  const out: Record<string, PsychosocialActionLibraryEntry> = {};
+  try {
+    // Guarda texto do FATOR (rotulo + acoes), nenhum dado de empresa.
+    // rls-allow: control-plane, sem coluna de tenant — ver o modelo no schema.
+    const rows = await deps.prisma.admin.factorActionPlan.findMany({
+      where: { instrumentSlug, factorSlug: { in: matrix.map((r) => r.slug) } },
+      select: { factorSlug: true, descricao: true, objetivo: true, acoes: true },
+    });
+    for (const r of rows) {
+      if (!Array.isArray(r.acoes) || r.acoes.length === 0) continue;
+      out[r.factorSlug] = {
+        descricao: r.descricao,
+        objetivo: r.objetivo,
+        acoes: r.acoes as unknown as PsychosocialActionLibraryEntry['acoes'],
+      };
+    }
+  } catch (e) {
+    // Nunca derruba a geracao: sem a rede, segue a biblioteca embutida.
+    log.warn(`Nao foi possivel ler os planos guardados: ${e instanceof Error ? e.message : e}`);
+  }
+  return out;
+}
+
+/** Guarda o que a IA acabou de escrever, para servir de rede na proxima vez. */
+async function guardar(
+  deps: ActionPlansDeps,
+  instrumentSlug: string,
+  matrix: PsychosocialRiskMatrixRow[],
+  plans: Record<string, PsychosocialActionLibraryEntry>,
+): Promise<void> {
+  for (const row of matrix) {
+    const entry = plans[row.slug];
+    if (!entry || !entry.acoes.length) continue;
+    const dados = {
+      factorLabel: row.label,
+      descricao: entry.descricao,
+      objetivo: entry.objetivo,
+      acoes: entry.acoes as unknown as object,
+      origin: 'IA',
+    };
+    try {
+      // rls-allow: control-plane, sem coluna de tenant.
+      await deps.prisma.admin.factorActionPlan.upsert({
+        where: { instrumentSlug_factorSlug: { instrumentSlug, factorSlug: row.slug } },
+        create: { instrumentSlug, factorSlug: row.slug, ...dados },
+        update: dados,
+      });
+    } catch (e) {
+      log.warn(
+        `Nao foi possivel guardar o plano do fator "${row.slug}": ` +
+          `${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
+}
+
+/**
  * Mapa de planos para a matriz dada: IA quando disponível e válida, senão a
  * biblioteca técnica fixa. Nunca lança — o pior caso é devolver a biblioteca.
  */
@@ -255,12 +324,27 @@ export async function resolveActionPlans(
   instrumentSlug: string,
   timeoutMs: number = AI_PLANS_TIMEOUT_MS,
 ): Promise<ResolvedActionPlans> {
+  // Tres camadas, da mais fraca para a mais forte:
+  //   1. biblioteca embutida — so alcanca as 6 dimensoes da metodologia original;
+  //   2. planos que a IA JA escreveu para estes fatores (rede de seguranca);
+  //   3. o que a IA escrever AGORA.
+  // Antes era so 1 ou 3, tudo ou nada: com a IA fora do ar e uma metodologia do
+  // cliente, a tela ficava com zero sugestao.
+  const rede = await guardados(deps, instrumentSlug, matrix);
   const ai = await fromAI(deps, tenantId, matrix, instrumentSlug, timeoutMs).catch(() => null);
-  // A biblioteca e a BASE e a IA entra por cima, fator a fator. Antes era um ou
-  // outro: se a IA cobrisse 8 de 14, os 14 vinham da biblioteca.
-  return ai
-    ? { plans: { ...PSYCHOSOCIAL_ACTION_LIBRARY, ...ai }, origin: 'IA' }
-    : { plans: PSYCHOSOCIAL_ACTION_LIBRARY, origin: 'biblioteca' };
+  if (ai) await guardar(deps, instrumentSlug, matrix, ai);
+  const plans = { ...PSYCHOSOCIAL_ACTION_LIBRARY, ...rede, ...(ai ?? {}) };
+  // O texto guardado tambem foi escrito pela IA — dizer "biblioteca" ali seria
+  // mentir sobre a origem no documento.
+  const origin: ResolvedActionPlans['origin'] =
+    ai || Object.keys(rede).length ? 'IA' : 'biblioteca';
+  if (!ai && Object.keys(rede).length) {
+    log.warn(
+      `IA indisponivel: servindo ${Object.keys(rede).length} plano(s) guardado(s) de ` +
+        `${matrix.length} fator(es).`,
+    );
+  }
+  return { plans, origin };
 }
 
 /**

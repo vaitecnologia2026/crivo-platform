@@ -153,7 +153,13 @@ DECLARE
                               -- owner). A migration 20260824120000_ai_custom_prompts já aplica o
                               -- mesmo par ENABLE RLS + REVOKE; repetido aqui para que um
                               -- setup:prod completo não deixe as tabelas de fora do control plane.
-                              'ai_custom_prompts','ai_custom_prompt_files'];
+                              'ai_custom_prompts','ai_custom_prompt_files',
+                              -- Planos por fator escritos pela IA (rede de seguranca do
+                              -- Plano de Evolucao). Sem tenantId: guarda texto do FATOR,
+                              -- nenhum dado de empresa. Migration
+                              -- 20260909210000_plano_por_fator_gerado_pela_ia ja aplica o
+                              -- mesmo par ENABLE RLS + REVOKE.
+                              'factor_action_plans'];
 BEGIN
   FOREACH c IN ARRAY ctrl_tables LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', c);
