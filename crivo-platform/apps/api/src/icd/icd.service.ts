@@ -269,16 +269,50 @@ export class IcdService {
         throw new BadRequestException('Campanha já encerrada — sem lembrete a enviar.');
       }
 
-      const respondidos = await tx.assessment.findMany({
+      // Quem responde a campanha de diagnóstico é o COLABORADOR, por CPF, e a
+      // participação fica em `campaign_invites.respondedAt` — não em
+      // `assessments`, que é a avaliação de líder do ICD. Enquanto o lembrete
+      // olhava só `assessments`, uma campanha 100% respondida continuava com
+      // "pendentes" (assessments = 0) e o lembrete saía para todo usuário ativo
+      // do tenant, inclusive para quem já tinha respondido como colaborador.
+      const convites = await tx.campaignInvite.findMany({
         where: { cycleId },
-        select: { leaderId: true },
+        select: {
+          respondedAt: true,
+          collaborator: { select: { id: true, name: true, email: true } },
+        },
       });
-      const respondidosSet = new Set(respondidos.map((r) => r.leaderId));
 
-      const pendentes = await tx.user.findMany({
-        where: { active: true, id: { notIn: [...respondidosSet] } },
-        select: { id: true, email: true, name: true },
-      });
+      let pendentes: { id: string; email: string; name: string }[];
+      // `userIds` do push só faz sentido para USUÁRIO do portal: colaborador não
+      // tem token de push. Na audiência de colaboradores o push sai vazio.
+      let userIdsParaPush: string[] = [];
+      let semEmail = 0;
+
+      if (convites.length) {
+        const naoResponderam = convites.filter((c) => !c.respondedAt);
+        semEmail = naoResponderam.filter((c) => !c.collaborator.email?.trim()).length;
+        pendentes = naoResponderam
+          .filter((c) => !!c.collaborator.email?.trim())
+          .map((c) => ({
+            id: c.collaborator.id,
+            email: c.collaborator.email as string,
+            name: c.collaborator.name,
+          }));
+      } else {
+        // Campanha sem convite algum: caminho histórico do ICD (avaliação de
+        // líder), preservado para não mudar o comportamento de quem usa assim.
+        const respondidos = await tx.assessment.findMany({
+          where: { cycleId },
+          select: { leaderId: true },
+        });
+        const respondidosSet = new Set(respondidos.map((r) => r.leaderId));
+        pendentes = await tx.user.findMany({
+          where: { active: true, id: { notIn: [...respondidosSet] } },
+          select: { id: true, email: true, name: true },
+        });
+        userIdsParaPush = pendentes.map((p) => p.id);
+      }
 
       // #60 — Corpo do lembrete vem do EditableText (fallback embutido).
       const bodyTemplate = await this.texts.render(
@@ -293,7 +327,7 @@ export class IcdService {
         'Lembrete: responda a campanha "{campaign_name}"',
       );
 
-      return { cycle, pendentes, bodyTemplate, subjectTemplate };
+      return { cycle, pendentes, userIdsParaPush, semEmail, bodyTemplate, subjectTemplate };
     });
 
     const markSent = () =>
@@ -306,7 +340,7 @@ export class IcdService {
     const pushPayload = {
       title: 'Lembrete de campanha',
       body: `Você ainda não respondeu à campanha "${prep.cycle.name}".`,
-      userIds: prep.pendentes.map((p) => p.id),
+      userIds: prep.userIdsParaPush,
     };
 
     // E-mail desativado no painel, ou sem provider → não envia e-mail, mas
@@ -316,7 +350,7 @@ export class IcdService {
       await this.notifications.dispatchPush('icd.lembrete_campanha', pushPayload);
       return {
         sent: 0,
-        pending: prep.pendentes.length,
+        pending: prep.pendentes.length + prep.semEmail,
         provider: emailOn ? 'stub' : 'disabled',
         reason: emailOn
           ? 'Sem provider de e-mail (SMTP_* ou RESEND_API_KEY) — operador deve enviar manualmente.'
@@ -344,7 +378,18 @@ export class IcdService {
     // 3) Marca reminderSentAt numa transação curta + dispara o push (FCM).
     await markSent();
     await this.notifications.dispatchPush('icd.lembrete_campanha', pushPayload);
-    return { sent, pending: prep.pendentes.length, provider };
+    return {
+      sent,
+      pending: prep.pendentes.length + prep.semEmail,
+      provider,
+      // Pendente sem e-mail cadastrado não recebe lembrete nenhum; dizer isso
+      // evita o operador concluir que o envio falhou.
+      ...(prep.semEmail
+        ? {
+            reason: `${prep.semEmail} pendente(s) sem e-mail cadastrado — envie o link por outro canal.`,
+          }
+        : {}),
+    };
   }
 
   /**
