@@ -2222,6 +2222,13 @@ export interface DocumentDescriptor {
   reason?: string; // por que não está disponível (ex.: requer plano validado)
   /** Nome do diagnóstico que origina o relatório (ex.: "Diagnóstico Organizacional (NR-1)"). */
   subtitle?: string;
+  /**
+   * Por que a EMISSÃO OFICIAL está bloqueada, mesmo com o documento disponível
+   * para pré-visualizar. Existe porque as duas ações são diferentes: a prévia é
+   * dinâmica e serve para acompanhar a coleta; a emissão congela um retrato com
+   * número sequencial e hash, e um retrato do meio da coleta seria enganoso.
+   */
+  emitBlockedReason?: string;
 }
 
 export interface DocumentSection {

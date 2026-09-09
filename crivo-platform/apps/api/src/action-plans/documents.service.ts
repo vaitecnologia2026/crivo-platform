@@ -734,9 +734,29 @@ export class DocumentsService {
     void hasValidated;
     const dossieOk = blockers.length === 0;
     const dossieReason = blockers.length ? blockers.join(' ') : undefined;
+    // Campanha ainda aberta: a previa continua livre, mas a versao OFICIAL dos
+    // documentos que leem as respostas do ciclo espera o encerramento. Nao e
+    // validacao humana (que saiu em 2026-09-08) — e o estado da coleta.
+    const cicloAberto = await this.cicloEmAndamento(tenantId);
+    const bloqueioDeEmissao = cicloAberto
+      ? `Campanha "${cicloAberto}" ainda aberta — encerre a campanha para emitir a versão oficial. A pré-visualização continua disponível.`
+      : undefined;
     const docs: DocumentDescriptor[] = [];
-    const add = (type: string, available: boolean, reason?: string, subtitle?: string) =>
-      docs.push({ type, title: DOCUMENT_TYPE_LABEL[type] ?? type, available, reason, subtitle });
+    const add = (
+      type: string,
+      available: boolean,
+      reason?: string,
+      subtitle?: string,
+      emitBlockedReason?: string,
+    ) =>
+      docs.push({
+        type,
+        title: DOCUMENT_TYPE_LABEL[type] ?? type,
+        available,
+        reason,
+        subtitle,
+        emitBlockedReason,
+      });
 
     if (method === 'INICIAL' || !contract) add('relatorio_preliminar', true);
     // TPL-001 — Relatório Executivo do MAPA CRIVO™: evento de geração é "MAPA
@@ -774,16 +794,19 @@ export class DocumentsService {
     const dossieDiag = instrumentoDoDossie?.name ?? 'Diagnóstico Organizacional (NR-1)';
     if (output === 'AEP' || output === 'AEP_PGR') {
       const ok = dossieOk || diagOk;
-      add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag);
+      add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag, bloqueioDeEmissao);
     } else if (method === 'ORGANIZACIONAL' || diagOk) {
       add(
         'dossie_tecnico',
         diagOk,
         diagOk ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
         dossieDiag,
+        bloqueioDeEmissao,
       );
     }
-    if (method === 'ORGANIZACIONAL') add('relatorio_tecnico', true);
+    if (method === 'ORGANIZACIONAL') {
+      add('relatorio_tecnico', true, undefined, undefined, bloqueioDeEmissao);
+    }
     // TPL-003 — Relatório de Evolução e Efetividade: compara os DOIS últimos
     // CICLOS FORMAIS encerrados (definição do cliente 27/07: ciclo = aplicação
     // aberta e encerrada; atualizar ação/prazo NÃO cria ciclo). A comparação é
@@ -2614,6 +2637,22 @@ export class DocumentsService {
    * conteúdo + contexto do contrato + hash + numeração sequencial por tipo.
    * O preview (GET) continua dinâmico; a emissão nunca é reprocessada.
    */
+  /**
+   * Nome da campanha ABERTA do tenant, ou null. E o que separa "coleta em
+   * andamento" de "ciclo fechado" — e o que faltava ser olhado na emissao: o
+   * dossie saia no meio da coleta, congelado, sem dizer que era parcial.
+   */
+  private async cicloEmAndamento(tenantId: string): Promise<string | null> {
+    const aberto = await this.prisma.forTenant(tenantId, async (tx) =>
+      tx.assessmentCycle.findFirst({
+        where: { status: 'OPEN' },
+        orderBy: { createdAt: 'desc' },
+        select: { name: true },
+      }),
+    );
+    return aberto?.name ?? null;
+  }
+
   async emit(tenantId: string, type: string, actorEmail?: string) {
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
@@ -2630,6 +2669,18 @@ export class DocumentsService {
     // livre, mas os documentos TÉCNICOS só são emitidos com a identificação
     // completa da organização — o PGR reúne inventário e plano sob
     // responsabilidade do empregador, então o vínculo precisa ser inequívoco.
+    // O portao que vale e este, no servidor: a tela desabilita o botao, mas a
+    // rota nao pode depender do front.
+    if (type === 'dossie_tecnico' || type === 'relatorio_tecnico') {
+      const aberto = await this.cicloEmAndamento(tenantId);
+      if (aberto) {
+        throw new BadRequestException(
+          `Campanha "${aberto}" ainda está aberta. Encerre a campanha para emitir a versão ` +
+            'oficial — a pré-visualização continua disponível a qualquer momento.',
+        );
+      }
+    }
+
     if (type === 'dossie_tecnico' || type === 'relatorio_evolucao') {
       const missing: string[] = [];
       if (!org?.legalName?.trim()) missing.push('razão social');

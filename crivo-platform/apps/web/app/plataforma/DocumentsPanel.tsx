@@ -71,6 +71,9 @@ export function DocumentsPanel({ onEmitted }: { onEmitted?: () => void } = {}) {
                 </span>
               )}
               <span>{d.available ? "Pronto para gerar" : d.reason ?? "Indisponível"}</span>
+              {d.available && d.emitBlockedReason && (
+                <span style={{ color: "#a8693d" }}>{d.emitBlockedReason}</span>
+              )}
             </div>
             <span style={{ display: "inline-flex", gap: 8 }}>
               <button
@@ -82,9 +85,13 @@ export function DocumentsPanel({ onEmitted }: { onEmitted?: () => void } = {}) {
               </button>
               <button
                 className="btn btn--gold btn--sm"
-                disabled={!d.available || busy === d.type}
+                // Só a EMISSÃO trava com campanha aberta; pré-visualizar segue livre.
+                disabled={!d.available || !!d.emitBlockedReason || busy === d.type}
                 onClick={() => emit(d.type)}
-                title="Congela esta versão no repositório oficial (numerada e com hash de integridade)."
+                title={
+                  d.emitBlockedReason ??
+                  "Congela esta versão no repositório oficial (numerada e com hash de integridade)."
+                }
               >
                 Emitir versão oficial
               </button>
