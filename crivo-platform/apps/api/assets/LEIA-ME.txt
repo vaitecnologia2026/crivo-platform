@@ -1,0 +1,16 @@
+Assets do MAPA Executivo (PDF anexado ao e-mail do lead).
+
+crivo-marca-mapa.png
+  Marca CRIVO extraida do modelo oficial aprovado pelo cliente
+  (MAPA_Executivo_CRIVO_Modelo_25_08_2026). 404x280; a area com tinta vai de
+  (99,99) a (365,228) - o gerador recorta por esses valores.
+
+Lora-Regular.ttf / Lora-Bold.ttf / Poppins-Regular.ttf / Poppins-SemiBold.ttf
+  As duas familias usadas no modelo. Google Fonts, licenca SIL Open Font
+  License 1.1 (OFL) - redistribuicao permitida, inclusive embutida em PDF.
+  Origem: fonts.gstatic.com (Lora v37) e github.com/google/fonts (Poppins v24).
+
+Estes arquivos sao lidos em tempo de execucao por
+apps/api/src/admin/mapa-executivo-pdf.ts. O rsync do deploy copia a pasta
+assets/ (o dist/ e excluido), entao nao ha passo extra de publicacao. Se algum
+arquivo faltar, o gerador cai nas fontes padrao do PDF e o anexo ainda sai.

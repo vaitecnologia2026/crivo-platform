@@ -1290,10 +1290,11 @@ export class DocumentsService {
         label: d.name,
         score: d.value as number,
         faixaLabel: bandLabelOf(d.value as number, mapa.bands),
-      }))
-      .sort((a, b) => b.score - a.score);
+      }));
     const faixas = mapa.bands.map((b) => ({ min: b.min, max: b.max }));
-    const RAMPA = ['#8E2F1B', '#C4671D', '#8A6D1F', '#2E7D4F'];
+    // Cores do modelo oficial (MAPA_Executivo_CRIVO_Modelo_25_08_2026), para o
+    // relatorio do portal e o PDF do e-mail mostrarem a MESMA faixa na MESMA cor.
+    const RAMPA = ['#D92D20', '#F47A00', '#E5B700', '#1F8A4C'];
     const corDaFaixa = (v: number) => {
       const ordenadas = [...mapa.bands].sort((a, b) => a.min - b.min);
       const i = ordenadas.findIndex((b) => v >= b.min && v <= b.max);
@@ -1337,7 +1338,7 @@ export class DocumentsService {
         // é revisão editorial deliberada, não divergência acidental.
         body: approved['sintese_executiva'] ?? sinteseMapa(dimsMapa, faixas),
       },
-      ...destaquesDoMapa(dimsMapa, faixas).map((b) => ({ heading: b.titulo, body: b.corpo })),
+      ...destaquesDoMapa(dimsMapa).map((b) => ({ heading: b.titulo, body: b.corpo })),
       { heading: 'Caminho recomendado', body: caminhoMapa(dimsMapa) },
       {
         heading: 'Sobre esta leitura',

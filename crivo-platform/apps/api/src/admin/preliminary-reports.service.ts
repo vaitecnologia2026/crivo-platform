@@ -447,9 +447,12 @@ export class PreliminaryReportsService {
     try {
       const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC').catch(() => null);
       const bands = cfg?.bands ?? [];
-      const rotulos = new Map(
-        (cfg?.dimensions ?? []).filter((d) => !d.parentSlug).map((d) => [d.slug, d.label]),
-      );
+      const topo = (cfg?.dimensions ?? []).filter((d) => !d.parentSlug);
+      const rotulos = new Map(topo.map((d) => [d.slug, d.label]));
+      // O modelo oficial lista as dimensoes na ordem do questionario, nao por
+      // score. Slug fora da metodologia vai para o fim, na ordem em que veio.
+      const ordem = new Map(topo.map((d, i) => [d.slug, i]));
+      const posicao = (slug: string) => ordem.get(slug) ?? Number.MAX_SAFE_INTEGER;
 
       const faixaDe = (v: number): { label: string; color?: string | null } => {
         const b = bands.length ? findBandForScore(bands, v) : null;
@@ -458,7 +461,7 @@ export class PreliminaryReportsService {
       };
 
       const dimensoes = Object.entries(diagnostic.byDimension ?? {})
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => posicao(a[0]) - posicao(b[0]))
         .map(([slug, v]) => {
           const f = faixaDe(v);
           return {
@@ -624,8 +627,11 @@ function sinteseECaminhoDaIa(markdown: string): { sintese?: string; caminho?: st
 
 export function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: number }[] = []): string {
   if (!dimensoes.length) return 'Sem dimensões avaliadas nesta leitura.';
-  const melhor = dimensoes[0];
-  const pior = dimensoes[dimensoes.length - 1];
+  // Melhor e pior saem daqui, nao da posicao no array: desde que o MAPA passou
+  // a listar as dimensoes na ordem do questionario, `dimensoes[0]` deixou de
+  // ser a de maior nota.
+  const melhor = [...dimensoes].sort((a, b) => b.score - a.score)[0];
+  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
   if (dimensoes.length === 1) {
     return `A leitura concentra-se em ${melhor.label}, com ${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel}).`;
   }
@@ -649,7 +655,8 @@ export function caminhoMapa(dimensoes: DimensaoMapa[]): string {
   if (!dimensoes.length) {
     return 'Aplique o CRIVO Diagnóstico™ para obter a leitura completa da organização.';
   }
-  const pior = dimensoes[dimensoes.length - 1];
+  // Idem sinteseMapa: a ordem de exibicao e a do questionario.
+  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
   return (
     `Comece por ${pior.label}: é a dimensão de menor sustentação e a que mais devolve resultado ` +
     'no curto prazo. O passo seguinte é aplicar o CRIVO Diagnóstico™ (Essencial ou ' +

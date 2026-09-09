@@ -6,7 +6,7 @@
 #   20 3 * * * /opt/crivo/backup-db.sh >> /opt/crivo/backups/backup.log 2>&1
 #
 # NOTA IMPORTANTE: api.env e formato systemd (EnvironmentFile), NAO shell-valido.
-# Valores como `SMTP_FROM=CRIVO <financeiro@crivolegacy.com.br>` tem `<`/`>` e
+# Valores como `SMTP_FROM=CRIVO <contato@crivolegacy.com.br>` tem `<`/`>` e
 # espaco sem aspas — um `. /opt/crivo/api.env` (source) quebra com "syntax error"
 # e, com `set -e`, aborta o backup inteiro. Foi o que parou os dumps automaticos
 # entre 18 e 21/08/2026. Por isso extraimos SO o DATABASE_URL, sem sourcing.
