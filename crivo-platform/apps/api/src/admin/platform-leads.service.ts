@@ -116,6 +116,8 @@ export class PlatformLeadsService {
       score: number;
       level: string;
       levelLabel?: string;
+      /** Cor da faixa, para o e-mail de reserva do site sair colorido igual. */
+      levelColor?: string | null;
       byDimension: Record<string, number>;
       dimensionLabels?: Record<string, string>;
       topAttention: string;
@@ -136,6 +138,7 @@ export class PlatformLeadsService {
           score: r.score,
           level: r.levelCode,
           levelLabel: r.levelLabel,
+          levelColor: r.levelColor,
           byDimension,
           dimensionLabels,
           topAttention: r.topAttentions[0] ?? '',

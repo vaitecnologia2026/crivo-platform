@@ -29,7 +29,8 @@ describe('renderLeadEmailHtml — layout aprovado em 2026-09-04', () => {
     expect(html).toContain('Sua leitura preliminar');
     // 3. corpo enxuto: índice + leitura + anexos
     expect(html).toContain('Seu índice preliminar');
-    expect(html).toContain('Leitura: <strong>Em estruturação</strong>');
+    // O <strong> carrega a cor da faixa quando o Motor tiver uma cadastrada.
+    expect(html).toMatch(/Leitura: <strong[^>]*>Em estruturação<\/strong>/);
     expect(html).toContain('Em anexo, você recebe:');
     // 4. CTA institucional
     expect(html).toContain('CONHECER A CRIVO');
@@ -93,5 +94,26 @@ describe('renderLeadEmailText', () => {
     expect(txt).toContain('Leitura: Em estruturação');
     expect(txt).toContain('- seu Relatório Preliminar do MAPA Executivo CRIVO™');
     expect(txt).not.toContain('<');
+  });
+});
+
+describe('cor da faixa no corpo do e-mail', () => {
+  it('pinta o índice e a leitura com a cor cadastrada no Motor', () => {
+    // O lead precisa ver "Atenção crítica" em vermelho, não em preto: a cor é o
+    // primeiro sinal de gravidade que ele lê.
+    const html = renderLeadEmailHtml({ ...BASE, bandLabel: 'Atenção crítica', bandColor: '#D92D20' });
+    expect(html).toContain('color:#D92D20">51');
+    expect(html).toContain('<strong style="color:#D92D20">Atenção crítica</strong>');
+  });
+
+  it('cai no azul da marca quando a faixa não tem cor', () => {
+    const html = renderLeadEmailHtml({ ...BASE, bandColor: null });
+    expect(html).toContain('color:#0d1f3c">51');
+  });
+
+  it('recusa valor que não seja hex — o style não pode virar porta de injeção', () => {
+    const html = renderLeadEmailHtml({ ...BASE, bandColor: 'red;background:url(x)' });
+    expect(html).not.toContain('background:url(x)');
+    expect(html).toContain('color:#0d1f3c">51');
   });
 });

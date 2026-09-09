@@ -30,6 +30,12 @@ export interface LeadEmailOptions {
   score?: number | null;
   /** Rótulo da faixa em que o índice caiu (vem do Motor de Diagnósticos). */
   bandLabel?: string | null;
+  /**
+   * Cor da faixa (hex), cadastrada no Motor de Diagnósticos. Pinta o índice e o
+   * rótulo da leitura — é o que faz "Atenção crítica" chegar em vermelho.
+   * Ausente: cai no azul da marca, como qualquer texto do e-mail.
+   */
+  bandColor?: string | null;
   /** Anexos realmente presentes. Nunca prometer arquivo que não foi junto. */
   attachments?: LeadEmailAttachmentLine[];
   /** Nota técnica do rodapé — texto editável no super admin. */
@@ -127,17 +133,22 @@ export function renderLeadEmailHtml(o: LeadEmailOptions): string {
           .join('')}</ul>`
     : '';
 
+  // Só hex é aceito: o valor vem do cadastro da faixa e entra num atributo
+  // style, então validar aqui evita injeção de CSS pelo Motor.
+  const corDaFaixa = /^#[0-9a-fA-F]{3,8}$/.test((o.bandColor ?? '').trim())
+    ? (o.bandColor as string).trim()
+    : NAVY;
   const blocoIndice =
     o.score != null
       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 4px">
           <tr><td style="background:${AREIA};border-radius:14px;padding:22px 26px;text-align:center">
             <div style="font:600 11px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6b7488">Seu índice preliminar</div>
-            <div style="margin-top:6px;font:700 42px/1 Georgia,serif;color:${NAVY}">${num(
+            <div style="margin-top:6px;font:700 42px/1 Georgia,serif;color:${corDaFaixa}">${num(
               o.score,
             )}<span style="font:400 22px Georgia,serif;color:#8a92a6"> / 100</span></div>
             ${
               o.bandLabel
-                ? `<div style="margin-top:8px;font:14px Arial,sans-serif;color:${NAVY}">Leitura: <strong>${esc(
+                ? `<div style="margin-top:8px;font:14px Arial,sans-serif;color:#5a6172">Leitura: <strong style="color:${corDaFaixa}">${esc(
                     o.bandLabel,
                   )}</strong></div>`
                 : ''

@@ -331,6 +331,7 @@ export class PreliminaryReportsService {
       company: input.company,
       score: input.diagnostic?.score ?? null,
       bandLabel: mapa?.faixaLabel ?? null,
+      bandColor: mapa?.faixaColor ?? null,
       attachments: linhasAnexo,
       note: input.footer,
     };
@@ -443,7 +444,12 @@ export class PreliminaryReportsService {
     respondente: string,
     /** Relatório da IA, para virar as seções de leitura do PDF. */
     report?: string | null,
-  ): Promise<{ filename: string; content: Buffer; faixaLabel: string } | null> {
+  ): Promise<{
+    filename: string;
+    content: Buffer;
+    faixaLabel: string;
+    faixaColor: string | null;
+  } | null> {
     try {
       const cfg = await loadActiveMethodologyConfig(this.prisma, 'PRE_DIAGNOSTIC').catch(() => null);
       const bands = cfg?.bands ?? [];
@@ -502,7 +508,7 @@ export class PreliminaryReportsService {
       const content = await gerarMapaExecutivoPdf(dados);
       const filename = nomeArquivoMapa(nome, data);
       this.log.log(`MAPA Executivo anexado: ${filename} (${Math.round(content.length / 1024)} KB).`);
-      return { filename, content, faixaLabel };
+      return { filename, content, faixaLabel, faixaColor: geral.color ?? null };
     } catch (e) {
       this.log.warn(
         `Falha ao gerar o PDF do MAPA Executivo (${e instanceof Error ? e.message : e}) — e-mail seguira SEM o anexo do MAPA.`,

@@ -39,6 +39,7 @@ type DiagResult = {
   score: number;
   level: string;
   levelLabel?: string;
+  levelColor?: string | null;
   byDimension?: Record<string, number>;
   // Rótulos da metodologia ATIVA (slug → nome exibível). A plataforma devolve
   // isto no intake; sem ele, dimensões criadas pelo cliente (ex.: "dim-1")
@@ -189,6 +190,7 @@ async function sendLeadEmail(
     company: data.company ?? null,
     score: result?.score ?? null,
     bandLabel: result ? levelLabel(result) : null,
+    bandColor: result?.levelColor ?? null,
     attachments: pdf
       ? [
           {
