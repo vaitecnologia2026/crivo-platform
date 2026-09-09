@@ -244,7 +244,37 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
 /** Dimensões em barras: o quadro numérico sozinho não mostra a diferença. */
 function barrasDimensoesHtml(
   itens: { label: string; value: number; faixa: string; cor?: string | null }[],
+  // O MAPA do portal precisa da MESMA tabela do PDF do e-mail: cabecalho
+  // Dimensao/Escala/Score/Faixa e a legenda das faixas embaixo. As outras
+  // chamadas (Dossie) seguem sem cabecalho, como estavam.
+  opcoes: {
+    cabecalho?: boolean;
+    legenda?: { label: string; min: number; max: number; cor?: string | null }[];
+  } = {},
 ): string {
+  const cab = opcoes.cabecalho
+    ? '<tr>' +
+      ['Dimensao', 'Escala', 'Score', 'Faixa']
+        .map(
+          (c, i) =>
+            `<th style="text-align:left;padding:6px 10px 6px ${i === 0 ? '0' : '10px'};` +
+            `background:#f7f5f1;font-size:10px;font-weight:700;color:#0d1f3c">${escapaHtml(c)}</th>`,
+        )
+        .join('') +
+      '</tr>'
+    : '';
+  const legenda = (opcoes.legenda ?? [])
+    .map(
+      (f) =>
+        '<span style="white-space:nowrap;margin-right:14px">' +
+        '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;' +
+        `background:${f.cor ?? '#69727d'};margin-right:5px"></span>` +
+        `${f.min}-${f.max} ${escapaHtml(f.label)}</span>`,
+    )
+    .join('');
+  const rodape = legenda
+    ? `<p style="margin:6px 0 0;font-size:10px;color:#69727d">${legenda}</p>`
+    : '';
   const linhas = itens
     .map((d) => {
       const cor = d.cor ?? '#A8693D';
@@ -258,7 +288,24 @@ function barrasDimensoesHtml(
       );
     })
     .join('');
-  return `<table style="width:100%;border-collapse:collapse;margin:8px 0">${linhas}</table>`;
+  return (
+    `<table style="width:100%;border-collapse:collapse;margin:8px 0">${cab}${linhas}</table>` +
+    rodape
+  );
+}
+
+/** Caixa do Panorama, no mesmo desenho do PDF que vai anexo ao e-mail. */
+function panoramaHtml(score: number, faixa: string, cor: string | null, texto: string): string {
+  return (
+    '<table style="width:100%;border-collapse:separate;margin:6px 0"><tr>' +
+    '<td style="background:#f7f5f1;border-radius:6px;padding:14px 16px">' +
+    `<div style="font:700 26px Georgia,serif;color:#0d1f3c;line-height:1.1">${umaCasa(score)}` +
+    '<span style="font:400 12px Georgia,serif;color:#69727d"> / 100</span></div>' +
+    `<div style="margin-top:4px;font-size:12.5px;font-weight:700;color:${cor ?? '#A8693D'}">` +
+    `${escapaHtml(faixa)}</div>` +
+    `<p style="margin:10px 0 0;font-size:12px;line-height:1.6;color:#2f343b">${escapaHtml(texto)}</p>` +
+    '</td></tr></table>'
+  );
 }
 
 function buildBaseTecnicaSection(decision: CnaeDecisionRow | null): DocumentSection {
@@ -324,7 +371,7 @@ function adhesionLabel(responses: number, employeesCount?: string | null): strin
   return `${responses} de ${total} (${pct}%)`;
 }
 
-type BandLike = { label: string; min: number; max: number };
+type BandLike = { label: string; min: number; max: number; color?: string | null };
 /**
  * Classificação pela régua ativa — a MESMA régua vale p/ score geral e cada
  * dimensão. Scores fracionários podem cair no VÃO entre faixas inteiras
@@ -1231,13 +1278,13 @@ export class DocumentsService {
     if (!mapa) throw new BadRequestException('Requer o MAPA Executivo CRIVO™ concluído.');
     const approved = await this.approvedTextsOf(tenantId, 'relatorio_executivo');
 
+    // Os MESMOS tres campos do modelo aprovado e do PDF que vai por e-mail.
+    // CNPJ, cargo e versao metodologica sairam: nao estao no modelo e faziam a
+    // tela divergir do anexo que o cliente recebe.
     const meta: GeneratedDocument['meta'] = [
       { label: 'Empresa', value: ctx.company },
-      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
       { label: 'Respondente', value: mapa.respondentName },
-      { label: 'Cargo/Função', value: mapa.respondentRole },
       { label: 'Data da conclusão', value: mapa.concludedAt ? fmt(mapa.concludedAt) : '—' },
-      { label: 'Versão metodológica', value: await this.activeVersionLabel('PRE_DIAGNOSTIC') },
     ];
 
     // Dimensões na ordem da metodologia ativa, com código oficial ME1–ME6.
@@ -1291,27 +1338,27 @@ export class DocumentsService {
         faixaLabel: bandLabelOf(d.value as number, mapa.bands),
       }));
     const faixas = mapa.bands.map((b) => ({ min: b.min, max: b.max }));
-    // Cores do modelo oficial (MAPA_Executivo_CRIVO_Modelo_25_08_2026), para o
-    // relatorio do portal e o PDF do e-mail mostrarem a MESMA faixa na MESMA cor.
-    const RAMPA = ['#D92D20', '#F47A00', '#E5B700', '#1F8A4C'];
-    const corDaFaixa = (v: number) => {
-      const ordenadas = [...mapa.bands].sort((a, b) => a.min - b.min);
-      const i = ordenadas.findIndex((b) => v >= b.min && v <= b.max);
-      if (i < 0 || ordenadas.length < 2) return null;
-      const passo = (RAMPA.length - 1) / (ordenadas.length - 1);
-      return RAMPA[Math.min(RAMPA.length - 1, Math.round(i * passo))] ?? null;
-    };
+    // A cor sai da FAIXA cadastrada no Motor — a mesma fonte que o PDF do
+    // e-mail usa. Antes era uma rampa fixa aqui, entao a mesma faixa aparecia
+    // numa cor na tela e noutra no anexo.
+    const corDaFaixa = (v: number) =>
+      [...mapa.bands].sort((a, b) => a.min - b.min).find((f) => v >= f.min && v <= f.max)?.color ??
+      null;
 
     const sections: DocumentSection[] = [
       {
         heading: 'Panorama',
-        rows: [
-          { label: 'Índice preliminar', value: `${umaCasa(mapa.score)} / 100` },
-          { label: 'Faixa', value: faixaGeral },
-        ],
-        body: panoramaMapa(mapa.score, faixaGeral, dimsMapa.length),
+        html: panoramaHtml(
+          mapa.score,
+          faixaGeral,
+          corDaFaixa(mapa.score),
+          panoramaMapa(mapa.score, faixaGeral, dimsMapa.length),
+        ),
       },
       {
+        // UMA tabela so, com a coluna Escala — como no modelo. Antes saiam duas
+        // leituras da mesma coisa: as barras e, logo abaixo, um quadro
+        // "Codigo/Dimensao/Score/Faixa" que o documento do e-mail nao tem.
         heading: 'Dimensões',
         html: barrasDimensoesHtml(
           dimsMapa.map((d) => ({
@@ -1320,16 +1367,16 @@ export class DocumentsService {
             faixa: d.faixaLabel,
             cor: corDaFaixa(d.score),
           })),
+          {
+            cabecalho: true,
+            legenda: mapa.bands.map((b) => ({
+              label: b.label,
+              min: b.min,
+              max: b.max,
+              cor: b.color ?? null,
+            })),
+          },
         ),
-        table: {
-          columns: ['Código', 'Dimensão', 'Score', 'Faixa'],
-          data: dimRows.map((d) => [
-            d.code,
-            d.name,
-            d.value != null ? String(d.value) : '—',
-            d.value != null ? bandLabelOf(d.value, mapa.bands) : '—',
-          ]),
-        },
       },
       {
         heading: 'Síntese executiva',
@@ -1351,8 +1398,11 @@ export class DocumentsService {
 
     return {
       type: 'relatorio_executivo',
-      title: DOCUMENT_TYPE_LABEL['relatorio_executivo'],
-      subtitle: 'Template final de saída · TPL-001 · Documento executivo preliminar',
+      // Mesmo titulo e subtitulo do documento que o lead recebe. O codigo do
+      // template (TPL-001) e controle interno da CRIVO, nao informacao do
+      // documento da empresa.
+      title: 'MAPA Executivo',
+      subtitle: 'Visão preliminar da organização',
       company: ctx.company,
       generatedAt: new Date().toISOString(),
       meta,
