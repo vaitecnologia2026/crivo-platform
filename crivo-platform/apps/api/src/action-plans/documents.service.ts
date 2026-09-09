@@ -254,7 +254,7 @@ function barrasDimensoesHtml(
 ): string {
   const cab = opcoes.cabecalho
     ? '<tr>' +
-      ['Dimensao', 'Escala', 'Score', 'Faixa']
+      ['Dimensão', 'Escala', 'Score', 'Faixa']
         .map(
           (c, i) =>
             `<th style="text-align:left;padding:6px 10px 6px ${i === 0 ? '0' : '10px'};` +
@@ -284,7 +284,13 @@ function barrasDimensoesHtml(
         `<td style="padding:4px 0"><div style="background:#e6e3dc;border-radius:6px;height:9px;width:100%">` +
         `<div style="background:${cor};height:9px;border-radius:6px;width:${largura}%"></div></div></td>` +
         `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${d.value}</td>` +
-        `<td style="padding:4px 0 4px 10px;font-size:10.5px;color:${cor};white-space:nowrap">${escapaHtml(d.faixa)}</td></tr>`
+        `<td style="padding:4px 0 4px 10px;font-size:10.5px;white-space:nowrap;` +
+        `color:${opcoes.cabecalho ? '#2f343b' : cor}">` +
+        (opcoes.cabecalho
+          ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;` +
+            `background:${cor};margin-right:5px"></span>`
+          : '') +
+        `${escapaHtml(d.faixa)}</td></tr>`
       );
     })
     .join('');
