@@ -25,7 +25,6 @@ import {
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 // MESMAS funções que montam o PDF do MAPA enviado por e-mail: o relatório do
 // portal e o anexo do lead têm de ser o mesmo documento, não dois parecidos.
-import { destaquesDoMapa } from '../admin/mapa-executivo-pdf';
 import {
   caminhoMapa,
   panoramaMapa,
@@ -1338,7 +1337,9 @@ export class DocumentsService {
         // é revisão editorial deliberada, não divergência acidental.
         body: approved['sintese_executiva'] ?? sinteseMapa(dimsMapa, faixas),
       },
-      ...destaquesDoMapa(dimsMapa).map((b) => ({ heading: b.titulo, body: b.corpo })),
+      // Só a síntese e o caminho: é o que o modelo aprovado traz de prosa. A
+      // leitura de qual dimensão pontuou mais e qual pesa mais fica dentro da
+      // síntese, não em blocos separados.
       { heading: 'Caminho recomendado', body: caminhoMapa(dimsMapa) },
       {
         heading: 'Sobre esta leitura',

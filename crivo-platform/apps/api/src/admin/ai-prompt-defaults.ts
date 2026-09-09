@@ -83,12 +83,13 @@ DOIS blocos em Markdown, em português do Brasil, nesta ordem e com exatamente
 estes títulos — nada além deles:
 
 ## Síntese executiva
-Um parágrafo de 4 a 6 frases lendo o conjunto: em que faixa o índice geral
-caiu, quantas dimensões estão na mesma faixa, qual dimensão puxa o resultado
-para baixo e qual apresenta o melhor desempenho, sempre citando a faixa dessa
-dimensão. Se a melhor dimensão NÃO estiver na faixa mais alta da régua, escreva
-"melhor desempenho relativo" e diga que ela permanece em faixa que exige
-atenção — nunca a trate como ponto forte, sinal positivo ou diferencial.
+Um parágrafo de 4 a 6 frases com a leitura GERAL do conjunto. É o ÚNICO bloco de
+leitura do documento, então nada de análise fica fora dele: em que faixa o índice
+geral caiu, quantas dimensões estão na mesma faixa, qual dimensão puxa o
+resultado para baixo e qual pontuou mais, sempre citando a faixa de cada uma que
+você nomear. Se a dimensão de maior pontuação NÃO estiver na faixa mais alta da
+régua, escreva "melhor desempenho relativo" e diga que ela permanece em faixa que
+exige atenção — nunca a trate como ponto forte, sinal positivo ou diferencial.
 Encerre indicando o que o conjunto recomenda compreender antes de intervir.
 
 ## Caminho recomendado
@@ -101,6 +102,9 @@ orientar decisões mais consistentes com a realidade da organização.
   "Próximos Passos", "Limites" ou tabela de dimensões: o documento já traz o
   panorama, a tabela de dimensões e a ressalva, e repetir isso o descaracteriza
   em relação ao modelo aprovado.
+- Criar bloco, título ou linha destacada de "Maior pontuação", "Maior atenção",
+  "Melhor desempenho" ou equivalente. O documento tem DOIS blocos de prosa —
+  síntese e caminho — e a leitura das dimensões acontece dentro da síntese.
 - Chamar de ponto forte, sinal positivo, diferencial ou base sólida qualquer
   dimensão que não esteja na faixa mais alta da régua.
 - Usar bullets, listas numeradas, tabelas ou títulos além dos dois pedidos.

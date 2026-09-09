@@ -137,40 +137,6 @@ export function nomeArquivoMapa(empresa: string, data: Date): string {
   return `MAPA_Executivo_CRIVO_${limpo}_${iso}.pdf`;
 }
 
-/**
- * Linhas "Maior pontuação" e "Maior atenção" do modelo.
- *
- * Exportado porque o MAPA aparece em DOIS lugares — o PDF que vai por e-mail e
- * o Relatório Executivo do portal — e os dois precisam dizer a mesma coisa.
- *
- * O rótulo é o do modelo e é descritivo de propósito: "maior pontuação" informa
- * qual dimensão pontuou mais, sem chamá-la de ponto forte. A faixa vai junto no
- * texto, então uma dimensão em faixa de atenção aparece rotulada como tal.
- *
- * Recebe as dimensões em qualquer ordem: o melhor e o pior saem daqui, não da
- * posição no array.
- */
-export function destaquesDoMapa(
-  dimensoes: { label: string; score: number; faixaLabel: string }[],
-): { titulo: string; corpo: string }[] {
-  const melhor = [...dimensoes].sort((a, b) => b.score - a.score)[0];
-  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
-  const out: { titulo: string; corpo: string }[] = [];
-  if (melhor) {
-    out.push({
-      titulo: 'Maior pontuação',
-      corpo: `${melhor.label} · ${num(melhor.score)} / 100 · ${melhor.faixaLabel}`,
-    });
-  }
-  if (pior) {
-    out.push({
-      titulo: 'Maior atenção',
-      corpo: `${pior.label} · ${num(pior.score)} / 100 · ${pior.faixaLabel}`,
-    });
-  }
-  return out;
-}
-
 export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
@@ -378,11 +344,10 @@ export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
     doc.y += 16;
 
     // ── Síntese executiva ────────────────────────────────────────────────────
-    const hSintese = doc
-      .font(t.sans)
-      .fontSize(11)
-      .heightOfString(d.sintese, { width: largura, align: 'justify' });
-    espaco(Math.min(hSintese + 60, 96));
+    // O modelo tem uma quebra de página explícita aqui: a leitura (síntese e
+    // caminho) começa numa folha própria, aberta pela régua e pelo título em
+    // Lora 24. Reproduzir a quebra é o que evita a síntese partir no meio.
+    doc.addPage();
     regua();
     doc.moveDown(0.5);
     doc.fillColor(AZUL).font(t.serif).fontSize(24).text('Síntese executiva', L, doc.y);
@@ -394,28 +359,9 @@ export function gerarMapaExecutivoPdf(d: DadosMapaExecutivo): Promise<Buffer> {
       .text(d.sintese, L, doc.y, { width: largura, align: 'justify' });
     doc.y += 16;
 
-    // ── Maior pontuação · Maior atenção ──────────────────────────────────────
-    const destaques = destaquesDoMapa(d.dimensoes);
-    if (destaques.length) {
-      espaco(destaques.length * 26 + 6);
-      const colRotulo = 108;
-      for (const b of destaques) {
-        const y = doc.y;
-        doc
-          .fillColor(AZUL)
-          .font(t.sansB)
-          .fontSize(9)
-          .text(b.titulo, L, y + 4, { width: colRotulo - 8 });
-        doc
-          .fillColor(GRAFITE)
-          .font(t.sans)
-          .fontSize(10)
-          .text(b.corpo, L + colRotulo, y + 3, { width: largura - colRotulo });
-        doc.y = Math.max(doc.y, y + 22);
-        doc.moveTo(L, doc.y).lineTo(L + largura, doc.y).strokeColor(LINHA).lineWidth(0.5).stroke();
-      }
-      doc.y += 18;
-    }
+    // Não há bloco de "maior pontuação"/"maior atenção": a leitura das
+    // dimensões acontece dentro da Síntese executiva, e o documento fica com os
+    // dois blocos de prosa do modelo — síntese e caminho.
 
     // ── Caminho recomendado ──────────────────────────────────────────────────
     const hCaminho = doc

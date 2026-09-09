@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  destaquesDoMapa,
   gerarMapaExecutivoPdf,
   nomeArquivoMapa,
   type DadosMapaExecutivo,
@@ -63,32 +62,5 @@ describe('gerarMapaExecutivoPdf', () => {
     // ficar sem o MAPA por causa de configuração ausente.
     const buf = await gerarMapaExecutivoPdf({ ...DADOS, faixas: [], dimensoes: [] });
     expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
-  });
-});
-
-describe('destaquesDoMapa', () => {
-  const DIMS = [
-    { label: 'Clima', score: 38, faixaLabel: 'Atenção crítica' },
-    { label: 'Liderança', score: 62.5, faixaLabel: 'Vulnerável' },
-    { label: 'Rotina', score: 50, faixaLabel: 'Vulnerável' },
-  ];
-
-  it('usa os rótulos do modelo oficial, com a faixa junto do número', () => {
-    // O modelo diz "Maior pontuação"/"Maior atenção" e traz a faixa no texto —
-    // é o que impede ler como ponto forte uma dimensão em faixa de atenção.
-    expect(destaquesDoMapa(DIMS)).toEqual([
-      { titulo: 'Maior pontuação', corpo: 'Liderança · 62,5 / 100 · Vulnerável' },
-      { titulo: 'Maior atenção', corpo: 'Clima · 38,0 / 100 · Atenção crítica' },
-    ]);
-  });
-
-  it('não depende da ordem em que as dimensões chegam', () => {
-    // O MAPA passou a listar as dimensões na ordem do questionário; o melhor e
-    // o pior têm de sair do score, não da posição no array.
-    expect(destaquesDoMapa([...DIMS].reverse())).toEqual(destaquesDoMapa(DIMS));
-  });
-
-  it('devolve lista vazia sem dimensões', () => {
-    expect(destaquesDoMapa([])).toEqual([]);
   });
 });
