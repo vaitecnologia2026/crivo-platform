@@ -246,7 +246,7 @@ export const AI_PLANS_TIMEOUT_MS = 22000;
  * dos 15s do `apiFetch` do portal, senão a tela morre em "Não foi possível
  * carregar" e o usuário nunca chega a ver o fallback da biblioteca.
  */
-export const AI_PLANS_TIMEOUT_LISTAGEM_MS = 9000;
+export const AI_PLANS_TIMEOUT_LISTAGEM_MS = 12000;
 
 export async function resolveActionPlans(
   deps: ActionPlansDeps,

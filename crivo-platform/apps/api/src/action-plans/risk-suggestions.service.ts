@@ -164,6 +164,20 @@ export class RiskSuggestionsService {
       );
     }
 
+    // A IA so e consultada se houver o que sugerir. Antes ela era chamada ANTES
+    // de olhar o plano, entao toda abertura da tela pagava a chamada — mesmo com
+    // todos os fatores ja cobertos, que e o caso normal depois da primeira vez.
+    const fatoresCobertos = await this.fatoresComAcao(tenantId, planId);
+    if (required.every((r) => fatoresCobertos.has(r.slug))) {
+      return {
+        origin: 'biblioteca',
+        suggestions: [],
+        reason:
+          'Todos os fatores com plano obrigatório já têm ação no Plano de Evolução. ' +
+          'Novas sugestões aparecem quando um novo fator atingir risco 10 ou mais.',
+      };
+    }
+
     const { plans, origin } = await resolveActionPlans(
       { prisma: this.prisma, aiSettings: this.aiSettings },
       tenantId,
@@ -174,7 +188,8 @@ export class RiskSuggestionsService {
       // Esta lista é pedida ao ABRIR o Plano de Evolução, e o portal desiste em
       // 15s. Com o orçamento antigo (22s) a tela morria em "Não foi possível
       // carregar" toda vez que a IA demorava — e o fallback da biblioteca, que
-      // é instantâneo, nunca chegava a aparecer.
+      // é instantâneo, nunca chegava a aparecer. Medido em produção depois dos
+      // lotes: 10,9s para 14 fatores, com folga dentro dos 12s.
       AI_PLANS_TIMEOUT_LISTAGEM_MS,
     );
     const jaNoPlano = await this.acceptedKeys(tenantId, planId);
@@ -221,6 +236,20 @@ export class RiskSuggestionsService {
   }
 
   /** Chaves já aceitas — evita oferecer de novo o que já está no plano. */
+  /**
+   * Fatores que JA tem acao no plano. Checagem barata (uma consulta) que evita a
+   * chamada de IA quando nao ha nada novo a sugerir.
+   */
+  private async fatoresComAcao(tenantId: string, planId?: string): Promise<Set<string>> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.actionItem.findMany({
+        where: { riskFactorSlug: { not: null }, ...(planId ? { planId } : {}) },
+        select: { riskFactorSlug: true },
+      });
+      return new Set(rows.map((r) => r.riskFactorSlug).filter((k): k is string => !!k));
+    });
+  }
+
   private async acceptedKeys(tenantId: string, planId?: string): Promise<Set<string>> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.actionItem.findMany({
