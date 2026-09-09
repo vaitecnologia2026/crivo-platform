@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { PsychosocialRiskMatrixRow } from '@crivo/types';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AiSettingsService } from '../admin/ai-settings.service';
@@ -9,6 +10,29 @@ import {
   PSYCHOSOCIAL_ACTION_LIBRARY,
   type PsychosocialActionLibraryEntry,
 } from './psychosocial-action-library';
+
+const log = new Logger('ActionPlansAI');
+
+/**
+ * Quantos fatores por chamada.
+ *
+ * Era UMA chamada para todos. Com 14 fatores obrigatorios x 3-4 acoes x cinco
+ * campos, a resposta batia no teto de saida e vinha CORTADA: o `JSON.parse`
+ * lancava e o catch devolvia null em silencio — ou seja, toda chamada que dava
+ * `ok: true` era jogada fora. Medido em producao: `completion_tokens` = 2800,
+ * exatamente o teto, nas duas chamadas bem-sucedidas.
+ */
+const FATORES_POR_LOTE = 4;
+/** Teto de saida por fator, com folga para 4 acoes de cinco campos. */
+const TOKENS_POR_FATOR = 800;
+/** Piso, para um lote de 1 fator nao ficar sem espaco. */
+const TOKENS_MINIMO = 1200;
+
+function emLotes<T>(itens: T[], tamanho: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < itens.length; i += tamanho) out.push(itens.slice(i, i + tamanho));
+  return out;
+}
 
 /**
  * Conteúdo dos planos de ação psicossociais, por dimensão.
@@ -59,26 +83,10 @@ async function fromAI(
   const s = await deps.aiSettings.get();
   if (!s.enabled || !s.enabledModules.includes('relatorios') || matrix.length === 0) return null;
 
-  const dimensoes = matrix
-    .map(
-      (r) =>
-        `- ${r.label} (slug: ${r.slug}) — Classificação: ${r.riskClass}; ` +
-        `Risco R = ${r.risk} (Probabilidade ${r.probability} × Severidade ${r.severity}); ` +
-        `exposição média ${r.exposureAvg.toFixed(2)}; ` +
-        `plano de ação ${r.planRequired ? 'OBRIGATÓRIO' : 'não obrigatório'}`,
-    )
-    .join('\n');
-  const slugs = matrix.map((r) => r.slug);
-
-  // Prompt PERSONALIZADO do super admin (IA da Plataforma · Prompts e Políticas)
-  // vinculado ao DIAGNÓSTICO que está sendo processado: quando existir um ativo,
-  // o corpo dele (+ material de referência anexado) substitui o system fixo. O
-  // guard de JSON é anexado SEMPRE e a mensagem `user` fica intacta → o parse
-  // nunca quebra. O slug vem de quem chamou porque o mesmo prompt pode atender
-  // mais de um diagnóstico (ex.: Essencial e Organizacional sob uma política só).
-  // Permissivo: qualquer falha na consulta cai no prompt fixo.
+  // Prompt PERSONALIZADO do super admin (IA da Plataforma), vinculado ao
+  // DIAGNOSTICO processado. O guard de JSON e anexado SEMPRE e a mensagem `user`
+  // fica intacta. Permissivo: qualquer falha na consulta cai no prompt fixo.
   const custom = await findActiveCustomPromptForInstrument(deps.prisma, instrumentSlug);
-
   let system: string;
   if (custom) {
     const refs = buildPromptReferenceBlocks(custom.files);
@@ -90,6 +98,47 @@ async function fromAI(
       'riscos psicossociais por dimensão avaliada, com linguagem técnica, objetiva e prática, aplicável à ' +
       `realidade de uma organização. ${PSY_JSON_FORMAT_GUARD}`;
   }
+
+  // Lotes PEQUENOS e em paralelo: cada resposta cabe no teto, e a falha de um
+  // lote nao leva os outros junto — antes, uma resposta cortada descartava o
+  // conjunto inteiro.
+  const grupos = emLotes(matrix, FATORES_POR_LOTE);
+  const partes = await Promise.all(
+    grupos.map((g) => umLote(deps, tenantId, g, system, timeoutMs).catch(() => null)),
+  );
+  const out: Record<string, PsychosocialActionLibraryEntry> = {};
+  for (const p of partes) if (p) Object.assign(out, p);
+  const cobertos = Object.keys(out).length;
+  if (!cobertos) {
+    log.warn(
+      `IA nao cobriu nenhum dos ${matrix.length} fatores (${grupos.length} lote(s)) — usando a biblioteca tecnica.`,
+    );
+    return null;
+  }
+  if (cobertos < matrix.length) {
+    log.warn(`IA cobriu ${cobertos} de ${matrix.length} fatores; o restante sai da biblioteca tecnica.`);
+  }
+  return out;
+}
+
+/** Uma chamada de IA para UM lote de fatores. */
+async function umLote(
+  deps: ActionPlansDeps,
+  tenantId: string,
+  matrix: PsychosocialRiskMatrixRow[],
+  system: string,
+  timeoutMs: number,
+): Promise<Record<string, PsychosocialActionLibraryEntry> | null> {
+  const dimensoes = matrix
+    .map(
+      (r) =>
+        `- ${r.label} (slug: ${r.slug}) — Classificação: ${r.riskClass}; ` +
+        `Risco R = ${r.risk} (Probabilidade ${r.probability} × Severidade ${r.severity}); ` +
+        `exposição média ${r.exposureAvg.toFixed(2)}; ` +
+        `plano de ação ${r.planRequired ? 'OBRIGATÓRIO' : 'não obrigatório'}`,
+    )
+    .join('\n');
+  const slugs = matrix.map((r) => r.slug);
   const user =
     'Dimensões psicossociais avaliadas nesta organização, com a classificação de risco derivada da ' +
     `matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +
@@ -113,7 +162,9 @@ async function fromAI(
     ],
     responseFormat: 'json_object',
     temperature: 0.3,
-    maxTokens: 2800,
+    // Proporcional ao LOTE. Fixo em 2800 para a matriz inteira, a resposta vinha
+    // cortada no teto e o JSON quebrava.
+    maxTokens: Math.max(TOKENS_MINIMO, TOKENS_POR_FATOR * matrix.length),
     // O orçamento vem de QUEM CHAMA: a emissão de documento pode esperar, a
     // listagem do Plano de Evolução não. Este comentário dizia "o portal espera
     // até 60s" — verdade para os documentos, falso para a listagem, que usa o
@@ -165,9 +216,21 @@ async function fromAI(
       out[row.slug] = { descricao, objetivo, acoes };
     }
     // Nenhuma dimensão válida no conjunto → fallback para a biblioteca fixa.
-    if (Object.keys(out).length === 0) return null;
+    if (Object.keys(out).length === 0) {
+      log.warn(
+        `Lote de ${matrix.length} fator(es): resposta valida, mas nenhum fator reconhecido ` +
+          `(${r.content.length} chars). Slugs pedidos: ${matrix.map((x) => x.slug).join(', ')}.`,
+      );
+      return null;
+    }
     return out;
-  } catch {
+  } catch (e) {
+    // Este catch era mudo. Era ele que escondia o defeito real: JSON cortado no
+    // teto de saida, chamada marcada como `ok` e conteudo descartado.
+    log.warn(
+      `Lote de ${matrix.length} fator(es): resposta nao pode ser lida (${r.content.length} chars, ` +
+        `possivel corte no teto de saida): ${e instanceof Error ? e.message : e}`,
+    );
     return null;
   }
 }
@@ -193,8 +256,10 @@ export async function resolveActionPlans(
   timeoutMs: number = AI_PLANS_TIMEOUT_MS,
 ): Promise<ResolvedActionPlans> {
   const ai = await fromAI(deps, tenantId, matrix, instrumentSlug, timeoutMs).catch(() => null);
+  // A biblioteca e a BASE e a IA entra por cima, fator a fator. Antes era um ou
+  // outro: se a IA cobrisse 8 de 14, os 14 vinham da biblioteca.
   return ai
-    ? { plans: ai, origin: 'IA' }
+    ? { plans: { ...PSYCHOSOCIAL_ACTION_LIBRARY, ...ai }, origin: 'IA' }
     : { plans: PSYCHOSOCIAL_ACTION_LIBRARY, origin: 'biblioteca' };
 }
 
