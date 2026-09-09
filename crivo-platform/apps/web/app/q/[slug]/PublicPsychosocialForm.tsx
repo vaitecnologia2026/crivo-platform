@@ -73,10 +73,11 @@ function marcarRespondidoNesteDispositivo(slug: string): void {
 }
 
 /**
- * Formulário público do Diagnóstico Organizacional. Serve DOIS links:
- *  · /q/<slug>   — link aberto da empresa (padrão, sem props extras)
- *  · /p/c/<slug> — campanha, que injeta seu próprio par carregar/enviar
- * Uma implementação só para os dois não divergirem em pergunta, escala ou texto.
+ * Formulário público do Diagnóstico Organizacional. Serve TRÊS links:
+ *  · /q/<slug>    — link aberto da empresa (padrão, sem props extras)
+ *  · /p/c/<slug>  — campanha, atrás de porta de CPF
+ *  · /r/<token>   — link do colaborador, atrás de porta de CPF
+ * Uma implementação só para os três não divergirem em pergunta, escala ou texto.
  */
 export function PublicPsychosocialForm({
   slug,
@@ -87,6 +88,9 @@ export function PublicPsychosocialForm({
   setorFixo = null,
   rotulo = "Questionário Psicossocial",
   contexto = null,
+  // Quem chega por porta de CPF já ESTÁ identificado, e o servidor é quem diz
+  // se aquela pessoa respondeu. Ver `identificado` no tipo abaixo.
+  identificado = false,
 }: {
   slug: string;
   carregar?: (slug: string) => Promise<{
@@ -104,6 +108,17 @@ export function PublicPsychosocialForm({
   setorFixo?: string | null;
   rotulo?: string;
   contexto?: string | null;
+  /**
+   * O respondente passou por uma porta de CPF (campanha ou link do colaborador).
+   *
+   * Nesse caso a marca de dispositivo não vale e atrapalha: ela é por SLUG, não
+   * por pessoa, então a segunda pessoa a usar o mesmo computador batia no aviso
+   * "você já respondeu por este dispositivo" mesmo tendo informado outro CPF e
+   * mesmo com a resposta dela ainda em aberto. Quem manda aqui é o servidor:
+   * o `verify` devolve `answered` e o envio recusa a segunda resposta do mesmo
+   * CPF com 409. Por isso a marca não é lida NEM gravada quando há identificação.
+   */
+  identificado?: boolean;
 }) {
   const [tenantName, setTenantName] = useState("");
   const [questions, setQuestions] = useState<PsychosocialQuestion[]>([]);
@@ -132,7 +147,7 @@ export function PublicPsychosocialForm({
   useEffect(() => () => { if (avancoRef.current) clearTimeout(avancoRef.current); }, []);
 
   useEffect(() => {
-    setAvisoRepeticao(jaRespondeuNesteDispositivo(slug));
+    setAvisoRepeticao(identificado ? false : jaRespondeuNesteDispositivo(slug));
     carregar(slug)
       .then((d) => {
         setTenantName(d.tenantName);
@@ -187,7 +202,7 @@ export function PublicPsychosocialForm({
       setSubmitState("done");
       // Só marca depois de o servidor confirmar: falha de rede não pode fazer a
       // pessoa achar que respondeu.
-      marcarRespondidoNesteDispositivo(slug);
+      if (!identificado) marcarRespondidoNesteDispositivo(slug);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setSubmitState("error");

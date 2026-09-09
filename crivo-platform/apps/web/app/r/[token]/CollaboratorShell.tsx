@@ -101,6 +101,8 @@ export function CollaboratorShell() {
           scaleLabels: verified.scaleLabels,
         })}
         enviar={async (_t, body) => submitCollab(token, { cpf: normalizeCpf(cpf), answers: body.answers })}
+        // Idem campanha: a identidade é o CPF conferido no servidor, não o navegador.
+        identificado
       />
     );
   }

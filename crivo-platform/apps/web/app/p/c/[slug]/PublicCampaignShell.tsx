@@ -223,6 +223,10 @@ export function PublicCampaignShell() {
         setorFixo={verificado.sector ?? data.sector}
         rotulo="Campanha de Diagnóstico"
         contexto={data.sector ? `${data.name} · ${data.sector}` : data.name}
+        // A porta de CPF acima já identificou a pessoa e o servidor já disse que
+        // ela não respondeu — o aviso por dispositivo só atrapalharia a segunda
+        // pessoa a usar o mesmo computador.
+        identificado
       />
     );
   }
