@@ -14,8 +14,14 @@ import { describe, expect, it, vi } from 'vitest';
  * assessments — e o lembrete foi para o único usuário ativo do tenant.
  */
 
+// O mock precisa DECLARAR o parâmetro: sem ele `mock.calls` tipa como tupla
+// vazia e `calls[0][0]` não compila no `nest build`.
+type Envio = { to: string; subject: string; html: string };
 const { sendMail, mailConfigured } = vi.hoisted(() => ({
-  sendMail: vi.fn(async () => ({ ok: true, provider: 'smtp' })),
+  sendMail: vi.fn(async (_opts: { to: string; subject: string; html: string }) => ({
+    ok: true,
+    provider: 'smtp',
+  })),
   mailConfigured: vi.fn(() => true),
 }));
 vi.mock('../common/mailer', () => ({ sendMail, mailConfigured }));
@@ -86,7 +92,7 @@ describe('sendCampaignReminders', () => {
     const r = await service.sendCampaignReminders(TENANT, CICLO);
     expect(r).toMatchObject({ sent: 1, pending: 1 });
     expect(sendMail).toHaveBeenCalledTimes(1);
-    expect(sendMail.mock.calls[0][0]).toMatchObject({ to: 'nelson@x.com' });
+    expect(sendMail.mock.calls[0]?.[0] as Envio).toMatchObject({ to: 'nelson@x.com' });
   });
 
   it('conta o pendente sem e-mail e explica por que ele não recebeu', async () => {
@@ -109,7 +115,7 @@ describe('sendCampaignReminders', () => {
     });
     const r = await service.sendCampaignReminders(TENANT, CICLO);
     expect(r).toMatchObject({ sent: 1, pending: 1 });
-    expect(sendMail.mock.calls[0][0]).toMatchObject({ to: 'lider@x.com' });
+    expect(sendMail.mock.calls[0]?.[0] as Envio).toMatchObject({ to: 'lider@x.com' });
     // Aqui a audiência é usuário do portal, então o push volta a ter destinatário.
     expect(dispatchPush).toHaveBeenCalledWith('icd.lembrete_campanha', expect.objectContaining({ userIds: ['u1'] }));
   });
