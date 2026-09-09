@@ -9,7 +9,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
-import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
+import {
+  AI_PLANS_TIMEOUT_LISTAGEM_MS,
+  planEntryFor,
+  resolveActionPlans,
+} from './psychosocial-action-plans';
 import { resolvePsychosocialInstrument } from '../admin/methodology.service';
 
 /**
@@ -167,6 +171,11 @@ export class RiskSuggestionsService {
       // Mesmo instrumento que produziu a matriz (psychosocial.results) — é por
       // ele que o prompt personalizado da IA da Plataforma é resolvido.
       await resolvePsychosocialInstrument(this.prisma),
+      // Esta lista é pedida ao ABRIR o Plano de Evolução, e o portal desiste em
+      // 15s. Com o orçamento antigo (22s) a tela morria em "Não foi possível
+      // carregar" toda vez que a IA demorava — e o fallback da biblioteca, que
+      // é instantâneo, nunca chegava a aparecer.
+      AI_PLANS_TIMEOUT_LISTAGEM_MS,
     );
     const jaNoPlano = await this.acceptedKeys(tenantId, planId);
 

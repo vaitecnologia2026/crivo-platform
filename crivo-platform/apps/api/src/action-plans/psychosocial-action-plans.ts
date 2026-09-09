@@ -54,6 +54,7 @@ async function fromAI(
   tenantId: string,
   matrix: PsychosocialRiskMatrixRow[],
   instrumentSlug: string,
+  timeoutMs: number,
 ): Promise<Record<string, PsychosocialActionLibraryEntry> | null> {
   const s = await deps.aiSettings.get();
   if (!s.enabled || !s.enabledModules.includes('relatorios') || matrix.length === 0) return null;
@@ -113,10 +114,12 @@ async function fromAI(
     responseFormat: 'json_object',
     temperature: 0.3,
     maxTokens: 2800,
-    // gpt-4o-mini + timeout curto: a geração é síncrona (o portal espera até
-    // 60s). Se a IA demorar além disto, o fallback entra bem antes de estourar.
+    // O orçamento vem de QUEM CHAMA: a emissão de documento pode esperar, a
+    // listagem do Plano de Evolução não. Este comentário dizia "o portal espera
+    // até 60s" — verdade para os documentos, falso para a listagem, que usa o
+    // tempo limite genérico de 15s. Era essa premissa que derrubava a tela.
     model: 'gpt-4o-mini',
-    timeoutMs: 22000,
+    timeoutMs,
   });
   if (!r.ok) return null;
 
@@ -173,13 +176,23 @@ async function fromAI(
  * Mapa de planos para a matriz dada: IA quando disponível e válida, senão a
  * biblioteca técnica fixa. Nunca lança — o pior caso é devolver a biblioteca.
  */
+/** Orçamento padrão: emissão de documento, onde o cliente espera. */
+export const AI_PLANS_TIMEOUT_MS = 22000;
+/**
+ * Orçamento da LISTAGEM do Plano de Evolução. Tem de terminar com folga dentro
+ * dos 15s do `apiFetch` do portal, senão a tela morre em "Não foi possível
+ * carregar" e o usuário nunca chega a ver o fallback da biblioteca.
+ */
+export const AI_PLANS_TIMEOUT_LISTAGEM_MS = 9000;
+
 export async function resolveActionPlans(
   deps: ActionPlansDeps,
   tenantId: string,
   matrix: PsychosocialRiskMatrixRow[],
   instrumentSlug: string,
+  timeoutMs: number = AI_PLANS_TIMEOUT_MS,
 ): Promise<ResolvedActionPlans> {
-  const ai = await fromAI(deps, tenantId, matrix, instrumentSlug).catch(() => null);
+  const ai = await fromAI(deps, tenantId, matrix, instrumentSlug, timeoutMs).catch(() => null);
   return ai
     ? { plans: ai, origin: 'IA' }
     : { plans: PSYCHOSOCIAL_ACTION_LIBRARY, origin: 'biblioteca' };
