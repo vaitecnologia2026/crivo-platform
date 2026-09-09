@@ -631,28 +631,69 @@ function sinteseECaminhoDaIa(markdown: string): { sintese?: string; caminho?: st
   return { sintese: pega('ntese'), caminho: pega('aminho') };
 }
 
+/** "A", "A e B", "A, B e C" — enumeração em português, sem vírgula antes do "e". */
+export function listarEmPortugues(itens: string[]): string {
+  if (itens.length <= 1) return itens[0] ?? '';
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+}
+
+/**
+ * TODAS as dimensões que empatam no extremo pedido.
+ *
+ * Pegar `sort(...)[0]` escondia empate: com duas dimensões em 87,5 o texto
+ * nomeava uma e calava a outra, e o leitor confrontava a tabela — onde as duas
+ * aparecem — com uma síntese que só cita metade.
+ */
+function extremosDoMapa(dimensoes: DimensaoMapa[], lado: 'max' | 'min'): DimensaoMapa[] {
+  const alvo = dimensoes.reduce(
+    (acc, d) => (lado === 'max' ? Math.max(acc, d.score) : Math.min(acc, d.score)),
+    lado === 'max' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+  );
+  return dimensoes.filter((d) => d.score === alvo);
+}
+
 export function sinteseMapa(dimensoes: DimensaoMapa[], faixas: { min: number; max: number }[] = []): string {
   if (!dimensoes.length) return 'Sem dimensões avaliadas nesta leitura.';
   // Melhor e pior saem daqui, nao da posicao no array: desde que o MAPA passou
   // a listar as dimensoes na ordem do questionario, `dimensoes[0]` deixou de
   // ser a de maior nota.
-  const melhor = [...dimensoes].sort((a, b) => b.score - a.score)[0];
-  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
+  const melhores = extremosDoMapa(dimensoes, 'max');
+  const piores = extremosDoMapa(dimensoes, 'min');
+  const melhor = melhores[0];
+  const pior = piores[0];
   if (dimensoes.length === 1) {
     return `A leitura concentra-se em ${melhor.label}, com ${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel}).`;
+  }
+  // Tudo com a mesma nota: não existe "outro extremo" a apontar, e fingir que
+  // existe seria inventar um contraste que os números não sustentam.
+  if (melhor.score === pior.score) {
+    return (
+      `As ${dimensoes.length} dimensões avaliadas pontuaram igual, ${umaCasa(melhor.score)} de 100 ` +
+      `(${melhor.faixaLabel}) — nesta leitura nenhuma frente se destaca das demais, para melhor ou ` +
+      'para pior. O conjunto recomenda compreender causas, contexto e prioridades antes de ' +
+      'estruturar intervenções.'
+    );
   }
   // Dizer "ponto mais sustentado" de uma dimensão em faixa de atenção era ler
   // como força o que é apenas o menor desgaste. Só a faixa mais alta da régua
   // autoriza a leitura positiva.
   const topo = [...faixas].sort((a, b) => b.max - a.max)[0];
   const forte = topo ? melhor.score >= topo.min : melhor.score >= 80;
+  const nomes = (ds: DimensaoMapa[]) => listarEmPortugues(ds.map((d) => d.label));
+  const vMelhor = melhores.length > 1;
+  const vPior = piores.length > 1;
   return (
-    `${melhor.label} apresenta o melhor desempenho ${forte ? '' : 'relativo '}do conjunto, com ` +
+    `${nomes(melhores)} ${vMelhor ? 'apresentam' : 'apresenta'} o melhor desempenho ` +
+    `${forte ? '' : 'relativo '}do conjunto, ${vMelhor ? 'empatadas em' : 'com'} ` +
     `${umaCasa(melhor.score)} de 100 (${melhor.faixaLabel})` +
-    (forte ? '. ' : ' — ainda em faixa que exige atenção, portanto não configura ponto forte. ') +
-    `No outro extremo, ${pior.label} responde por ${umaCasa(pior.score)} de 100 ` +
-    `(${pior.faixaLabel}) e é onde a operação mais depende de correção informal. O conjunto ` +
-    'recomenda compreender causas, contexto e prioridades antes de estruturar intervenções.'
+    (forte
+      ? '. '
+      : ` — ainda em faixa que exige atenção, portanto não ${vMelhor ? 'configuram' : 'configura'} ` +
+        'ponto forte. ') +
+    `No outro extremo, ${nomes(piores)} ${vPior ? 'respondem' : 'responde'} por ` +
+    `${umaCasa(pior.score)} de 100 (${pior.faixaLabel})${vPior ? ', também em empate,' : ''} e é aí ` +
+    'que a operação mais depende de correção informal. O conjunto recomenda compreender causas, ' +
+    'contexto e prioridades antes de estruturar intervenções.'
   );
 }
 
@@ -661,13 +702,27 @@ export function caminhoMapa(dimensoes: DimensaoMapa[]): string {
   if (!dimensoes.length) {
     return 'Aplique o CRIVO Diagnóstico™ para obter a leitura completa da organização.';
   }
-  // Idem sinteseMapa: a ordem de exibicao e a do questionario.
-  const pior = [...dimensoes].sort((a, b) => a.score - b.score)[0];
+  // Idem sinteseMapa: a ordem de exibicao e a do questionario, e o empate na
+  // menor nota nomeia TODAS as dimensoes envolvidas.
+  const piores = extremosDoMapa(dimensoes, 'min');
+  const proximo =
+    'O passo seguinte é aplicar o CRIVO Diagnóstico™ (Essencial ou Organizacional), que amplia ' +
+    'esta leitura para o time inteiro, mede os fatores de risco psicossociais e transforma o ' +
+    'achado em plano de ação com responsável, prazo e evidência.';
+  // Empate geral: mandar "começar por todas" não é recomendação, é lista.
+  if (dimensoes.length > 1 && piores.length === dimensoes.length) {
+    return (
+      `As ${dimensoes.length} dimensões estão no mesmo patamar, ${umaCasa(piores[0].score)} de 100, ` +
+      `então não há uma frente isolada por onde começar. ${proximo}`
+    );
+  }
+  const varios = piores.length > 1;
   return (
-    `Comece por ${pior.label}: é a dimensão de menor sustentação e a que mais devolve resultado ` +
-    'no curto prazo. O passo seguinte é aplicar o CRIVO Diagnóstico™ (Essencial ou ' +
-    'Organizacional), que amplia esta leitura para o time inteiro, mede os fatores de risco ' +
-    'psicossociais e transforma o achado em plano de ação com responsável, prazo e evidência.'
+    `Comece por ${listarEmPortugues(piores.map((d) => d.label))}: ` +
+    (varios
+      ? 'são as dimensões de menor sustentação, empatadas, e as que mais devolvem resultado no curto prazo. '
+      : 'é a dimensão de menor sustentação e a que mais devolve resultado no curto prazo. ') +
+    proximo
   );
 }
 

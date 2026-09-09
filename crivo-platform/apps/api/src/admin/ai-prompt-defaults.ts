@@ -87,7 +87,10 @@ Um parágrafo de 4 a 6 frases com a leitura GERAL do conjunto. É o ÚNICO bloco
 leitura do documento, então nada de análise fica fora dele: em que faixa o índice
 geral caiu, quantas dimensões estão na mesma faixa, qual dimensão puxa o
 resultado para baixo e qual pontuou mais, sempre citando a faixa de cada uma que
-você nomear. Se a dimensão de maior pontuação NÃO estiver na faixa mais alta da
+você nomear. Se DUAS OU MAIS dimensões empatarem na maior pontuação, nomeie
+TODAS elas; idem no outro extremo, para a menor pontuação. Nunca escolha uma
+entre as empatadas: o leitor tem a tabela ao lado e vê o empate. Se todas
+tiverem a mesma nota, diga isso em vez de forjar um contraste. Se a dimensão de maior pontuação NÃO estiver na faixa mais alta da
 régua, escreva "melhor desempenho relativo" e diga que ela permanece em faixa que
 exige atenção — nunca a trate como ponto forte, sinal positivo ou diferencial.
 Encerre indicando o que o conjunto recomenda compreender antes de intervir.
