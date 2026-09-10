@@ -14,6 +14,9 @@ import {
   psychosocialRiskClass,
   type PsychosocialRiskClass,
   PSYCHOSOCIAL_RISK_CLASS_ACTION,
+  PSYCHOSOCIAL_PROBABILITY_SHORT,
+  PSYCHOSOCIAL_PROBABILITY_CRITERION,
+  PSYCHOSOCIAL_SEVERITY_SHORT,
   fillReportPlaceholders,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,8 +43,9 @@ type ReportTemplateSectionRow = { heading?: string; body?: string };
 
 const METHOD_LABEL: Record<string, string> = {
   INICIAL: 'Diagnóstico Inicial',
-  ESSENCIAL: 'Diagnóstico Essencial',
-  ORGANIZACIONAL: 'Diagnóstico Organizacional',
+  // Nome OFICIAL do método, como sai no campo "Método aplicado" do modelo.
+  ESSENCIAL: 'Diagnóstico Essencial CRIVO',
+  ORGANIZACIONAL: 'Diagnóstico Organizacional CRIVO',
 };
 const OUTPUT_LABEL: Record<string, string> = {
   SEM_INTEGRACAO: 'Sem integração formal',
@@ -69,6 +73,8 @@ export type FactorItem = {
   riskLevel: string | null;
   // F2 — informados pela EMPRESA no Plano de Evolução (nunca inventados).
   areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
+  /** Objetivo da medida — coluna "Objetivo" do Plano de ação no modelo. */
+  objective?: string | null;
   // A4 — proveniência estruturada do fator (diagnóstico do Motor).
   sourceInstrumentSlug?: string | null;
   // A3 — evidências anexadas (status decide o bloqueio de dossiê p/ fator Alto).
@@ -200,23 +206,27 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
       `<td${titulo} style="background:${fundo};color:${texto};text-align:center;` +
       `padding:10px 6px;border:2px solid #fff;border-radius:3px;font-size:11px;` +
       `line-height:1.3;min-width:46px">` +
-      `<div style="font-weight:700;font-size:${cheia ? '17px' : '12px'}">` +
-      `${cheia ? fatores.length : '·'}</div>` +
-      `<div style="opacity:${cheia ? '.9' : '.75'};font-size:10px">${risco}</div></td>`
+      // O modelo mostra o RISCO em destaque e, abaixo, "N fator(es)".
+      `<div style="font-weight:700;font-size:${cheia ? '17px' : '12px'}">${risco}</div>` +
+      `<div style="opacity:${cheia ? '.9' : '.75'};font-size:10px">` +
+      `${cheia ? `${fatores.length} fator(es)` : '&nbsp;'}</div></td>`
     );
   };
+  // Eixos do MODELO OFICIAL: linha = Probabilidade (5 no topo), coluna =
+  // Severidade. Estava transposto — a leitura batia com a própria legenda, mas
+  // não com o documento que o cliente homologa, e a matriz é item de comparação.
   const linhas: string[] = [];
-  for (let s = 5; s >= 1; s--) {
-    const tds = [1, 2, 3, 4, 5].map((p) => celula(p, s)).join('');
+  for (let p = 5; p >= 1; p--) {
+    const tds = [1, 2, 3, 4, 5].map((sev) => celula(p, sev)).join('');
     linhas.push(
       `<tr><th style="text-align:right;padding:4px 10px;font-size:12px;color:#0d1f3c;` +
-        `font-weight:700">${s}</th>${tds}</tr>`,
+        `font-weight:700">${p}</th>${tds}</tr>`,
     );
   }
   const cabecalho = [1, 2, 3, 4, 5]
     .map(
-      (p) =>
-        `<th style="padding:6px 4px;font-size:12px;color:#0d1f3c;font-weight:700">${p}</th>`,
+      (sev) =>
+        `<th style="padding:6px 4px;font-size:12px;color:#0d1f3c;font-weight:700">${sev}</th>`,
     )
     .join('');
   const legenda = (Object.keys(COR_CLASSE) as PsychosocialRiskClass[])
@@ -230,13 +240,13 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
   return (
     `<div style="margin:12px 0 6px">` +
     `<table style="border-collapse:separate;border-spacing:0;margin:0 auto">` +
-    `<tr><th style="font-size:10px;color:#8a8378;font-weight:600;padding-right:8px">S&uarr;</th>` +
+    `<tr><th style="font-size:10px;color:#8a8378;font-weight:600;padding-right:8px">P \\ S</th>` +
     `${cabecalho}</tr>${linhas.join('')}` +
     `<tr><th></th><td colspan="5" style="text-align:center;padding-top:8px;font-size:11px;` +
-    `color:#0d1f3c;font-weight:600">Probabilidade &rarr;</td></tr></table>` +
+    `color:#0d1f3c;font-weight:600">Severidade &rarr;</td></tr></table>` +
     `<p style="text-align:center;margin:4px 0 10px;font-size:10.5px;color:#6b6459">` +
-    `Linha = Severidade · Coluna = Probabilidade. O número em destaque é quantos fatores caíram ` +
-    `na célula; abaixo dele, o risco resultante (P × S).</p>` +
+    `Linha = Probabilidade · Coluna = Severidade. O número em destaque é o risco resultante ` +
+    `(P × S); abaixo dele, quantos fatores caíram na célula.</p>` +
     `<p style="text-align:center;margin:0">${legenda}</p></div>`
   );
 }
@@ -249,12 +259,15 @@ function barrasDimensoesHtml(
   // chamadas (Dossie) seguem sem cabecalho, como estavam.
   opcoes: {
     cabecalho?: boolean;
+    /** Título da coluna da barra. O MAPA chama de "Escala"; o modelo do Dossiê,
+     *  de "Leitura gráfica". Mesmo desenho, nomes diferentes nos dois modelos. */
+    rotuloEscala?: string;
     legenda?: { label: string; min: number; max: number; cor?: string | null }[];
   } = {},
 ): string {
   const cab = opcoes.cabecalho
     ? '<tr>' +
-      ['Dimensão', 'Escala', 'Score', 'Faixa']
+      ['Dimensão', opcoes.rotuloEscala ?? 'Escala', 'Score', 'Faixa']
         .map(
           (c, i) =>
             `<th style="text-align:left;padding:6px 10px 6px ${i === 0 ? '0' : '10px'};` +
@@ -549,7 +562,7 @@ function signatureSection(conclusionBody: string): DocumentSection {
  * na emissão oficial, emit() substitui esta seção por status "Documento
  * emitido" + versão + data + hash reais (após calcular o hash de integridade).
  */
-function docControlSection(): DocumentSection {
+function docControlSection(extras: { label: string; value: string }[] = []): DocumentSection {
   return {
     heading: 'Controle documental',
     rows: [
@@ -558,9 +571,21 @@ function docControlSection(): DocumentSection {
       { label: 'Data de emissão', value: '—' },
       { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
       { label: 'Hash/Identificador', value: 'Atribuído na emissão oficial' },
+      // Método e Organização: linhas do modelo oficial do Dossiê. Ficam FORA do
+      // conjunto carimbado por emit(), que preserva o que não é dele.
+      ...extras,
     ],
   };
 }
+
+/** Rótulos que emit() carimba no Controle documental — o resto é preservado. */
+const CONTROLE_CARIMBADO = new Set([
+  'Status do documento',
+  'Versão do documento',
+  'Data de emissão',
+  'Validação',
+  'Hash/Identificador',
+]);
 
 /**
  * Geração de documentos proporcionais ao produto/saída técnica (Briefing §15).
@@ -1609,245 +1634,317 @@ export class DocumentsService {
       evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[];
     })[];
 
+    // ── Identificação · página 1 do modelo ────────────────────────────────
+    // Campos e ordem do modelo oficial. Saíram "Público elegível",
+    // "Respostas válidas/adesão" e "Responsável CRIVO": o modelo não os tem, e a
+    // instrução de homologação é explícita — nº de respondentes não é nº de
+    // expostos, e dado contextual só aparece quando a organização o cadastrou.
+    const versaoMetodologica = await this.activeVersionLabel(
+      await resolvePsychosocialInstrument(this.prisma),
+    );
     const meta: GeneratedDocument['meta'] = [
-      { label: 'Empresa', value: ctx.org?.legalName ?? ctx.company },
+      { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
       { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
-      { label: 'Unidade/Estabelecimento', value: ctx.org?.establishment ?? '—' },
+      { label: 'Estabelecimento', value: ctx.org?.establishment ?? '—' },
       { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
       { label: 'Período avaliado', value: psy.period },
-      { label: 'Público elegível', value: ctx.org?.employeesCount ?? '—' },
-      { label: 'Respostas válidas/adesão', value: adhesionLabel(psy.totalRespondents, ctx.org?.employeesCount) },
-      { label: 'Responsável CRIVO', value: ctx.contract?.responsible ?? '—' },
+      { label: 'Data de emissão', value: fmt(new Date()) },
+      { label: 'Versão metodológica', value: versaoMetodologica },
+      { label: 'Respostas válidas', value: String(psy.totalRespondents) },
     ];
 
     const sections: DocumentSection[] = [];
+    // `psy` é união (suprimido | agregado). Um alias estreitado evita repetir a
+    // checagem em cada uso de bands/byDimension/score.
+    const agregado = psy.suppressed ? null : psy;
 
-    // Declaração de escopo — o título acompanha a saída técnica; sem saída no
-    // contrato o dossiê sai mesmo assim, declarando só o que pode declarar
-    // (dossierScopeSection).
-    sections.push(dossierScopeSection(output));
+    // Matriz calculada UMA vez: alimenta síntese, inventário e anexo.
+    //
+    // `psyMatriz.sections` fica de fora DE PROPÓSITO. Ali vivem a leitura da
+    // matriz, as tabelas por grupo e o bloco de TRATAMENTO SUGERIDO — proposta
+    // que ninguém aprovou. O modelo oficial é a saída limpa do cliente, e a
+    // instrução de homologação manda a orientação sobre validação do Plano de
+    // Evolução ficar no documento de instrução separado. A sugestão continua
+    // viva onde ela decide algo: a tela do Plano de Evolução.
+    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
+    const matriz = psyMatriz.matrix;
+    // ANEXO sai na ordem do catálogo (RPS-001, RPS-002…); a matriz chega
+    // ordenada por risco desc, que é a ordem das PRIORIDADES.
+    const porCodigo = [...matriz].sort((a, b) =>
+      (a.code ?? a.label).localeCompare(b.code ?? b.label, 'pt-BR'),
+    );
+    const idPorSlug = new Map<string, string>();
+    porCodigo.forEach((r, n) =>
+      idPorSlug.set(r.slug, r.code ?? `FP-${String(n + 1).padStart(3, '0')}`),
+    );
+    const idDe = (r: PsychosocialRiskMatrixRow) => idPorSlug.get(r.slug) ?? '—';
+    const prioritarios = matriz.filter((r) => r.planRequired);
+    const adh = await this.sectorAdhesion(tenantId);
+    const exibidos = adh.sectors.filter((x) => !x.suppressed);
 
-    // RESSALVA de rascunho sem ações. Vem logo depois da declaração de escopo,
-    // antes de qualquer número: as seções 6, 8, 9 e 11 são tabelas alimentadas
-    // por `items` e, com a lista vazia, saem só com travessões — enquanto os
-    // CORPOS delas afirmam "plano aprovado" e "somente evidência aprovada
-    // compõe a documentação". Sem esta ressalva o leitor recebe declaração de
-    // conformidade sem lastro. A emissão OFICIAL neste estado é barrada em
-    // emit(); aqui tratamos a pré-visualização, que segue livre de propósito.
+    // ── Objetivo e escopo ─────────────────────────────────────────────────
+    sections.push({
+      heading: 'Objetivo e escopo',
+      body:
+        'Este dossiê consolida os fatores de riscos psicossociais relacionados ao trabalho ' +
+        'identificados no ciclo avaliado e organiza informações técnicas para apoiar a gestão ' +
+        'preventiva da organização, a Avaliação Ergonômica Preliminar e, quando aplicável, a ' +
+        'atualização do Inventário de Riscos e do Plano de Ação do PGR.\n\n' +
+        'O escopo é restrito às condições, à organização e à gestão do trabalho. O documento não ' +
+        'realiza diagnóstico clínico individual, avaliação psicológica individual nem análise de ' +
+        'aspectos pessoais desvinculados do trabalho.' +
+        (approvedTexts['finalidade_limites'] ? `\n\n${approvedTexts['finalidade_limites']}` : ''),
+    });
+
+    // RESSALVA de rascunho sem ações aprovadas. Não existe no modelo porque o
+    // modelo é o estado normal (plano aprovado); aparece só quando a
+    // organização ainda não decidiu nada, e sem ela o leitor recebe um
+    // documento cuja tabela de plano sai vazia sem explicação.
     if (!items.length) {
       sections.push({
         heading: 'Ressalva — documento ainda sem plano de ação aprovado',
         body:
           'A avaliação técnica dos fatores e a matriz de risco estão completas e valem como ' +
           'leitura. O que falta é a decisão da organização: nenhuma ação foi aprovada no Plano de ' +
-          'Evolução, então as seções de plano aprovado e de evidências saem sem conteúdo e as ' +
-          'medidas apresentadas permanecem como sugestão. Nada aqui atesta conformidade nem ' +
+          'Evolução, então a tabela do plano sai sem conteúdo. Nada aqui atesta conformidade nem ' +
           'ausência de risco. A emissão oficial ocorre depois que a organização aprovar as ações.',
       });
     }
 
-    // 1. Finalidade e limites — texto obrigatório do pacote + complemento
-    // APROVADO pela equipe CRIVO (F3), quando existir.
     sections.push({
-      heading: '1. Finalidade e limites',
-      body:
-        'Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental ' +
-        'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
-        'relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses ' +
-        'documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da ' +
-        'empresa contratante e/ou do responsável técnico/designado.' +
-        (approvedTexts['finalidade_limites'] ? `\n\n${approvedTexts['finalidade_limites']}` : ''),
-    });
-
-    // 2. Escopo e fontes da avaliação.
-    sections.push({
-      heading: '2. Escopo e fontes da avaliação',
+      heading: 'Responsabilidades',
       rows: [
-        { label: 'Número de empregados', value: ctx.org?.employeesCount ?? '—' },
-        { label: 'Áreas/Setores considerados', value: (psy.suppressed ? [] : psy.sectorsList).join(', ') || '—' },
-        { label: 'Modelo de trabalho', value: ctx.org?.workModel ?? '—' },
         {
-          label: 'Fontes utilizadas',
-          value: 'Questionário psicossocial CRIVO; Matriz técnica do diagnóstico; Plano de Evolução; Motor de Evidências',
+          label: 'CRIVO',
+          value:
+            'Aplica a metodologia configurada, processa os dados conforme a versão registrada e ' +
+            'gera este dossiê como instrumento técnico de apoio.',
         },
-        { label: 'Versão metodológica', value: await this.activeVersionLabel(await resolvePsychosocialInstrument(this.prisma)) },
         {
-          label: 'Regra de confidencialidade',
-          value: `Recortes com menos de ${psy.minRespondents} respondentes são omitidos`,
+          label: 'Organização',
+          value:
+            'Valida as informações de contexto, define e implementa medidas de prevenção, mantém ' +
+            'seus documentos de SST atualizados e realiza as integrações documentais aplicáveis.',
         },
       ],
     });
 
-    // A matriz calculada é lida uma vez e serve à síntese (§3), à matriz
-    // técnica (§6) e ao inventário (§11).
-    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
-    // "Principais fatores priorizados" vinha do PLANO e saía "—" enquanto não
-    // houvesse ação registrada. A priorização já está calculada na matriz:
-    // ela vem ordenada por risco desc, então os primeiros são os prioritários.
-    const priorizados = psyMatriz.matrix
-      .filter((r) => r.planRequired)
-      .slice(0, 5)
-      .map((r) => `${r.label} (R ${r.risk} · ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass]})`);
-    // 3. Síntese dos resultados (agregado psicossocial + fatores priorizados).
-    const altos = items.filter((i) => factorRisk(i).isHigh);
-    const fatoresPriorizados = priorizados.join('; ') || altos.map((i) => i.point).join('; ') || '—';
     sections.push({
-      heading: '3. Síntese dos resultados',
-      rows: psy.suppressed
-        ? [
-            {
-              label: 'Índice/resultado geral',
-              value: `Dados omitidos por confidencialidade — volume mínimo de respostas não atingido (${psy.totalRespondents}/${psy.minRespondents})`,
-            },
-            { label: 'Principais fatores priorizados', value: fatoresPriorizados },
-          ]
-        : [
-            { label: 'Índice/resultado geral', value: String(psy.score) },
-            { label: 'Classificação geral', value: psy.levelLabel },
-            { label: 'Principais fatores priorizados', value: fatoresPriorizados },
-            {
-              label: 'Grupos/áreas prioritários',
-              value: [...new Set(altos.map((i) => i.exposedGroup).filter(Boolean))].join(', ') || '—',
-            },
-          ],
+      heading: 'Escopo da avaliação',
+      rows: [
+        { label: 'Respostas válidas', value: String(psy.totalRespondents) },
+        { label: 'Estrutura considerada', value: 'Empresa e áreas cadastradas no ciclo' },
+        // Só os recortes EXIBIDOS são nomeados: nomear o omitido devolveria, por
+        // via indireta, a informação que a supressão existe para proteger.
+        { label: 'Recortes exibidos', value: exibidos.map((x) => x.sector).join(', ') || '—' },
+        {
+          label: 'Confidencialidade',
+          value:
+            `Recortes estatísticos somente quando atingido o mínimo de ${psy.minRespondents} ` +
+            'respostas válidas. Respostas individuais e recortes abaixo do mínimo não são exibidos.',
+        },
+        // Adesão só quando a empresa informou o público elegível — dado
+        // contextual, nunca inferido do número de respondentes.
+        ...(ctx.org?.employeesCount
+          ? [
+              {
+                label: 'Adesão',
+                value: adhesionLabel(psy.totalRespondents, ctx.org.employeesCount),
+              },
+            ]
+          : []),
+      ],
     });
 
-    // 4. Resultados por dimensão (classificação pela régua do instrumento).
-    if (!psy.suppressed && psy.byDimension.length) {
-      // A faixa nao guarda cor neste shape; a cor sai da POSICAO da faixa na
-      // regua (pior -> melhor), para a barra ler igual a tabela.
-      const RAMPA = ["#8E2F1B", "#C4671D", "#8A6D1F", "#2E7D4F"];
-      const corDaFaixa = (v: number) => {
-        const ordenadas = [...psy.bands].sort((a, b) => a.min - b.min);
-        const i = ordenadas.findIndex((b) => v >= b.min && v <= b.max);
-        if (i < 0 || ordenadas.length < 2) return null;
-        const passo = (RAMPA.length - 1) / (ordenadas.length - 1);
+    // ── Metodologia e critérios · página 2 do modelo ──────────────────────
+    const reguaDoScore = [...(agregado?.bands ?? [])]
+      .sort((a, b) => a.min - b.min)
+      .map((x) => x.label)
+      .join(' · ');
+    const CLASSES: PsychosocialRiskClass[] = ['BAIXO', 'MODERADO', 'ALTO', 'MUITO_ALTO', 'CRITICO'];
+    sections.push({
+      heading: 'Metodologia e critérios',
+      body:
+        'O diagnóstico utiliza as informações coletadas no ciclo conforme o método aplicado. O ' +
+        'score do instrumento é uma leitura agregada e não corresponde, por si só, ao nível ' +
+        'técnico de risco. A avaliação técnica é realizada por Risco/Fator Psicossocial vinculado ' +
+        'às perguntas do instrumento.',
+      table: {
+        columns: ['Camada', 'Finalidade', 'Classificação'],
+        data: [
+          ['Score executivo', 'Contextualizar o diagnóstico', reguaDoScore || '—'],
+          [
+            'Risco técnico',
+            'Priorizar a prevenção',
+            CLASSES.map((c) => PSYCHOSOCIAL_RISK_CLASS_LABEL[c]).join(' · '),
+          ],
+        ],
+      },
+    });
+
+    if (matriz.length) {
+      sections.push({ heading: 'Matriz de risco 5 × 5', html: grade5x5Html(matriz) });
+    }
+
+    sections.push({
+      heading: 'Probabilidade, severidade e risco',
+      rows: [
+        {
+          label: 'Probabilidade (1–5)',
+          value:
+            'Calculada a partir das exposições das respostas válidas vinculadas ao mesmo fator. ' +
+            'Exposição = 6 − resposta. Faixas: 1,00–1,49 = 1; 1,50–2,49 = 2; 2,50–3,49 = 3; ' +
+            '3,50–4,49 = 4; 4,50–5,00 = 5. Quando mais de 60% das respostas válidas do fator ' +
+            'estiverem em exposição alta (respostas 1 ou 2), a probabilidade é 5.',
+        },
+        {
+          label: 'Severidade (1–5)',
+          value:
+            'É a severidade-base cadastrada para o Risco/Fator Psicossocial. Não é calculada pela ' +
+            'dimensão e não é digitada livremente na pergunta.',
+        },
+        {
+          label: 'Risco = P × S',
+          value:
+            '1–4 Baixo / Tolerável · 5–9 Moderado / Atenção pontual · 10–15 Alto / Requer plano ' +
+            'de ação · 16–20 Muito alto / Prioridade imediata · 21–25 Crítico / Intolerável.',
+        },
+      ],
+    });
+
+    sections.push({
+      heading: 'Critérios expressos',
+      table: {
+        columns: ['N', 'Probabilidade', 'Critério', 'Severidade', 'Critério'],
+        data: [1, 2, 3, 4, 5].map((n) => [
+          String(n),
+          PSYCHOSOCIAL_PROBABILITY_SHORT[n],
+          PSYCHOSOCIAL_PROBABILITY_CRITERION[n],
+          PSYCHOSOCIAL_SEVERITY_SHORT[n],
+          `Severidade-base ${n}.`,
+        ]),
+      },
+    });
+
+    // ── Síntese do ciclo · página 3 do modelo ─────────────────────────────
+    //
+    // DETERMINÍSTICA por decisão: a homologação compara o conteúdo técnico do
+    // Dossiê com o gabarito, e prosa reescrita a cada emissão nunca fecharia. O
+    // texto APROVADO pela equipe CRIVO (fluxo F3, rascunhado pela IA) vence
+    // quando existe — é ali que a redação da IA entra neste documento.
+    const nomesPrioritarios = prioritarios.map((r) => r.label);
+    const sinteseAutomatica = !agregado
+      ? `O ciclo registrou ${psy.totalRespondents} resposta(s) válida(s), abaixo do mínimo de ` +
+        `${psy.minRespondents} exigido para exibição estatística. Os resultados agregados ficam ` +
+        'omitidos por confidencialidade.'
+      : `O ciclo apresenta score executivo geral de ${agregado.score} (${agregado.levelLabel}). ` +
+        (nomesPrioritarios.length
+          ? `A priorização técnica identifica ${nomesPrioritarios.join(', ')} como ` +
+            `${nomesPrioritarios.length === 1 ? 'fator que requer' : 'fatores que requerem'} ` +
+            'plano de ação pela metodologia CRIVO. '
+          : 'A priorização técnica não identificou fatores que requeiram plano de ação pela ' +
+            'metodologia CRIVO. ') +
+        'O score executivo e a classificação técnica de risco são leituras distintas.';
+    sections.push({
+      heading: 'Síntese executiva',
+      body: approvedTexts['sintese_ciclo'] || sinteseAutomatica,
+    });
+
+    if (agregado && agregado.byDimension.length) {
+      // Cor CADASTRADA na faixa vence; a rampa é o fallback de quem não
+      // configurou cor no Motor de Diagnósticos.
+      const RAMPA = ['#8E2F1B', '#C4671D', '#8A6D1F', '#2E7D4F'];
+      const faixasOrdenadas = [...agregado.bands].sort((a, b) => a.min - b.min);
+      const corDaFaixa = (v: number): string | null => {
+        const i = faixasOrdenadas.findIndex((x) => v >= x.min && v <= x.max);
+        if (i < 0) return null;
+        const propria = faixasOrdenadas[i].color?.trim();
+        if (propria) return propria;
+        if (faixasOrdenadas.length < 2) return null;
+        const passo = (RAMPA.length - 1) / (faixasOrdenadas.length - 1);
         return RAMPA[Math.min(RAMPA.length - 1, Math.round(i * passo))] ?? null;
       };
       sections.push({
-        heading: '4. Resultados por dimensão',
-        // O quadro numérico sozinho não mostra a diferença entre as dimensões;
-        // a barra na cor da faixa é a leitura visual pedida pelo modelo.
+        heading: 'Resultados por dimensão',
         html: barrasDimensoesHtml(
-          psy.byDimension.map((d) => ({
+          agregado.byDimension.map((d) => ({
             label: d.label,
             value: d.value,
-            faixa: bandLabelOf(d.value, psy.bands),
+            faixa: bandLabelOf(d.value, agregado.bands),
             cor: corDaFaixa(d.value),
           })),
+          { cabecalho: true, rotuloEscala: 'Leitura gráfica' },
         ),
       });
     }
 
-    // 5. Análise por recorte — SÓ Organizacional; Essencial = consolidado (Pacote §3).
-    if (ctx.method === 'ORGANIZACIONAL') {
-      const adh = await this.sectorAdhesion(tenantId);
+    if (prioritarios.length) {
       sections.push({
-        heading: '5. Análise por recorte',
-        body:
-          `Adesão por área/setor/turno. Recortes com menos de ${adh.minRespondents} respondentes ` +
-          'exibem: "Dados omitidos por confidencialidade. Volume mínimo de respostas não atingido."',
+        heading: 'Prioridades técnicas',
         table: {
-          columns: ['Recorte', 'Respondentes', 'Exibição', 'Observação'],
-          data: adh.sectors.length
-            ? adh.sectors.map((s) => [
-                s.sector,
-                s.suppressed ? '—' : String(s.respondents),
-                s.suppressed ? 'Omitido' : 'Exibido',
-                s.suppressed ? 'Dados omitidos por confidencialidade. Volume mínimo de respostas não atingido.' : '—',
-              ])
-            : [['—', '—', '—', 'Sem respostas registradas']],
-        },
-      });
-    } else {
-      sections.push({
-        heading: 'Resultados consolidados',
-        body:
-          'No método Essencial os recortes por área/setor/turno não se aplicam — o resultado é ' +
-          'apresentado de forma agregada para a organização.',
-      });
-    }
-
-    // 6. Matriz técnica de fatores de risco.
-    //
-    // Esta seção lia o PLANO DE AÇÃO (items). Sem ação registrada ela saía com
-    // uma linha de traços — mesmo com a matriz inteira já calculada. A fonte
-    // correta é a matriz do diagnóstico; o plano fica como origem alternativa
-    // para quem cadastrou fatores apenas lá.
-    if (psyMatriz.matrix.length) {
-      sections.push({
-        heading: '6. Matriz técnica de fatores de risco',
-        table: {
-          // "Nº de expostos" saiu: a coluna vinha do número de RESPONDENTES, e
-          // quem respondeu não é quem está exposto — o grupo exposto/GHE é
-          // cadastro da empresa, que o sistema não tem. Melhor não afirmar.
-          columns: ['ID', 'Fator psicossocial', 'Processo/Dimensão', 'Fonte/Circunstância', 'Prob.', 'Sev.', 'Risco', 'Classificação', 'Plano de ação'],
-          data: psyMatriz.matrix.map((r, n) => [
-            // Código da biblioteca de riscos quando cadastrado (Orientação 5.1);
-            // sem ele, um identificador sequencial só para referência interna.
-            r.code ?? `FP-${String(n + 1).padStart(3, '0')}`,
+          columns: ['Fator', 'P', 'S', 'R', 'Classificação'],
+          data: prioritarios.map((r) => [
             r.label,
-            r.dimensionLabel ?? '—',
-            r.sourceContext ?? '—',
             String(r.probability),
             String(r.severity),
             String(r.risk),
             PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
-            r.planRequired ? 'Obrigatório' : 'Não obrigatório',
           ]),
-        },
-      });
-    } else {
-      sections.push({
-        heading: '6. Matriz técnica de fatores de risco',
-        table: {
-          columns: ['ID', 'Área/Processo', 'Grupo exposto', 'Fator', 'Fonte/Circunstância', 'Sev.', 'Prob.', 'Risco', 'Ação'],
-          data: items.length
-            ? items.map((i, n) => [
-                `FP-${String(n + 1).padStart(3, '0')}`,
-                i.areaProcess ?? '—',
-                i.exposedGroup ?? '—',
-                i.point,
-                i.origin ?? '—',
-                asRisk3(i.severity) ?? '—',
-                asRisk3(i.probability) ?? '—',
-                factorRisk(i).label,
-                i.action,
-              ])
-            : [['—', '—', '—', '—', '—', '—', '—', '—', '—']],
-        },
-      });
-    }
-    const semMatriz = items.filter((i) => !factorRisk(i).derived).length;
-    if (semMatriz > 0) {
-      sections.push({
-        heading: 'Nota sobre a classificação de risco',
-        body:
-          `${semMatriz} fator(es) ainda usam a classificação manual anterior. A classificação ` +
-          'técnica oficial vem da matriz Severidade × Probabilidade (Baixo/Moderado/Alto).',
-      });
-    }
-    // 6b. Matriz de Risco Psicossocial vinda do diagnóstico organizacional (P × S por GHE).
-    for (const sec of psyMatriz.sections) sections.push(sec);
-    // 7. Medidas existentes — SÓ quando a empresa informou (bloco opcional do
-    // dicionário: sem dado, oculta; nunca inventado pelo sistema).
-    const withMeasure = items.filter((i) => i.existingMeasure?.trim());
-    if (withMeasure.length) {
-      sections.push({
-        heading: '7. Medidas existentes',
-        body: 'Medidas informadas pela própria empresa para os fatores identificados.',
-        table: {
-          columns: ['Fator', 'Medida existente', 'Avaliação/Observação'],
-          data: withMeasure.map((i) => [i.point, i.existingMeasure ?? '—', '—']),
         },
       });
     }
 
-    // 8. Plano de ação aprovado — VISÃO das ações validadas no Plano de Evolução.
-    //
-    // Só entra o que a organização aprovou. Sugestão pendente fica no bloco de
-    // tratamento sugerido: apresentar recomendação da IA como ação aprovada da
-    // empresa afirmaria uma decisão que ninguém tomou. O Dossiê consulta.
+    sections.push({
+      heading: 'Participação e recortes',
+      table: {
+        columns: ['Recorte', 'Situação'],
+        data: exibidos.length
+          ? exibidos.map((x) => [x.sector, 'Exibido'])
+          : [['Consolidado da organização', 'Exibido']],
+      },
+    });
+
+    // ── Inventário técnico · página 4 do modelo ───────────────────────────
+    if (prioritarios.length) {
+      sections.push({
+        heading: 'Caracterização dos fatores prioritários',
+        table: {
+          columns: ['ID', 'Dimensão relacionada', 'Fator', 'Caracterização da exposição'],
+          data: prioritarios.map((r) => {
+            const media = `Exposição média ${r.exposureAvg.toFixed(2)}`;
+            const pct = r.exposureCount
+              ? `; ${((r.highExposureCount / r.exposureCount) * 100).toFixed(1)}% das respostas ` +
+                'válidas do fator em exposição alta (respostas 1 ou 2).'
+              : '.';
+            return [idDe(r), r.dimensionLabel ?? '—', r.label, `${media}${pct}`];
+          }),
+        },
+      });
+      sections.push({
+        heading: 'Possíveis agravos / consequências',
+        table: {
+          columns: ['ID', 'Possíveis agravos / consequências', 'P', 'S', 'R', 'Classificação'],
+          data: prioritarios.map((r) => [
+            idDe(r),
+            r.consequences ?? '—',
+            String(r.probability),
+            String(r.severity),
+            String(r.risk),
+            PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+          ]),
+        },
+      });
+      // Sem título: no modelo é a nota de rodapé da página, não uma seção.
+      sections.push({
+        heading: '',
+        body:
+          'As possíveis lesões ou agravos à saúde indicados neste dossiê têm caráter preventivo e ' +
+          'documental, com base nos fatores de risco psicossociais relacionados ao trabalho. Não ' +
+          'constituem diagnóstico clínico, médico ou psicológico individual.',
+      });
+    }
+
+    // ── Plano, registros e responsabilidade · página 5 do modelo ──────────
     const aprovadas = items.filter(
       (i) =>
         i.status === 'APROVADA' ||
@@ -1855,169 +1952,166 @@ export class DocumentsService {
         i.status === 'CONCLUIDA' ||
         i.status === 'REAVALIADA',
     );
-    // Recusada não está aguardando nada: a organização já decidiu.
-    const aguardando = items.filter(
-      (i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO',
-    ).length;
+    const aguardando = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
     sections.push({
-      heading: '8. Plano de ação aprovado — snapshot do ciclo',
+      heading: 'Plano de ação',
       body:
-        (plan
-          ? plan.validatedAt
-            ? `Plano "${plan.title}" validado por ${plan.validatedBy ?? '—'} em ${fmt(plan.validatedAt)}. `
-            : `Plano "${plan.title}". `
-          : 'Nenhum plano registrado. ') +
-        'Visão das ações APROVADAS no Plano de Evolução, vinculadas aos fatores deste ciclo. ' +
-        'Este bloco não cria nem edita ações.' +
+        'As medidas abaixo correspondem às ações aprovadas pela organização e vinculadas aos ' +
+        'fatores prioritários deste ciclo.' +
         (aguardando
-          ? ` ${aguardando} ação(ões) permanece(m) como sugestão pendente de validação e aparece(m) ` +
-            'apenas no bloco de tratamento sugerido.'
+          ? ` ${aguardando} ação(ões) permanece(m) como sugestão pendente de validação e não ` +
+            'compõe(m) este documento.'
           : ''),
       table: {
-        columns: ['ID', 'Ação aprovada', 'Responsável', 'Prazo', 'Indicador', 'Evidência esperada', 'Status'],
+        columns: ['Fator', 'Medida definida', 'Objetivo', 'Responsável', 'Prazo', 'Acompanhamento'],
         data: aprovadas.length
-          ? aprovadas.map((i, n) => [
-              `A-${String(n + 1).padStart(3, '0')}`,
+          ? aprovadas.map((i) => [
+              i.point,
               i.action,
+              i.objective ?? '—',
               i.responsible ?? '—',
               i.dueDate ? fmt(i.dueDate) : '—',
               i.indicator ?? '—',
-              i.expectedEvidence ?? '—',
-              ACTION_LABEL[i.status] ?? i.status,
             ])
-          : [['—', '—', '—', '—', '—', '—', '—']],
+          : [['—', '—', '—', '—', '—', '—']],
       },
     });
 
-    // 9. Evidências (só APROVADA compõe; demais são declaradas como excluídas).
-    const allEvid = items.flatMap((i) => i.evidences);
-    const approved = allEvid.filter((e) => e.status === 'APROVADA');
-    sections.push({
-      heading: '9. Evidências',
-      // Sem NENHUMA evidência anexada, `approved.length === allEvid.length` é
-      // 0 === 0 e a frase positiva saía sozinha — lida como "conferimos e está
-      // tudo aprovado" quando o correto é "não há nada para conferir".
-      body: !allEvid.length
-        ? 'Nenhuma evidência anexada até o momento. A regra permanece: somente evidência aprovada ' +
-          'compõe a documentação técnica — esta seção fica vazia até que haja evidência anexada e validada.'
-        : approved.length === allEvid.length
-          ? 'Somente evidência aprovada compõe a documentação técnica.'
-          : `Somente evidência aprovada compõe a documentação técnica. ${allEvid.length - approved.length} evidência(s) não incluída(s) por não estarem validadas.`,
-      table: {
-        columns: ['Evidência', 'Tipo', 'Vínculo/Referência', 'Status', 'Validada em'],
-        data: approved.length
-          ? approved.map((e) => [e.title, e.kind, e.url ?? '—', 'Aprovada', e.reviewedAt ? fmt(e.reviewedAt) : '—'])
-          : [['—', '—', '—', '—', '—']],
-      },
-    });
+    // Registros que a ORGANIZAÇÃO cadastrou. Não estão no modelo porque a massa
+    // de homologação não os tem — mas quem preencheu não pode perdê-los.
+    const comMedida = items.filter((i) => i.existingMeasure?.trim());
+    if (comMedida.length) {
+      sections.push({
+        heading: 'Medidas existentes',
+        body: 'Medidas informadas pela própria organização para os fatores identificados.',
+        table: {
+          columns: ['Fator', 'Medida existente'],
+          data: comMedida.map((i) => [i.point, i.existingMeasure ?? '—']),
+        },
+      });
+    }
 
-    // 10. Registro de comunicação e devolutiva — SÓ quando a empresa registrou.
+    const evidenciasAprovadas = items
+      .flatMap((i) => i.evidences)
+      .filter((e) => e.status === 'APROVADA');
+    if (evidenciasAprovadas.length) {
+      sections.push({
+        heading: 'Evidências',
+        body: 'Somente evidência aprovada compõe a documentação técnica.',
+        table: {
+          columns: ['Evidência', 'Tipo', 'Vínculo/Referência', 'Validada em'],
+          data: evidenciasAprovadas.map((e) => [
+            e.title,
+            e.kind,
+            e.url ?? '—',
+            e.reviewedAt ? fmt(e.reviewedAt) : '—',
+          ]),
+        },
+      });
+    }
+
     const devolutivas = await this.prisma.forTenant(tenantId, (tx) =>
       tx.devolutivaRecord.findMany({ orderBy: [{ date: 'desc' }, { id: 'desc' }], take: 10 }),
     );
     if (devolutivas.length) {
       sections.push({
-        heading: '10. Registro de comunicação e devolutiva',
-        body: 'Comunicações dos resultados e medidas aos trabalhadores, registradas pela empresa.',
+        heading: 'Registro de comunicação e devolutiva',
+        body:
+          'Comunicações dos resultados e medidas aos trabalhadores, registradas pela organização.',
         table: {
-          columns: ['Data', 'Formato', 'Público envolvido', 'Temas comunicados', 'Pontos confirmados', 'Medidas comunicadas'],
+          columns: ['Data', 'Formato', 'Público envolvido', 'Temas comunicados', 'Medidas comunicadas'],
           data: devolutivas.map((r) => [
             fmt(r.date),
             r.format,
             r.audience ?? '—',
             r.topics ?? '—',
-            r.confirmedPoints ?? '—',
             r.communicatedMeasures ?? '—',
           ]),
         },
       });
     }
 
-    // 11. Anexo técnico para inventário — SÓ quando a saída integra AEP+GRO/PGR.
-    if (output === 'AEP_PGR') {
+    // Integração documental só faz sentido quando o contrato prevê integração.
+    if (output === 'AEP' || output === 'AEP_PGR') {
       sections.push({
-        heading: '11. Anexo técnico para integração ao inventário',
-        body:
-          'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
-          'pelo responsável técnico, após validação da empresa.',
-        table: psyMatriz.matrix.length
-          ? {
-              columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Possíveis agravos', 'Risco (P x S)', 'Classificação', 'Plano de ação'],
-              data: psyMatriz.matrix.map((r, n) => [
-                r.code ?? `R-${String(n + 1).padStart(3, '0')}`,
-                r.dimensionLabel ?? '—',
-                r.label,
-                r.definition ?? '—',
-                r.sourceContext ?? '—',
-                // Campo cadastrado no fator (Orientação 5.1) que até aqui era
-                // gravado e nunca lido por ninguém.
-                r.consequences ?? '—',
-                `${r.probability} x ${r.severity} = ${r.risk}`,
-                PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
-                r.planRequired ? 'Obrigatório' : 'Não obrigatório',
-              ]),
-            }
-          : {
-              columns: ['ID risco', 'Processo', 'Fator psicossocial', 'Fonte/Circunstância', 'Grupo exposto', 'Medida existente', 'Risco', 'Ação'],
-              data: items.length
-                ? items.map((i, n) => [
-                    `R-${String(n + 1).padStart(3, '0')}`,
-                    i.areaProcess ?? '—',
-                    i.point,
-                    i.origin ?? '—',
-                    i.exposedGroup ?? '—',
-                    i.existingMeasure ?? '—',
-                    factorRisk(i).label,
-                    i.action,
-                  ])
-                : [['—', '—', '—', '—', '—', '—', '—', '—']],
-            },
+        heading: 'Indicação de integração documental',
+        table: {
+          columns: ['Elemento do dossiê', 'Destino recomendado'],
+          data: [
+            ['Matriz de fatores', 'Registro da AEP e base para inventário de riscos ocupacionais.'],
+            ['Anexo técnico', 'Inventário de riscos ocupacionais, após validação da organização/responsável.'],
+            ['Plano de ação aprovado', 'Plano de ação do PGR/GRO ou plano preventivo vinculado à AEP.'],
+            ['Evidências', 'Registros de implementação e acompanhamento.'],
+          ],
+        },
       });
     }
 
-    // 12. Indicação de integração documental (tabela fixa do pacote).
-    sections.push({
-      heading: '12. Indicação de integração documental',
-      table: {
-        columns: ['Elemento do dossiê', 'Destino recomendado'],
-        data: [
-          ['Matriz de fatores', 'Registro da AEP e base para inventário de riscos ocupacionais.'],
-          ['Anexo técnico', 'Inventário de riscos ocupacionais, após validação da empresa/responsável.'],
-          ['Plano de ação aprovado', 'Plano de ação do PGR/GRO ou plano preventivo vinculado à AEP.'],
-          ['Evidências', 'Registros de implementação e acompanhamento.'],
-        ],
-      },
-    });
-
-    // Base Técnica da Recomendação (Motor CNAE/NR-1) — complementa o dossiê.
-    // O bloco "Base Técnica da Recomendação" (CNAE/NR-1) saiu do dossiê a
-    // pedido do cliente: é insumo comercial de enquadramento, não conteúdo
-    // do documento técnico entregue à empresa.
-
-    // 13. Conclusão e validação — assinatura FORA do sistema (decisão 27/07).
-    // F3: a CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO abre a seção; o texto
-    // fixo de responsabilidade do pacote permanece em seguida.
+    // Controle documental — as duas últimas linhas são do modelo e sobrevivem à
+    // emissão oficial (emit() só carimba o que é dele).
     sections.push(
-      signatureSection(
-        (approvedTexts['conclusao_tecnica'] ? `${approvedTexts['conclusao_tecnica']}\n\n` : '') +
-          'A revisão, validação, assinatura e integração formal deste documento à AEP, ao GRO/PGR e ' +
-          'às demais obrigações aplicáveis são de responsabilidade da empresa contratante e/ou do ' +
-          'responsável técnico/designado. A empresa baixa o documento, assina fora do sistema e o ' +
-          'integra ao seu AEP/GRO/PGR.',
-      ),
+      docControlSection([
+        { label: 'Método', value: versaoMetodologica },
+        { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
+      ]),
     );
 
-    // 14. Controle documental.
-    sections.push(docControlSection());
+    // A CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO, quando existir, entra
+    // antes das referências. A frase de responsabilidade sai no rodapé do
+    // documento (`responsibilityNote`), como no modelo.
+    if (approvedTexts['conclusao_tecnica']) {
+      sections.push({ heading: 'Conclusão técnica', body: approvedTexts['conclusao_tecnica'] });
+    }
+    sections.push({
+      heading: 'Referências',
+      body:
+        'NR-1 — Disposições Gerais e Gerenciamento de Riscos Ocupacionais; NR-17 — Ergonomia; ' +
+        'Guia de Informações sobre os Fatores de Riscos Psicossociais Relacionados ao Trabalho — ' +
+        'Ministério do Trabalho e Emprego.',
+    });
 
-    // Numeração contínua. As seções 7, 10 e 11 são CONDICIONAIS (medidas
-    // informadas, devolutiva registrada, saída AEP+PGR): quando não saem, a
-    // numeração fixa no código pulava — o documento ia de "9" para "12".
-    // Só os títulos que já começam com número entram na contagem.
-    let n = 0;
-    for (const s of sections) {
-      const m = /^(\d+)\.\s+(.*)$/.exec(s.heading);
-      if (m) s.heading = `${(n += 1)}. ${m[2]}`;
+    // ── Anexo técnico · última página do modelo ───────────────────────────
+    if (porCodigo.length) {
+      sections.push({
+        heading: 'Anexo técnico — fatores classificados',
+        body: 'Resultado consolidado do ciclo.',
+        table: {
+          columns: ['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação'],
+          data: porCodigo.map((r) => [
+            idDe(r),
+            r.label,
+            r.dimensionLabel ?? '—',
+            r.exposureAvg.toFixed(2),
+            String(r.probability),
+            String(r.severity),
+            String(r.risk),
+            PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+          ]),
+        },
+      });
+      // Colunas de inventário (definição, fonte/circunstância, agravos) só
+      // quando o contrato integra o GRO/PGR — é ali que elas são exigidas.
+      if (output === 'AEP_PGR') {
+        sections.push({
+          heading: 'Anexo técnico para integração ao inventário',
+          body:
+            'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
+            'pelo responsável técnico, após validação da organização.',
+          table: {
+            columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Possíveis agravos', 'Risco (P × S)', 'Classificação'],
+            data: porCodigo.map((r) => [
+              idDe(r),
+              r.dimensionLabel ?? '—',
+              r.label,
+              r.definition ?? '—',
+              r.sourceContext ?? '—',
+              r.consequences ?? '—',
+              `${r.probability} × ${r.severity} = ${r.risk}`,
+              PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+            ]),
+          },
+        });
+      }
     }
 
     return {
@@ -2737,6 +2831,12 @@ export class DocumentsService {
       // por último) — uma seção de texto livre homônima criada no Super Admin
       // em um modelo do Motor 4 não é tocada.
       const controlIdx = doc.sections.map((s) => s.heading).lastIndexOf('Controle documental');
+      // Linhas do gerador que NÃO são carimbo (Método, Organização — exigidas
+      // pelo modelo do Dossiê) sobrevivem à emissão; antes a seção era
+      // substituída inteira e elas sumiam justamente na versão oficial.
+      const preservadas = (doc.sections[controlIdx]?.rows ?? []).filter(
+        (r) => !CONTROLE_CARIMBADO.has(r.label),
+      );
       const emittedDoc: GeneratedDocument = {
         ...doc,
         sections: doc.sections.map((s, i) =>
@@ -2749,6 +2849,7 @@ export class DocumentsService {
                   { label: 'Data de emissão', value: fmt(new Date()) },
                   { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
                   { label: 'Hash/Identificador', value: contentHash.slice(0, 16) },
+                  ...preservadas,
                 ],
               }
             : s,

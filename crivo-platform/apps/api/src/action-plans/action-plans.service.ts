@@ -134,6 +134,7 @@ export class ActionPlansService {
           areaProcess: dto.areaProcess ?? null,
           existingMeasure: dto.existingMeasure ?? null,
           indicator: dto.indicator ?? null,
+          objective: dto.objective ?? null,
         },
         include: { evidences: true, sourceInstrument: { select: { name: true } } },
       });
@@ -239,6 +240,9 @@ export class ActionPlansService {
             sourceInstrumentSlug: instrumentoDaMatriz,
             dueDate,
             indicator: x.indicadores,
+            // A sugestão já traz o objetivo escrito; antes ele era descartado e
+            // a coluna "Objetivo" do Dossiê saía vazia.
+            objective: x.objetivo,
             // Retrato do cálculo que originou a ação. severity/probability (a
             // matriz 3x3, em texto) ficam VAZIOS de propósito: a classificação
             // técnica do dossiê é decisão da empresa e as duas réguas não
@@ -298,6 +302,7 @@ export class ActionPlansService {
           existingMeasure:
             dto.existingMeasure === undefined ? existing.existingMeasure : dto.existingMeasure,
           indicator: dto.indicator === undefined ? existing.indicator : dto.indicator,
+          objective: dto.objective === undefined ? existing.objective : dto.objective,
         },
         include: { evidences: { orderBy: { createdAt: 'desc' } }, sourceInstrument: { select: { name: true } } },
       });
@@ -326,6 +331,7 @@ export class ActionPlansService {
       track('área/processo', existing.areaProcess, dto.areaProcess);
       track('medida existente', existing.existingMeasure, dto.existingMeasure);
       track('indicador', existing.indicator, dto.indicator);
+      track('objetivo', existing.objective, dto.objective);
       track('diagnóstico de origem', existing.sourceInstrumentSlug, updSlug);
       if (changed.length) {
         await tx.actionItemHistory.create({
@@ -570,6 +576,7 @@ export class ActionPlansService {
     reviewDate: Date | null; exposedGroup?: string | null;
     severity?: string | null; probability?: string | null; riskLevel?: string | null;
     areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
+    objective?: string | null;
     sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
     riskFactorSlug?: string | null; riskProbability?: number | null; riskSeverity?: number | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
@@ -593,6 +600,7 @@ export class ActionPlansService {
       areaProcess: i.areaProcess ?? null,
       existingMeasure: i.existingMeasure ?? null,
       indicator: i.indicator ?? null,
+      objective: i.objective ?? null,
       reviewDate: i.reviewDate?.toISOString() ?? null,
       riskFactorSlug: i.riskFactorSlug ?? null,
       riskProbability: i.riskProbability ?? null,

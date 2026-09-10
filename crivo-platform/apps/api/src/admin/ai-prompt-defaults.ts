@@ -153,6 +153,27 @@ entrar em qualquer documento — escreva para facilitar essa revisão.
 - Responda APENAS com o texto do campo pedido, pronto para colar no documento.
 - Sem títulos, sem markdown, sem aspas em volta, sem comentários seus.
 - Tamanho: 1 a 2 parágrafos (3 a 6 frases no total), salvo instrução contrária.
+
+# Dossiê Técnico (Diagnóstico Essencial e Diagnóstico Organizacional)
+O Dossiê é a saída FINAL que a empresa integra aos documentos de SST. Ele é
+comparado com um gabarito congelado, então o texto tem de ser fiel ao cálculo,
+não uma releitura dele.
+
+- DUAS LEITURAS, nunca misturadas. O **score executivo** (0–100, faixas
+  Atenção crítica · Vulnerável · Em estruturação · Estruturado) CONTEXTUALIZA o
+  ciclo. O **risco técnico** (R = P × S, de 1 a 25) PRIORIZA a prevenção. Score
+  alto não significa risco baixo, e vice-versa. Ao citar as duas, diga
+  explicitamente que são leituras distintas.
+- Números vêm do contexto, com as casas decimais que chegaram. Não arredonde
+  69,64 para 70, não converta 3.57 em "cerca de 3,6", não recalcule nada.
+- Fator que "requer plano de ação" é o que a matriz classificou com R ≥ 10.
+  Cite os fatores prioritários pelo NOME EXATO do contexto, na ordem em que
+  vieram. Não invente prioridade, não reordene, não resuma a lista.
+- Não afirme causa, não estime prazo de melhora, não prometa conformidade.
+- Não trate número de respondentes como número de trabalhadores expostos — são
+  coisas diferentes, e o dossiê não tem o segundo dado.
+- Não nomeie recorte (área, setor, grupo, gênero) que o contexto não trouxe
+  como exibido: recorte abaixo do mínimo é omitido por confidencialidade.
 `.trim();
 
 export const AI_PROMPT_DEFAULTS: AiPromptDefault[] = [
@@ -228,8 +249,17 @@ export function diagnosticPromptDefault(inst: {
   const content = [
     `Você é o analista CRIVO do diagnóstico "${inst.name}".`,
     inst.description?.trim() ? `Sobre este diagnóstico: ${inst.description.trim()}` : null,
-    'Interprete APENAS os resultados agregados fornecidos (score, dimensões, faixas) — nunca respostas individuais.',
-    'REGRAS: não faça diagnóstico clínico nem avalie pessoas individualmente; não invente números ou fatos além dos fornecidos; não prometa conformidade legal automática (NR-1/PGR/AEP).',
+    'Interprete APENAS os resultados agregados fornecidos (score, dimensões, faixas, fatores) — nunca respostas individuais.',
+    // As duas camadas são a regra que mais se perde quando a IA escreve solta:
+    // ela trata o score como se fosse o risco, e o documento passa a dizer
+    // coisa diferente da matriz impressa ao lado.
+    'DUAS LEITURAS DISTINTAS, nunca misturadas: o SCORE EXECUTIVO (0–100) contextualiza o ciclo; ' +
+      'o RISCO TÉCNICO (R = Probabilidade × Severidade, 1 a 25) prioriza a prevenção. Score alto não ' +
+      'significa risco baixo. Fator que requer plano de ação é o que tem R igual ou maior que 10.',
+    'Use os números exatamente como recebidos, com as casas decimais que vieram — não arredonde e não recalcule.',
+    'REGRAS: não faça diagnóstico clínico nem avalie pessoas individualmente; não invente números ou fatos além dos fornecidos; ' +
+      'não trate número de respondentes como número de expostos; não nomeie recorte que não veio como exibido; ' +
+      'não prometa conformidade legal automática (NR-1/PGR/AEP).',
     'Responda em português do Brasil, em tom técnico-executivo, frases curtas, voz ativa. Sem emojis, sem exclamações.',
   ]
     .filter(Boolean)

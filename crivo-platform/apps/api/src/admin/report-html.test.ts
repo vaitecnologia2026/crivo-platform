@@ -186,6 +186,9 @@ describe('autoMarkReportHtml', () => {
  * estrutura. O PDF quebra linha por largura de coluna, e a regra antiga ("linha
  * curta sem pontuação final") transformava metade das frases em títulos.
  */
+/** Quebra de linha do texto extraído do PDF. */
+const QUEBRA = String.fromCharCode(10);
+
 describe('pdfTextToBlocks', () => {
   it('não corta uma frase no meio para virar título', () => {
     const texto = [
@@ -228,6 +231,59 @@ describe('pdfTextToBlocks', () => {
   it('junta palavra hifenizada quebrada entre linhas', () => {
     const blocks = pdfTextToBlocks('as medidas de preven-\nção adotadas pela empresa.');
     expect(blocks[0].text).toContain('prevenção adotadas');
+  });
+
+  // ── Modelo oficial do Dossiê (Massa Ouro de homologação) ─────────────────
+  it('reconhece título terminado em palavra acentuada', () => {
+    // A fronteira de palavra do regex não conhece acento: "avaliação" tinha
+    // fronteira antes do "o" final e casava com a palavra de ligação "o", então
+    // estes títulos eram lidos como frase inacabada e o modelo importado nascia
+    // sem eles.
+    const texto = ['Fim do parágrafo anterior.', 'Escopo da avaliação', 'Respostas válidas 7'].join(
+      QUEBRA,
+    );
+    const kinds = pdfTextToBlocks(texto).map((b) => `${b.kind}:${b.text}`);
+    expect(kinds).toContain('heading:Escopo da avaliação');
+  });
+
+  it('reconhece título logo depois de uma linha de tabela', () => {
+    // Célula de tabela não termina em ponto. Com a regra dura de "a linha
+    // anterior tem de fechar frase", "Plano de ação" e "Participação e recortes"
+    // nunca eram título — e são seções inteiras do modelo oficial.
+    const texto = [
+      'Baixa autonomia 5 2 10 Alto / Requer plano de ação',
+      'Participação e recortes',
+      'Recorte Situação',
+    ].join(QUEBRA);
+    const kinds = pdfTextToBlocks(texto).map((b) => `${b.kind}:${b.text}`);
+    expect(kinds).toContain('heading:Participação e recortes');
+  });
+
+  it('não promove célula de tabela quebrada a título', () => {
+    // "Operações" é continuação de "Gerente de" — uma palavra só, e a exceção de
+    // título curto exige pelo menos duas.
+    const texto = ['Gerente de', 'Operações', '30/09/2026 Horas extras'].join(QUEBRA);
+    expect(pdfTextToBlocks(texto).every((b) => b.kind === 'text')).toBe(true);
+  });
+
+  it('remove cabeçalho corrido cujo número de página muda', () => {
+    // O modelo oficial traz "CRIVO™ · Decision Intelligence Página N" no topo de
+    // cada página: a contagem por linha EXATA nunca chegava a 3 e cada cabeçalho
+    // virava um título que engolia a página inteira no corpo.
+    const pagina = (n: number) =>
+      [
+        `CRIVO™ · Decision Intelligence Página ${n}`,
+        `Seção ${n}`,
+        `Corpo da seção ${n}, com texto suficiente.`,
+        '',
+        `-- ${n} of 3 --`,
+        '',
+      ].join(QUEBRA);
+    const todo = pdfTextToBlocks([pagina(1), pagina(2), pagina(3)].join(QUEBRA))
+      .map((b) => b.text)
+      .join(' ');
+    expect(todo).not.toContain('Decision Intelligence');
+    expect(todo).toContain('Corpo da seção 2');
   });
 });
 

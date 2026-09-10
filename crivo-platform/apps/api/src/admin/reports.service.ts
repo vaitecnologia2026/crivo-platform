@@ -57,17 +57,33 @@ export const APPROVED_TEXT_FIELDS = [
   {
     docType: 'dossie_tecnico',
     field: 'finalidade_limites',
-    label: 'Complemento de finalidade e limites (Dossiê §1)',
+    label: 'Complemento de objetivo e escopo (Dossiê)',
     required: false,
     instruction:
-      'Escreva UM parágrafo complementar à seção "Finalidade e limites" do Dossiê Técnico, ' +
-      'contextualizando o ciclo avaliado desta empresa (o texto obrigatório do pacote permanece; o seu ' +
+      'Escreva UM parágrafo complementar à seção "Objetivo e escopo" do Dossiê Técnico, ' +
+      'contextualizando o ciclo avaliado desta empresa (o texto obrigatório do modelo permanece; o seu ' +
       'parágrafo entra em seguida).',
+  },
+  {
+    // A síntese do ciclo sai DETERMINÍSTICA por padrão (score, faixa e fatores
+    // que requerem plano), porque é item comparado na homologação. Este campo é
+    // o caminho de quem quer a leitura escrita pela IA: o rascunho passa pela
+    // aprovação da equipe CRIVO e só então substitui a frase automática.
+    docType: 'dossie_tecnico',
+    field: 'sintese_ciclo',
+    label: 'Síntese executiva do ciclo (Dossiê · Síntese do ciclo)',
+    required: false,
+    instruction:
+      'Escreva a "Síntese executiva" do Dossiê Técnico deste ciclo. Comece pelo score executivo geral ' +
+      'e sua faixa, exatamente como vieram no contexto (sem arredondar). Em seguida, nomeie os fatores ' +
+      'que requerem plano de ação (R ≥ 10) pelo nome exato e na ordem recebida. Encerre lembrando que o ' +
+      'score executivo e a classificação técnica de risco são leituras distintas. Um parágrafo, 3 a 5 ' +
+      'frases, sem bullets e sem repetir as tabelas.',
   },
   {
     docType: 'dossie_tecnico',
     field: 'conclusao_tecnica',
-    label: 'Conclusão técnica (Dossiê §13)',
+    label: 'Conclusão técnica (Dossiê)',
     required: true,
     instruction:
       'Escreva a conclusão técnica do Dossiê: o que o ciclo avaliado registrou (fatores priorizados, ' +

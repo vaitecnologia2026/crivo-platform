@@ -506,7 +506,7 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
     try { await updateActionItem(item.id, { status: s }); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
   }
-  const hasDetails = !!(item.areaProcess || item.existingMeasure || item.indicator);
+  const hasDetails = !!(item.areaProcess || item.existingMeasure || item.indicator || item.objective);
   return (
     <>
       <tr>
@@ -579,6 +579,7 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
     areaProcess: item.areaProcess ?? "",
     existingMeasure: item.existingMeasure && item.existingMeasure !== "Nenhuma medida existente" ? item.existingMeasure : "",
     indicator: item.indicator ?? "",
+    objective: item.objective ?? "",
   });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
   const [saving, setSaving] = useState(false);
@@ -590,6 +591,7 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
         existingMeasure:
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
         indicator: f.indicator || undefined,
+        objective: f.objective || undefined,
       });
       onChanged();
       onClose();
@@ -607,6 +609,11 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
         </label>
         <label className="prod-field"><span>Indicador de acompanhamento</span>
           <input value={f.indicator} onChange={(e) => setF((s) => ({ ...s, indicator: e.target.value }))} placeholder="Ex.: % de adesão ao novo fluxo" />
+        </label>
+        {/* Coluna "Objetivo" do Plano de ação no Dossiê. Quando a ação veio de
+            uma sugestão, já chega preenchida. */}
+        <label className="prod-field"><span>Objetivo da medida</span>
+          <input value={f.objective} onChange={(e) => setF((s) => ({ ...s, objective: e.target.value }))} placeholder="Ex.: Reduzir sobrecarga recorrente" />
         </label>
         <label className="prod-field"><span>Medida que já existe</span>
           <select
@@ -720,7 +727,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "" });
+  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "", objective: "" });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">("");
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -794,6 +801,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         existingMeasure:
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
         indicator: f.indicator || undefined,
+        objective: f.objective || undefined,
       });
       onAdded();
     } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
@@ -981,6 +989,9 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         </label>
         <label className="prod-field"><span>Indicador de acompanhamento</span>
           <input value={f.indicator} onChange={(e) => set("indicator")(e.target.value)} placeholder="Ex.: % de adesão ao novo fluxo" />
+        </label>
+        <label className="prod-field"><span>Objetivo da medida</span>
+          <input value={f.objective} onChange={(e) => set("objective")(e.target.value)} placeholder="Ex.: Reduzir sobrecarga recorrente" />
         </label>
         {/* Medida existente: a EMPRESA informa — o sistema nunca inventa (decisão 27/07). */}
         <label className="prod-field"><span>Medida que já existe para este fator</span>

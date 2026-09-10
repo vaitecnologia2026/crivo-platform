@@ -1591,6 +1591,11 @@ model ActionItem {
   areaProcess          String?               @map("area_process")
   existingMeasure      String?               @map("existing_measure")
   indicator            String?
+  /// OBJETIVO da medida ("Reduzir sobrecarga recorrente") — coluna do Plano de
+  /// Ação no modelo oficial do Dossiê. A sugestão da IA JÁ escrevia este texto
+  /// e ele era descartado na hora de virar ação: o item não tinha onde guardá-lo
+  /// e a coluna do documento saía vazia.
+  objective            String?
   /// A4 — proveniência estruturada do fator (mesma semântica do plano).
   sourceInstrumentSlug String?               @map("source_instrument_slug")
   sourceInstrument     DiagnosticInstrument? @relation("item_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)

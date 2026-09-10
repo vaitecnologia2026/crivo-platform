@@ -57,6 +57,9 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   indicator?: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  objective?: string;
 }
 
 export class UpdateActionItemDto {
@@ -108,6 +111,9 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   indicator?: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  objective?: string;
 }
 
 /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */

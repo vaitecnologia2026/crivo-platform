@@ -1143,6 +1143,37 @@ export function psychosocialProbabilityLevel(exposureAvg: number): number {
   return 5;
 }
 
+/**
+ * Rótulo CURTO de cada nível, como sai na tabela "Critérios expressos" do
+ * Dossiê. O rótulo longo (`PSYCHOSOCIAL_PROBABILITY_LABEL`) continua sendo o da
+ * tela: ali cabe a frase explicativa, no documento não.
+ */
+export const PSYCHOSOCIAL_PROBABILITY_SHORT: Record<number, string> = {
+  1: 'Rara',
+  2: 'Improvável',
+  3: 'Possível',
+  4: 'Provável',
+  5: 'Altamente provável',
+};
+
+/** Critério objetivo de cada nível de probabilidade (§6.2). */
+export const PSYCHOSOCIAL_PROBABILITY_CRITERION: Record<number, string> = {
+  1: 'Exposição média de 1,00 a 1,49.',
+  2: 'Exposição média de 1,50 a 2,49.',
+  3: 'Exposição média de 2,50 a 3,49.',
+  4: 'Exposição média de 3,50 a 4,49.',
+  5: 'Exposição média de 4,50 a 5,00 ou regra adicional de exposição alta.',
+};
+
+/** Rótulo CURTO da severidade-base, para a mesma tabela. */
+export const PSYCHOSOCIAL_SEVERITY_SHORT: Record<number, string> = {
+  1: 'Insignificante',
+  2: 'Baixa',
+  3: 'Moderada',
+  4: 'Alta',
+  5: 'Muito alta',
+};
+
 /** Exposição ALTA = respostas 1 ou 2 numa pergunta positiva (§6.2, regra dos 60%). */
 export const HIGH_EXPOSURE_MIN = 4;
 /** Acima desta fração de exposições altas, a probabilidade sobe direto para 5. */
@@ -1189,11 +1220,15 @@ export const PSYCHOSOCIAL_RISK_CLASSES = [
 export type PsychosocialRiskClass = (typeof PSYCHOSOCIAL_RISK_CLASSES)[number];
 
 export const PSYCHOSOCIAL_RISK_CLASS_LABEL: Record<PsychosocialRiskClass, string> = {
-  BAIXO: 'Baixo (Tolerável)',
-  MODERADO: 'Moderado (Exige atenção pontual)',
-  ALTO: 'Alto (Requer plano de ação)',
-  MUITO_ALTO: 'Muito alto (Prioridade imediata)',
-  CRITICO: 'Crítico (Intolerável)',
+  // Nomenclatura do MODELO OFICIAL (Massa Ouro de homologação): separador barra,
+  // sem parênteses, e "Atenção pontual" sem o "Exige". A classificação é item
+  // comparado contra o gabarito do cliente — divergência de texto aqui reprova o
+  // Dossiê inteiro, mesmo com P, S e R corretos.
+  BAIXO: 'Baixo / Tolerável',
+  MODERADO: 'Moderado / Atenção pontual',
+  ALTO: 'Alto / Requer plano de ação',
+  MUITO_ALTO: 'Muito alto / Prioridade imediata',
+  CRITICO: 'Crítico / Intolerável',
 };
 
 /** Ação recomendada por faixa (§8.4) — é o que transforma a matriz em decisão. */
@@ -1334,6 +1369,11 @@ export interface PsychosocialRiskMatrixRow {
   exposureAvg: number;
   /** Quantas dessas respostas ficaram em exposição alta (4 ou 5) — regra dos 60%. */
   highExposureCount: number;
+  /** Total de respostas válidas VINCULADAS AO FATOR — o denominador da regra dos
+   *  60%. Não é `respondents`: um fator pode ter mais de uma pergunta, e aí o
+   *  número de respostas é maior que o de respondentes. O Dossiê imprime
+   *  "X% das respostas válidas do fator em exposição alta" a partir daqui. */
+  exposureCount: number;
   probability: number;
   /** De onde veio a probabilidade: das perguntas vinculadas ao fator ou da
    *  dimensão (fallback). Transparência para a tela e para o dossiê. */
@@ -1914,6 +1954,8 @@ export interface ActionItemData {
   areaProcess: string | null;
   existingMeasure: string | null;
   indicator: string | null;
+  /** Objetivo da medida — coluna "Objetivo" do Plano de ação no Dossiê. */
+  objective: string | null;
   /** A4 — proveniência estruturada: diagnóstico do Motor que originou o fator. */
   sourceInstrumentSlug: string | null;
   sourceInstrumentName: string | null;
@@ -1959,6 +2001,7 @@ export interface CreateActionItemRequest {
   areaProcess?: string;
   existingMeasure?: string;
   indicator?: string;
+  objective?: string;
 }
 export interface UpdateActionItemRequest {
   point?: string;
@@ -1977,6 +2020,7 @@ export interface UpdateActionItemRequest {
   areaProcess?: string;
   existingMeasure?: string;
   indicator?: string;
+  objective?: string;
 }
 
 /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */

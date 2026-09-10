@@ -68,20 +68,44 @@ const PATTERNS: Record<Exclude<ReportPattern, 'GENERICO'>, PatternSpec> = {
       { heading: 'Limites de uso', match: /n[ãa]o substitui|preliminar de gest[ãa]o|limites/i },
     ],
   },
-  // Modelo "Dossiê Técnico de Fatores de Riscos Psicossociais" (5 páginas).
+  // Modelo "Dossiê Técnico de Fatores de Riscos Psicossociais" — o oficial dos
+  // diagnósticos Essencial e Organizacional (6 a 7 páginas). Os slots são os
+  // títulos REAIS do documento; antes o esqueleto tinha nomes que não existem
+  // nele ("Medidas e plano de ação", "Participação, comunicação e evidências") e
+  // faltava o Anexo técnico inteiro — o que sobrava caía em `extras`, no fim do
+  // modelo, fora de ordem.
   DOSSIE_TECNICO: {
     label: 'Dossiê Técnico NR-1',
     slots: [
       { heading: 'Objetivo e escopo', match: /objetivo e escopo|objetivo/i },
       { heading: 'Responsabilidades', match: /responsabilidades/i },
       { heading: 'Escopo da avaliação', match: /escopo da avalia[çc][ãa]o|confidencialidade/i },
-      { heading: 'Metodologia e critérios', match: /metodologia|crit[ée]rios|matriz de risco|m[ée]todo de avalia[çc][ãa]o/i },
-      { heading: 'Síntese do ciclo', match: /s[íi]ntese do ciclo|s[íi]ntese executiva|resultados por dimens[ãa]o/i, dynamic: 'dimensions' },
+      {
+        heading: 'Metodologia e critérios',
+        match: /metodologia|crit[ée]rios expressos|crit[ée]rios|matriz de risco|m[ée]todo de avalia[çc][ãa]o|probabilidade|severidade/i,
+      },
+      // Prosa do ciclo: continua sendo TEXTO do modelo (o motor injeta a síntese
+      // no lugar quando há texto aprovado), então não é slot dinâmico.
+      { heading: 'Síntese executiva', match: /s[íi]ntese do ciclo|s[íi]ntese executiva/i },
+      { heading: 'Resultados por dimensão', match: /resultados por dimens[ãa]o|leitura gr[áa]fica/i, dynamic: 'dimensions' },
       { heading: 'Prioridades técnicas', match: /prioridades t[ée]cnicas/i, dynamic: 'results' },
-      { heading: 'Inventário técnico', match: /invent[áa]rio t[ée]cnico|caracteriza[çc][ãa]o dos fatores|exposi[çc][ãa]o, poss[íi]veis agravos/i },
-      { heading: 'Medidas e plano de ação', match: /medidas e plano|plano de a[çc][ãa]o/i, dynamic: 'plan' },
-      { heading: 'Participação, comunicação e evidências', match: /participa[çc][ãa]o|comunica[çc][ãa]o|evid[êe]ncias/i },
-      { heading: 'Controle documental e responsabilidade', match: /controle documental|responsabilidade legal/i },
+      { heading: 'Participação e recortes', match: /participa[çc][ãa]o e recortes|participa[çc][ãa]o|recortes/i, dynamic: 'results' },
+      {
+        heading: 'Inventário técnico',
+        match: /invent[áa]rio t[ée]cnico|caracteriza[çc][ãa]o dos fatores|poss[íi]veis agravos|consequ[êe]ncias/i,
+      },
+      { heading: 'Plano de ação', match: /plano de a[çc][ãa]o|medidas e plano|medida definida/i, dynamic: 'plan' },
+      { heading: 'Medidas existentes', match: /medidas existentes/i },
+      { heading: 'Registro de comunicação e devolutiva', match: /devolutiva|comunica[çc][ãa]o dos resultados/i },
+      { heading: 'Evidências', match: /evid[êe]ncias/i },
+      { heading: 'Controle documental', match: /controle documental/i },
+      { heading: 'Responsabilidade', match: /responsabilidade legal|responsabilidade/i },
+      { heading: 'Referências', match: /refer[êe]ncias/i },
+      {
+        heading: 'Anexo técnico — fatores classificados',
+        match: /anexo t[ée]cnico|fatores classificados|resultado consolidado do ciclo/i,
+        dynamic: 'results',
+      },
     ],
   },
 };
@@ -325,17 +349,87 @@ function clampSections(sections: ReportImportSection[]): { sections: ReportImpor
  * página e, sem remover, entram no meio do texto ("CRIVO — Decision
  * Intelligence" aparecia dentro das seções).
  */
+const QUEBRA_DE_PAGINA_RE = /^[-\u2013\u2014]{0,2}\s*\d+\s+of \s*\d+\s*[-\u2013\u2014]{0,2}$/i;
+
+/** Chave com os dígitos neutralizados: "CRIVO · Página 3" e "CRIVO · Página 4"
+ *  viram a MESMA linha. É o que permite reconhecer cabeçalho corrido cujo único
+ *  elemento variável é o número da página. */
+function chaveSemNumeros(s: string): string {
+  return s.replace(/\d+/g, '#');
+}
+
 function dropRunningHeaders(lines: string[]): string[] {
   const count = new Map<string, number>();
   for (const l of lines) {
     const k = l.trim();
     if (k && k.length <= 90) count.set(k, (count.get(k) ?? 0) + 1);
   }
-  return lines.filter((l) => {
+
+  // BORDAS de página — primeira e última linha não vazia de cada página. É onde
+  // vive cabeçalho/rodapé, e o extrator marca as quebras ("-- 1 of 6 --"), então
+  // dá para saber exatamente onde cada página começa e termina.
+  //
+  // Existe porque o modelo oficial do Dossiê traz "CRIVO™ · Decision
+  // Intelligence Página 1" no topo de cada página: o número muda, a contagem por
+  // linha exata nunca chegava a 3, e cada cabeçalho virava um TÍTULO que engolia
+  // a página inteira no corpo. O resultado era um modelo importado com sete
+  // seções chamadas "Página N" e nenhuma seção real reconhecida.
+  const paginaDe: number[] = [];
+  let pag = 0;
+  for (const l of lines) {
+    paginaDe.push(pag);
+    if (QUEBRA_DE_PAGINA_RE.test(l.trim())) pag += 1;
+  }
+  const totalPaginas = pag + 1;
+  // SÓ a primeira linha de cada página. A última é conteúdo com frequência alta
+  // demais — num documento cujas páginas terminam com a mesma frase, a regra
+  // apagaria o corpo. Rodapé que se repete de verdade já cai na contagem exata
+  // (>= 3) e no padrão "Página N".
+  const primeira = new Map<number, number>();
+  lines.forEach((l, i) => {
+    const t = l.trim();
+    if (!t || QUEBRA_DE_PAGINA_RE.test(t)) return;
+    const p = paginaDe[i];
+    if (!primeira.has(p)) primeira.set(p, i);
+  });
+  // Página com menos de três linhas não tem "corpo entre cabeçalho e rodapé" —
+  // ali a primeira/última linha é o próprio conteúdo, e descartá-la apagaria o
+  // documento. Só páginas com corpo entram na detecção de furniture.
+  const linhasPorPagina = new Map<number, number>();
+  lines.forEach((l, i) => {
+    const t = l.trim();
+    if (!t || QUEBRA_DE_PAGINA_RE.test(t)) return;
+    linhasPorPagina.set(paginaDe[i], (linhasPorPagina.get(paginaDe[i]) ?? 0) + 1);
+  });
+  const comCorpo = (p: number) => (linhasPorPagina.get(p) ?? 0) >= 3;
+  const bordas = new Set<number>(
+    [...primeira.entries()].filter(([p]) => comCorpo(p)).map(([, i]) => i),
+  );
+  const paginasPorChave = new Map<string, Set<number>>();
+  for (const i of bordas) {
+    const t = lines[i].trim();
+    if (!t || t.length > 90) continue;
+    const chave = chaveSemNumeros(t);
+    const vistas = paginasPorChave.get(chave) ?? new Set<number>();
+    vistas.add(paginaDe[i]);
+    paginasPorChave.set(chave, vistas);
+  }
+  // Metade das páginas, nunca menos de duas: um documento de duas páginas tem o
+  // cabeçalho exatamente duas vezes.
+  const minimoDePaginas = Math.max(2, Math.ceil(totalPaginas / 2));
+
+  return lines.filter((l, i) => {
     const k = l.trim();
-    if (/^[-\u2013\u2014]{0,2}\s*\d+\s+of \s*\d+\s*[-\u2013\u2014]{0,2}$/i.test(k)) return false;
+    if (QUEBRA_DE_PAGINA_RE.test(k)) return false;
     if (/^(p[áa]gina|page)\s+\d+(\s+(de|of)\s+\d+)?$/i.test(k)) return false;
-    return (count.get(k) ?? 0) < 3;
+    if ((count.get(k) ?? 0) >= 3) return false;
+    // Só na BORDA. No meio da página, linha repetida é conteúdo — "1 fator(es)"
+    // aparece cinco vezes na matriz 5×5 e não pode sumir.
+    if (bordas.has(i) && k.length <= 90) {
+      const vistas = paginasPorChave.get(chaveSemNumeros(k));
+      if (vistas && vistas.size >= minimoDePaginas) return false;
+    }
+    return true;
   });
 }
 
@@ -343,8 +437,27 @@ function dropRunningHeaders(lines: string[]): string[] {
  * Palavra de ligação no fim da linha denuncia quebra no MEIO da frase — o PDF
  * quebra por largura de coluna, não por sentido.
  */
-const CONTINUACAO_RE =
-  /\b(de|da|do|das|dos|e|ou|a|o|as|os|em|no|na|nos|nas|para|por|com|que|se|ao|\u00e0|um|uma|dos|pelo|pela|sobre|entre|quando|como)$/i;
+const PALAVRAS_DE_LIGACAO = new Set([
+  'de', 'da', 'do', 'das', 'dos', 'e', 'ou', 'a', 'o', 'as', 'os', 'em', 'no', 'na',
+  'nos', 'nas', 'para', 'por', 'com', 'que', 'se', 'ao', '\u00e0', 'um', 'uma',
+  'pelo', 'pela', 'sobre', 'entre', 'quando', 'como',
+]);
+
+/**
+ * Última PALAVRA da linha é palavra de ligação?
+ *
+ * Era um regex com `\b` — e `\b` não conhece acento: em JavaScript `ã` não é
+ * caractere de palavra, então "avaliação" tinha fronteira antes do "o" final e
+ * casava com a alternativa `o`. Resultado: "Escopo da avaliação", "Plano de
+ * ação" e "Resultados por dimensão" eram lidos como frase inacabada e nunca
+ * viravam título. Comparar palavra inteira, separando por não-letras Unicode,
+ * resolve a classe toda de uma vez.
+ */
+function terminaEmLigacao(t: string): boolean {
+  const palavras = t.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+  const ultima = palavras[palavras.length - 1];
+  return !!ultima && PALAVRAS_DE_LIGACAO.has(ultima);
+}
 
 /**
  * Título dentro de um PDF. A regra antiga ("linha curta sem pontuação final")
@@ -357,17 +470,32 @@ function pdfLooksLikeHeading(line: string, prevLine: string | null, nextLine: st
   const t = line.trim();
   if (!t || t.length > 80) return false;
   if (/[.!?;,]$/.test(t)) return false;
-  if (CONTINUACAO_RE.test(t)) return false;
-  if (t.split(/\s+/).length > 10) return false;
-  // Frase anterior não fechou => esta linha é continuação, não título.
-  if (prevLine !== null && !/[.!?:]$/.test(prevLine)) return false;
+  if (terminaEmLigacao(t)) return false;
+  const tokens = t.split(/\s+/);
+  if (tokens.length > 10) return false;
   // Linha de TABELA achatada em texto ("4 4 16 * Critico", "3 Possivel ...")
   // se parece com titulo numerado. Descarta quando ha varios numeros soltos ou
   // marcador de celula - no PDF a tabela vira exatamente isso.
-  const tokens = t.split(/\s+/);
+  // Vem ANTES da guarda de frase para que a exceção de título curto, abaixo,
+  // não consiga ressuscitar uma linha de tabela.
   const numericos = tokens.filter((w) => /^\d+([.,]\d+)?$/.test(w)).length;
   if (numericos >= 2) return false;
   if (/[\u25cf\u25cb\u25aa\u2022]/.test(t)) return false;
+  // Frase anterior não fechou => esta linha é continuação, não título.
+  //
+  // EXCEÇÃO: título curto (2 a 5 palavras) que começa em maiúscula e é seguido
+  // de conteúdo novo. Num documento real o título vem logo depois de uma TABELA,
+  // e célula de tabela não termina em ponto — com a regra dura, "Plano de ação",
+  // "Prioridades técnicas", "Participação e recortes" e "Controle documental"
+  // nunca eram título. O limite de 5 palavras é o que impede que uma frase
+  // partida no meio volte a passar (o caso que criou esta guarda tem 9).
+  const tituloCurto =
+    tokens.length >= 2 &&
+    tokens.length <= 5 &&
+    /^[A-Z\u00c0-\u00da]/.test(t) &&
+    nextLine !== null &&
+    /^[A-Z\u00c0-\u00da\d]/.test(nextLine);
+  if (prevLine !== null && !/[.!?:]$/.test(prevLine) && !tituloCurto) return false;
 
   // Sinais positivos, em ordem de confiança.
   // Numeracao de secao EXIGE o ponto/parentese ("3.1 Metodologia", "3) Escopo");

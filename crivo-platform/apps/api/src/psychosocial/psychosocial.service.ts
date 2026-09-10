@@ -445,7 +445,7 @@ export class PsychosocialService {
         new Set(rows.map((r) => r.methodologyVersionId).filter((v): v is string => !!v)),
       );
 
-      const overall = aggregate(rows, dims, bands, matrixRows);
+      const overall = aggregate(rows, dims, bands, matrixRows, cfg?.rounding ?? 0);
       const overallSuppressed = rows.length < minRespondents;
 
       // Agrupa por setor.
@@ -463,7 +463,7 @@ export class PsychosocialService {
             sector,
             respondents: list.length,
             suppressed,
-            ...(suppressed ? {} : aggregate(list, dims, bands, matrixRows)),
+            ...(suppressed ? {} : aggregate(list, dims, bands, matrixRows, cfg?.rounding ?? 0)),
           };
         })
         .sort((a, b) => b.respondents - a.respondents);
@@ -521,6 +521,14 @@ function aggregate(
   dims: AggDim[],
   bands: AggBand[] | null,
   matrixRows: MatrixSource[] = [],
+  /**
+   * Casas decimais do resultado, vindas da metodologia (`MethodologyConfig.
+   * rounding`). Era `Math.round` fixo aqui: a média de 7 respondentes saía 70
+   * onde o gabarito da Massa Ouro diz 69,64 — e a regra de homologação trata
+   * diferença de score como FAIL. Ausente/0 mantém inteiro, que é o
+   * comportamento de quem não configurou casas.
+   */
+  decimals = 0,
 ): {
   score: number;
   level: string;
@@ -533,7 +541,12 @@ function aggregate(
   profile: PsychosocialProfileRow[];
   riskMatrix: PsychosocialRiskMatrixRow[];
 } {
-  const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length);
+  const casas = Number.isFinite(decimals) ? Math.max(0, Math.min(6, Math.trunc(decimals))) : 0;
+  const arredonda = (x: number) => {
+    const f = 10 ** casas;
+    return Math.round((x + Number.EPSILON) * f) / f;
+  };
+  const score = arredonda(rows.reduce((s, r) => s + r.score, 0) / rows.length);
   const byDimension: Record<string, number> = {};
   const dimensionLabels: Record<string, string> = {};
   const dimensionBands: DimensionBandMap = {};
@@ -541,7 +554,7 @@ function aggregate(
     rows.map((r) => Number((r.byDimension as Record<string, number>)?.[slug] ?? 0));
   for (const d of dims) {
     const vals = valuesOf(d.slug);
-    const dv = Math.round(vals.reduce((s, x) => s + x, 0) / vals.length);
+    const dv = arredonda(vals.reduce((s, x) => s + x, 0) / vals.length);
     byDimension[d.slug] = dv;
     dimensionLabels[d.slug] = d.label;
     const db = findBandForScore(bands ?? undefined, dv);
@@ -632,6 +645,7 @@ function aggregate(
             percentCritical: Math.round(percentCritical),
             exposureAvg: Math.round(exposureAvg * 100) / 100,
             highExposureCount,
+            exposureCount: exposures.length,
             probability,
             severity,
             risk,
