@@ -852,6 +852,11 @@ export class DocumentsService {
       docs.push({
         type: `tpl:${t.key}`,
         title: t.name,
+        // Um MESMO modelo pode estar cadastrado para mais de um diagnóstico — o
+        // Dossiê oficial serve o Essencial e o Organizacional. Sem o nome do
+        // diagnóstico o cliente via dois cartões de título idêntico e nenhuma
+        // forma de saber qual era qual.
+        subtitle: t.instrumentName,
         available: ok,
         reason: ok
           ? undefined
