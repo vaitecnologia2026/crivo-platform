@@ -24,6 +24,7 @@ import {
   resolveActiveMethodology,
   resolveInstrumentForTenant,
   resolvePsychosocialInstrument,
+  usesPsychosocialEngine,
 } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 // MESMAS funções que montam o PDF do MAPA enviado por e-mail: o relatório do
@@ -1097,10 +1098,40 @@ export class DocumentsService {
    * Volume = número de respondentes do recorte; recortes abaixo do mínimo têm o
    * número ocultado. Fonte: respostas psicossociais (o dossiê é psicossocial).
    */
+  /**
+   * Instrumento que ESTA empresa aplica, e em qual motor ele grava.
+   *
+   * Este arquivo resolvia o instrumento por `resolvePsychosocialInstrument`, que
+   * devolve SEMPRE o do método ORGANIZACIONAL, ignorando o tenant. Como os dois
+   * motores gravam em tabelas diferentes — Organizacional em
+   * `psychosocial_responses`, Essencial em `diagnostic_responses` —, o Dossiê de
+   * quem contratou o Essencial lia ZERO resposta e saía suprimido por
+   * confidencialidade: sem score, sem faixa, sem dimensões, sem período e sem
+   * participação, com as respostas todas lá, na outra tabela.
+   *
+   * Mesma resolução que `psychosocial.results()` já usa para a matriz — é por
+   * isso que a matriz do Essencial funcionava e o resto do documento não. Para
+   * tenant Organizacional o resultado é idêntico ao de antes.
+   */
+  private async instrumentoDoTenant(
+    tenantId: string,
+  ): Promise<{ slug: string; motorPsicossocial: boolean }> {
+    const slug =
+      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
+      (await resolvePsychosocialInstrument(this.prisma));
+    return { slug, motorPsicossocial: await usesPsychosocialEngine(this.prisma, slug) };
+  }
+
   private async sectorAdhesion(tenantId: string) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
+    const { slug, motorPsicossocial } = await this.instrumentoDoTenant(tenantId);
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const rows = await tx.psychosocialResponse.findMany({ select: { sector: true } });
+      const rows: { sector: string | null }[] = motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({ select: { sector: true } })
+        : await tx.diagnosticResponse.findMany({
+            where: { instrumentSlug: slug },
+            select: { sector: true },
+          });
       const bySector = new Map<string, number>();
       for (const r of rows) {
         const k = r.sector?.trim() || 'Não informado';
@@ -1185,16 +1216,36 @@ export class DocumentsService {
    */
   private async psychosocialSummary(tenantId: string, range?: { from: Date; to: Date }) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
-    const active = await resolveActiveMethodology(this.prisma, await resolvePsychosocialInstrument(this.prisma));
+    const { slug, motorPsicossocial } = await this.instrumentoDoTenant(tenantId);
+    const active = await resolveActiveMethodology(this.prisma, slug);
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = (active?.config.bands ?? []) as BandLike[];
+    // Casas decimais da METODOLOGIA. Era `Math.round` fixo: a média de 7
+    // respondentes saía 70 onde o gabarito da Massa Ouro diz 69,64, e a regra de
+    // homologação trata diferença de score como FAIL. Ausente/0 mantém inteiro.
+    const casas = Math.max(0, Math.min(6, Math.trunc(active?.config.rounding ?? 0)));
+    const arredonda = (x: number) => {
+      const f = 10 ** casas;
+      return Math.round((x + Number.EPSILON) * f) / f;
+    };
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const rows = await tx.psychosocialResponse.findMany({
-        // F4: com `range`, só as respostas DA JANELA DO CICLO entram no
-        // snapshot congelado — a aplicação formal é o período aberto/encerrado.
-        where: range ? { submittedAt: { gte: range.from, lte: range.to } } : undefined,
-        select: { sector: true, score: true, byDimension: true, submittedAt: true },
-      });
+      // F4: com `range`, só as respostas DA JANELA DO CICLO entram no
+      // snapshot congelado — a aplicação formal é o período aberto/encerrado.
+      const janela = range ? { submittedAt: { gte: range.from, lte: range.to } } : {};
+      const rows: {
+        sector: string | null;
+        score: number;
+        byDimension: unknown;
+        submittedAt: Date;
+      }[] = motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({
+            where: janela,
+            select: { sector: true, score: true, byDimension: true, submittedAt: true },
+          })
+        : await tx.diagnosticResponse.findMany({
+            where: { instrumentSlug: slug, ...janela },
+            select: { sector: true, score: true, byDimension: true, submittedAt: true },
+          });
       const total = rows.length;
       const dates = rows.map((r) => r.submittedAt).sort((a, b) => a.getTime() - b.getTime());
       const period =
@@ -1202,13 +1253,13 @@ export class DocumentsService {
       if (total < minRespondents) {
         return { suppressed: true as const, totalRespondents: total, minRespondents, period };
       }
-      const score = Math.round(rows.reduce((s, r) => s + r.score, 0) / total);
+      const score = arredonda(rows.reduce((s, r) => s + r.score, 0) / total);
       const byDimension = dims.map((d) => {
         const vals = rows.map((r) => Number((r.byDimension as Record<string, number>)?.[d.slug] ?? 0));
         return {
           slug: d.slug,
           label: d.label,
-          value: Math.round(vals.reduce((s, x) => s + x, 0) / vals.length),
+          value: arredonda(vals.reduce((s, x) => s + x, 0) / vals.length),
         };
       });
       const sectorsList = [...new Set(rows.map((r) => r.sector?.trim()).filter(Boolean))] as string[];
@@ -1277,7 +1328,9 @@ export class DocumentsService {
     const psy = await this.psychosocialSummary(tenantId, { from, to });
     return {
       method: method ?? null,
-      methodologyVersion: await this.activeVersionLabel(await resolvePsychosocialInstrument(this.prisma)),
+      methodologyVersion: await this.activeVersionLabel(
+        (await this.instrumentoDoTenant(tenantId)).slug,
+      ),
       snapshot: {
         planTitle: plan?.title ?? null,
         planValidatedAt: plan?.validatedAt ? new Date(plan.validatedAt).toISOString() : null,
@@ -1569,9 +1622,12 @@ export class DocumentsService {
         { prisma: this.prisma, aiSettings: this.aiSettings },
         tenantId,
         planMatrix,
-        // A matriz veio de psychosocial.results, que lê o instrumento do método
-        // ORGANIZACIONAL — é por ele que o prompt personalizado é resolvido.
-        await resolvePsychosocialInstrument(this.prisma),
+        // MESMO instrumento que produziu a matriz (psychosocial.results resolve
+        // pelo contrato do tenant). É por ele que o prompt personalizado da IA da
+        // Plataforma e a rede de segurança `factor_action_plans` são resolvidos —
+        // com o Organizacional fixo aqui, o Essencial recebia o prompt e o cache
+        // de outro diagnóstico.
+        (await this.instrumentoDoTenant(tenantId)).slug,
       );
       const originNote =
         origin === 'IA'
@@ -1645,7 +1701,7 @@ export class DocumentsService {
     // instrução de homologação é explícita — nº de respondentes não é nº de
     // expostos, e dado contextual só aparece quando a organização o cadastrou.
     const versaoMetodologica = await this.activeVersionLabel(
-      await resolvePsychosocialInstrument(this.prisma),
+      (await this.instrumentoDoTenant(tenantId)).slug,
     );
     const meta: GeneratedDocument['meta'] = [
       { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },

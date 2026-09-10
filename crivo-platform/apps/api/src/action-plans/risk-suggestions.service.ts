@@ -14,7 +14,10 @@ import {
   planEntryFor,
   resolveActionPlans,
 } from './psychosocial-action-plans';
-import { resolvePsychosocialInstrument } from '../admin/methodology.service';
+import {
+  resolveInstrumentForTenant,
+  resolvePsychosocialInstrument,
+} from '../admin/methodology.service';
 
 /**
  * Ações SUGERIDAS a partir do cálculo da matriz 5×5.
@@ -182,9 +185,12 @@ export class RiskSuggestionsService {
       { prisma: this.prisma, aiSettings: this.aiSettings },
       tenantId,
       required,
-      // Mesmo instrumento que produziu a matriz (psychosocial.results) — é por
-      // ele que o prompt personalizado da IA da Plataforma é resolvido.
-      await resolvePsychosocialInstrument(this.prisma),
+      // Mesmo instrumento que produziu a matriz (psychosocial.results resolve
+      // pelo CONTRATO do tenant) — é por ele que o prompt personalizado da IA da
+      // Plataforma e a rede de segurança `factor_action_plans` são resolvidos.
+      // Fixo no Organizacional, o Essencial recebia o prompt de outro diagnóstico.
+      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
+        (await resolvePsychosocialInstrument(this.prisma)),
       // Esta lista é pedida ao ABRIR o Plano de Evolução, e o portal desiste em
       // 15s. Com o orçamento antigo (22s) a tela morria em "Não foi possível
       // carregar" toda vez que a IA demorava — e o fallback da biblioteca, que

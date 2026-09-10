@@ -42,9 +42,12 @@ function build(matrix: PsychosocialRiskMatrixRow[], aiEnabled = false) {
     ),
     admin: {
       aiCustomPrompt: { findFirst: vi.fn(async () => null) },
-      // O instrumento do motor psicossocial (metodo ORGANIZACIONAL) e quem
-      // resolve o prompt da IA e a proveniencia da acao. Sem cadastro, vale o
-      // slug legado — que e o cenario destes testes.
+      // O instrumento e resolvido pelo CONTRATO da empresa: contrato ativo ->
+      // produto -> metodo -> instrumento do catalogo. Sem nada cadastrado a
+      // cascata devolve null e vale o slug legado — o cenario destes testes.
+      contract: { findFirst: vi.fn(async () => null) },
+      tenant: { findFirst: vi.fn(async () => null) },
+      product: { findUnique: vi.fn(async () => null) },
       diagnosticInstrument: { findFirst: vi.fn(async () => null) },
     },
   };
