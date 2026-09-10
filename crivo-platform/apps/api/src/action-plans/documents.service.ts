@@ -17,14 +17,16 @@ import {
   PSYCHOSOCIAL_PROBABILITY_SHORT,
   PSYCHOSOCIAL_PROBABILITY_CRITERION,
   PSYCHOSOCIAL_SEVERITY_SHORT,
+  findBandForScore,
   fillReportPlaceholders,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   resolveActiveMethodology,
   resolveInstrumentForTenant,
-  resolvePsychosocialInstrument,
+  resolveTenantInstrument,
   usesPsychosocialEngine,
+  type TenantInstrument,
 } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
 // MESMAS funções que montam o PDF do MAPA enviado por e-mail: o relatório do
@@ -297,7 +299,7 @@ function barrasDimensoesHtml(
         `<tr><td style="padding:4px 10px 4px 0;font-size:11.5px;color:#0d1f3c;width:38%">${escapaHtml(d.label)}</td>` +
         `<td style="padding:4px 0"><div style="background:#e6e3dc;border-radius:6px;height:9px;width:100%">` +
         `<div style="background:${cor};height:9px;border-radius:6px;width:${largura}%"></div></div></td>` +
-        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${d.value}</td>` +
+        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${numeroPtBr(d.value)}</td>` +
         `<td style="padding:4px 0 4px 10px;font-size:10.5px;white-space:nowrap;` +
         `color:${opcoes.cabecalho ? '#2f343b' : cor}">` +
         (opcoes.cabecalho
@@ -391,7 +393,7 @@ function adhesionLabel(responses: number, employeesCount?: string | null): strin
   return `${responses} de ${total} (${pct}%)`;
 }
 
-type BandLike = { label: string; min: number; max: number; color?: string | null };
+type BandLike = { code: string; label: string; min: number; max: number; color?: string | null };
 /**
  * Classificação pela régua ativa — a MESMA régua vale p/ score geral e cada
  * dimensão. Scores fracionários podem cair no VÃO entre faixas inteiras
@@ -399,6 +401,12 @@ type BandLike = { label: string; min: number; max: number; color?: string | null
  * no mesmo espírito do fallback do motor canônico (nunca devolve "—" para um
  * score válido).
  */
+/** Documento pt-BR nunca imprime ponto decimal. Inteiro sai sem casas — não
+ *  muda a leitura de quem já via só inteiros (MAPA Executivo). */
+function numeroPtBr(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(value).replace('.', ',');
+}
+
 function bandLabelOf(value: number, bands: BandLike[]): string {
   const exact = bands.find((b) => value >= b.min && value <= b.max);
   if (exact) return exact.label;
@@ -984,7 +992,12 @@ export class DocumentsService {
       const matrixSections = wants('matriz_risco')
         ? (await this.psychosocialMatrixSections(tenantId)).sections
         : [];
-      const adhesion = wants('participacao') ? await this.sectorAdhesion(tenantId) : null;
+      const adhesion = wants('participacao')
+        ? await this.sectorAdhesion(tenantId, {
+            slug: tpl.instrumentSlug,
+            motorPsicossocial: await usesPsychosocialEngine(this.prisma, tpl.instrumentSlug),
+          })
+        : null;
 
       const filled = fillReportPlaceholders(tplHtml, (key) => {
         switch (key) {
@@ -1115,16 +1128,20 @@ export class DocumentsService {
    */
   private async instrumentoDoTenant(
     tenantId: string,
-  ): Promise<{ slug: string; motorPsicossocial: boolean }> {
-    const slug =
-      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
-      (await resolvePsychosocialInstrument(this.prisma));
-    return { slug, motorPsicossocial: await usesPsychosocialEngine(this.prisma, slug) };
+    method?: DiagnosticMethodLike,
+  ): Promise<TenantInstrument> {
+    return resolveTenantInstrument(this.prisma, tenantId, method);
   }
 
-  private async sectorAdhesion(tenantId: string) {
+  /**
+   * `instrumento`, quando informado, evita reconsultar o contrato (o chamador
+   * já resolveu) e permite um instrumento EXPLÍCITO diferente do tenant — caso
+   * de `generateFromTemplate`, onde o recorte por setor é do instrumento do
+   * MODELO (Motor 4), não necessariamente o que a empresa contratou.
+   */
+  private async sectorAdhesion(tenantId: string, instrumento?: TenantInstrument) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
-    const { slug, motorPsicossocial } = await this.instrumentoDoTenant(tenantId);
+    const { slug, motorPsicossocial } = instrumento ?? (await this.instrumentoDoTenant(tenantId));
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows: { sector: string | null }[] = motorPsicossocial
         ? await tx.psychosocialResponse.findMany({ select: { sector: true } })
@@ -1169,11 +1186,20 @@ export class DocumentsService {
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = active?.config.bands ?? [];
+    // Um modelo do Motor 4 pode estar vinculado ao instrumento do método
+    // ORGANIZACIONAL — e esse instrumento grava em `psychosocial_responses`,
+    // não em `diagnostic_responses`. Fixo na segunda, o modelo nunca ficava
+    // disponível para essa empresa, por mais respostas que ela coletasse.
+    const motorPsicossocial = await usesPsychosocialEngine(this.prisma, instrumentSlug);
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const rows = await tx.diagnosticResponse.findMany({
-        where: { instrumentSlug },
-        select: { score: true, byDimension: true, sector: true, submittedAt: true },
-      });
+      const rows = motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({
+            select: { score: true, byDimension: true, sector: true, submittedAt: true },
+          })
+        : await tx.diagnosticResponse.findMany({
+            where: { instrumentSlug },
+            select: { score: true, byDimension: true, sector: true, submittedAt: true },
+          });
       const total = rows.length;
       if (total === 0 || total < minRespondents) {
         return { suppressed: true as const, totalRespondents: total, minRespondents };
@@ -1214,9 +1240,13 @@ export class DocumentsService {
    * instrumentos dinâmicos): score/dimensões pela metodologia ATIVA, período
    * (1ª e última resposta) e supressão pelo mínimo de confidencialidade.
    */
-  private async psychosocialSummary(tenantId: string, range?: { from: Date; to: Date }) {
+  private async psychosocialSummary(
+    tenantId: string,
+    range?: { from: Date; to: Date },
+    instrumento?: TenantInstrument,
+  ) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
-    const { slug, motorPsicossocial } = await this.instrumentoDoTenant(tenantId);
+    const { slug, motorPsicossocial } = instrumento ?? (await this.instrumentoDoTenant(tenantId));
     const active = await resolveActiveMethodology(this.prisma, slug);
     const dims = active ? active.config.dimensions.filter((d) => !d.parentSlug) : [];
     const bands = (active?.config.bands ?? []) as BandLike[];
@@ -1269,7 +1299,11 @@ export class DocumentsService {
         minRespondents,
         period,
         score,
-        levelLabel: bandLabelOf(score, bands),
+        // findBandForScore — o MESMO fallback que psychosocial.results()/a tela
+        // de resultados usam — não `bandLabelOf`: os dois classificavam o vão
+        // entre faixas em direções OPOSTAS (pior vs melhor), e só passou a
+        // importar quando o score deixou de ser sempre inteiro.
+        levelLabel: findBandForScore(bands, score)?.label ?? '—',
         byDimension,
         bands,
         sectorsList,
@@ -1305,6 +1339,7 @@ export class DocumentsService {
    */
   async cycleSnapshot(tenantId: string, from: Date, to: Date) {
     const { method, plans } = await this.context(tenantId);
+    const instrumento = await this.instrumentoDoTenant(tenantId, method);
     const plan = plans.find((p) => p.validatedAt) ?? plans[0];
     const items = (plan?.items ?? []) as (Omit<FactorItem, 'evidences'> & {
       evidences: { title: string; status: string }[];
@@ -1325,12 +1360,10 @@ export class DocumentsService {
         evidences: i.evidences.map((e) => ({ title: e.title, status: e.status })),
       };
     });
-    const psy = await this.psychosocialSummary(tenantId, { from, to });
+    const psy = await this.psychosocialSummary(tenantId, { from, to }, instrumento);
     return {
       method: method ?? null,
-      methodologyVersion: await this.activeVersionLabel(
-        (await this.instrumentoDoTenant(tenantId)).slug,
-      ),
+      methodologyVersion: await this.activeVersionLabel(instrumento.slug),
       snapshot: {
         planTitle: plan?.title ?? null,
         planValidatedAt: plan?.validatedAt ? new Date(plan.validatedAt).toISOString() : null,
@@ -1623,10 +1656,9 @@ export class DocumentsService {
         tenantId,
         planMatrix,
         // MESMO instrumento que produziu a matriz (psychosocial.results resolve
-        // pelo contrato do tenant). É por ele que o prompt personalizado da IA da
-        // Plataforma e a rede de segurança `factor_action_plans` são resolvidos —
-        // com o Organizacional fixo aqui, o Essencial recebia o prompt e o cache
-        // de outro diagnóstico.
+        // pelo contrato do tenant). Esta função é chamada tanto por
+        // generateDossieTecnico quanto por generateFromTemplate (Motor 4), que
+        // não têm um `instrumento` comum já resolvido — resolve aqui mesmo.
         (await this.instrumentoDoTenant(tenantId)).slug,
       );
       const originNote =
@@ -1688,7 +1720,8 @@ export class DocumentsService {
     },
   ): Promise<GeneratedDocument> {
     const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
-    const psy = await this.psychosocialSummary(tenantId);
+    const instrumento = await this.instrumentoDoTenant(tenantId, ctx.method);
+    const psy = await this.psychosocialSummary(tenantId, undefined, instrumento);
     const approvedTexts = await this.approvedTextsOf(tenantId, 'dossie_tecnico');
     const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
     const items = (plan?.items ?? []) as (FactorItem & {
@@ -1700,9 +1733,7 @@ export class DocumentsService {
     // "Respostas válidas/adesão" e "Responsável CRIVO": o modelo não os tem, e a
     // instrução de homologação é explícita — nº de respondentes não é nº de
     // expostos, e dado contextual só aparece quando a organização o cadastrou.
-    const versaoMetodologica = await this.activeVersionLabel(
-      (await this.instrumentoDoTenant(tenantId)).slug,
-    );
+    const versaoMetodologica = await this.activeVersionLabel(instrumento.slug);
     const meta: GeneratedDocument['meta'] = [
       { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
       { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
@@ -1740,7 +1771,7 @@ export class DocumentsService {
     );
     const idDe = (r: PsychosocialRiskMatrixRow) => idPorSlug.get(r.slug) ?? '—';
     const prioritarios = matriz.filter((r) => r.planRequired);
-    const adh = await this.sectorAdhesion(tenantId);
+    const adh = await this.sectorAdhesion(tenantId, instrumento);
     const exibidos = adh.sectors.filter((x) => !x.suppressed);
 
     // ── Objetivo e escopo ─────────────────────────────────────────────────
@@ -1898,7 +1929,7 @@ export class DocumentsService {
       ? `O ciclo registrou ${psy.totalRespondents} resposta(s) válida(s), abaixo do mínimo de ` +
         `${psy.minRespondents} exigido para exibição estatística. Os resultados agregados ficam ` +
         'omitidos por confidencialidade.'
-      : `O ciclo apresenta score executivo geral de ${agregado.score} (${agregado.levelLabel}). ` +
+      : `O ciclo apresenta score executivo geral de ${numeroPtBr(agregado.score)} (${agregado.levelLabel}). ` +
         (nomesPrioritarios.length
           ? `A priorização técnica identifica ${nomesPrioritarios.join(', ')} como ` +
             `${nomesPrioritarios.length === 1 ? 'fator que requer' : 'fatores que requerem'} ` +
@@ -1931,7 +1962,7 @@ export class DocumentsService {
           agregado.byDimension.map((d) => ({
             label: d.label,
             value: d.value,
-            faixa: bandLabelOf(d.value, agregado.bands),
+            faixa: findBandForScore(agregado.bands, d.value)?.label ?? '—',
             cor: corDaFaixa(d.value),
           })),
           { cabecalho: true, rotuloEscala: 'Leitura gráfica' },

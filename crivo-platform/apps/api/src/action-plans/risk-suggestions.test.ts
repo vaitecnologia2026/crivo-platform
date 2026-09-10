@@ -162,7 +162,14 @@ describe('ActionPlansService.acceptRiskSuggestions', () => {
     };
     const prisma = {
       forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)),
-      admin: { diagnosticInstrument: { findFirst: vi.fn(async () => null) } },
+      admin: {
+        // Mesma cascata de resolveTenantInstrument: sem cadastro, cai no slug
+        // legado — o cenario destes testes.
+        contract: { findFirst: vi.fn(async () => null) },
+        tenant: { findFirst: vi.fn(async () => null) },
+        product: { findUnique: vi.fn(async () => null) },
+        diagnosticInstrument: { findFirst: vi.fn(async () => null) },
+      },
     };
     const riskSuggestions = {
       list: vi.fn(async () => ({

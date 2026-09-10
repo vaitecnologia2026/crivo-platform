@@ -14,10 +14,7 @@ import {
   planEntryFor,
   resolveActionPlans,
 } from './psychosocial-action-plans';
-import {
-  resolveInstrumentForTenant,
-  resolvePsychosocialInstrument,
-} from '../admin/methodology.service';
+import { resolveTenantInstrument } from '../admin/methodology.service';
 
 /**
  * Ações SUGERIDAS a partir do cálculo da matriz 5×5.
@@ -63,7 +60,11 @@ export class RiskSuggestionsService {
     const { suggestions } = await this.list(tenantId);
     const novas = suggestions.filter((s) => !s.alreadyInPlan);
     if (!novas.length) return 0;
-    const instrumento = await resolvePsychosocialInstrument(this.prisma);
+    // MESMO instrumento que produziu a matriz em list() (psychosocial.results
+    // resolve pelo contrato do tenant) — fixo no Organizacional aqui, o plano
+    // automático de uma empresa Essencial carimbava a proveniência com o
+    // diagnóstico de outra empresa.
+    const { slug: instrumento } = await resolveTenantInstrument(this.prisma, tenantId);
 
     return this.prisma.forTenant(tenantId, async (tx) => {
       // Ciclo de diagnóstico aberto no momento — é o que amarra a ação ao ciclo
@@ -189,8 +190,7 @@ export class RiskSuggestionsService {
       // pelo CONTRATO do tenant) — é por ele que o prompt personalizado da IA da
       // Plataforma e a rede de segurança `factor_action_plans` são resolvidos.
       // Fixo no Organizacional, o Essencial recebia o prompt de outro diagnóstico.
-      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
-        (await resolvePsychosocialInstrument(this.prisma)),
+      (await resolveTenantInstrument(this.prisma, tenantId)).slug,
       // Esta lista é pedida ao ABRIR o Plano de Evolução, e o portal desiste em
       // 15s. Com o orçamento antigo (22s) a tela morria em "Não foi possível
       // carregar" toda vez que a IA demorava — e o fallback da biblioteca, que

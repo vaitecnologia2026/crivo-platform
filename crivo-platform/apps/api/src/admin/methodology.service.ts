@@ -507,6 +507,37 @@ export async function usesPsychosocialEngine(prisma: PrismaService, slug: string
   return slug === 'PSYCHOSOCIAL' || slug === (await resolvePsychosocialInstrument(prisma));
 }
 
+/** Instrumento do tenant + em qual motor ele grava (matriz/dossiê/plano de ação). */
+export type TenantInstrument = { slug: string; motorPsicossocial: boolean };
+
+/**
+ * Fonte ÚNICA de "qual instrumento esta empresa aplica". Existia repetida —
+ * documents.service.ts, risk-suggestions.service.ts e action-plans.service.ts
+ * resolviam cada um por conta própria, e ficaram para trás quando só um foi
+ * corrigido: o Dossiê passou a ler o instrumento certo, mas o plano de ação
+ * automático continuou carimbando a proveniência com o do método
+ * ORGANIZACIONAL — vazando "Diagnóstico Organizacional (NR-1)" na tela do
+ * Plano de Evolução de uma empresa que nunca aplicou aquele diagnóstico.
+ *
+ * `method`, quando informado, é o método JÁ resolvido pelo chamador (ex.:
+ * `context().method`, que decide `ctx.method` usado nos `if (method ===
+ * 'ORGANIZACIONAL')` do Dossiê). Reaproveitá-lo evita uma SEGUNDA consulta ao
+ * contrato — que usa filtro/ordem diferentes dos daqui e poderia devolver um
+ * contrato diferente do já escolhido, fazendo o documento ler dado de um
+ * instrumento enquanto o texto se comporta como se fosse de outro.
+ */
+export async function resolveTenantInstrument(
+  prisma: PrismaService,
+  tenantId: string,
+  method?: string | null,
+): Promise<TenantInstrument> {
+  const slug =
+    (method ? await resolveInstrumentForMethod(prisma, method) : null) ??
+    (await resolveInstrumentForTenant(prisma, tenantId)) ??
+    (await resolvePsychosocialInstrument(prisma));
+  return { slug, motorPsicossocial: await usesPsychosocialEngine(prisma, slug) };
+}
+
 /**
  * Qual instrumento ESTA empresa aplica — resolvido pelo MÉTODO do produto
  * contratado (contrato ATIVO; na falta dele, o produto do tenant).

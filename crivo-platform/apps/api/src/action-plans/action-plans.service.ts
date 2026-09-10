@@ -16,7 +16,7 @@ import {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RiskSuggestionsService, riskOriginLabel } from './risk-suggestions.service';
-import { resolvePsychosocialInstrument } from '../admin/methodology.service';
+import { resolveTenantInstrument } from '../admin/methodology.service';
 
 const TENSION_LABEL: Record<DominantPattern, string> = {
   REATIVIDADE: 'Reatividade',
@@ -217,9 +217,11 @@ export class ActionPlansService {
         'As ações selecionadas já estão no plano ou não constam mais entre as sugestões do diagnóstico.',
       );
     }
-    // Proveniência da ação: o diagnóstico que produziu a matriz (o do método
-    // ORGANIZACIONAL), não mais o slug legado cravado no código.
-    const instrumentoDaMatriz = await resolvePsychosocialInstrument(this.prisma);
+    // Proveniência da ação: o diagnóstico que produziu a matriz — as sugestões
+    // vêm de riskSuggestions.list(tenantId), que resolve pelo CONTRATO do
+    // tenant. Fixo no Organizacional aqui, uma empresa Essencial que aceitasse
+    // uma sugestão gravava a proveniência de um diagnóstico que nunca aplicou.
+    const { slug: instrumentoDaMatriz } = await resolveTenantInstrument(this.prisma, tenantId);
 
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
