@@ -166,14 +166,20 @@ type CnaeDecisionRow = {
   createdAt: Date;
   decisionResult: unknown;
 };
-/** Cores das classes de risco — as mesmas da tela do portal. */
-const COR_CLASSE: Record<PsychosocialRiskClass, string> = {
-  BAIXO: '#2E7D4F',
-  MODERADO: '#8A6D1F',
-  ALTO: '#C4671D',
-  MUITO_ALTO: '#B3541E',
-  CRITICO: '#8E2F1B',
+/** Cores das CÉLULAS da matriz 5×5 — paleta do PDF-modelo homologado (verde →
+ *  amarelo → laranja → vermelho → vermelho escuro), com o risco em texto escuro
+ *  por cima. Só o documento usa esta paleta: as etiquetas do portal seguem em
+ *  tons escuros porque lá a cor é do TEXTO, e amarelo não se lê sobre branco. */
+const COR_MATRIZ: Record<PsychosocialRiskClass, string> = {
+  BAIXO: '#5BB25B',
+  MODERADO: '#F2C230',
+  ALTO: '#F08A3C',
+  MUITO_ALTO: '#E14D3D',
+  CRITICO: '#C0392B',
 };
+/** Caixas dos eixos (P à esquerda, S no topo): azul-marinho com rótulo branco. */
+const EIXO_MATRIZ =
+  'background:#0d1f3c;color:#fff;text-align:center;font-weight:700;border:2px solid #fff;';
 
 const escapaHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -194,25 +200,20 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
   }
   const celula = (p: number, s: number) => {
     const risco = p * s;
-    const cls = psychosocialRiskClass(risco);
-    const cor = COR_CLASSE[cls];
     const fatores = porCelula.get(`${p}:${s}`) ?? [];
-    const cheia = fatores.length > 0;
-    // Célula ocupada: cor cheia da classe, número grande e contorno branco.
-    // Célula vazia: a MESMA cor bem clara, para o mapa de calor continuar
-    // legível sem competir com o que tem fator. Só a apresentação muda —
-    // classe, risco e cores das classes seguem as mesmas.
-    const fundo = cheia ? cor : `${cor}14`;
-    const texto = cheia ? '#fff' : '#8a8378';
     const titulo = fatores.length ? ` title="${escapaHtml(fatores.join(' · '))}"` : '';
+    // Como no modelo: TODA célula pintada com a cor da classe — a grade é a
+    // régua P × S inteira, não um mapa de calor só do que tem fator —, risco
+    // em negrito no canto superior esquerdo e, só onde há fator, "N fator(es)".
+    // Célula vazia apagada (versão anterior) fazia o cliente ler a matriz como
+    // incompleta.
     return (
-      `<td${titulo} style="background:${fundo};color:${texto};text-align:center;` +
-      `padding:10px 6px;border:2px solid #fff;border-radius:3px;font-size:11px;` +
-      `line-height:1.3;min-width:46px">` +
-      // O modelo mostra o RISCO em destaque e, abaixo, "N fator(es)".
-      `<div style="font-weight:700;font-size:${cheia ? '17px' : '12px'}">${risco}</div>` +
-      `<div style="opacity:${cheia ? '.9' : '.75'};font-size:10px">` +
-      `${cheia ? `${fatores.length} fator(es)` : '&nbsp;'}</div></td>`
+      `<td${titulo} style="background:${COR_MATRIZ[psychosocialRiskClass(risco)]};color:#1c2430;` +
+      `text-align:left;vertical-align:top;padding:7px 8px;border:2px solid #fff;` +
+      `width:64px;height:52px;font-size:10px;line-height:1.25">` +
+      `<div style="font-weight:700;font-size:14px">${risco}</div>` +
+      (fatores.length ? `<div>${fatores.length} fator(es)</div>` : '') +
+      `</td>`
     );
   };
   // Eixos do MODELO OFICIAL: linha = Probabilidade (5 no topo), coluna =
@@ -222,22 +223,22 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
   for (let p = 5; p >= 1; p--) {
     const tds = [1, 2, 3, 4, 5].map((sev) => celula(p, sev)).join('');
     linhas.push(
-      `<tr><th style="text-align:right;padding:4px 10px;font-size:12px;color:#0d1f3c;` +
-        `font-weight:700">${p}</th>${tds}</tr>`,
+      `<tr><th style="${EIXO_MATRIZ}padding:4px 10px;font-size:12px">${p}</th>${tds}</tr>`,
     );
   }
   const cabecalho = [1, 2, 3, 4, 5]
     .map(
       (sev) =>
-        `<th style="padding:6px 4px;font-size:12px;color:#0d1f3c;font-weight:700">${sev}</th>`,
+        `<th style="${EIXO_MATRIZ}padding:6px 4px;font-size:12px">${sev}</th>`,
     )
     .join('');
   // Só a grade, como no modelo: sem legenda de cores, sem seta "Severidade" e
   // sem rodapé explicativo — o cabeçalho "P / S" já diz o que é linha e coluna.
+  // Eixos em caixas azul-marinho, como no modelo.
   return (
     `<div style="margin:12px 0 6px">` +
     `<table style="border-collapse:separate;border-spacing:0;margin:0 auto">` +
-    `<tr><th style="font-size:10px;color:#8a8378;font-weight:600;padding-right:8px">P \\ S</th>` +
+    `<tr><th style="${EIXO_MATRIZ}font-size:10px;padding:4px 8px">P \\ S</th>` +
     `${cabecalho}</tr>${linhas.join('')}</table></div>`
   );
 }
