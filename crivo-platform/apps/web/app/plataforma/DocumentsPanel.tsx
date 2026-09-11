@@ -180,6 +180,10 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   table.grid th, table.grid td { border: 1px solid #e0dacf; padding: 7px 9px; text-align: left; vertical-align: top; }
   table.grid th { background: #f3f0ea; font-size: 12px; }
   h2 { font-size: 15px; border-bottom: 2px solid #0d1f3c; padding-bottom: 4px; margin-top: 24px; }
+  /* Seção só com título = TÍTULO DE BLOCO do modelo oficial ("Síntese do ciclo",
+     "Inventário técnico"…): maior, sem filete, e as seções vêm logo abaixo. */
+  section > h2:only-child { font-size: 23px; border-bottom: 0; padding-bottom: 0; margin: 34px 0 2px; }
+  section > h2:only-child + section > h2 { margin-top: 8px; }
   h3 { font-size: 13.5px; color: #0d1f3c; margin: 18px 0 6px; }
   h4, h5, h6 { font-size: 12.5px; color: #0d1f3c; margin: 14px 0 5px; }
   /* Conteudo vindo do modelo importado do Word (tabelas, listas, imagens). */
@@ -229,7 +233,7 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   <div class="sub">${esc(doc.subtitle ?? "Documento de apoio")}</div>
   <table class="ident">${meta}</table>
   ${sections}
-  <div class="note">${esc(doc.responsibilityNote)}</div>
+  ${doc.responsibilityNote ? `<div class="note">${esc(doc.responsibilityNote)}</div>` : ""}
   <div class="foot">CRIVO™ — Decision Intelligence · documento de apoio técnico, gerencial e documental.</div>
   <button onclick="window.print()" style="margin-top:24px;padding:10px 18px;background:#a8693d;color:#fff;border:0;border-radius:4px;cursor:pointer;font-family:sans-serif">Imprimir / Salvar PDF</button>
 </body></html>`;

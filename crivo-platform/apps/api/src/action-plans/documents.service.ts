@@ -232,25 +232,13 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
         `<th style="padding:6px 4px;font-size:12px;color:#0d1f3c;font-weight:700">${sev}</th>`,
     )
     .join('');
-  const legenda = (Object.keys(COR_CLASSE) as PsychosocialRiskClass[])
-    .map(
-      (c) =>
-        `<span style="display:inline-block;margin-right:12px;font-size:10.5px;color:#4a4a4a">` +
-        `<span style="display:inline-block;width:10px;height:10px;background:${COR_CLASSE[c]};` +
-        `border-radius:2px;margin-right:4px;vertical-align:middle"></span>${PSYCHOSOCIAL_RISK_CLASS_LABEL[c]}</span>`,
-    )
-    .join('');
+  // Só a grade, como no modelo: sem legenda de cores, sem seta "Severidade" e
+  // sem rodapé explicativo — o cabeçalho "P / S" já diz o que é linha e coluna.
   return (
     `<div style="margin:12px 0 6px">` +
     `<table style="border-collapse:separate;border-spacing:0;margin:0 auto">` +
     `<tr><th style="font-size:10px;color:#8a8378;font-weight:600;padding-right:8px">P \\ S</th>` +
-    `${cabecalho}</tr>${linhas.join('')}` +
-    `<tr><th></th><td colspan="5" style="text-align:center;padding-top:8px;font-size:11px;` +
-    `color:#0d1f3c;font-weight:600">Severidade &rarr;</td></tr></table>` +
-    `<p style="text-align:center;margin:4px 0 10px;font-size:10.5px;color:#6b6459">` +
-    `Linha = Probabilidade · Coluna = Severidade. O número em destaque é o risco resultante ` +
-    `(P × S); abaixo dele, quantos fatores caíram na célula.</p>` +
-    `<p style="text-align:center;margin:0">${legenda}</p></div>`
+    `${cabecalho}</tr>${linhas.join('')}</table></div>`
   );
 }
 
@@ -265,6 +253,8 @@ function barrasDimensoesHtml(
     /** Título da coluna da barra. O MAPA chama de "Escala"; o modelo do Dossiê,
      *  de "Leitura gráfica". Mesmo desenho, nomes diferentes nos dois modelos. */
     rotuloEscala?: string;
+    /** Como imprimir o score da linha. Padrão: `numeroPtBr` (MAPA). */
+    formato?: (v: number) => string;
     legenda?: { label: string; min: number; max: number; cor?: string | null }[];
   } = {},
 ): string {
@@ -299,7 +289,7 @@ function barrasDimensoesHtml(
         `<tr><td style="padding:4px 10px 4px 0;font-size:11.5px;color:#0d1f3c;width:38%">${escapaHtml(d.label)}</td>` +
         `<td style="padding:4px 0"><div style="background:#e6e3dc;border-radius:6px;height:9px;width:100%">` +
         `<div style="background:${cor};height:9px;border-radius:6px;width:${largura}%"></div></div></td>` +
-        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${numeroPtBr(d.value)}</td>` +
+        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${(opcoes.formato ?? numeroPtBr)(d.value)}</td>` +
         `<td style="padding:4px 0 4px 10px;font-size:10.5px;white-space:nowrap;` +
         `color:${opcoes.cabecalho ? '#2f343b' : cor}">` +
         (opcoes.cabecalho
@@ -405,6 +395,13 @@ type BandLike = { code: string; label: string; min: number; max: number; color?:
  *  muda a leitura de quem já via só inteiros (MAPA Executivo). */
 function numeroPtBr(value: number): string {
   return Number.isInteger(value) ? String(value) : String(value).replace('.', ',');
+}
+
+/** Score do Dossiê Técnico: casas FIXAS da metodologia e ponto decimal —
+ *  "69.64", "75.00" — como no PDF-gabarito da homologação, que também imprime a
+ *  exposição média com ponto ("3.57"). O MAPA Executivo segue com `numeroPtBr`. */
+function scoreDossie(value: number, casas: number): string {
+  return value.toFixed(casas);
 }
 
 function bandLabelOf(value: number, bands: BandLike[]): string {
@@ -1299,6 +1296,7 @@ export class DocumentsService {
         minRespondents,
         period,
         score,
+        decimals: casas,
         // findBandForScore — o MESMO fallback que psychosocial.results()/a tela
         // de resultados usam — não `bandLabelOf`: os dois classificavam o vão
         // entre faixas em direções OPOSTAS (pior vs melhor), e só passou a
@@ -1409,9 +1407,13 @@ export class DocumentsService {
     // rls-allow: methodology_versions é control-plane (catálogo global).
     const v = await this.prisma.admin.methodologyVersion.findFirst({
       where: { instrument, status: 'ACTIVE' },
-      select: { version: true },
+      select: { version: true, label: true },
     });
-    return v ? `v${v.version}` : '—';
+    if (!v) return '—';
+    // O modelo imprime o NOME da versão ("CRIVO NR-1 v2.0") — é o `label` que a
+    // equipe dá no Motor de Diagnósticos. O número só entra se o rótulo estiver vazio.
+    const rotulo = v.label?.trim();
+    return rotulo || `v${v.version}`;
   }
 
   // ── TPL-001 · Relatório Executivo do MAPA CRIVO™ (layout oficial) ──────────
@@ -1854,8 +1856,12 @@ export class DocumentsService {
       .map((x) => x.label)
       .join(' · ');
     const CLASSES: PsychosocialRiskClass[] = ['BAIXO', 'MODERADO', 'ALTO', 'MUITO_ALTO', 'CRITICO'];
+    // No modelo, "Metodologia e critérios" (como "Síntese do ciclo", "Inventário
+    // técnico" e "Plano, registros e responsabilidade") é TÍTULO DE BLOCO, e as
+    // seções vêm embaixo. Seção só com heading = título de bloco no renderizador.
+    sections.push({ heading: 'Metodologia e critérios' });
     sections.push({
-      heading: 'Metodologia e critérios',
+      heading: 'Método de avaliação',
       body:
         'O diagnóstico utiliza as informações coletadas no ciclo conforme o método aplicado. O ' +
         'score do instrumento é uma leitura agregada e não corresponde, por si só, ao nível ' +
@@ -1879,7 +1885,7 @@ export class DocumentsService {
     }
 
     sections.push({
-      heading: 'Probabilidade, severidade e risco',
+      heading: '',
       rows: [
         {
           label: 'Probabilidade (1–5)',
@@ -1929,7 +1935,7 @@ export class DocumentsService {
       ? `O ciclo registrou ${psy.totalRespondents} resposta(s) válida(s), abaixo do mínimo de ` +
         `${psy.minRespondents} exigido para exibição estatística. Os resultados agregados ficam ` +
         'omitidos por confidencialidade.'
-      : `O ciclo apresenta score executivo geral de ${numeroPtBr(agregado.score)} (${agregado.levelLabel}). ` +
+      : `O ciclo apresenta score executivo geral de ${scoreDossie(agregado.score, agregado.decimals)} (${agregado.levelLabel}). ` +
         (nomesPrioritarios.length
           ? `A priorização técnica identifica ${nomesPrioritarios.join(', ')} como ` +
             `${nomesPrioritarios.length === 1 ? 'fator que requer' : 'fatores que requerem'} ` +
@@ -1937,6 +1943,7 @@ export class DocumentsService {
           : 'A priorização técnica não identificou fatores que requeiram plano de ação pela ' +
             'metodologia CRIVO. ') +
         'O score executivo e a classificação técnica de risco são leituras distintas.';
+    sections.push({ heading: 'Síntese do ciclo' });
     sections.push({
       heading: 'Síntese executiva',
       body: approvedTexts['sintese_ciclo'] || sinteseAutomatica,
@@ -1965,7 +1972,11 @@ export class DocumentsService {
             faixa: findBandForScore(agregado.bands, d.value)?.label ?? '—',
             cor: corDaFaixa(d.value),
           })),
-          { cabecalho: true, rotuloEscala: 'Leitura gráfica' },
+          {
+            cabecalho: true,
+            rotuloEscala: 'Leitura gráfica',
+            formato: (v) => scoreDossie(v, agregado.decimals),
+          },
         ),
       });
     }
@@ -1998,6 +2009,7 @@ export class DocumentsService {
 
     // ── Inventário técnico · página 4 do modelo ───────────────────────────
     if (prioritarios.length) {
+      sections.push({ heading: 'Inventário técnico' });
       sections.push({
         heading: 'Caracterização dos fatores prioritários',
         table: {
@@ -2013,7 +2025,7 @@ export class DocumentsService {
         },
       });
       sections.push({
-        heading: 'Possíveis agravos / consequências',
+        heading: '',
         table: {
           columns: ['ID', 'Possíveis agravos / consequências', 'P', 'S', 'R', 'Classificação'],
           data: prioritarios.map((r) => [
@@ -2045,6 +2057,7 @@ export class DocumentsService {
         i.status === 'REAVALIADA',
     );
     const aguardando = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
+    sections.push({ heading: 'Plano, registros e responsabilidade' });
     sections.push({
       heading: 'Plano de ação',
       body:
@@ -2148,9 +2161,21 @@ export class DocumentsService {
       ]),
     );
 
+    // "Responsabilidade" é SEÇÃO no modelo (entre o controle documental e as
+    // referências), com esta redação — por isso o rodapé genérico
+    // (`responsibilityNote`) fica vazio neste documento: sairia duas vezes.
+    sections.push({
+      heading: 'Responsabilidade',
+      body:
+        'Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental ' +
+        'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
+        'relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses ' +
+        'documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da ' +
+        'empresa contratante e/ou do responsável técnico/designado.',
+    });
+
     // A CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO, quando existir, entra
-    // antes das referências. A frase de responsabilidade sai no rodapé do
-    // documento (`responsibilityNote`), como no modelo.
+    // antes das referências.
     if (approvedTexts['conclusao_tecnica']) {
       sections.push({ heading: 'Conclusão técnica', body: approvedTexts['conclusao_tecnica'] });
     }
@@ -2166,7 +2191,7 @@ export class DocumentsService {
     if (porCodigo.length) {
       sections.push({
         heading: 'Anexo técnico — fatores classificados',
-        body: 'Resultado consolidado do ciclo.',
+        body: 'Resultado consolidado do ciclo',
         table: {
           columns: ['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação'],
           data: porCodigo.map((r) => [
@@ -2216,7 +2241,7 @@ export class DocumentsService {
       generatedAt: new Date().toISOString(),
       meta,
       sections,
-      responsibilityNote: RESPONSIBILITY_NOTE,
+      responsibilityNote: '', // a seção "Responsabilidade" já traz o texto, como no modelo
     };
   }
 
