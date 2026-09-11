@@ -210,7 +210,7 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
     return (
       `<td${titulo} style="background:${COR_MATRIZ[psychosocialRiskClass(risco)]};color:#1c2430;` +
       `text-align:left;vertical-align:top;padding:7px 8px;border:2px solid #fff;` +
-      `width:64px;height:52px;font-size:10px;line-height:1.25">` +
+      `width:74px;height:54px;font-size:9.5px;line-height:1.25;white-space:nowrap">` +
       `<div style="font-weight:700;font-size:14px">${risco}</div>` +
       (fatores.length ? `<div>${fatores.length} fator(es)</div>` : '') +
       `</td>`
@@ -237,8 +237,8 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
   // Eixos em caixas azul-marinho, como no modelo.
   return (
     `<div style="margin:12px 0 6px">` +
-    `<table style="border-collapse:separate;border-spacing:0;margin:0 auto">` +
-    `<tr><th style="${EIXO_MATRIZ}font-size:10px;padding:4px 8px">P \\ S</th>` +
+    `<table style="width:auto;border-collapse:separate;border-spacing:0;margin:0 auto">` +
+    `<tr><th style="${EIXO_MATRIZ}font-size:10px;padding:4px 8px;width:44px">P \\ S</th>` +
     `${cabecalho}</tr>${linhas.join('')}</table></div>`
   );
 }
