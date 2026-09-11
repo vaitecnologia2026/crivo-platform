@@ -154,7 +154,10 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       if (s.html) inner += s.html;
       // Sem titulo quando o proprio corpo do modelo ja traz a titulacao dele.
       const title = s.heading ? `<h2>${esc(s.heading)}</h2>` : "";
-      return `<section>${title}${inner}</section>`;
+      // Título de bloco (seção só com heading) e anexos abrem página nova na
+      // impressão — é a paginação do modelo oficial do Dossiê Técnico.
+      const cls = s.heading && !inner ? "bloco" : /^Anexo t[eé]cnico/i.test(s.heading ?? "") ? "anexo" : "";
+      return `<section${cls ? ` class="${cls}"` : ""}>${title}${inner}</section>`;
     })
     .join("");
 
@@ -182,8 +185,8 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   h2 { font-size: 15px; border-bottom: 2px solid #0d1f3c; padding-bottom: 4px; margin-top: 24px; }
   /* Seção só com título = TÍTULO DE BLOCO do modelo oficial ("Síntese do ciclo",
      "Inventário técnico"…): maior, sem filete, e as seções vêm logo abaixo. */
-  section > h2:only-child { font-size: 23px; border-bottom: 0; padding-bottom: 0; margin: 34px 0 2px; }
-  section > h2:only-child + section > h2 { margin-top: 8px; }
+  section.bloco > h2 { font-size: 23px; border-bottom: 0; padding-bottom: 0; margin: 34px 0 2px; }
+  section.bloco + section > h2 { margin-top: 8px; }
   h3 { font-size: 13.5px; color: #0d1f3c; margin: 18px 0 6px; }
   h4, h5, h6 { font-size: 12.5px; color: #0d1f3c; margin: 14px 0 5px; }
   /* Conteudo vindo do modelo importado do Word (tabelas, listas, imagens). */
@@ -211,9 +214,17 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
      respiro volta como padding do proprio documento, no padrao CRIVO. */
   @page { size: A4; margin: 0; }
   @media print {
-    body { margin: 0; max-width: none; padding: 18mm 16mm; }
+    /* Respiro inferior menor: com 18mm embaixo, um anexo que enchia a última
+       página empurrava só o padding para uma página em branco no fim. */
+    body { margin: 0; max-width: none; padding: 18mm 16mm 6mm; }
     button { display: none; }
+    /* A assinatura de rodapé é da tela; impresso, ela sobrava sozinha numa
+       última página em branco quando o anexo enchia a anterior. */
+    .foot { display: none; }
     section { break-inside: avoid; }
+    section.bloco, section.anexo { break-before: page; }
+    section.bloco { break-after: avoid; }
+    section.bloco > h2 { margin-top: 0; }
     table { break-inside: auto; }
     tr { break-inside: avoid; }
   }
