@@ -1769,9 +1769,14 @@ export class DocumentsService {
       (a.code ?? a.label).localeCompare(b.code ?? b.label, 'pt-BR'),
     );
     const idPorSlug = new Map<string, string>();
-    porCodigo.forEach((r, n) =>
-      idPorSlug.set(r.slug, r.code ?? `FP-${String(n + 1).padStart(3, '0')}`),
-    );
+    porCodigo.forEach((r, n) => {
+      // Código RPS vem do banco (methodology_factors.code). Se vazio mas o slug
+      // já é rps-xxx, usa o slug uppercased como código — nunca mais FP-xxx.
+      const code = r.code
+        || (r.slug.startsWith('rps-') ? r.slug.toUpperCase() : null)
+        || `FP-${String(n + 1).padStart(3, '0')}`;
+      idPorSlug.set(r.slug, code);
+    });
     const idDe = (r: PsychosocialRiskMatrixRow) => idPorSlug.get(r.slug) ?? '—';
     const prioritarios = matriz.filter((r) => r.planRequired);
     const adh = await this.sectorAdhesion(tenantId, instrumento);
