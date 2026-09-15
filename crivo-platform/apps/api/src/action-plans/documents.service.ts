@@ -2003,13 +2003,40 @@ export class DocumentsService {
       });
     }
 
+    // ── Resultado Geral da Organização e Grupos Elegíveis ─────────────────
+    // Ajustes Finais Homologação §1: "Identificar claramente como Resultado Geral
+    // da Organização" e "Mostrar resultado próprio do grupo no Dossiê" (RH etc.)
+    // quando n >= mínimo configurado. Grupos abaixo do mínimo ficam suprimidos.
+    const resultadoGeralRows: string[][] = [];
+    if (agregado) {
+      resultadoGeralRows.push([
+        'Resultado Geral da Organização',
+        `${scoreDossie(agregado.score, agregado.decimals)} (${agregado.levelLabel ?? '—'})`,
+        `${psy.totalRespondents} respondentes`,
+      ]);
+    }
+    // psy é union: quando suppressed=true não tem sectors/score. Type-guard explícito.
+    const psyComSetores = psy as { sectors?: Array<{ sector: string; respondents: number; suppressed: boolean; score?: number }>; totalRespondents: number };
+    for (const s of psyComSetores.sectors ?? []) {
+      if (s.suppressed || typeof s.score !== 'number') continue;
+      if (s.respondents === psy.totalRespondents && agregado) continue;
+      const band = findBandForScore(agregado?.bands ?? [], s.score);
+      resultadoGeralRows.push([
+        s.sector,
+        `${scoreDossie(s.score, agregado?.decimals ?? 0)} (${band?.label ?? '—'})`,
+        `${s.respondents} respondentes`,
+      ]);
+    }
     sections.push({
-      heading: 'Participação e recortes',
+      heading: 'Resultado Geral da Organização e Grupos Elegíveis',
+      body:
+        'Score executivo geral e abertura por grupo elegível (n ≥ mínimo configurado). ' +
+        'Grupos abaixo do mínimo são suprimidos por confidencialidade.',
       table: {
-        columns: ['Recorte', 'Situação'],
-        data: exibidos.length
-          ? exibidos.map((x) => [x.sector, 'Exibido'])
-          : [['Consolidado da organização', 'Exibido']],
+        columns: ['Recorte', 'Score Executivo', 'Respondentes'],
+        data: resultadoGeralRows.length
+          ? resultadoGeralRows
+          : [['Consolidado da organização', '—', `${psy.totalRespondents} respondentes`]],
       },
     });
 
