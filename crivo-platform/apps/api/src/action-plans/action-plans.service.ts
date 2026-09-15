@@ -283,6 +283,21 @@ export class ActionPlansService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!existing) throw new NotFoundException('Ação não encontrada');
+
+      // Validação de Homologação: exigir responsável e evidência esperada antes de aprovar.
+      // "Definir onde é cadastrado/selecionado e exigir antes da aprovação final."
+      const newStatus = (dto.status ?? existing.status) as ActionStatus;
+      if (newStatus === 'APROVADA') {
+        const responsible = dto.responsible !== undefined ? dto.responsible : existing.responsible;
+        const expectedEvidence = dto.expectedEvidence !== undefined ? dto.expectedEvidence : existing.expectedEvidence;
+        if (!responsible?.trim()) {
+          throw new BadRequestException('Responsável é obrigatório para aprovar a ação.');
+        }
+        if (!expectedEvidence?.trim()) {
+          throw new BadRequestException('Evidência esperada é obrigatória para aprovar a ação.');
+        }
+      }
+
       const item = await tx.actionItem.update({
         where: { id: itemId },
         data: {
