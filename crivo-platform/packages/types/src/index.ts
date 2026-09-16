@@ -214,6 +214,13 @@ export const MODULES = [
   { code: 'historico', name: 'Histórico & Auditoria', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'custo', name: 'Custo Invisível', category: 'analytics', minPlan: 'ENTERPRISE' },
   { code: 'parecer', name: 'Parecer', category: 'advisory', minPlan: 'ADVISORY' },
+  // Programas do portal do cliente (protótipo Lovable "Portal do Cliente" ›
+  // grupo Programas) que ainda não tinham código: sem código no catálogo nem o
+  // contrato nem o toggle da empresa conseguem liberar o item. minPlan
+  // provisório ENTERPRISE — a definir pelo cliente (é só trocar aqui).
+  { code: 'govia', name: 'Governança de IA', category: 'governanca', minPlan: 'ENTERPRISE' },
+  { code: 'workforce', name: 'Workforce Intelligence', category: 'workforce', minPlan: 'ENTERPRISE' },
+  { code: 'contexto', name: 'Contexto e Diretrizes (IA)', category: 'ia', minPlan: 'ENTERPRISE' },
 ] as const;
 export type ModuleCode = (typeof MODULES)[number]['code'];
 

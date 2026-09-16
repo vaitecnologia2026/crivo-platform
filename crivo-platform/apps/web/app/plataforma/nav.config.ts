@@ -190,59 +190,33 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    // Grupo "Programas" EXATAMENTE como o protótipo Lovable do Portal do Cliente
+    // (app-sidebar.tsx): 8 itens, nesta ordem e com estes rótulos. Cada item é
+    // liberado pelo módulo do tenant (tenant_modules ← contrato/solução/adicional
+    // no Super Admin). A parte individual do líder (Área do Líder, aplicação do
+    // ICD, decisões, Pocket) não é "programa": fica no grupo seguinte.
     title: 'Programas',
     items: [
       {
-        route: 'lider',
-        label: 'Liderança — Área do Líder',
-        icon: '★',
-        module: 'lider',
-        breadcrumb: { path: 'Programas', current: 'Liderança — Área do Líder' },
-      },
-      {
         route: 'icd',
-        label: 'Liderança — ICD (agregado)',
+        label: 'Liderança',
         icon: '◈',
         module: 'icd',
         perm: 'icd:view',
-        breadcrumb: { path: 'Programas', current: 'ICD — Visão Agregada' },
+        breadcrumb: { path: 'Programas', current: 'Liderança' },
       },
       {
-        route: 'questionario',
-        label: 'Aplicação do ICD (líderes)',
-        icon: '✎',
-        module: 'icd',
-        perm: 'icd:submit',
-        breadcrumb: { path: 'Programas', current: 'Aplicação do ICD (líderes)' },
-      },
-      {
-        route: 'decisoes',
-        label: 'Registro de Decisões',
-        icon: '◬',
-        module: 'icd',
-        breadcrumb: { path: 'Programas', current: 'Registro de Decisões' },
-      },
-      {
-        route: 'pocket',
-        label: 'Pocket CRIVO',
-        icon: '◐',
-        module: 'pocket',
-        breadcrumb: { path: 'Programas', current: 'Pocket CRIVO' },
-      },
-      {
-        // Programas V2 ("Em breve") saem do menu: todo cliente via 3 itens que
-        // não levavam a lugar nenhum (SoonScreen). Voltam quando lançarem.
         route: 'govia',
         label: 'Governança de IA',
         icon: '◎',
-        hidden: true,
+        module: 'govia',
         breadcrumb: { path: 'Programas', current: 'Governança de IA' },
       },
       {
         route: 'workforce',
         label: 'Workforce Intelligence',
         icon: '⌬',
-        hidden: true,
+        module: 'workforce',
         breadcrumb: { path: 'Programas', current: 'Workforce Intelligence' },
       },
       {
@@ -263,8 +237,8 @@ export const NAV: NavGroup[] = [
         route: 'contexto',
         label: 'Contexto e Diretrizes',
         icon: '❈',
-        hidden: true,
-        breadcrumb: { path: 'Programas', current: 'Contexto e Diretrizes (IA)' },
+        module: 'contexto',
+        breadcrumb: { path: 'Programas', current: 'Contexto e Diretrizes' },
       },
       {
         route: 'biblioteca',
@@ -279,6 +253,42 @@ export const NAV: NavGroup[] = [
         icon: '☉',
         module: 'mentorias',
         breadcrumb: { path: 'Programas', current: 'Mentorias e Agenda' },
+      },
+    ],
+  },
+  {
+    // O que é do LÍDER (individual, privado — §11): no protótipo vive no
+    // "App/Área do Líder", fora de Programas. Mesmas rotas/módulos de antes.
+    title: 'Área do Líder',
+    items: [
+      {
+        route: 'lider',
+        label: 'Área do Líder',
+        icon: '★',
+        module: 'lider',
+        breadcrumb: { path: 'Área do Líder', current: 'Área do Líder' },
+      },
+      {
+        route: 'questionario',
+        label: 'Aplicação do ICD (líderes)',
+        icon: '✎',
+        module: 'icd',
+        perm: 'icd:submit',
+        breadcrumb: { path: 'Área do Líder', current: 'Aplicação do ICD (líderes)' },
+      },
+      {
+        route: 'decisoes',
+        label: 'Registro de Decisões',
+        icon: '◬',
+        module: 'icd',
+        breadcrumb: { path: 'Área do Líder', current: 'Registro de Decisões' },
+      },
+      {
+        route: 'pocket',
+        label: 'Pocket CRIVO',
+        icon: '◐',
+        module: 'pocket',
+        breadcrumb: { path: 'Área do Líder', current: 'Pocket CRIVO' },
       },
     ],
   },

@@ -28,6 +28,10 @@ import { EvidencesSection } from "./EvidencesSection";
 import { ReportsSection } from "./ReportsSection";
 import { BaseCrivoSection } from "./BaseCrivoSection";
 import { IntelligenceSection } from "./IntelligenceSection";
+import { ModuleCatalogSection } from "./ModuleCatalogSection";
+import { LiderancaSection } from "./LiderancaSection";
+import { AiGovernanceSection } from "./AiGovernanceSection";
+import { WorkforceSection } from "./WorkforceSection";
 import "./admin.css";
 
 /** Símbolo Vértice — a marca CRIVO (mesmo traço da plataforma). */
@@ -44,7 +48,7 @@ function VerticeMark() {
   );
 }
 
-type Section = "overview" | "crm" | "produtos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "relatorios" | "relgerenciais" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria" | "origens" | "ebook" | "email";
+type Section = "overview" | "crm" | "produtos" | "modulos" | "adicionais" | "cnae" | "metodologia" | "evolucao" | "evidencias" | "relatorios" | "relgerenciais" | "engineconfig" | "contratos" | "empresas" | "integracoes" | "lideranca" | "govia" | "workforce" | "inteligencia" | "basecrivo" | "ia" | "notificacoes" | "extras" | "rbac" | "auditoria" | "origens" | "ebook" | "email";
 
 // Ordem = grupos CONTÍGUOS (Geral · Comercial · Plataforma) para a sidebar não
 // repetir cabeçalho de grupo. Não reordenar sem manter a contiguidade.
@@ -58,6 +62,13 @@ const NI = {
   // — distingue do ícone `relatorios` (Dossiês), que é a folha com linhas de texto.
   relgerenciais: <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M15 3v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M9.5 17v-3.5M12 17v-6M14.5 17v-2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
   solucoes: <svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 12v9M12 12 4 7.5M12 12l8-4.5" stroke="currentColor" strokeWidth="1.5"/></svg>,
+  // Catálogo Comercial › Módulos Técnicos (camadas) e grupo Módulos (protótipo
+  // Lovable do Super Admin): coroa = Liderança, escudo = Governança de IA,
+  // fluxo = Workforce Intelligence.
+  camadas: <svg viewBox="0 0 24 24" fill="none"><path d="m12 4 8 4-8 4-8-4 8-4z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="m4 12 8 4 8-4M4 16l8 4 8-4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>,
+  coroa: <svg viewBox="0 0 24 24" fill="none"><path d="M4 8l4 4 4-7 4 7 4-4-1 11H5L4 8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>,
+  escudoAlerta: <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 9v4M12 16v.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>,
+  fluxo: <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="6" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.7"/><rect x="14.5" y="4" width="6" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.7"/><rect x="9" y="15" width="6" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.7"/><path d="M6.5 9v3h11V9M12 12v3" stroke="currentColor" strokeWidth="1.7"/></svg>,
   enquadramento: <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7"/><circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.7"/><path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   diagnosticos: <svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.7"/><path d="m15.5 15.5 5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><path d="M8 12.5v-2M10.5 12.5V9M13 12.5v-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   entrega: <svg viewBox="0 0 24 24" fill="none"><path d="M12 6c-1.8-1.3-4-1.9-6.5-1.9v13.4c2.5 0 4.7.6 6.5 1.9 1.8-1.3 4-1.9 6.5-1.9V4.1C16 4.1 13.8 4.7 12 6z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/><path d="M12 6v13.4" stroke="currentColor" strokeWidth="1.5"/></svg>,
@@ -94,6 +105,8 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   // ainda dentro do grupo "Operação" — a contiguidade dos grupos é mantida.
   { key: "relgerenciais", label: "Relatórios Gerenciais CRIVO", icon: NI.relgerenciais, current: "Relatórios Gerenciais CRIVO", group: "Operação" },
   { key: "produtos", label: "Soluções CRIVO", icon: NI.solucoes, current: "Soluções CRIVO", group: "Catálogo Comercial" },
+  // Ordem do protótipo Lovable do Super Admin: Soluções · Módulos Técnicos · Adicionais.
+  { key: "modulos", label: "Módulos Técnicos", icon: NI.camadas, current: "Módulos Técnicos", group: "Catálogo Comercial" },
   { key: "adicionais", label: "Adicionais", icon: NI.adicionais, current: "Adicionais", group: "Catálogo Comercial" },
   { key: "cnae", label: "Motor de Enquadramento", icon: NI.enquadramento, current: "Motor de Enquadramento CRIVO", group: "Motores e Entrega" },
   { key: "metodologia", label: "Motor de Diagnósticos", icon: NI.diagnosticos, current: "Motor de Diagnósticos · Metodologia", group: "Motores e Entrega" },
@@ -103,6 +116,12 @@ const NAV: { key: Section; label: string; icon: React.ReactNode; current: string
   { key: "ia", label: "IA da Plataforma", icon: NI.ia, current: "IA da Plataforma", group: "Motores e Entrega" },
   { key: "engineconfig", label: "Configuração do Motor", icon: NI.engineconfig, current: "Configuração do Motor", group: "Motores e Entrega" },
   { key: "extras", label: "Recursos da Entrega", icon: NI.entrega, current: "Recursos da Entrega", group: "Motores e Entrega" },
+  // Grupo "Módulos" (protótipo Lovable do Super Admin): workspace da equipe
+  // CRIVO sobre os MESMOS dados que o cliente vê em Programas. A liberação do
+  // módulo para a empresa continua em Contratos e Liberações / Módulos da empresa.
+  { key: "lideranca", label: "Liderança", icon: NI.coroa, current: "Liderança", group: "Módulos" },
+  { key: "govia", label: "Governança de IA", icon: NI.escudoAlerta, current: "Governança de IA", group: "Módulos" },
+  { key: "workforce", label: "Workforce Intelligence", icon: NI.fluxo, current: "Workforce Intelligence", group: "Módulos" },
   { key: "inteligencia", label: "Inteligência CRIVO", icon: NI.inteligencia, current: "Inteligência CRIVO", group: "Inteligência" },
   { key: "basecrivo", label: "Base CRIVO", icon: NI.base, current: "Base CRIVO · Benchmarks", group: "Inteligência" },
   { key: "origens", label: "Origens e Canais", icon: NI.origens, current: "Origens e Canais", group: "Governança" },
@@ -229,6 +248,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "overview" && <OverviewSection onNavigate={(s) => setSection(s as Section)} />}
           {section === "crm" && <CrmSection />}
           {section === "produtos" && <ProductsSection />}
+          {section === "modulos" && <ModuleCatalogSection />}
           {section === "adicionais" && <AddonsSection />}
           {section === "origens" && <LeadOriginsSection />}
           {section === "ebook" && <EbookSection />}
@@ -243,6 +263,9 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "evidencias" && <EvidencesSection />}
           {section === "relatorios" && <ReportsSection />}
           {section === "engineconfig" && <EngineConfigSection onNavigate={(sec) => setSection(sec as Section)} />}
+          {section === "lideranca" && <LiderancaSection />}
+          {section === "govia" && <AiGovernanceSection />}
+          {section === "workforce" && <WorkforceSection />}
           {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}

@@ -231,9 +231,16 @@ export class ContractsService {
         where: { id: { in: solutionIds } },
         select: { modules: true, coreModules: true },
       });
+      // Mesmo filtro dos adicionais: só código do catálogo vira tenant_module.
+      // Uma solução salva com código inválido (ex.: 'mod-ia' do protótipo)
+      // criava linha órfã que nenhum guard conhece.
       for (const p of prods) {
-        for (const c of Array.isArray(p.modules) ? (p.modules as string[]) : []) codes.add(c);
-        for (const c of Array.isArray(p.coreModules) ? (p.coreModules as string[]) : []) codes.add(c);
+        for (const c of Array.isArray(p.modules) ? (p.modules as string[]) : []) {
+          if (moduleCodes.has(c)) codes.add(c);
+        }
+        for (const c of Array.isArray(p.coreModules) ? (p.coreModules as string[]) : []) {
+          if (moduleCodes.has(c)) codes.add(c);
+        }
       }
     }
     return codes;
