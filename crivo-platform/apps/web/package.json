@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "cap:build": "CAP_EXPORT=1 NODE_ENV=production next build",
     "cap:sync": "./scripts/cap-sync.sh",
     "cap:sync:android": "./scripts/cap-sync.sh android",
@@ -25,10 +26,13 @@
     "@capacitor/push-notifications": "^8.1.1",
     "@crivo/types": "workspace:*",
     "@crivo/ui": "workspace:*",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "next": "16.2.7",
     "qrcode.react": "^4.2.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@capacitor/cli": "^8",
@@ -39,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9"
   }
 }
