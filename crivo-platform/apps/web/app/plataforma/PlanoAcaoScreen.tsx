@@ -422,6 +422,12 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
   const [busy, setBusy] = useState(false);
   const validated = !!plan.validatedAt;
 
+  // Descartadas (NAO_ADOTADA) saem da lista operacional e ficam recolhidas
+  // embaixo: não entram no Dossiê e não devem poluir o plano — mas o rastro da
+  // recomendação continua, e dá para reconsiderar.
+  const ativas = plan.items.filter((i) => i.status !== "NAO_ADOTADA");
+  const descartadas = plan.items.filter((i) => i.status === "NAO_ADOTADA");
+
   async function validate() {
     if (!confirm("Validar o plano? Após validar, ele passa a valer como documento final.")) return;
     setBusy(true);
@@ -460,14 +466,29 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
           <tr><th>Ponto</th><th>Ação</th><th>Risco</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Evidências</th></tr>
         </thead>
         <tbody>
-          {plan.items.map((it) => (
+          {ativas.map((it) => (
             <ItemRow key={it.id} item={it} onChanged={onChanged} />
           ))}
-          {plan.items.length === 0 && (
+          {ativas.length === 0 && (
             <tr><td colSpan={7} style={{ textAlign: "center", padding: 20 }}>Nenhuma ação. Adicione abaixo.</td></tr>
           )}
         </tbody>
       </table>
+
+      {descartadas.length > 0 && (
+        <details style={{ marginTop: 10 }}>
+          <summary className="card__sub" style={{ cursor: "pointer" }}>
+            Descartadas ({descartadas.length}) — não entram no Dossiê
+          </summary>
+          <table className="data-table" style={{ marginTop: 6 }}>
+            <tbody>
+              {descartadas.map((it) => (
+                <DescartadaRow key={it.id} item={it} onChanged={onChanged} />
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
 
       {addingItem ? (
         <NewItemForm planId={plan.id} onClose={() => setAddingItem(false)} onAdded={async () => { setAddingItem(false); onChanged(); }} />
@@ -506,6 +527,22 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
     try { await updateActionItem(item.id, { status: s }); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
   }
+  // Sugestão ainda não decidida: a organização Edita, Aprova ou Descarta
+  // (Ajustes Finais de Homologação). Só depois de aprovada entra no Dossiê.
+  const pendente = item.status === "SUGERIDA" || item.status === "EM_REVISAO";
+  async function aprovar() {
+    try { await updateActionItem(item.id, { status: "APROVADA" }); onChanged(); }
+    catch (e) {
+      // O servidor exige responsável e evidência esperada para aprovar: mostra
+      // o motivo e já abre os detalhes, onde os dois campos são preenchidos.
+      alert(e instanceof Error ? e.message : "Falha ao aprovar");
+      setDetailsOpen(true);
+    }
+  }
+  async function descartar() {
+    if (!window.confirm("Descartar esta sugestão? Ela sai do plano operacional e não entra no Dossiê (fica registrada como não adotada).")) return;
+    await setStatus("NAO_ADOTADA");
+  }
   const hasDetails = !!(item.areaProcess || item.existingMeasure || item.indicator || item.objective);
   return (
     <>
@@ -533,9 +570,20 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
         <td>{item.responsible ?? "—"}</td>
         <td>{item.dueDate ? new Date(item.dueDate).toLocaleDateString("pt-BR") : "—"}</td>
         <td>
-          <select value={item.status} onChange={(e) => setStatus(e.target.value as ActionStatus)} className="kb-stage-select" style={{ width: 130 }}>
-            {ACTION_STATUSES.map((s) => (<option key={s} value={s}>{ACTION_STATUS_LABEL[s]}</option>))}
-          </select>
+          {pendente ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span className="card__sub">{ACTION_STATUS_LABEL[item.status]}</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <button className="btn btn--terra btn--sm" onClick={() => void aprovar()} title="Exige responsável e evidência esperada (em detalhes)">Aprovar</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => setDetailsOpen(true)}>Editar</button>
+                <button className="btn btn--ghost btn--sm" onClick={() => void descartar()}>Descartar</button>
+              </div>
+            </div>
+          ) : (
+            <select value={item.status} onChange={(e) => setStatus(e.target.value as ActionStatus)} className="kb-stage-select" style={{ width: 130 }}>
+              {ACTION_STATUSES.filter((s) => s !== "NAO_ADOTADA" || s === item.status).map((s) => (<option key={s} value={s}>{ACTION_STATUS_LABEL[s]}</option>))}
+            </select>
+          )}
         </td>
         <td style={{ whiteSpace: "nowrap" }}>
           <button className="btn btn--ghost btn--sm" onClick={() => setEvOpen((v) => !v)}>
@@ -568,6 +616,24 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   );
 }
 
+/** Sugestão descartada: fica recolhida, fora do plano operacional, com o
+ *  caminho de volta (reconsiderar = volta a SUGERIDA). */
+function DescartadaRow({ item, onChanged }: { item: ActionPlanData["items"][number]; onChanged: () => void }) {
+  async function reconsiderar() {
+    try { await updateActionItem(item.id, { status: "SUGERIDA" }); onChanged(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
+  }
+  return (
+    <tr style={{ opacity: 0.75 }}>
+      <td><strong>{item.point}</strong></td>
+      <td>{item.action}</td>
+      <td style={{ whiteSpace: "nowrap" }}>
+        <button className="btn btn--ghost btn--sm" onClick={() => void reconsiderar()}>Reconsiderar</button>
+      </td>
+    </tr>
+  );
+}
+
 /**
  * F2 — Detalhes técnicos da ação (área/processo, medida existente, indicador).
  * Editável em item EXISTENTE — inclusive os importados do catálogo/sugestões,
@@ -580,6 +646,11 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
     existingMeasure: item.existingMeasure && item.existingMeasure !== "Nenhuma medida existente" ? item.existingMeasure : "",
     indicator: item.indicator ?? "",
     objective: item.objective ?? "",
+    // Exigidos para APROVAR (regra de homologação): a ação gerada pela IA nasce
+    // sem os dois, e antes não havia onde preenchê-los numa ação existente.
+    responsible: item.responsible ?? "",
+    expectedEvidence: item.expectedEvidence ?? "",
+    dueDate: item.dueDate ? item.dueDate.slice(0, 10) : "",
   });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
   const [saving, setSaving] = useState(false);
@@ -592,6 +663,9 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
         indicator: f.indicator || undefined,
         objective: f.objective || undefined,
+        responsible: f.responsible || undefined,
+        expectedEvidence: f.expectedEvidence || undefined,
+        dueDate: f.dueDate ? new Date(`${f.dueDate}T12:00:00`).toISOString() : undefined,
       });
       onChanged();
       onClose();
@@ -604,6 +678,15 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
   return (
     <div style={{ padding: 12 }}>
       <div className="prod-form__grid">
+        <label className="prod-field"><span>Responsável (obrigatório para aprovar)</span>
+          <input value={f.responsible} onChange={(e) => setF((s) => ({ ...s, responsible: e.target.value }))} placeholder="Ex.: Gerente de Operações" />
+        </label>
+        <label className="prod-field"><span>Evidência esperada (obrigatória para aprovar)</span>
+          <input value={f.expectedEvidence} onChange={(e) => setF((s) => ({ ...s, expectedEvidence: e.target.value }))} placeholder="Ex.: ata da reunião, relatório de carga" />
+        </label>
+        <label className="prod-field"><span>Prazo</span>
+          <input type="date" value={f.dueDate} onChange={(e) => setF((s) => ({ ...s, dueDate: e.target.value }))} />
+        </label>
         <label className="prod-field"><span>Área/Processo</span>
           <input value={f.areaProcess} onChange={(e) => setF((s) => ({ ...s, areaProcess: e.target.value }))} placeholder="Ex.: Comercial / atendimento" />
         </label>

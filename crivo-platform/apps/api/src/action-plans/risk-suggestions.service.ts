@@ -99,6 +99,11 @@ export class RiskSuggestionsService {
             sourceInstrumentSlug: instrumento,
             dueDate,
             indicator: x.indicadores,
+            // A sugestão já traz o objetivo escrito pela IA. Este caminho (o que
+            // gera as ações ao abrir o Plano) o descartava, e a coluna
+            // "Objetivo" do Dossiê saía "—" em toda ação — item dos Ajustes
+            // Finais de Homologação. O outro caminho (aceitar sugestão) já gravava.
+            objective: x.objetivo,
             // severity/probability (a matriz 3x3 em texto) ficam VAZIOS: as duas
             // réguas não derivam uma da outra e a classificação técnica do
             // dossiê é decisão da empresa.

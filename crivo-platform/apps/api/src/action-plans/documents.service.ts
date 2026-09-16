@@ -69,6 +69,20 @@ const RISK3 = ['Baixa', 'Moderada', 'Alta'] as const;
 const asRisk3 = (v: string | null | undefined): RiskLevel3 | null =>
   v && (RISK3 as readonly string[]).includes(v) ? (v as RiskLevel3) : null;
 
+/** Só ação APROVADA pela organização (ou já em execução, concluída ou
+ *  reavaliada) entra em documento — Dossiê e modelo importado usam o MESMO
+ *  critério (Ajustes Finais de Homologação: "somente ações aprovadas no Plano
+ *  entram no Dossiê"). SUGERIDA/EM_REVISAO aguardam decisão; NAO_ADOTADA foi
+ *  descartada e não sai em lugar nenhum. */
+export function acaoEntraNoDocumento(status: string): boolean {
+  return (
+    status === 'APROVADA' ||
+    status === 'EM_ANDAMENTO' ||
+    status === 'CONCLUIDA' ||
+    status === 'REAVALIADA'
+  );
+}
+
 export type FactorItem = {
   point: string; origin: string | null; action: string; responsible: string | null;
   dueDate: Date | null; status: string; expectedEvidence: string | null;
@@ -953,11 +967,18 @@ export class DocumentsService {
 
     const planOf = (): DocumentSection => {
       const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
-      const items = plan?.items ?? [];
+      const todas = plan?.items ?? [];
+      // Só ação aprovada entra em documento. Imprimir TODAS com o status ao
+      // lado fazia o cliente ler as sugestões da IA como se fossem o plano.
+      const items = todas.filter((i) => acaoEntraNoDocumento(i.status));
+      const pendentes = todas.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
       return {
         heading: 'Plano de Evolução vinculado',
         body: plan
-          ? `Ações registradas em "${plan.title}"${plan.validatedAt ? ' (plano validado)' : ' (plano ainda não validado)'}.`
+          ? `Ações aprovadas registradas em "${plan.title}"${plan.validatedAt ? ' (plano validado)' : ' (plano ainda não validado)'}.` +
+            (pendentes
+              ? ` ${pendentes} sugestão(ões) permanece(m) pendente(s) de validação e não compõe(m) este documento.`
+              : '')
           : 'Nenhum plano de evolução registrado para esta empresa até o momento.',
         table: items.length
           ? {
@@ -2173,13 +2194,7 @@ export class DocumentsService {
     }
 
     // ── Plano, registros e responsabilidade · página 5 do modelo ──────────
-    const aprovadas = items.filter(
-      (i) =>
-        i.status === 'APROVADA' ||
-        i.status === 'EM_ANDAMENTO' ||
-        i.status === 'CONCLUIDA' ||
-        i.status === 'REAVALIADA',
-    );
+    const aprovadas = items.filter((i) => acaoEntraNoDocumento(i.status));
     const aguardando = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
     sections.push({ heading: 'Plano, registros e responsabilidade' });
     sections.push({

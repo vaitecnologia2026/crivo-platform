@@ -1467,7 +1467,7 @@ model PsychosocialResponse {
   org                  Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sector               String? // setor/área (RH, Comercial…); null = não informado
   answers              Json // [{ questionId, value }] — 12 itens, escala 1–5
-  score                Int // 0–100 (proteção geral; maior = menor risco)
+  score                Float // 0–100 (proteção geral; maior = menor risco); decimal desde 2026-09-16 (1 casa nos scores)
   level                String // BAIXO | MODERADO | ALTO | CRITICO
   byDimension          Json // { demandas, controle, apoio, reconhecimento, clareza, relacoes } 0–100
   /// { <slug do fator>: 0-100 } — média das perguntas vinculadas ao fator, para a
