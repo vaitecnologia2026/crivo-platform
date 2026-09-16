@@ -71,6 +71,15 @@ import { MailSettingsController } from './mail-settings.controller';
 import { MailSettingsService } from './mail-settings.service';
 import { AiCustomPromptsController } from './ai-custom-prompts.controller';
 import { AiCustomPromptsService } from './ai-custom-prompts.service';
+import { LiderancaAdminController } from './lideranca.controller';
+import { LiderancaAdminService } from './lideranca.service';
+// Módulos › Liderança reutiliza os services do portal (mesma composição de
+// agregados). Entram como PROVIDERS daqui — não como import de IcdCyclesModule/
+// PocketModule — porque IcdCyclesModule → IamModule → AdminModule fecharia um
+// ciclo de módulos NestJS. Os dois services só dependem do PrismaService
+// (global) e, o Pocket, de AiSettingsService/AiPromptsService (já daqui).
+import { IcdCyclesService } from '../icd-cycles/icd-cycles.service';
+import { PocketService } from '../pocket/pocket.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -114,6 +123,7 @@ import { AiCustomPromptsService } from './ai-custom-prompts.service';
     PublicEbookController,
     MailSettingsController,
     AiCustomPromptsController,
+    LiderancaAdminController,
   ],
   providers: [
     AdminAuthService,
@@ -152,6 +162,9 @@ import { AiCustomPromptsService } from './ai-custom-prompts.service';
     EbookService,
     MailSettingsService,
     AiCustomPromptsService,
+    LiderancaAdminService,
+    IcdCyclesService,
+    PocketService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })

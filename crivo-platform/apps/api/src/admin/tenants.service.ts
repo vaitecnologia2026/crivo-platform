@@ -59,9 +59,17 @@ export class TenantsService {
     };
   }
 
-  /** Trilha de auditoria das ações de plataforma (mais recentes primeiro). */
-  async recentAudit(limit = 30) {
+  /** Trilha de auditoria das ações de plataforma (mais recentes primeiro).
+   *  Filtros opcionais para as abas "Auditoria" das seções por módulo:
+   *  `tenantId` = organizationId da empresa (como o AuditService grava) e
+   *  `prefixes` = prefixos de ação (ex.: "icd.", "pocket."). */
+  async recentAudit(limit = 30, filters: { tenantId?: string; prefixes?: string[] } = {}) {
+    const prefixes = (filters.prefixes ?? []).filter(Boolean);
     const rows = await this.prisma.admin.auditLog.findMany({
+      where: {
+        ...(filters.tenantId ? { tenantId: filters.tenantId } : {}),
+        ...(prefixes.length ? { OR: prefixes.map((p) => ({ action: { startsWith: p } })) } : {}),
+      },
       orderBy: { at: 'desc' },
       take: Math.min(Math.max(limit, 1), 100),
     });

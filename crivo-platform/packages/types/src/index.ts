@@ -3204,6 +3204,59 @@ export function defaultIcdCycleName(year: number, quarter: number): string {
   return `${year}-Q${quarter}`;
 }
 
+// ── Composições AGREGADAS do ICD para o programa Liderança (portal e Super
+// Admin). Nada aqui recalcula: é leitura do que `close()` congelou
+// (CompanyQuarterlyIcd) e do parcial do ciclo aberto. Supressão §11 em tudo:
+// abaixo de MIN_LEADERS_FOR_DISCLOSURE, score e eixos vêm `null`. Nunca há
+// dado por líder. ──
+
+/** Um ciclo na série "Evolução do ICD" (GET /icd-cycles/history). Ciclo OPEN
+ *  ainda não tem resultado congelado: `company` é null (a tela mostra o
+ *  parcial pelo /icd-cycles/current, nunca por aqui). */
+export interface IcdCycleHistoryEntry {
+  cycle: IcdCycleData;
+  /** null quando o ciclo está aberto (sem CompanyQuarterlyIcd) ou não foi fechado com resultado. */
+  company: {
+    score: number | null;
+    suppressed: boolean;
+    eligibleLeaders: number;
+    /** null sob supressão (§11) — não se expõe média por eixo com < 5 líderes. */
+    axesAverage: IcdAxesScores | null;
+    band: typeof ICD_MATURITY_BANDS[number] | null;
+    computedAt: string;
+  } | null;
+}
+
+/** KPIs agregados do ciclo aberto (GET /icd-cycles/current/summary). */
+export interface IcdCurrentSummary {
+  /** Ciclo aberto — null quando não há ("Nenhum ciclo aberto"). */
+  cycle: IcdCycleData | null;
+  /** ICD médio parcial do ciclo aberto (0–100) — null sem ciclo, sem decisões ou sob supressão. */
+  icdMedio: number | null;
+  band: typeof ICD_MATURITY_BANDS[number] | null;
+  /** Supressão §11 (menos de MIN_LEADERS_FOR_DISCLOSURE líderes com avaliação no ciclo). */
+  suppressed: boolean;
+  /** Regra de supressão em vigor (para a tela explicar sem hardcode). */
+  minLeadersForDisclosure: number;
+  /** Líderes ativos da empresa (User.role LIDER, active) — o "total" do KPI de participação. */
+  eligibleLeaders: number;
+  /** Líderes distintos com pelo menos 1 decisão avaliada pelo ICD no ciclo aberto. */
+  participatingLeaders: number;
+  /** Decisões avaliadas pelo ICD (DecisionIcdScore) no ciclo aberto. */
+  decisionsEvaluated: number;
+  /** Último ciclo FECHADO com resultado congelado — base do delta "vs. ciclo anterior". */
+  lastClosed: {
+    cycleName: string;
+    score: number | null;
+    suppressed: boolean;
+    eligibleLeaders: number;
+    closedAt: string | null;
+  } | null;
+  /** icdMedio − lastClosed.score; null quando qualquer um dos dois não existe (nunca inventado). */
+  delta: number | null;
+  closedCycles: number;
+}
+
 // =====================================================================
 // POCKET CRIVO / INTERNAL ENGINE (Anexo Técnico Pocket v1).
 // 10 perguntas reflexivas (C1-O2) nas 5 dimensões CRIVO. NÃO gera score.
@@ -3358,6 +3411,42 @@ export interface UpsertPocketReflectionRequest {
   questionCode: string;
   text?: string;
   tags?: string[];
+}
+
+/** Agregado do Pocket por dimensão (GET /pocket/aggregate). Anexo Pocket §13:
+ *  sessões e reflexões são privadas do líder — aqui só CONTAGENS por dimensão
+ *  e adesão, nunca texto de reflexão nem nada por pessoa. Sem score (o Pocket
+ *  não pontua). Suprimido quando menos de MIN_LEADERS_FOR_DISCLOSURE líderes
+ *  concluíram sessão no período: `byDimension` e `adhesionPct` vêm null. */
+export interface PocketAggregate {
+  /** Recorte temporal: o ciclo ICD informado/aberto; null = todo o histórico. */
+  period: { cycleId: string; cycleName: string; from: string; to: string } | null;
+  suppressed: boolean;
+  minLeadersForDisclosure: number;
+  /** Líderes ativos da empresa (User.role LIDER, active). */
+  eligibleLeaders: number;
+  /** Líderes distintos com ≥ 1 sessão CONCLUIDA no período. */
+  participatingLeaders: number;
+  /** Sessões CONCLUIDA no período — null sob supressão. */
+  completedSessions: number | null;
+  /** % de líderes elegíveis com ≥ 1 sessão concluída — null sob supressão ou sem elegíveis. */
+  adhesionPct: number | null;
+  /** Por dimensão C/R/I/V/O: sessões concluídas com ≥ 1 reflexão respondida
+   *  naquela dimensão. null sob supressão. */
+  byDimension: Array<{ dimension: PocketDimension; label: string; sessions: number }> | null;
+  questionsVersion: string;
+}
+
+/** Painel Módulos › Liderança do Super Admin (GET /admin/tenants/:id/lideranca/summary).
+ *  Composição das mesmas funções do portal, com orgId explícito. */
+export interface LiderancaAdminSummary {
+  company: { tenantId: string; organizationId: string; name: string; cnpj: string | null };
+  /** Estado de liberação dos 3 módulos do programa (mesma fonte do ModulesModal). */
+  modules: Array<Pick<TenantModuleSummary, 'code' | 'name' | 'enabled' | 'availableForPlan' | 'minPlan'>>;
+  icd: IcdCurrentSummary;
+  pocket: PocketAggregate;
+  /** Versão vigente do banco de perguntas Pocket (POCKET_QUESTIONS_VERSION). */
+  pocketQuestionsVersion: string;
 }
 
 // ── Área do Líder — Trilha de desenvolvimento + Copiloto CRIVO (Briefing §6/§7) ──

@@ -263,7 +263,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "evidencias" && <EvidencesSection />}
           {section === "relatorios" && <ReportsSection />}
           {section === "engineconfig" && <EngineConfigSection onNavigate={(sec) => setSection(sec as Section)} />}
-          {section === "lideranca" && <LiderancaSection />}
+          {section === "lideranca" && <LiderancaSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "govia" && <AiGovernanceSection />}
           {section === "workforce" && <WorkforceSection />}
           {section === "inteligencia" && <IntelligenceSection />}
@@ -378,6 +378,10 @@ const ACTION_LABEL: Record<string, string> = {
   "group.access.remove": "Acesso a grupo removido",
   "group.consolidated.set": "Consolidação de grupo definida",
   "group.overview": "Visão consolidada do grupo",
+  // Módulos › Liderança (ciclos ICD abertos/fechados pelo super admin; painel consultado)
+  "icd.cycle.create": "Ciclo ICD aberto",
+  "icd.cycle.close": "Ciclo ICD fechado",
+  "lideranca.view": "Painel de Liderança consultado",
   "group.portal.view": "Portal do grupo acessado",
   "tenant.group.set": "Empresa vinculada a grupo",
   // Papéis & permissões (RBAC por empresa)

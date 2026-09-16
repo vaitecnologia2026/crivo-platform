@@ -14,9 +14,18 @@ export class AdminOverviewController {
     return this.tenants.overview();
   }
 
-  /** Trilha de auditoria das ações de plataforma. */
+  /** Trilha de auditoria das ações de plataforma. Filtros opcionais:
+   *  `tenantId` (organizationId da empresa) e `prefix` (prefixos de ação
+   *  separados por vírgula, ex.: "icd.,pocket.,lideranca."). */
   @Get('audit')
-  audit(@Query('limit') limit?: string) {
-    return this.tenants.recentAudit(limit ? Number(limit) : 30);
+  audit(
+    @Query('limit') limit?: string,
+    @Query('tenantId') tenantId?: string,
+    @Query('prefix') prefix?: string,
+  ) {
+    return this.tenants.recentAudit(limit ? Number(limit) : 30, {
+      tenantId: tenantId || undefined,
+      prefixes: prefix ? prefix.split(',').map((p) => p.trim()).filter(Boolean) : undefined,
+    });
   }
 }

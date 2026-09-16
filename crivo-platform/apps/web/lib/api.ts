@@ -60,6 +60,11 @@ import type {
   DiagnosticCycleData,
   OpenCycleRequest,
   RiskActionSuggestions,
+  IcdCycleHistoryEntry,
+  IcdCurrentSummary,
+  PocketAggregate,
+  CompanyQuarterlyIcdData,
+  IcdCycleData,
 } from '@crivo/types';
 import { mensagemDeErroApi } from '@crivo/types';
 
@@ -264,6 +269,28 @@ export interface AnalyticsData {
 }
 export function getMyAnalytics(): Promise<AnalyticsData> {
   return apiFetch<AnalyticsData>('/me/analytics');
+}
+
+// ── Programas › Liderança (tela `icd`): composições agregadas do ICD oficial
+// (4 Eixos, ciclo trimestral) e do Pocket. Tudo server-side com supressão
+// n < MIN_LEADERS_FOR_DISCLOSURE; nada por líder. As três rotas são gateadas
+// pelo módulo (icd / pocket) — 403 = módulo não contratado, não é erro.
+
+/** ICD parcial do ciclo ABERTO (4 Eixos) — o radar "ICD por dimensão". */
+export function getIcdCurrent(): Promise<{ cycle: IcdCycleData | null; company: CompanyQuarterlyIcdData | null }> {
+  return apiFetch('/icd-cycles/current');
+}
+/** KPIs do ciclo aberto: ICD médio, delta vs. último fechado, participação. */
+export function getIcdCurrentSummary(): Promise<IcdCurrentSummary> {
+  return apiFetch<IcdCurrentSummary>('/icd-cycles/current/summary');
+}
+/** Série "Evolução do ICD" — só o que o fechamento de ciclo congelou. */
+export function getIcdHistory(): Promise<IcdCycleHistoryEntry[]> {
+  return apiFetch<IcdCycleHistoryEntry[]>('/icd-cycles/history');
+}
+/** Pocket por tema (C/R/I/V/O) + adesão. `cycleId` ausente = ciclo aberto (ou tudo). */
+export function getPocketAggregate(cycleId?: string): Promise<PocketAggregate> {
+  return apiFetch<PocketAggregate>(`/pocket/aggregate${cycleId ? `?cycleId=${encodeURIComponent(cycleId)}` : ''}`);
 }
 
 /** #62 — Catálogo global Academia CRIVO + importação para biblioteca do tenant. */

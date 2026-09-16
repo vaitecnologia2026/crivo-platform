@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { PrismaClient } from '@crivo/db';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   computeLeaderQuarterlyIcd,
   computeCompanyQuarterlyIcd,
   defaultIcdCycleName,
   getIcdMaturityBand,
+  MIN_LEADERS_FOR_DISCLOSURE,
   type IcdAxesScores,
   type IcdCycleData,
+  type IcdCycleHistoryEntry,
+  type IcdCurrentSummary,
   type LeaderQuarterlyIcdData,
   type CompanyQuarterlyIcdData,
 } from '@crivo/types';
@@ -298,6 +302,106 @@ export class IcdCyclesService {
       };
     });
   }
+
+  // ── Composições agregadas do programa Liderança (portal + Super Admin) ──
+  // Sem cálculo novo: `history` lê o que `close()` congelou; `summary`
+  // reaproveita `partialCompanyIcd`. Recebem tenantId explícito, então o
+  // controller do portal passa req.user.tenantId e o do Super Admin passa o
+  // organizationId resolvido de Tenant.id — a mesma função, sem duplicar regra.
+
+  /** Série "Evolução do ICD": todos os ciclos (asc por ano/trimestre) com o
+   *  resultado congelado dos fechados. §11: sob supressão, score/eixos vêm
+   *  null (o banco guarda eixos zerados nesse caso — zero pareceria nota). */
+  async history(tenantId: string): Promise<IcdCycleHistoryEntry[]> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const cycles = await tx.icdCycle.findMany({
+        orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+        include: { companyResult: true },
+      });
+      return cycles.map((c) => {
+        const r = c.companyResult;
+        return {
+          cycle: toCycleData(c),
+          company: r
+            ? {
+                score: r.suppressed ? null : r.score,
+                suppressed: r.suppressed,
+                eligibleLeaders: r.eligibleLeaders,
+                axesAverage: r.suppressed ? null : (r.axesAverage as IcdAxesScores),
+                band: !r.suppressed && r.score != null ? getIcdMaturityBand(r.score) : null,
+                computedAt: r.computedAt.toISOString(),
+              }
+            : null,
+        };
+      });
+    });
+  }
+
+  /** KPIs do ciclo aberto para a tela Liderança: ICD médio parcial (com a
+   *  supressão que `partialCompanyIcd` já aplica), líderes elegíveis vs
+   *  participantes, decisões avaliadas e o delta contra o último ciclo
+   *  FECHADO. Delta só existe quando os dois lados existem — senão null. */
+  async summary(tenantId: string): Promise<IcdCurrentSummary> {
+    const partial = await this.partialCompanyIcd(tenantId);
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const [eligibleLeaders, closed] = await Promise.all([
+        countActiveLeaders(tx),
+        tx.icdCycle.findMany({
+          where: { status: 'CLOSED' },
+          orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+          include: { companyResult: true },
+        }),
+      ]);
+
+      let participatingLeaders = 0;
+      let decisionsEvaluated = 0;
+      if (partial.cycle) {
+        const scores = await tx.decisionIcdScore.findMany({
+          where: { cycleId: partial.cycle.id },
+          select: { leaderId: true },
+        });
+        decisionsEvaluated = scores.length;
+        participatingLeaders = new Set(scores.map((s) => s.leaderId)).size;
+      }
+
+      const last = closed[0] ?? null;
+      const lastClosed = last
+        ? {
+            cycleName: last.name,
+            score: last.companyResult && !last.companyResult.suppressed ? last.companyResult.score : null,
+            suppressed: last.companyResult?.suppressed ?? true,
+            eligibleLeaders: last.companyResult?.eligibleLeaders ?? 0,
+            closedAt: last.closedAt ? last.closedAt.toISOString() : null,
+          }
+        : null;
+
+      const company = partial.company;
+      const icdMedio = company && !company.suppressed ? company.score : null;
+      return {
+        cycle: partial.cycle,
+        icdMedio,
+        band: icdMedio != null ? getIcdMaturityBand(icdMedio) : null,
+        // Sem ciclo/decisões o estado é "nenhuma avaliação", não "suprimido";
+        // com 1–4 líderes avaliados, aí sim é supressão §11.
+        suppressed: !!company && company.suppressed && company.eligibleLeaders > 0,
+        minLeadersForDisclosure: MIN_LEADERS_FOR_DISCLOSURE,
+        eligibleLeaders,
+        participatingLeaders,
+        decisionsEvaluated,
+        lastClosed,
+        delta: icdMedio != null && lastClosed?.score != null ? icdMedio - lastClosed.score : null,
+        closedCycles: closed.length,
+      };
+    });
+  }
+}
+
+/** Contagem de líderes ATIVOS (User.role LIDER) — o "total" dos KPIs de
+ *  participação/adesão do programa Liderança. Não lista ninguém: só o número.
+ *  Compartilhada com o PocketService.aggregate para as duas telas usarem a
+ *  mesma definição de "líder elegível". */
+export async function countActiveLeaders(tx: Pick<PrismaClient, 'user'>): Promise<number> {
+  return tx.user.count({ where: { role: 'LIDER', active: true } });
 }
 
 function toCycleData(row: any): IcdCycleData {

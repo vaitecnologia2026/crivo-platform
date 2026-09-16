@@ -7,18 +7,24 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  MIN_LEADERS_FOR_DISCLOSURE,
+  POCKET_DIMENSIONS,
   POCKET_DIMENSION_LABEL,
   POCKET_QUESTIONS,
   POCKET_QUESTIONS_VERSION,
+  type PocketAggregate,
   type PocketDimension,
   type PocketSessionData,
   type PocketReflectionData,
 } from '@crivo/types';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { AiPromptsService } from '../admin/ai-prompts.service';
+import { countActiveLeaders } from '../icd-cycles/icd-cycles.service';
 import type { CreatePocketSessionDto, UpsertReflectionDto } from './dto';
 
 const VALID_QUESTION_CODES = new Set(POCKET_QUESTIONS.map((q) => q.code));
+/** questionCode ("C1".."O2") → dimensão C/R/I/V/O, para agregar por tema. */
+const QUESTION_DIMENSION = new Map<string, PocketDimension>(POCKET_QUESTIONS.map((q) => [q.code, q.dimension]));
 
 @Injectable()
 export class PocketService {
@@ -262,6 +268,73 @@ export class PocketService {
     } catch (e) {
       this.log.warn(`Falha de IA para sessão ${sessionId}: ${e instanceof Error ? e.message : e}`);
     }
+  }
+
+  /** AGREGADO do Pocket por dimensão (tela Liderança do portal e Módulos ›
+   *  Liderança do Super Admin). Anexo Pocket §13: sessões e reflexões são do
+   *  líder — aqui só CONTAGENS (sessões concluídas com ≥ 1 reflexão respondida
+   *  por dimensão) e adesão (% de líderes ativos com ≥ 1 sessão concluída).
+   *  Nunca texto, nunca por pessoa, nenhum score (o Pocket não pontua).
+   *  Recorte: o ciclo ICD informado, senão o aberto, senão todo o histórico.
+   *  Supressão §11: com menos de MIN_LEADERS_FOR_DISCLOSURE líderes com
+   *  sessão concluída, contagens e adesão vêm null. */
+  async aggregate(tenantId: string, cycleId?: string): Promise<PocketAggregate> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const cycle = cycleId
+        ? await tx.icdCycle.findUnique({ where: { id: cycleId } })
+        : await tx.icdCycle.findFirst({ where: { status: 'OPEN' } });
+      if (cycleId && !cycle) throw new NotFoundException('Ciclo não encontrado.');
+
+      const completedAt = cycle ? { gte: cycle.startsAt, lte: cycle.endsAt } : undefined;
+      const [eligibleLeaders, sessions] = await Promise.all([
+        countActiveLeaders(tx),
+        tx.pocketSession.findMany({
+          where: { status: 'CONCLUIDA', ...(completedAt ? { completedAt } : {}) },
+          // Só o necessário para contar: nada de texto de reflexão sai daqui.
+          select: { leaderId: true, reflections: { select: { questionCode: true, text: true, tags: true } } },
+        }),
+      ]);
+
+      const participatingLeaders = new Set(sessions.map((s) => s.leaderId)).size;
+      const suppressed = participatingLeaders < MIN_LEADERS_FOR_DISCLOSURE;
+
+      let byDimension: PocketAggregate['byDimension'] = null;
+      let adhesionPct: number | null = null;
+      let completedSessions: number | null = null;
+      if (!suppressed) {
+        const perDim = new Map<PocketDimension, number>(POCKET_DIMENSIONS.map((d) => [d, 0]));
+        for (const s of sessions) {
+          const touched = new Set<PocketDimension>();
+          for (const r of s.reflections) {
+            const answered = (r.text?.trim().length ?? 0) > 0 || (r.tags?.length ?? 0) > 0;
+            const dim = QUESTION_DIMENSION.get(r.questionCode);
+            if (answered && dim) touched.add(dim);
+          }
+          for (const d of touched) perDim.set(d, (perDim.get(d) ?? 0) + 1);
+        }
+        byDimension = POCKET_DIMENSIONS.map((d) => ({
+          dimension: d,
+          label: POCKET_DIMENSION_LABEL[d],
+          sessions: perDim.get(d) ?? 0,
+        }));
+        completedSessions = sessions.length;
+        adhesionPct = eligibleLeaders > 0 ? Math.round((participatingLeaders / eligibleLeaders) * 100) : null;
+      }
+
+      return {
+        period: cycle
+          ? { cycleId: cycle.id, cycleName: cycle.name, from: cycle.startsAt.toISOString(), to: cycle.endsAt.toISOString() }
+          : null,
+        suppressed,
+        minLeadersForDisclosure: MIN_LEADERS_FOR_DISCLOSURE,
+        eligibleLeaders,
+        participatingLeaders,
+        completedSessions,
+        adhesionPct,
+        byDimension,
+        questionsVersion: POCKET_QUESTIONS_VERSION,
+      };
+    });
   }
 
   /** Remove sessão (apenas do dono, e somente se não concluída). */

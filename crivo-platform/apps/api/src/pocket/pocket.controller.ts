@@ -7,15 +7,18 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PocketService } from './pocket.service';
 import { CreatePocketSessionDto, UpsertReflectionDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
+import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
+import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { POCKET_QUESTIONS } from '@crivo/types';
 import type { SessionUser } from '@crivo/types';
@@ -32,6 +35,21 @@ export class PocketController {
   @Get('questions')
   questions() {
     return POCKET_QUESTIONS;
+  }
+
+  /** AGREGADO por dimensão + adesão para a tela Liderança (rota `icd`) da
+   *  GESTÃO — por isso a tela declarada aqui é `icd` (sobrepõe o `pocket`
+   *  da classe) e o papel é de gestão, não o líder. Só contagens com
+   *  supressão n < 5; nunca uma sessão ou reflexão de alguém (§13). */
+  @Get('aggregate')
+  @UseGuards(RolesGuard)
+  @RequireScreen('icd')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'JURIDICO', 'CONSULTOR')
+  aggregate(
+    @CurrentUser() user: SessionUser,
+    @Query('cycleId', new ParseUUIDPipe({ optional: true })) cycleId?: string,
+  ) {
+    return this.pocket.aggregate(user.tenantId, cycleId || undefined);
   }
 
   /** Histórico individual do líder (§13). Cada um vê só o próprio. */

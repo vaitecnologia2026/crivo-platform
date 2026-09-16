@@ -56,6 +56,12 @@ import type {
   ModuleCatalogUpdateRequest,
   PlatformLeadOriginOption,
   PlatformLeadOriginUpsertRequest,
+  CreateIcdCycleRequest,
+  IcdCycleData,
+  IcdCycleHistoryEntry,
+  LiderancaAdminSummary,
+  PocketAggregate,
+  CompanyQuarterlyIcdData,
 } from "@crivo/types";
 import { mensagemDeErroApi } from "@crivo/types";
 
@@ -459,8 +465,15 @@ export function getDashboard(
   return adminFetch<DashboardData>(`/admin/dashboard?${q.toString()}`);
 }
 
-export function getAuditLog(): Promise<AuditEntry[]> {
-  return adminFetch<AuditEntry[]>("/admin/audit");
+/** Trilha de auditoria. `tenantId` = organizationId da empresa; `prefixes` =
+ *  prefixos de ação (ex.: ["icd.", "pocket."]) — filtros das abas por módulo. */
+export function getAuditLog(filters: { tenantId?: string; prefixes?: string[]; limit?: number } = {}): Promise<AuditEntry[]> {
+  const q = new URLSearchParams();
+  if (filters.tenantId) q.set("tenantId", filters.tenantId);
+  if (filters.prefixes?.length) q.set("prefix", filters.prefixes.join(","));
+  if (filters.limit) q.set("limit", String(filters.limit));
+  const qs = q.toString();
+  return adminFetch<AuditEntry[]>(`/admin/audit${qs ? `?${qs}` : ""}`);
 }
 
 // ── CRM do super admin (funil comercial) ──
@@ -1721,6 +1734,40 @@ export function getIntelligenceOverview(
   if (params.to) q.set("to", params.to);
   const qs = q.toString();
   return adminFetch<IntelligenceOverview>(`/admin/intelligence/${tenantId}/overview${qs ? `?${qs}` : ""}`);
+}
+
+// ── Módulos › Liderança (workspace administrativo por empresa) ──
+// Mesmas composições do portal (IcdCyclesService/PocketService) com o
+// organizationId resolvido de Tenant.id na API; tudo agregado com supressão
+// n < 5. `tenantId` aqui é Tenant.id (o mesmo do select de empresas).
+
+export function getLiderancaSummary(tenantId: string): Promise<LiderancaAdminSummary> {
+  return adminFetch<LiderancaAdminSummary>(`/admin/tenants/${tenantId}/lideranca/summary`);
+}
+export function listTenantIcdCycles(tenantId: string): Promise<IcdCycleData[]> {
+  return adminFetch<IcdCycleData[]>(`/admin/tenants/${tenantId}/icd-cycles`);
+}
+export function createTenantIcdCycle(tenantId: string, body: CreateIcdCycleRequest): Promise<IcdCycleData> {
+  return adminFetch<IcdCycleData>(`/admin/tenants/${tenantId}/icd-cycles`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+export function closeTenantIcdCycle(tenantId: string, cycleId: string): Promise<IcdCycleData> {
+  return adminFetch<IcdCycleData>(`/admin/tenants/${tenantId}/icd-cycles/${cycleId}/close`, { method: "POST" });
+}
+export function getTenantIcdCycleOfficial(
+  tenantId: string,
+  cycleId: string,
+): Promise<{ cycle: IcdCycleData; company: CompanyQuarterlyIcdData | null }> {
+  return adminFetch(`/admin/tenants/${tenantId}/icd-cycles/${cycleId}`);
+}
+export function getTenantIcdHistory(tenantId: string): Promise<IcdCycleHistoryEntry[]> {
+  return adminFetch<IcdCycleHistoryEntry[]>(`/admin/tenants/${tenantId}/icd-cycles/history`);
+}
+export function getTenantPocketAggregate(tenantId: string, cycleId?: string): Promise<PocketAggregate> {
+  const qs = cycleId ? `?cycleId=${encodeURIComponent(cycleId)}` : "";
+  return adminFetch<PocketAggregate>(`/admin/tenants/${tenantId}/pocket/aggregate${qs}`);
 }
 
 // ── Motor 4 — Relatórios e Dossiês (R-001): repositório cross-tenant + revisão ──
