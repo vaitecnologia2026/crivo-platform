@@ -181,6 +181,10 @@ const COR_MATRIZ: Record<PsychosocialRiskClass, string> = {
 const EIXO_MATRIZ =
   'background:#0d1f3c;color:#fff;text-align:center;font-weight:700;border:2px solid #fff;';
 
+/** Origem gravada pela auto-avaliação do gestor em `diagnostic_responses`
+ *  (`essencial.service.ts`). Resposta de campanha grava origin NULO. */
+const SELF_ASSESSMENT_ORIGIN = 'SELF_ASSESSMENT';
+
 const escapaHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -1242,7 +1246,7 @@ export class DocumentsService {
     tenantId: string,
     range?: { from: Date; to: Date },
     instrumento?: TenantInstrument,
-    methodologySlug?: string,
+    opcoes: { semAutoAvaliacao?: boolean } = {},
   ) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     const { slug, motorPsicossocial } = instrumento ?? (await this.instrumentoDoTenant(tenantId));
@@ -1261,9 +1265,16 @@ export class DocumentsService {
       // F4: com `range`, só as respostas DA JANELA DO CICLO entram no
       // snapshot congelado — a aplicação formal é o período aberto/encerrado.
       const janela = range ? { submittedAt: { gte: range.from, lte: range.to } } : {};
-      // Filtro por origem da resposta: usado para separar auto-avaliação (SELF_ASSESSMENT)
-      // de outros tipos de avaliação que não devem ser somados juntos.
-      const filtroOrigem = methodologySlug ? { origin: methodologySlug } : {};
+      // Auto-avaliação do gestor (origin = SELF_ASSESSMENT) fica FORA do agregado
+      // quando pedido — Ajustes Finais de Homologação. A resposta de campanha
+      // grava origin NULO, então o filtro é "não é auto-avaliação", nunca
+      // igualdade com um valor: comparar com o slug do instrumento (1505f4d)
+      // zerava as respostas válidas do Essencial. E `psychosocial_responses` não
+      // tem a coluna — filtrar ali derrubava o Dossiê do Organizacional com
+      // "Unknown argument `origin`"; lá a auto-avaliação simplesmente não existe.
+      const semAuto = opcoes.semAutoAvaliacao
+        ? { OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }] }
+        : {};
       const rows: {
         sector: string | null;
         score: number;
@@ -1271,11 +1282,11 @@ export class DocumentsService {
         submittedAt: Date;
       }[] = motorPsicossocial
         ? await tx.psychosocialResponse.findMany({
-            where: { ...janela, ...filtroOrigem },
+            where: janela,
             select: { sector: true, score: true, byDimension: true, submittedAt: true },
           })
         : await tx.diagnosticResponse.findMany({
-            where: { instrumentSlug: slug, ...janela, ...filtroOrigem },
+            where: { instrumentSlug: slug, ...janela, ...semAuto },
             select: { sector: true, score: true, byDimension: true, submittedAt: true },
           });
       const total = rows.length;
@@ -1295,6 +1306,21 @@ export class DocumentsService {
         };
       });
       const sectorsList = [...new Set(rows.map((r) => r.sector?.trim()).filter(Boolean))] as string[];
+      // Score PRÓPRIO de cada setor (grupo elegível do Dossiê): média das
+      // respostas do setor, mesmas casas do geral; abaixo do mínimo = suprimido.
+      const porSetor = new Map<string, number[]>();
+      for (const r of rows) {
+        const k = r.sector?.trim() || 'Não informado';
+        porSetor.set(k, [...(porSetor.get(k) ?? []), r.score]);
+      }
+      const sectors = [...porSetor.entries()]
+        .map(([sector, scores]) => ({
+          sector,
+          respondents: scores.length,
+          suppressed: scores.length < minRespondents,
+          score: arredonda(scores.reduce((a, x) => a + x, 0) / scores.length),
+        }))
+        .sort((a, b) => b.respondents - a.respondents);
       return {
         suppressed: false as const,
         totalRespondents: total,
@@ -1310,6 +1336,26 @@ export class DocumentsService {
         byDimension,
         bands,
         sectorsList,
+        sectors,
+      };
+    });
+  }
+
+  /** Auto-avaliação do gestor: UMA resposta espelhada em `diagnostic_responses`
+   *  com origin = SELF_ASSESSMENT (só no motor de diagnóstico). `null` quando não
+   *  há, ou quando o motor é o psicossocial, que não tem esse conceito. */
+  private async autoAvaliacaoDoGestor(tenantId: string, instrumento?: TenantInstrument) {
+    const inst = instrumento ?? (await this.instrumentoDoTenant(tenantId));
+    if (inst.motorPsicossocial) return null;
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.diagnosticResponse.findMany({
+        where: { instrumentSlug: inst.slug, origin: SELF_ASSESSMENT_ORIGIN },
+        select: { score: true },
+      });
+      if (!rows.length) return null;
+      return {
+        score: rows.reduce((a, r) => a + r.score, 0) / rows.length,
+        respondents: rows.length,
       };
     });
   }
@@ -1728,7 +1774,10 @@ export class DocumentsService {
   ): Promise<GeneratedDocument> {
     const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const instrumento = await this.instrumentoDoTenant(tenantId, ctx.method);
-    const psy = await this.psychosocialSummary(tenantId, undefined, instrumento, instrumento?.slug);
+    // Agregado SEM a auto-avaliação do gestor (ela sai em tabela própria).
+    const psy = await this.psychosocialSummary(tenantId, undefined, instrumento, {
+      semAutoAvaliacao: true,
+    });
     const approvedTexts = await this.approvedTextsOf(tenantId, 'dossie_tecnico');
     const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
     const items = (plan?.items ?? []) as (FactorItem & {
@@ -2027,39 +2076,31 @@ export class DocumentsService {
       ]);
     }
 
-    // psy é union: quando suppressed=true não tem sectors/score. Type-guard explícito.
-    const psyComSetores = psy as { sectors?: Array<{ sector: string; respondents: number; suppressed: boolean; score?: number }>; totalRespondents: number };
-
-    // Separar grupos elegíveis do consolidado (evita duplicação).
-    for (const s of psyComSetores.sectors ?? []) {
-      if (s.suppressed || typeof s.score !== 'number') continue;
-      // Se o grupo tem o MESMO número de respondentes que o total, é o consolidado.
-      if (s.respondents === psy.totalRespondents && agregado) continue;
-      const band = findBandForScore(agregado?.bands ?? [], s.score);
-      resultadoGeralRows.push([
-        s.sector,
-        `${scoreDossie(s.score, agregado?.decimals ?? 0)} (${band?.label ?? '—'})`,
-        `${s.respondents} respondentes`,
-      ]);
-    }
-
-    // Exibir resultado da Auto-Avaliação em tabela SEPARADA, quando houver.
-    // A auto-avaliação tem origin = 'SELF_ASSESSMENT' e NÃO deve ser somada
-    // com as demais avaliações no Resultado Geral.
+    // Grupos elegíveis: score próprio do setor com n ≥ mínimo. Um único setor
+    // com TODOS os respondentes repetiria a linha do geral — fica de fora.
+    // (Antes lia `psy.sectors`, que não existia: nenhum grupo saía.)
     if (agregado) {
-      const autoAvaliacao = psyComSetores.sectors?.find(s =>
-        s.sector === 'Auto-avaliação' ||
-        s.sector === 'Gestor' ||
-        s.sector?.toLowerCase().includes('auto')
-      );
-      if (autoAvaliacao && !autoAvaliacao.suppressed && typeof autoAvaliacao.score === 'number') {
-        const bandAuto = findBandForScore(agregado?.bands ?? [], autoAvaliacao.score);
-        resultadoAutoAvaliacaoRows.push([
-          autoAvaliacao.sector,
-          `${scoreDossie(autoAvaliacao.score, agregado?.decimals ?? 0)} (${bandAuto?.label ?? '—'})`,
-          `${autoAvaliacao.respondents} respondentes`,
+      for (const s of agregado.sectors) {
+        if (s.suppressed || s.respondents === agregado.totalRespondents) continue;
+        const band = findBandForScore(agregado.bands, s.score);
+        resultadoGeralRows.push([
+          s.sector,
+          `${scoreDossie(s.score, agregado.decimals)} (${band?.label ?? '—'})`,
+          `${s.respondents} respondentes`,
         ]);
       }
+    }
+
+    // Auto-avaliação do gestor em tabela SEPARADA, nunca somada ao geral. É a
+    // resposta do próprio gestor — não cabe supressão por mínimo de respondentes.
+    const autoAvaliacao = await this.autoAvaliacaoDoGestor(tenantId, instrumento);
+    if (autoAvaliacao && agregado) {
+      const bandAuto = findBandForScore(agregado.bands, autoAvaliacao.score);
+      resultadoAutoAvaliacaoRows.push([
+        'Auto-avaliação do gestor',
+        `${scoreDossie(autoAvaliacao.score, agregado.decimals)} (${bandAuto?.label ?? '—'})`,
+        `${autoAvaliacao.respondents} resposta(s)`,
+      ]);
     }
 
     sections.push({
