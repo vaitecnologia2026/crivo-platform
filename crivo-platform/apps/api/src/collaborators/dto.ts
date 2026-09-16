@@ -25,6 +25,37 @@ export class CreateCollaboratorDto {
   @IsOptional() @IsString() @MaxLength(160)
   email?: string;
 
+  // Recortes (Ajustes Finais de Homologação). GHE é o que a empresa informa.
+  @IsOptional() @IsString() @MaxLength(120)
+  unit?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  area?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  role?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  shift?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  ghe?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  manager?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  workModel?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  gender?: string;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1900) @Max(2100)
+  birthYear?: number;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  ageBand?: string;
+
   @IsString() @MaxLength(20)
   cpf!: string;
 }
@@ -41,6 +72,37 @@ export class UpdateCollaboratorDto {
 
   @IsOptional() @IsString() @MaxLength(160)
   email?: string;
+
+  // Recortes (Ajustes Finais de Homologação). GHE é o que a empresa informa.
+  @IsOptional() @IsString() @MaxLength(120)
+  unit?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  area?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  role?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  shift?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  ghe?: string;
+
+  @IsOptional() @IsString() @MaxLength(160)
+  manager?: string;
+
+  @IsOptional() @IsString() @MaxLength(60)
+  workModel?: string;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  gender?: string;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1900) @Max(2100)
+  birthYear?: number;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  ageBand?: string;
 
   @IsOptional() @IsString() @MaxLength(20)
   cpf?: string;

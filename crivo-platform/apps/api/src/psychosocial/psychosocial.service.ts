@@ -17,6 +17,8 @@ import {
   DEFAULT_SCALE_LABELS,
   type PsychosocialProfileRow,
   type PsychosocialRiskMatrixRow,
+  COHORT_DIMENSIONS,
+  type CollaboratorCohort,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -85,6 +87,9 @@ export class PsychosocialService {
     /** Campanha (ciclo) de onde veio a resposta. null = coleta avulsa (link
      *  aberto ou autoavaliação) — é o que permite medir adesão por ciclo. */
     cycleId?: string | null,
+    /** Retrato dos recortes do colaborador (só no envio pelo convite; nunca
+     *  vem do corpo da requisição pública). */
+    cohort?: CollaboratorCohort | null,
   ) {
     // Pontua pela metodologia ATIVA do Organizacional (Fase 1C); fallback ao padrão.
     // MET1: capturamos o versionId da metodologia que pontuou, para pinar a trilha
@@ -142,6 +147,7 @@ export class PsychosocialService {
           byFactor: (result.byFactor ?? null) as unknown as object,
           methodologyVersionId,
           cycleId: cycleId ?? null,
+          ...(cohort ? { cohort: cohort as unknown as object } : {}),
         },
       });
       // Devolve só o resultado próprio (anônimo) — nenhum identificador é guardado.
@@ -480,6 +486,63 @@ export class PsychosocialService {
           : { suppressed: false as const, ...overall },
         sectors,
       };
+    });
+  }
+
+  /**
+   * Recortes gerenciais do PORTAL (Ajustes Finais: "demais recortes ficam
+   * disponíveis no Portal para análises gerenciais"). Para cada recorte do
+   * retrato — GHE, unidade, área, setor, cargo, turno, modelo, gestor, gênero,
+   * faixa etária, geração — devolve os grupos com n, score e faixa; abaixo do
+   * mínimo só o n (suprimido). Nada daqui entra no Dossiê.
+   */
+  async recortes(tenantId: string) {
+    const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
+    const instrumento =
+      (await resolveInstrumentForTenant(this.prisma, tenantId)) ??
+      (await resolvePsychosocialInstrument(this.prisma));
+    const motorPsicossocial = await usesPsychosocialEngine(this.prisma, instrumento);
+    const cfg = await loadActiveMethodologyConfig(this.prisma, instrumento);
+    const casas = Math.max(0, Math.min(6, Math.trunc(cfg?.rounding ?? 0)));
+    const arredonda = (x: number) => {
+      const f = 10 ** casas;
+      return Math.round((x + Number.EPSILON) * f) / f;
+    };
+    const bands = cfg?.bands ?? [];
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows: { sector: string | null; score: number; cohort: unknown }[] = motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({ select: { sector: true, score: true, cohort: true } })
+        : await tx.diagnosticResponse.findMany({
+            // A auto-avaliação do gestor não é "grupo": fica fora como no Dossiê.
+            where: { instrumentSlug: instrumento, OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
+            select: { sector: true, score: true, cohort: true },
+          });
+      const dimensions = COHORT_DIMENSIONS.map((d) => {
+        const grupos = new Map<string, number[]>();
+        for (const r of rows) {
+          const c = (r.cohort ?? {}) as Partial<CollaboratorCohort>;
+          // Setor: respostas antigas (sem cohort) ainda têm a coluna própria.
+          const bruto = d.key === 'sector' ? (c.sector ?? r.sector) : c[d.key];
+          const v = typeof bruto === 'string' ? bruto.trim() : '';
+          if (!v) continue;
+          grupos.set(v, [...(grupos.get(v) ?? []), r.score]);
+        }
+        const groups = [...grupos.entries()]
+          .map(([value, scores]) => {
+            const suppressed = scores.length < minRespondents;
+            const score = suppressed ? null : arredonda(scores.reduce((a, x) => a + x, 0) / scores.length);
+            return {
+              value,
+              respondents: scores.length,
+              suppressed,
+              score,
+              levelLabel: score === null ? null : (findBandForScore(bands, score)?.label ?? null),
+            };
+          })
+          .sort((a, b) => b.respondents - a.respondents || a.value.localeCompare(b.value));
+        return { key: d.key, label: d.label, groups };
+      }).filter((d) => d.groups.length > 0);
+      return { minRespondents, totalRespondents: rows.length, dimensions };
     });
   }
 }

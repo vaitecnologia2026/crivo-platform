@@ -143,6 +143,20 @@ describe('resposta pelo link do convite', () => {
     expect(chamada[3]).toBe(CICLO);
   });
 
+  it('leva o RETRATO dos recortes do colaborador — e nada que identifique a pessoa', async () => {
+    // Ajustes Finais (item 3): GHE, unidade, área… viajam com a resposta anônima;
+    // nome, CPF, e-mail e telefone nunca.
+    const { service, psychosocial, colaborador } = build();
+    Object.assign(colaborador, { ghe: 'GHE-Escritório', unit: 'Matriz', shift: 'noturno', birthYear: 1990 });
+
+    await service.submit('token-legado', { cpf: '529.982.247-25', answers: [{ questionId: 1, value: 3 }] } as never);
+
+    const chamada = psychosocial.submit.mock.calls[0] as unknown[];
+    const cohort = chamada[4] as Record<string, unknown>;
+    expect(cohort).toMatchObject({ sector: 'RH', ghe: 'GHE-Escritório', unit: 'Matriz', shift: 'Noite', generation: 'Geração Y' });
+    for (const proibido of ['name', 'cpf', 'email', 'phone', 'token', 'id']) expect(cohort).not.toHaveProperty(proibido);
+  });
+
   it('link ANTIGO (sem campanha) continua funcionando, sem ciclo', async () => {
     // Convites enviados antes desta mudança não podem morrer.
     const { service, psychosocial } = build();

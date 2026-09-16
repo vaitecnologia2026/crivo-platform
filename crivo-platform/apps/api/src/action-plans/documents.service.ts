@@ -1301,14 +1301,15 @@ export class DocumentsService {
         score: number;
         byDimension: unknown;
         submittedAt: Date;
+        cohort: unknown;
       }[] = motorPsicossocial
         ? await tx.psychosocialResponse.findMany({
             where: janela,
-            select: { sector: true, score: true, byDimension: true, submittedAt: true },
+            select: { sector: true, score: true, byDimension: true, submittedAt: true, cohort: true },
           })
         : await tx.diagnosticResponse.findMany({
             where: { instrumentSlug: slug, ...janela, ...semAuto },
-            select: { sector: true, score: true, byDimension: true, submittedAt: true },
+            select: { sector: true, score: true, byDimension: true, submittedAt: true, cohort: true },
           });
       const total = rows.length;
       const dates = rows.map((r) => r.submittedAt).sort((a, b) => a.getTime() - b.getTime());
@@ -1327,11 +1328,20 @@ export class DocumentsService {
         };
       });
       const sectorsList = [...new Set(rows.map((r) => r.sector?.trim()).filter(Boolean))] as string[];
-      // Score PRÓPRIO de cada setor (grupo elegível do Dossiê): média das
-      // respostas do setor, mesmas casas do geral; abaixo do mínimo = suprimido.
+      // Grupo elegível do Dossiê (Ajustes Finais): o GHE cadastrado pela
+      // empresa é a referência preferencial; sem GHE em nenhuma resposta, vale
+      // Área/Setor definido para a campanha — sem chamar isso de GHE. GHE
+      // nunca é inferido: só o que veio no retrato da resposta.
+      const gheDe = (r: { cohort: unknown }): string | null => {
+        const g = (r.cohort as { ghe?: unknown } | null)?.ghe;
+        return typeof g === 'string' && g.trim() ? g.trim() : null;
+      };
+      const groupBy: 'ghe' | 'sector' = rows.some((r) => gheDe(r)) ? 'ghe' : 'sector';
+      // Score PRÓPRIO de cada grupo: média das respostas do grupo, mesmas casas
+      // do geral; abaixo do mínimo = suprimido.
       const porSetor = new Map<string, number[]>();
       for (const r of rows) {
-        const k = r.sector?.trim() || 'Não informado';
+        const k = (groupBy === 'ghe' ? gheDe(r) : r.sector?.trim()) || 'Não informado';
         porSetor.set(k, [...(porSetor.get(k) ?? []), r.score]);
       }
       const sectors = [...porSetor.entries()]
@@ -1358,6 +1368,7 @@ export class DocumentsService {
         bands,
         sectorsList,
         sectors,
+        groupBy,
       };
     });
   }
@@ -1910,7 +1921,12 @@ export class DocumentsService {
         { label: 'Estrutura considerada', value: 'Empresa e áreas cadastradas no ciclo' },
         // Só os recortes EXIBIDOS são nomeados: nomear o omitido devolveria, por
         // via indireta, a informação que a supressão existe para proteger.
-        { label: 'Recortes exibidos', value: exibidos.map((x) => x.sector).join(', ') || '—' },
+        {
+          label: 'Recortes exibidos',
+          value: agregado
+            ? agregado.sectors.filter((x) => !x.suppressed).map((x) => x.sector).join(', ') || '—'
+            : exibidos.map((x) => x.sector).join(', ') || '—',
+        },
         {
           label: 'Confidencialidade',
           value:
@@ -2100,12 +2116,13 @@ export class DocumentsService {
     // Grupos elegíveis: score próprio do setor com n ≥ mínimo. Um único setor
     // com TODOS os respondentes repetiria a linha do geral — fica de fora.
     // (Antes lia `psy.sectors`, que não existia: nenhum grupo saía.)
+    const rotuloGrupo = agregado?.groupBy === 'ghe' ? 'GHE' : 'Área/Setor';
     if (agregado) {
       for (const s of agregado.sectors) {
         if (s.suppressed || s.respondents === agregado.totalRespondents) continue;
         const band = findBandForScore(agregado.bands, s.score);
         resultadoGeralRows.push([
-          s.sector,
+          `${rotuloGrupo}: ${s.sector}`,
           `${scoreDossie(s.score, agregado.decimals)} (${band?.label ?? '—'})`,
           `${s.respondents} respondentes`,
         ]);
@@ -2128,7 +2145,10 @@ export class DocumentsService {
       heading: 'Resultado Geral da Organização e Grupos Elegíveis',
       body:
         'Score executivo geral e abertura por grupo elegível (n ≥ mínimo configurado). ' +
-        'Grupos abaixo do mínimo são suprimidos por confidencialidade.',
+        'Grupos abaixo do mínimo são suprimidos por confidencialidade. ' +
+        (agregado?.groupBy === 'ghe'
+          ? 'Referência dos grupos expostos: Grupos de Exposição (GHE) cadastrados pela empresa.'
+          : 'Referência dos grupos: Área/Setor definido para a campanha (a empresa não cadastrou GHE).'),
       table: {
         columns: ['Recorte', 'Score Executivo', 'Respondentes'],
         data: resultadoGeralRows.length

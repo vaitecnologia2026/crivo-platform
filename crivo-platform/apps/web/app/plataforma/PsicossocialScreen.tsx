@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   getPsychosocialResults,
+  getPsychosocialRecortes,
   type PsychosocialResults,
+  type PsychosocialRecortes,
   listActionPlans,
 } from "@/lib/api";
 import {
@@ -239,10 +241,75 @@ function ResultadosBody({
         </table>
       </div>
 
+      {/* Ajustes Finais: demais recortes (GHE, unidade, área, cargo, turno…)
+          ficam no PORTAL, para análise gerencial — nunca no Dossiê. */}
+      <RecortesCard />
+
       {/* Mockup 22/07 — detalhe NR-1: heatmap + matriz técnica. */}
       <SectorHeatmap data={data} />
       <TechnicalRiskMatrix />
     </>
+  );
+}
+
+/** Recortes gerenciais com a mesma supressão do resto da tela (n < mínimo = confidencial). */
+function RecortesCard() {
+  const [rec, setRec] = useState<PsychosocialRecortes | null>(null);
+  const [erro, setErro] = useState(false);
+  const [chave, setChave] = useState<string>("");
+  useEffect(() => {
+    getPsychosocialRecortes()
+      .then((r) => { setRec(r); setChave((k) => k || r.dimensions[0]?.key || ""); })
+      .catch(() => setErro(true));
+  }, []);
+  if (erro) return null;
+  if (!rec) return <div className="card" style={{ marginTop: 20 }}><p className="dash-state">Carregando recortes…</p></div>;
+  const dim = rec.dimensions.find((d) => d.key === chave) ?? rec.dimensions[0];
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <div className="card__head">
+        <div>
+          <h3>Recortes</h3>
+          <span className="card__sub">
+            GHE informado pela empresa, unidade, área, cargo, turno, modelo de trabalho, gestor, gênero, faixa etária e
+            geração — grupos com menos de {rec.minRespondents} respostas ficam confidenciais. Análise gerencial: não entra no Dossiê.
+          </span>
+        </div>
+        {rec.dimensions.length > 0 && (
+          <select className="kb-stage-select" value={dim?.key ?? ""} onChange={(e) => setChave(e.target.value)}>
+            {rec.dimensions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+          </select>
+        )}
+      </div>
+      {!dim ? (
+        <p className="dash-state">
+          Nenhum recorte disponível ainda: cadastre unidade, área, cargo, turno ou GHE nos colaboradores e as próximas
+          respostas passam a carregar esses recortes.
+        </p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr><th>{dim.label}</th><th>Respostas</th><th>Score</th><th>Faixa</th></tr>
+          </thead>
+          <tbody>
+            {dim.groups.map((g) => (
+              <tr key={g.value}>
+                <td>{g.value}</td>
+                <td>{g.respondents}</td>
+                {g.suppressed ? (
+                  <td colSpan={2} style={{ color: "var(--ink-soft, #888)" }}>confidencial (menos de {rec.minRespondents})</td>
+                ) : (
+                  <>
+                    <td><strong>{g.score}</strong></td>
+                    <td>{g.levelLabel ?? "—"}</td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

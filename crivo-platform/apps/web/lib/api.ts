@@ -708,6 +708,20 @@ export function getPsychosocialResults(): Promise<PsychosocialResults> {
   return apiFetch<PsychosocialResults>('/psychosocial/results');
 }
 
+/** Recortes gerenciais (GHE, unidade, área, cargo, turno…) com supressão por mínimo. */
+export interface PsychosocialRecortes {
+  minRespondents: number;
+  totalRespondents: number;
+  dimensions: {
+    key: string;
+    label: string;
+    groups: { value: string; respondents: number; suppressed: boolean; score: number | null; levelLabel: string | null }[];
+  }[];
+}
+export function getPsychosocialRecortes(): Promise<PsychosocialRecortes> {
+  return apiFetch<PsychosocialRecortes>('/psychosocial/recortes');
+}
+
 // ── Custos Invisíveis (Fase 2) ──
 export interface InvisibleCostsData {
   items: InvisibleCostItem[];
@@ -948,6 +962,17 @@ export interface CollaboratorView {
   phone: string | null;
   sector: string | null;
   email: string | null;
+  // Recortes (Ajustes Finais de Homologação). GHE é o que a empresa informou.
+  unit: string | null;
+  area: string | null;
+  role: string | null;
+  shift: string | null;
+  ghe: string | null;
+  manager: string | null;
+  workModel: string | null;
+  gender: string | null;
+  birthYear: number | null;
+  ageBand: string | null;
   cpfMasked: string;
   link: string;
   status: "pending" | "invited" | "responded";
@@ -962,6 +987,16 @@ export interface CollaboratorInput {
   sector?: string;
   email?: string;
   cpf: string;
+  unit?: string;
+  area?: string;
+  role?: string;
+  shift?: string;
+  ghe?: string;
+  manager?: string;
+  workModel?: string;
+  gender?: string;
+  birthYear?: number;
+  ageBand?: string;
 }
 export function listCollaborators(): Promise<CollaboratorView[]> {
   return apiFetch<CollaboratorView[]>("/collaborators");

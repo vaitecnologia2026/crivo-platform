@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { scoreWithMethodology, findBandForScore } from '@crivo/types';
+import { scoreWithMethodology, findBandForScore, type CollaboratorCohort } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveActiveMethodology } from '../admin/methodology.service';
 import { getEngineConfig, resolveMinRespondents } from '../admin/engine-config';
@@ -163,6 +163,8 @@ export class DiagnosticsService {
     beforeCreate?: (tx: Parameters<Parameters<PrismaService['forTenant']>[1]>[0]) => Promise<void>,
     /** Campanha (ciclo) de onde veio a resposta. null = coleta avulsa. */
     cycleId?: string | null,
+    /** Retrato dos recortes do colaborador (só no envio pelo convite). */
+    cohort?: CollaboratorCohort | null,
   ) {
     const active = await resolveActiveMethodology(this.prisma, instrumentSlug);
     if (!active) throw new NotFoundException('Este diagnóstico ainda não está disponível.');
@@ -207,6 +209,7 @@ export class DiagnosticsService {
           byDimension: result.byDimension as unknown as object,
           methodologyVersionId: active.versionId,
           cycleId: cycleId ?? null,
+          ...(cohort ? { cohort: cohort as unknown as object } : {}),
         },
       });
       return { ok: true as const, result };

@@ -8,6 +8,14 @@ import {
 import { randomBytes } from 'node:crypto';
 import { DEFAULT_SCALE_LABELS, isValidCpf, normalizeCpf, formatCpf } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildCohort,
+  cohortIsEmpty,
+  cohortText,
+  normalizeAgeBand,
+  normalizeShift,
+  normalizeWorkModel,
+} from '@crivo/types';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
 import {
@@ -27,6 +35,16 @@ type CollaboratorRow = {
   sector: string | null;
   email: string | null;
   cpf: string;
+  unit: string | null;
+  area: string | null;
+  role: string | null;
+  shift: string | null;
+  ghe: string | null;
+  manager: string | null;
+  workModel: string | null;
+  gender: string | null;
+  birthYear: number | null;
+  ageBand: string | null;
   token: string;
   inviteEmailAt: Date | null;
   inviteWhatsappAt: Date | null;
@@ -88,6 +106,16 @@ export class CollaboratorsService {
       phone: c.phone,
       sector: c.sector,
       email: c.email,
+      unit: c.unit,
+      area: c.area,
+      role: c.role,
+      shift: c.shift,
+      ghe: c.ghe,
+      manager: c.manager,
+      workModel: c.workModel,
+      gender: c.gender,
+      birthYear: c.birthYear,
+      ageBand: c.ageBand,
       cpfMasked: maskCpf(c.cpf),
       link: linkFor(c.token),
       status,
@@ -152,6 +180,16 @@ export class CollaboratorsService {
           phone: dto.phone?.trim() || null,
           sector: dto.sector?.trim() || null,
           email: dto.email?.trim() || null,
+          unit: cohortText(dto.unit),
+          area: cohortText(dto.area),
+          role: cohortText(dto.role),
+          shift: normalizeShift(dto.shift),
+          ghe: cohortText(dto.ghe),
+          manager: cohortText(dto.manager),
+          workModel: normalizeWorkModel(dto.workModel),
+          gender: cohortText(dto.gender),
+          birthYear: typeof dto.birthYear === 'number' ? dto.birthYear : null,
+          ageBand: normalizeAgeBand(dto.ageBand),
           cpf,
           token: this.newToken(),
         },
@@ -181,6 +219,16 @@ export class CollaboratorsService {
           ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
           ...(dto.sector !== undefined ? { sector: dto.sector.trim() || null } : {}),
           ...(dto.email !== undefined ? { email: dto.email.trim() || null } : {}),
+          ...(dto.unit !== undefined ? { unit: cohortText(dto.unit) } : {}),
+          ...(dto.area !== undefined ? { area: cohortText(dto.area) } : {}),
+          ...(dto.role !== undefined ? { role: cohortText(dto.role) } : {}),
+          ...(dto.shift !== undefined ? { shift: normalizeShift(dto.shift) } : {}),
+          ...(dto.ghe !== undefined ? { ghe: cohortText(dto.ghe) } : {}),
+          ...(dto.manager !== undefined ? { manager: cohortText(dto.manager) } : {}),
+          ...(dto.workModel !== undefined ? { workModel: normalizeWorkModel(dto.workModel) } : {}),
+          ...(dto.gender !== undefined ? { gender: cohortText(dto.gender) } : {}),
+          ...(dto.birthYear !== undefined ? { birthYear: dto.birthYear ?? null } : {}),
+          ...(dto.ageBand !== undefined ? { ageBand: normalizeAgeBand(dto.ageBand) } : {}),
           cpf,
         },
       });
@@ -232,6 +280,16 @@ export class CollaboratorsService {
             phone: r.phone?.trim() || null,
             sector: r.sector?.trim() || null,
             email: r.email?.trim() || null,
+            unit: cohortText(r.unit),
+            area: cohortText(r.area),
+            role: cohortText(r.role),
+            shift: normalizeShift(r.shift),
+            ghe: cohortText(r.ghe),
+            manager: cohortText(r.manager),
+            workModel: normalizeWorkModel(r.workModel),
+            gender: cohortText(r.gender),
+            birthYear: typeof r.birthYear === 'number' ? r.birthYear : null,
+            ageBand: normalizeAgeBand(r.ageBand),
             cpf,
             token: this.newToken(),
           },
@@ -569,6 +627,12 @@ export class CollaboratorsService {
     };
     const instrument = await this.instrumentFor(c.tenantId);
     const payload = { sector: c.sector ?? undefined, answers: dto.answers };
+    // Retrato dos recortes do colaborador (unidade, área, setor, cargo, turno,
+    // GHE, gestor, modelo, gênero, faixa etária, geração) — e NADA que
+    // identifique a pessoa. É o que permite agrupar por GHE no Dossiê e oferecer
+    // os demais recortes no portal, sempre com supressão por mínimo.
+    const retrato = buildCohort(c);
+    const cohort = cohortIsEmpty(retrato) ? null : retrato;
     // Cada método responde o SEU diagnóstico: Essencial → Diagnóstico Executivo
     // (diagnostic_responses); Organizacional → psicossocial. Nos dois casos a
     // resposta é anônima e a participação é marcada na mesma transação.
@@ -576,7 +640,7 @@ export class CollaboratorsService {
     // adesão/evolução da tela de campanhas medir o diagnóstico de verdade.
     const cycleId = invite?.cycleId ?? null;
     return (await usesPsychosocialEngine(this.prisma, instrument))
-      ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao, cycleId)
-      : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao, cycleId);
+      ? this.psychosocial.submit(c.tenantId, payload, marcarParticipacao, cycleId, cohort)
+      : this.diagnostics.submitForTenant(c.tenantId, instrument, payload, marcarParticipacao, cycleId, cohort);
   }
 }

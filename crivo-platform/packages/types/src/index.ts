@@ -4074,3 +4074,4 @@ export function mensagemDeErroApi(corpo: unknown, status: number): string {
 }
 
 export * from './lead-email';
+export * from './cohort';

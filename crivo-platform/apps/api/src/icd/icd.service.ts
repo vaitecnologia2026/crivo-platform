@@ -15,7 +15,7 @@ import {
   usesPsychosocialEngine,
 } from '../admin/methodology.service';
 import type { SubmitPsychosocialDto } from '../psychosocial/dto';
-import { DEFAULT_SCALE_LABELS, MIN_LEADERS_FOR_DISCLOSURE, type DominantPattern } from '@crivo/types';
+import { DEFAULT_SCALE_LABELS, MIN_LEADERS_FOR_DISCLOSURE, buildCohort, cohortIsEmpty, type DominantPattern } from '@crivo/types';
 
 @Injectable()
 export class IcdService {
@@ -537,17 +537,23 @@ export class IcdService {
       answers: dto.answers,
       sector: cycle.sector ?? collaborator.sector ?? undefined,
     };
+    // Retrato dos recortes do CADASTRO (GHE, unidade, área…), sem identificador —
+    // o mesmo que o link do colaborador manda. O setor da campanha, quando
+    // definido, prevalece também no retrato.
+    const retrato = buildCohort({ ...collaborator, sector: payload.sector ?? null });
+    const cohort = cohortIsEmpty(retrato) ? null : retrato;
     // Mesmo par de destinos do link do colaborador: psicossocial grava em
     // psychosocial_responses; qualquer outro instrumento, em diagnostic_responses.
     // Os dois devolvem { ok, result }, então a página pública não muda.
     return (await usesPsychosocialEngine(this.prisma, instrument))
-      ? this.psychosocial.submit(cycle.tenantId, payload, marcarParticipacao, cycle.id)
+      ? this.psychosocial.submit(cycle.tenantId, payload, marcarParticipacao, cycle.id, cohort)
       : this.diagnostics.submitForTenant(
           cycle.tenantId,
           instrument,
           payload,
           marcarParticipacao,
           cycle.id,
+          cohort,
         );
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AGE_BANDS, SHIFTS, WORK_MODELS } from "@crivo/types";
 import {
   listCollaborators,
   createCollaborator,
@@ -18,7 +19,43 @@ import {
 import type { CampaignSummary } from "@crivo/types";
 import { isValidCpf } from "@crivo/types";
 
-const EMPTY: CollaboratorInput = { name: "", phone: "", sector: "", email: "", cpf: "" };
+const EMPTY: CollaboratorInput = {
+  name: "", phone: "", sector: "", email: "", cpf: "",
+  unit: "", area: "", role: "", shift: "", ghe: "", manager: "", workModel: "", gender: "", ageBand: "",
+};
+
+/**
+ * Colunas do CSV — por CABEÇALHO, não por posição (Ajustes Finais: o cadastro
+ * ganhou Unidade, Área, Cargo/Função, Turno, GHE, Gestor, Modelo de trabalho e,
+ * opcionais, Sexo/Gênero e Ano de nascimento/Faixa etária). Um arquivo antigo,
+ * sem cabeçalho, continua sendo lido na ordem Nome · Telefone · Setor · E-mail · CPF.
+ * "Processo" não existe aqui de propósito.
+ */
+const CSV_COLUNAS: { key: keyof CollaboratorInput; nomes: string[] }[] = [
+  { key: "name", nomes: ["nome", "nome completo", "colaborador"] },
+  { key: "phone", nomes: ["telefone", "telefone (whatsapp)", "whatsapp", "celular"] },
+  { key: "sector", nomes: ["setor"] },
+  { key: "email", nomes: ["e-mail", "email"] },
+  { key: "cpf", nomes: ["cpf"] },
+  { key: "unit", nomes: ["unidade", "filial", "estabelecimento"] },
+  { key: "area", nomes: ["area"] },
+  { key: "role", nomes: ["cargo", "funcao", "cargo/funcao", "cargo ou funcao"] },
+  { key: "shift", nomes: ["turno"] },
+  { key: "ghe", nomes: ["ghe", "grupo de exposicao", "ghe/grupo de exposicao", "grupo homogeneo de exposicao"] },
+  { key: "manager", nomes: ["gestor", "gestor imediato", "lider", "gerente"] },
+  { key: "workModel", nomes: ["modelo de trabalho", "modelo", "regime"] },
+  { key: "gender", nomes: ["sexo", "genero", "sexo/genero"] },
+  { key: "birthYear", nomes: ["ano de nascimento", "nascimento", "ano nascimento"] },
+  { key: "ageBand", nomes: ["faixa etaria", "faixa"] },
+];
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+function colunaDoCabecalho(celula: string): keyof CollaboratorInput | null {
+  const k = semAcento(celula).replace(/\s+/g, " ").replace(/[*:]/g, "").trim();
+  for (const c of CSV_COLUNAS) if (c.nomes.includes(k)) return c.key;
+  // "Turno *", "GHE (opcional)" etc.
+  for (const c of CSV_COLUNAS) if (c.nomes.some((n) => k.startsWith(n + " ") || k.startsWith(n + "("))) return c.key;
+  return null;
+}
 
 const STATUS_LABEL: Record<CollaboratorView["status"], string> = {
   pending: "Pendente",
@@ -75,19 +112,29 @@ function parseCsv(text: string): CollaboratorInput[] {
     out.push(cur);
     return out.map((c) => c.trim());
   };
-  const first = splitLine(lines[0]).join(" ").toLowerCase();
-  const startsAtHeader = first.includes("nome") || first.includes("cpf");
+  const cabecalho = splitLine(lines[0]).map(colunaDoCabecalho);
+  const startsAtHeader = cabecalho.some((c) => c !== null);
   const rows: CollaboratorInput[] = [];
   for (let i = startsAtHeader ? 1 : 0; i < lines.length; i++) {
     const cols = splitLine(lines[i]);
     if (cols.every((c) => c === "")) continue;
-    rows.push({
-      name: cols[0] ?? "",
-      phone: cols[1] ?? "",
-      sector: cols[2] ?? "",
-      email: cols[3] ?? "",
-      cpf: cols[4] ?? "",
+    if (!startsAtHeader) {
+      // Arquivo antigo, sem cabeçalho: ordem do modelo original.
+      rows.push({ name: cols[0] ?? "", phone: cols[1] ?? "", sector: cols[2] ?? "", email: cols[3] ?? "", cpf: cols[4] ?? "" });
+      continue;
+    }
+    const row: CollaboratorInput = { name: "", cpf: "" };
+    cabecalho.forEach((key, idx) => {
+      if (!key) return;
+      const v = (cols[idx] ?? "").trim();
+      if (key === "birthYear") {
+        const ano = Number(v.replace(/\D/g, "").slice(0, 4));
+        if (ano >= 1900 && ano <= 2100) row.birthYear = ano;
+        return;
+      }
+      (row as unknown as Record<string, unknown>)[key] = v;
     });
+    rows.push(row);
   }
   return rows;
 }
@@ -175,7 +222,12 @@ export function ColaboradoresScreen() {
   function openEdit(c: CollaboratorView) {
     setForm({
       id: c.id,
-      data: { name: c.name, phone: c.phone ?? "", sector: c.sector ?? "", email: c.email ?? "", cpf: "" },
+      data: {
+        name: c.name, phone: c.phone ?? "", sector: c.sector ?? "", email: c.email ?? "", cpf: "",
+        unit: c.unit ?? "", area: c.area ?? "", role: c.role ?? "", shift: c.shift ?? "", ghe: c.ghe ?? "",
+        manager: c.manager ?? "", workModel: c.workModel ?? "", gender: c.gender ?? "",
+        birthYear: c.birthYear ?? undefined, ageBand: c.ageBand ?? "",
+      },
     });
     setFormErr(null);
   }
@@ -192,7 +244,11 @@ export function ColaboradoresScreen() {
     setFormErr(null);
     try {
       if (form.id) {
-        const patch: Partial<CollaboratorInput> = { name: d.name, phone: d.phone, sector: d.sector, email: d.email };
+        const patch: Partial<CollaboratorInput> = {
+          name: d.name, phone: d.phone, sector: d.sector, email: d.email,
+          unit: d.unit, area: d.area, role: d.role, shift: d.shift, ghe: d.ghe, manager: d.manager,
+          workModel: d.workModel, gender: d.gender, birthYear: d.birthYear, ageBand: d.ageBand,
+        };
         if (d.cpf.trim()) patch.cpf = d.cpf;
         await updateCollaborator(form.id, patch);
       } else {
@@ -297,8 +353,16 @@ export function ColaboradoresScreen() {
 
   function downloadModel() {
     downloadCsv("modelo-colaboradores.csv", [
-      ["Nome Completo", "Telefone (WhatsApp)", "Setor", "E-mail", "CPF"],
-      ["Maria da Silva", "11999990000", "Operações", "maria@empresa.com.br", "529.982.247-25"],
+      [
+        "Nome Completo", "Telefone (WhatsApp)", "Setor", "E-mail", "CPF",
+        "Unidade", "Área", "Cargo/Função", "Turno", "GHE/Grupo de Exposição", "Gestor", "Modelo de trabalho",
+        "Sexo/Gênero (opcional)", "Ano de nascimento (opcional)", "Faixa etária (opcional)",
+      ],
+      [
+        "Maria da Silva", "11999990000", "Operações", "maria@empresa.com.br", "529.982.247-25",
+        "Matriz", "Produção", "Operadora", "Noite", "GHE-Produção", "João Souza", "Presencial",
+        "Feminino", "1990", "",
+      ],
     ]);
   }
 
@@ -333,7 +397,8 @@ export function ColaboradoresScreen() {
           <p className="page-sub">
             Cadastre quem vai responder o diagnóstico contratado. Cada colaborador recebe um <strong>link
             único</strong>; no acesso ele confirma o <strong>CPF</strong> e responde uma única vez. As respostas
-            são <strong>anônimas</strong> e agregadas por setor.
+            são <strong>anônimas</strong> e agregadas por recorte (GHE informado pela empresa, unidade, área,
+            setor, cargo, turno…), sempre com o mínimo de respostas por grupo.
           </p>
         </div>
         <div className="route__actions">
@@ -404,6 +469,41 @@ export function ColaboradoresScreen() {
               <span>CPF {form.id ? "(deixe em branco para manter)" : "*"}</span>
               <input value={form.data.cpf} placeholder="000.000.000-00" onChange={(e) => setForm({ ...form, data: { ...form.data, cpf: e.target.value } })} />
             </label>
+            {/* Recortes (Ajustes Finais de Homologação). GHE é o que a empresa
+                informa — o sistema nunca deduz de Área/Setor. */}
+            <label className="prod-field"><span>Unidade</span>
+              <input value={form.data.unit ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, unit: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Área</span>
+              <input value={form.data.area ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, area: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Cargo/Função</span>
+              <input value={form.data.role ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, role: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Turno</span>
+              <input list="crivo-turnos" value={form.data.shift ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, shift: e.target.value } })} />
+              <datalist id="crivo-turnos">{SHIFTS.map((s) => <option key={s} value={s} />)}</datalist>
+            </label>
+            <label className="prod-field"><span>GHE / Grupo de exposição (informado pela empresa)</span>
+              <input value={form.data.ghe ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, ghe: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Gestor</span>
+              <input value={form.data.manager ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, manager: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Modelo de trabalho</span>
+              <input list="crivo-modelos" value={form.data.workModel ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, workModel: e.target.value } })} />
+              <datalist id="crivo-modelos">{WORK_MODELS.map((s) => <option key={s} value={s} />)}</datalist>
+            </label>
+            <label className="prod-field"><span>Sexo/Gênero (opcional)</span>
+              <input value={form.data.gender ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, gender: e.target.value } })} />
+            </label>
+            <label className="prod-field"><span>Ano de nascimento (opcional)</span>
+              <input type="number" min={1900} max={2100} value={form.data.birthYear ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, birthYear: e.target.value ? Number(e.target.value) : undefined } })} />
+            </label>
+            <label className="prod-field"><span>Faixa etária (opcional, se não houver o ano)</span>
+              <input list="crivo-faixas" value={form.data.ageBand ?? ""} onChange={(e) => setForm({ ...form, data: { ...form.data, ageBand: e.target.value } })} />
+              <datalist id="crivo-faixas">{AGE_BANDS.map((s) => <option key={s} value={s} />)}</datalist>
+            </label>
           </div>
           {formErr && <p className="evd-reason" style={{ color: "var(--danger,#b4453a)" }}>{formErr}</p>}
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
@@ -419,6 +519,7 @@ export function ColaboradoresScreen() {
             <tr>
               <th>Nome</th>
               <th>Setor</th>
+              <th>Recortes</th>
               <th>Contato</th>
               <th>CPF</th>
               <th>{campanhaId ? "Status nesta campanha" : "Status (última atividade)"}</th>
@@ -430,6 +531,16 @@ export function ColaboradoresScreen() {
               <tr key={c.id}>
                 <td><strong>{c.name}</strong></td>
                 <td>{c.sector || "—"}</td>
+                <td className="card__sub">
+                  {[
+                    c.ghe ? `GHE ${c.ghe}` : null,
+                    c.unit,
+                    c.area,
+                    c.role,
+                    c.shift,
+                    c.workModel,
+                  ].filter(Boolean).join(" · ") || "—"}
+                </td>
                 <td>
                   {c.email || "—"}
                   {c.phone ? <><br /><span className="card__sub">{c.phone}</span></> : null}

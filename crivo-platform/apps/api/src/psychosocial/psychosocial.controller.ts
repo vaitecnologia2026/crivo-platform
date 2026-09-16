@@ -43,6 +43,14 @@ export class PsychosocialController {
     return this.psychosocial.results(user.tenantId);
   }
 
+  /** Recortes gerenciais (GHE, unidade, área, cargo, turno…) com supressão. */
+  @Get('recortes')
+  @RequireScreen('psicossocial', 'dashboard')
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
+  recortes(@CurrentUser() user: SessionUser) {
+    return this.psychosocial.recortes(user.tenantId);
+  }
+
   /** Link público atual da empresa (null se não gerado) — só gestão/RH. */
   // A tela Diagnósticos (essencial) também gera/lê o link psicossocial.
   @Get('link')

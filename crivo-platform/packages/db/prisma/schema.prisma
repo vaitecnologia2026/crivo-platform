@@ -1466,6 +1466,10 @@ model PsychosocialResponse {
   tenantId             String       @db.Uuid
   org                  Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sector               String? // setor/área (RH, Comercial…); null = não informado
+  /// Retrato dos recortes do colaborador no envio (unidade, área, setor, cargo,
+  /// turno, GHE, gestor, modelo, gênero, faixa etária, geração) — nunca um
+  /// identificador. É por ele que Dossiê e portal agrupam, com supressão.
+  cohort               Json?
   answers              Json // [{ questionId, value }] — 12 itens, escala 1–5
   score                Float // 0–100 (proteção geral; maior = menor risco); decimal desde 2026-09-16 (1 casa nos scores)
   level                String // BAIXO | MODERADO | ALTO | CRITICO
@@ -2336,6 +2340,8 @@ model DiagnosticResponse {
   instrumentSlug       String               @map("instrument_slug")
   instrument           DiagnosticInstrument @relation(fields: [instrumentSlug], references: [slug], onDelete: Restrict, onUpdate: Cascade)
   sector               String?
+  /// Retrato dos recortes do colaborador no envio (ver PsychosocialResponse.cohort).
+  cohort               Json?
   /// Como a resposta chegou. null/ausente = link público (/d/<slug>, /r/<token>).
   /// 'SELF_ASSESSMENT' = autoavaliação do gestor no painel — existe UMA por
   /// empresa (refazer substitui), para o agregado não inflar a cada revisão.
@@ -2370,6 +2376,19 @@ model Collaborator {
   sector           String?
   email            String?
   cpf              String // normalizado (11 dígitos) — valida o acesso ao link
+  // Recortes (Ajustes Finais de Homologação — Colaboradores/CSV). Todos
+  // opcionais. GHE é informado pela empresa, NUNCA inferido de setor/área.
+  // "Processo" não entra no cadastro-base (é dado do fator/ação).
+  unit             String?
+  area             String?
+  role             String? // cargo/função
+  shift            String? // turno (Manhã · Tarde · Noite · Rotativo · Administrativo)
+  ghe              String? // grupo (homogêneo) de exposição, como a empresa cadastrou
+  manager          String? // gestor
+  workModel        String?      @map("work_model") // Presencial · Híbrido · Remoto
+  gender           String?
+  birthYear        Int?         @map("birth_year")
+  ageBand          String?      @map("age_band")
   token            String       @unique // /r/<token> — 128 bits de entropia
   inviteEmailAt    DateTime?    @map("invite_email_at")
   inviteWhatsappAt DateTime?    @map("invite_whatsapp_at")
