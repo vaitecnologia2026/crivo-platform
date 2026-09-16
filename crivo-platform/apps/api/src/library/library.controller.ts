@@ -2,16 +2,20 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, UseGuar
 import { LibraryService } from './library.service';
 import { CreateLibraryItemDto, UpdateLibraryItemDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
+import { RequireModule } from '../iam/require-module.decorator';
 import { RequirePermission } from '../iam/require-permission.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
-/** Biblioteca & Formação: leitura por library:view, gestão por library:manage. */
+/** Biblioteca & Formação: leitura por library:view, gestão por library:manage.
+ *  Gate de módulo "biblioteca" (F4): o menu escondia, a API não barrava. */
 @Controller('library')
-@UseGuards(AuthGuard, PermissionGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, ModuleGuard, PermissionGuard, ScreenAccessGuard)
+@RequireModule('biblioteca')
 @RequireScreen('biblioteca')
 export class LibraryController {
   constructor(private readonly library: LibraryService) {}

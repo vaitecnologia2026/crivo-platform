@@ -3,6 +3,7 @@ import { MODULES, type AddonSummary, type AddonUpsertRequest } from '@crivo/type
 import type { Addon, AddonRecurrence, AddonStatus } from '@crivo/db';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { assertModuleCodes } from './module-codes';
 
 type Actor = { id: string; email: string };
 
@@ -53,6 +54,9 @@ export class AddonsService {
     if (!/^[a-z0-9][a-z0-9-]{1,60}$/.test(code)) {
       throw new BadRequestException('Código do adicional inválido (use letras minúsculas, números e hífen)');
     }
+    // activatedModules é o que o contrato liga na empresa — código fora de
+    // MODULES era aceito e depois ignorado (adicional "sem efeito").
+    assertModuleCodes(dto.activatedModules, 'Módulos ativados');
     const m = MODULES.find((x) => x.code === code);
     const existing = await this.prisma.admin.addon.findUnique({ where: { moduleCode: code } });
     const fallbackLabel = existing?.label ?? m?.name ?? code;

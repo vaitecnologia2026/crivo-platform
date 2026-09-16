@@ -12,14 +12,18 @@ import {
 import { PocketService } from './pocket.service';
 import { CreatePocketSessionDto, UpsertReflectionDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { ModuleGuard } from '../iam/guards/module.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
+import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { POCKET_QUESTIONS } from '@crivo/types';
 import type { SessionUser } from '@crivo/types';
 
+// Gate de módulo (F4): antes só o menu escondia o Pocket sem o módulo.
 @Controller('pocket')
-@UseGuards(AuthGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard)
+@RequireModule('pocket')
 @RequireScreen('pocket')
 export class PocketController {
   constructor(private readonly pocket: PocketService) {}

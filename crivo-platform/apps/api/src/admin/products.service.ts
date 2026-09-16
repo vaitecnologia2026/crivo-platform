@@ -7,6 +7,7 @@ import type {
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
+import { assertModuleCodes } from './module-codes';
 
 type Actor = { id: string; email: string };
 
@@ -39,6 +40,10 @@ export class ProductsService {
   }
 
   async create(dto: UpsertProductRequest, actor: Actor): Promise<ProductDetail> {
+    // Só código de MODULES vira tenant_module no contrato; o resto seria
+    // liberação fantasma. Erra aqui, na tela, não em silêncio depois.
+    assertModuleCodes(dto.modules, 'Módulos técnicos');
+    assertModuleCodes(dto.coreModules, 'Componentes CORE');
     const slug = (dto.slug?.trim() || this.slugify(dto.name)) ?? this.slugify(dto.name);
     const created = await this.prisma.admin.product.create({
       data: {
@@ -82,6 +87,8 @@ export class ProductsService {
   async update(id: string, dto: UpsertProductRequest, actor: Actor): Promise<ProductDetail> {
     const existing = await this.prisma.admin.product.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Produto não encontrado');
+    assertModuleCodes(dto.modules, 'Módulos técnicos');
+    assertModuleCodes(dto.coreModules, 'Componentes CORE');
     await this.prisma.admin.product.update({
       where: { id },
       data: {

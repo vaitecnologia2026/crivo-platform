@@ -96,6 +96,10 @@ export async function bootstrap(prisma: PrismaClient) {
   }
 
   // 3) Catálogo global de módulos (F4). Fonte única em @crivo/types.
+  //    Upsert por code: só name/category/minPlan são re-sincronizados. Os campos
+  //    editoriais (description, dependenciesNote, permissionsNote, releaseRule,
+  //    status) são escritos pela equipe em Super Admin › Módulos Técnicos e NÃO
+  //    podem ser apagados por um re-run do seed.
   for (const m of MODULES) {
     await prisma.moduleCatalog.upsert({
       where: { code: m.code },

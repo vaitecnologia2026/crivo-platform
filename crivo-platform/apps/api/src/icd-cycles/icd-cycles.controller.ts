@@ -2,13 +2,17 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@n
 import { IcdCyclesService } from './icd-cycles.service';
 import { CreateIcdCycleDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { ModuleGuard } from '../iam/guards/module.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
+import { RequireModule } from '../iam/require-module.decorator';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
+// Ciclos do ICD oficial: mesmo módulo do ICD (gate F4, padrão parecer.controller).
 @Controller('icd-cycles')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, ModuleGuard, RolesGuard)
+@RequireModule('icd')
 export class IcdCyclesController {
   constructor(private readonly cycles: IcdCyclesService) {}
 

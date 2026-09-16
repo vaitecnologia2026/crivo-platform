@@ -152,8 +152,17 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
   if (status === "loading") {
     return <p className="dash-state" style={{ margin: "0 0 14px" }}>Carregando os 4 Eixos…</p>;
   }
-  if (status === "error" || !axes) {
+  if (status === "error") {
     return <p className="dash-state" style={{ margin: "0 0 14px" }}>Não foi possível carregar os 4 Eixos do ICD.</p>;
+  }
+  if (!axes) {
+    // 403 do gate de módulo (ver useIcdAxes): a empresa não tem o módulo
+    // Liderança/ICD contratado — não é erro, é ausência de contratação.
+    return (
+      <p className="dash-state" style={{ margin: "0 0 14px" }}>
+        O programa Liderança (ICD) não está ativo para a sua empresa. Os 4 Eixos aparecem aqui quando o módulo for liberado no contrato.
+      </p>
+    );
   }
   const { cycle, company } = axes;
   if (!cycle) {

@@ -6,6 +6,7 @@ import {
   ADDON_RECURRENCES,
   ADDON_STATUS_LABEL,
   ADDON_STATUSES,
+  MODULES,
   type AddonRecurrence,
   type AddonStatus,
   type AddonSummary,
@@ -200,7 +201,14 @@ function AddonForm({
   const [recurrence, setRecurrence] = useState<AddonRecurrence>(initial?.recurrence ?? "MENSAL");
   const [priceLabel, setPriceLabel] = useState(initial?.priceLabel ?? "");
   const [solucoesText, setSolucoesText] = useState((initial?.compatibleSolutions ?? []).join(", "));
-  const [modulosText, setModulosText] = useState((initial?.activatedModules ?? []).join(", "));
+  // Fresta de liberação: era texto livre com placeholder 'mod-ia, mod-people…'
+  // (códigos do protótipo que não existem) — o contrato ignorava em silêncio.
+  // Agora só código de MODULES entra, no mesmo grid de checkboxes do ProductForm.
+  const [activatedModules, setActivatedModules] = useState<string[]>(initial?.activatedModules ?? []);
+  const toggleModule = (code: string) =>
+    setActivatedModules((cur) => (cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]));
+  // Código legado (salvo antes da validação) fica visível para a equipe limpar.
+  const legados = activatedModules.filter((c) => !MODULES.some((m) => m.code === c));
   const [limits, setLimits] = useState(initial?.limitsNote ?? "");
   const [deps, setDeps] = useState(initial?.dependenciesNote ?? "");
   const [rule, setRule] = useState(initial?.releaseRule ?? "");
@@ -224,7 +232,7 @@ function AddonForm({
         recurrence,
         priceLabel: priceLabel.trim() || null,
         compatibleSolutions: splitChips(solucoesText),
-        activatedModules: splitChips(modulosText),
+        activatedModules,
         limitsNote: limits.trim() || null,
         dependenciesNote: deps.trim() || null,
         releaseRule: rule.trim() || null,
@@ -290,13 +298,35 @@ function AddonForm({
                 onChange={(e) => setSolucoesText(e.target.value)}
               />
             </Field>
-            <Field label="Módulos ativados (códigos — separe por vírgula)" full>
-              <input
-                value={modulosText}
-                placeholder="mod-ia, mod-people, mod-dossie"
-                onChange={(e) => setModulosText(e.target.value)}
-              />
-            </Field>
+          </div>
+
+          <fieldset className="prod-fs">
+            <legend>Módulos técnicos que este adicional ativa no contrato</legend>
+            <div className="prod-modules">
+              {MODULES.map((m) => (
+                <label key={m.code} className="prod-check">
+                  <input
+                    type="checkbox"
+                    checked={activatedModules.includes(m.code)}
+                    onChange={() => toggleModule(m.code)}
+                  />
+                  {m.name} <span className="addx-code">{m.code}</span>
+                </label>
+              ))}
+            </div>
+            {legados.length > 0 && (
+              <p className="card__sub" style={{ marginTop: 8 }}>
+                Códigos fora do catálogo neste adicional (não liberam nada e impedem salvar):{" "}
+                {legados.map((c) => <span key={c} className="addx-code" style={{ marginRight: 4 }}>{c}</span>)}
+                <button type="button" className="btn btn--outline-dark btn--sm" style={{ marginLeft: 6 }}
+                  onClick={() => setActivatedModules((cur) => cur.filter((c) => MODULES.some((m) => m.code === c)))}>
+                  Remover códigos inválidos
+                </button>
+              </p>
+            )}
+          </fieldset>
+
+          <div className="prod-form__grid">
             <Field label="Limites (ex.: 500 chamadas / mês)">
               <input value={limits} onChange={(e) => setLimits(e.target.value)} />
             </Field>

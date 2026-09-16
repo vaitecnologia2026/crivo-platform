@@ -348,6 +348,47 @@ export interface TenantModuleSummary {
   enabled: boolean;
 }
 
+/** Maturidade de um módulo técnico no catálogo interno (Super Admin › Módulos Técnicos). */
+export const MODULE_CATALOG_STATUSES = ['ATIVO', 'BETA', 'INTERNO'] as const;
+export type ModuleCatalogStatus = (typeof MODULE_CATALOG_STATUSES)[number];
+export const MODULE_CATALOG_STATUS_LABEL: Record<ModuleCatalogStatus, string> = {
+  ATIVO: 'Ativo',
+  BETA: 'Beta',
+  INTERNO: 'Interno',
+};
+
+/** Linha da seção "Módulos Técnicos" (Catálogo Comercial do Super Admin).
+ *  code/name/category/minPlan vêm de MODULES (fonte única); os campos
+ *  editoriais vêm de module_catalog e são informativos (não são regra
+ *  executável). productsUsing/addonsUsing são o join reverso sobre o catálogo
+ *  comercial; tenantsEnabled conta empresas com o módulo ativo (tenant_modules). */
+export interface ModuleCatalogEntry {
+  code: ModuleCode;
+  name: string;
+  category: string;
+  minPlan: Plan;
+  description: string | null;
+  dependenciesNote: string | null;
+  permissionsNote: string | null;
+  releaseRule: string | null;
+  status: ModuleCatalogStatus;
+  /** Nomes das soluções (products) cujo modules ∪ coreModules contém o código. */
+  productsUsing: string[];
+  /** Rótulos dos adicionais (addons) cujo activatedModules contém o código. */
+  addonsUsing: string[];
+  /** Empresas com tenant_modules.enabled = true para o código. */
+  tenantsEnabled: number;
+  updatedAt: string | null;
+}
+
+export interface ModuleCatalogUpdateRequest {
+  description?: string | null;
+  dependenciesNote?: string | null;
+  permissionsNote?: string | null;
+  releaseRule?: string | null;
+  status?: ModuleCatalogStatus;
+}
+
 /** Sessão de um Super Admin (control plane) — sem tenantId, escopo 'platform'. */
 export interface PlatformAdmin {
   id: string;

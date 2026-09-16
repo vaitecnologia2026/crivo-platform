@@ -356,6 +356,7 @@ const ACTION_LABEL: Record<string, string> = {
   "platform.user.update": "Usuário CRIVO atualizado",
   "addon.upsert": "Adicional salvo no catálogo",
   "addon.delete": "Adicional removido do catálogo",
+  "module.catalog.update": "Módulo técnico — registro editado",
   "ai.config.update": "Config de IA atualizada",
   "ai.test": "Conexão de IA testada",
   "ai.prompt.update": "Prompt de IA editado",

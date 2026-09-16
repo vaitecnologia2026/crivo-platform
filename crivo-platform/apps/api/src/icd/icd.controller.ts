@@ -17,13 +17,20 @@ import {
   UpdateCampaignDto,
 } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { ModuleGuard } from '../iam/guards/module.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
+import { RequireModule } from '../iam/require-module.decorator';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ICD_QUESTIONS, type SessionUser } from '@crivo/types';
 
+// Gate de módulo (F4): o menu já escondia o ICD sem o módulo, mas a API
+// respondia — a liberação por contrato era só visual. Rotas de CAMPANHA vivem
+// aqui por herança, mas pertencem ao módulo "campanhas" (nav.config) — o
+// @RequireModule no handler sobrescreve o da classe.
 @Controller('icd')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, ModuleGuard, RolesGuard)
+@RequireModule('icd')
 export class IcdController {
   constructor(private readonly icd: IcdService) {}
 
@@ -63,6 +70,7 @@ export class IcdController {
   /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas.
    *  Filtra por setor (?sector=) quando informado (Portal §7). */
   @Get('campaigns')
+  @RequireModule('campanhas')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   campaigns(@CurrentUser() user: SessionUser, @Query() query: ListCampaignsQueryDto) {
     return this.icd.campaigns(user.tenantId, query.sector);
@@ -70,6 +78,7 @@ export class IcdController {
 
   /** Cria uma nova campanha. RH/CEO/ADMIN (edição/criação não é do GESTOR). */
   @Post('campaigns')
+  @RequireModule('campanhas')
   @Roles('RH', 'CEO', 'ADMIN')
   createCampaign(@CurrentUser() user: SessionUser, @Body() dto: CreateCampaignDto) {
     return this.icd.createCampaign(user.tenantId, dto);
@@ -77,6 +86,7 @@ export class IcdController {
 
   /** Edita uma campanha existente. */
   @Patch('campaigns/:id')
+  @RequireModule('campanhas')
   @Roles('RH', 'CEO', 'ADMIN')
   updateCampaign(
     @CurrentUser() user: SessionUser,
@@ -88,6 +98,7 @@ export class IcdController {
 
   /** Encerra uma campanha (status → CLOSED). */
   @Post('campaigns/:id/close')
+  @RequireModule('campanhas')
   @Roles('RH', 'CEO', 'ADMIN')
   closeCampaign(
     @CurrentUser() user: SessionUser,
@@ -98,6 +109,7 @@ export class IcdController {
 
   /** #56 — Dispara lembretes por e-mail para usuários que ainda não responderam. */
   @Post('campaigns/:id/send-reminders')
+  @RequireModule('campanhas')
   @Roles('RH', 'CEO', 'ADMIN')
   sendCampaignReminders(
     @CurrentUser() user: SessionUser,

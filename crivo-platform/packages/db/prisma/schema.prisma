@@ -1110,7 +1110,26 @@ model ModuleCatalog {
   minPlan   Plan     @default(BASE) // plano mínimo p/ habilitar
   createdAt DateTime @default(now())
 
+  // Campos EDITORIAIS da seção "Módulos Técnicos" do Super Admin (protótipo
+  // Lovable, Catálogo Comercial). São texto informativo para a equipe CRIVO —
+  // nada aqui é regra executável: quem libera módulo continua sendo
+  // Solução/Adicional → Contrato ATIVO → tenant_modules. code/name/category/
+  // minPlan seguem sincronizados com MODULES (@crivo/types) pelo seed e pelo PUT.
+  description      String? // o que o módulo faz (descrição funcional)
+  dependenciesNote String? // de quais outros módulos depende (texto livre)
+  permissionsNote  String? // quem pode acessá-lo (papéis), texto livre
+  releaseRule      String? // regra técnica que o ativa num contrato (texto livre)
+  status           ModuleCatalogStatus @default(ATIVO)
+  updatedAt        DateTime            @default(now()) @updatedAt
+
   @@map("module_catalog")
+}
+
+// Maturidade de um módulo técnico no catálogo interno (informativo).
+enum ModuleCatalogStatus {
+  ATIVO
+  BETA
+  INTERNO
 }
 
 // Domínios próprios por empresa (F5). A resolução por domínio acontece ANTES

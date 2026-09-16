@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { CompanyQuarterlyIcdData, IcdCycleData } from "@crivo/types";
 
 // Shape real de GET /api/icd/dashboard (verificado contra a API). Leitura
 // AGREGADA: sem ranking nem dados individuais de líderes (confidencialidade).
+
+// /icd e /icd-cycles passaram a exigir o módulo "icd" (ModuleGuard). O
+// Dashboard é do módulo "dashboard" e continua visível sem ele — então o 403
+// do gate NÃO é falha: é "módulo não contratado", e a tela mostra o estado
+// vazio em vez de "não foi possível carregar".
+const moduloDesligado = (err: unknown) => err instanceof ApiError && err.status === 403;
 export interface DashboardData {
   icdMedio: number | null;
   totalAvaliacoes: number;
@@ -28,7 +34,8 @@ export function useIcdDashboard() {
       const d = await apiFetch<DashboardData>("/icd/dashboard");
       setData(d);
       setStatus("ok");
-    } catch {
+    } catch (err) {
+      if (moduloDesligado(err)) { setData(null); setStatus("ok"); return; }
       setStatus("error");
     }
   }
@@ -43,8 +50,10 @@ export function useIcdDashboard() {
           setData(d);
           setStatus("ok");
         }
-      } catch {
-        if (alive) setStatus("error");
+      } catch (err) {
+        if (!alive) return;
+        if (moduloDesligado(err)) { setData(null); setStatus("ok"); return; }
+        setStatus("error");
       }
     })();
     return () => {
@@ -93,8 +102,11 @@ export function useIcdAxes() {
           setData(d);
           setStatus("ok");
         }
-      } catch {
-        if (alive) setStatus("error");
+      } catch (err) {
+        if (!alive) return;
+        // Sem módulo "icd": status ok e data null → a tela explica, sem alarme.
+        if (moduloDesligado(err)) { setData(null); setStatus("ok"); return; }
+        setStatus("error");
       }
     })();
     return () => {

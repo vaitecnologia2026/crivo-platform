@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from './guards/auth.guard';
+import { ModuleGuard } from './guards/module.guard';
 import { PermissionGuard } from './guards/permission.guard';
+import { RequireModule } from './require-module.decorator';
 import { RequirePermission } from './require-permission.decorator';
 import { CurrentUser } from './current-user.decorator';
 import { ModuleService } from './module.service';
@@ -405,8 +407,11 @@ export class MeController {
   }
 
   /** #59 — Mentorias do tenant. Líder vê só as suas (match por e-mail no
-   *  campo attendee); RH/CEO/GESTOR/ADMIN veem todas. Control plane sem RLS. */
+   *  campo attendee); RH/CEO/GESTOR/ADMIN veem todas. Control plane sem RLS.
+   *  Gate de módulo "mentorias" (F4) só nesta rota: o resto de /me é da sessão. */
   @Get('mentorias')
+  @UseGuards(ModuleGuard)
+  @RequireModule('mentorias')
   async myMentorias(
     @CurrentUser() user: SessionUser,
   ): Promise<Array<{

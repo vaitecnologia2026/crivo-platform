@@ -52,6 +52,8 @@ import type {
   UsageSummary,
   AddonSummary,
   AddonUpsertRequest,
+  ModuleCatalogEntry,
+  ModuleCatalogUpdateRequest,
   PlatformLeadOriginOption,
   PlatformLeadOriginUpsertRequest,
 } from "@crivo/types";
@@ -230,6 +232,19 @@ export function archiveLead(id: string, archived = true): Promise<PlatformLeadSu
 }
 export function deleteAddon(moduleCode: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/addons/${moduleCode}`, { method: "DELETE" });
+}
+
+/** Módulos Técnicos (Catálogo Comercial): MODULES + campos editoriais + join
+ *  reverso (soluções/adicionais que usam) + empresas com o módulo ativo. */
+export function getModuleCatalog(): Promise<ModuleCatalogEntry[]> {
+  return adminFetch<ModuleCatalogEntry[]>("/admin/module-catalog");
+}
+/** Só campos editoriais (informativos, auditados). Código fora de MODULES → 400. */
+export function updateModuleCatalogEntry(code: string, input: ModuleCatalogUpdateRequest): Promise<ModuleCatalogEntry> {
+  return adminFetch<ModuleCatalogEntry>(`/admin/module-catalog/${code}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
 }
 
 /** Catálogo de origens/canais do lead (Governança · Origens e Canais).

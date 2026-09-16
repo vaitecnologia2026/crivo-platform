@@ -50,6 +50,8 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { AddonsController } from './addons.controller';
 import { AddonsService } from './addons.service';
+import { ModuleCatalogController } from './module-catalog.controller';
+import { ModuleCatalogService } from './module-catalog.service';
 import { LeadOriginsController } from './lead-origins.controller';
 import { LeadOriginsService } from './lead-origins.service';
 import { IntelligenceController } from './intelligence.controller';
@@ -100,6 +102,7 @@ import { AiCustomPromptsService } from './ai-custom-prompts.service';
     GroupsController,
     DashboardController,
     AddonsController,
+    ModuleCatalogController,
     LeadOriginsController,
     IntelligenceController,
     AiPromptsController,
@@ -139,6 +142,7 @@ import { AiCustomPromptsService } from './ai-custom-prompts.service';
     GroupsService,
     DashboardService,
     AddonsService,
+    ModuleCatalogService,
     LeadOriginsService,
     IntelligenceService,
     AiPromptsService,
