@@ -66,7 +66,11 @@ DECLARE
                          'ai_incidents','ai_policies',
                          -- Workforce Intelligence (módulo workforce): processos, tarefas
                          -- (validação CRIVO + decisão do cliente), skills e pilotos.
-                         'work_processes','work_tasks','work_skills','work_pilots'];
+                         'work_processes','work_tasks','work_skills','work_pilots',
+                         -- Contexto e Diretrizes (módulo contexto): diretrizes, documentos
+                         -- autorizados (+ bytes), terminologia e caso de uso da IA × documentos.
+                         'tenant_directives','tenant_documents','tenant_document_files',
+                         'tenant_terms','tenant_ai_use_case_contexts'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

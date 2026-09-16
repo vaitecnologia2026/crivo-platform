@@ -28,6 +28,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AiGovernanceModule } from './ai-governance/ai-governance.module';
 import { WorkforceModule } from './workforce/workforce.module';
+import { ContextModule } from './context/context.module';
 import { HealthController } from './health/health.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ClientErrorsController } from './common/client-errors.controller';
@@ -63,6 +64,7 @@ import { ClientErrorsController } from './common/client-errors.controller';
     NotificationsModule,
     AiGovernanceModule,
     WorkforceModule,
+    ContextModule,
   ],
   // ClientErrors recebe do navegador o que o servidor nao ve sozinho: falha de
   // rede (a requisicao nunca chegou) e tela que quebrou.

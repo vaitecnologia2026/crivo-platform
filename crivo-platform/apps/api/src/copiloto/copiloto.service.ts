@@ -43,10 +43,11 @@ export class CopilotoService {
     }
 
     // Prompt-base vem da Central de Prompts (Configurações de IA); IA2: + diretrizes
-    // aprovadas do cliente (se o produto contratado permitir IA personalizada).
+    // aprovadas do cliente (se o produto contratado permitir IA personalizada) +
+    // Contexto e Diretrizes da empresa para ESTE caso de uso (só o aprovado).
     const base = await this.prompts.resolve('copiloto');
-    const directives = await this.ai.buildTenantDirectives(tenantId);
-    const system = this.systemPrompt(base, dto.context) + directives;
+    const ctx = await this.ai.buildTenantContext(tenantId, 'copiloto');
+    const system = this.systemPrompt(base, dto.context) + ctx.text;
 
     const r = await this.ai.chat({
       useCase: 'copiloto',
@@ -54,6 +55,10 @@ export class CopilotoService {
       temperature: 0.5,
       maxTokens: 600,
       timeoutMs: 30000,
+      // Rastreabilidade: o AiCallLog registra quais documentos/diretrizes entraram.
+      ...(ctx.documentIds.length || ctx.directiveIds.length
+        ? { meta: { contextDocuments: ctx.documentCodes, contextDocumentIds: ctx.documentIds, contextDirectiveIds: ctx.directiveIds } }
+        : {}),
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: question },

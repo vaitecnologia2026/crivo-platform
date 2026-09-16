@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { decryptSecret, encryptSecret, hintOf } from './secret-crypto';
 import { formatAiDirectives } from './ai-directives';
+import { formatTenantContext } from '../context/tenant-context-prompt';
 
 type Actor = { id: string; email: string };
 
@@ -20,7 +21,20 @@ export type AiChatArgs = {
   timeoutMs?: number;
   responseFormat?: 'json_object';
   model?: string; // override pontual; default = modelo das Configurações de IA
+  /** Rastreabilidade (módulo contexto): quais documentos/diretrizes do cliente entraram no prompt. */
+  meta?: Record<string, unknown>;
 };
+
+/** Resultado de buildTenantContext: o bloco de texto + o que entrou (para o AiCallLog). */
+export type TenantAiContext = {
+  text: string;
+  /** Diretrizes APROVADAS que entraram (ids). */
+  directiveIds: string[];
+  /** Documentos APROVADO_PUBLICADO do caso de uso ativo que entraram (ids e códigos D-NNN). */
+  documentIds: string[];
+  documentCodes: string[];
+};
+const EMPTY_TENANT_CONTEXT: TenantAiContext = { text: '', directiveIds: [], documentIds: [], documentCodes: [] };
 
 export type AiChatResult =
   | { ok: true; content: string; model: string }
@@ -68,26 +82,83 @@ export class AiSettingsService {
    * ou em qualquer falha (nunca quebra a IA; nunca deixa o cliente editar o prompt
    * técnico — só objetivo/regras/base/limitações aprovadas).
    */
-  async buildTenantDirectives(organizationId?: string | null): Promise<string> {
-    if (!organizationId) return '';
+  async buildTenantDirectives(organizationId?: string | null, useCase?: string): Promise<string> {
+    return (await this.buildTenantContext(organizationId, useCase)).text;
+  }
+
+  /**
+   * Mesma composição de buildTenantDirectives, devolvendo TAMBÉM quais
+   * diretrizes/documentos do módulo Contexto e Diretrizes entraram — o
+   * consumidor repassa em `meta` de chat() para ficar no AiCallLog (quem
+   * revisa a chamada vê exatamente o que a IA leu). Ordem no prompt:
+   * Product.aiConfig (contrato) → diretrizes APROVADAS → documentos
+   * APROVADO_PUBLICADO vinculados ao `useCase` com uso contextual ativo.
+   * Nunca rascunho/em revisão/substituído/revogado. Sem nada cadastrado a
+   * saída é IDÊNTICA à anterior (só o aiConfig).
+   */
+  async buildTenantContext(organizationId?: string | null, useCase?: string): Promise<TenantAiContext> {
+    if (!organizationId) return EMPTY_TENANT_CONTEXT;
     try {
       const contract = await this.prisma.admin.contract.findFirst({
         where: { organizationId, status: { in: ['ATIVO', 'RASCUNHO'] } },
         orderBy: { updatedAt: 'desc' },
         select: { productId: true },
       });
-      if (!contract?.productId) return '';
+      if (!contract?.productId) return EMPTY_TENANT_CONTEXT;
       const product = await this.prisma.admin.product.findUnique({
         where: { id: contract.productId },
         select: { aiConfig: true, allowsCustomAi: true },
       });
       // IA personalizada só quando o produto permite (allowsCustomAi) — senão o
-      // aiConfig fica ignorado (a IA padrão do CRIVO segue funcionando normal).
-      if (!product?.allowsCustomAi) return '';
-      return formatAiDirectives(product.aiConfig);
+      // aiConfig E o contexto do cliente ficam ignorados (a IA padrão do CRIVO
+      // segue funcionando normal). É o gate comercial do adicional premium.
+      if (!product?.allowsCustomAi) return EMPTY_TENANT_CONTEXT;
+      const base = formatAiDirectives(product.aiConfig);
+      const ctx = await this.tenantContext(organizationId, useCase);
+      return { ...ctx, text: base + ctx.text };
     } catch {
-      return '';
+      return EMPTY_TENANT_CONTEXT;
     }
+  }
+
+  /**
+   * Contexto e Diretrizes (módulo 'contexto') — leitura das tabelas do tenant
+   * a partir do control plane, SEMPRE com tenantId explícito (padrão
+   * intelligence.service). Só APROVADA / APROVADO_PUBLICADO; documentos só
+   * quando o caso de uso tem "uso contextual ativo" e o documento está na
+   * lista permitida daquele caso.
+   */
+  private async tenantContext(tenantId: string, useCase?: string): Promise<TenantAiContext> {
+    const directives = await this.prisma.admin.tenantDirective.findMany({
+      where: { tenantId, status: 'APROVADA' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, title: true, text: true },
+    });
+
+    let documents: { id: string; code: string; title: string; kind: string; version: string; purpose: string; url: string | null; extractedText: string | null }[] = [];
+    if (useCase) {
+      const link = await this.prisma.admin.tenantAiUseCaseContext.findUnique({
+        where: { tenantId_useCase: { tenantId, useCase } },
+        select: { active: true, documentIds: true },
+      });
+      if (link?.active && link.documentIds.length > 0) {
+        const rows = await this.prisma.admin.tenantDocument.findMany({
+          where: { tenantId, id: { in: link.documentIds }, status: 'APROVADO_PUBLICADO' },
+          select: { id: true, code: true, title: true, kind: true, version: true, purpose: true, url: true, extractedText: true },
+        });
+        // Na ordem em que a empresa listou os documentos no caso de uso.
+        const order = new Map(link.documentIds.map((id, i) => [id, i]));
+        documents = rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      }
+    }
+
+    if (directives.length === 0 && documents.length === 0) return EMPTY_TENANT_CONTEXT;
+    return {
+      text: formatTenantContext(directives, documents),
+      directiveIds: directives.map((d) => d.id),
+      documentIds: documents.map((d) => d.id),
+      documentCodes: documents.map((d) => d.code),
+    };
   }
 
   /** Token decifrado — uso interno (test + futuros módulos de IA). */
@@ -148,6 +219,8 @@ export class AiSettingsService {
             completionTokens: fields.completionTokens ?? null,
             totalTokens: fields.totalTokens ?? null,
             latencyMs: Date.now() - started,
+            // Só quando o consumidor informa (ex.: documentos do módulo contexto).
+            ...(args.meta ? { meta: args.meta as object } : {}),
           },
         })
         .catch(() => undefined);

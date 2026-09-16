@@ -95,6 +95,20 @@ import type {
   SaveWorkSkillsRequest,
   UpsertWorkPilotRequest,
   UpdateWorkPilotRequest,
+  // Contexto e Diretrizes (módulo contexto)
+  TenantContextOverview,
+  TenantDirectiveData,
+  UpsertTenantDirectiveRequest,
+  ChangeTenantDirectiveStatusRequest,
+  TenantDocumentData,
+  CreateTenantDocumentRequest,
+  ChangeTenantDocumentStatusRequest,
+  TenantTermData,
+  UpsertTenantTermRequest,
+  TenantAiUseCasesResponse,
+  TenantAiUseCaseContextData,
+  UpdateTenantAiUseCaseContextRequest,
+  TenantContextAuditEntry,
 } from '@crivo/types';
 import { mensagemDeErroApi } from '@crivo/types';
 
@@ -1386,4 +1400,115 @@ export function createWorkPilot(dto: UpsertWorkPilotRequest): Promise<WorkPilotD
 }
 export function updateWorkPilot(id: string, dto: UpdateWorkPilotRequest): Promise<WorkPilotData> {
   return apiFetch<WorkPilotData>(`/workforce/pilots/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+// ── Programas › Contexto e Diretrizes (módulo 'contexto') — /context/* ──
+// Workspace da IA Contextualizada da empresa: diretrizes, documentos
+// autorizados (ciclo de vida), terminologia e caso de uso da IA × documentos.
+// Só o APROVADO entra no prompt; o toggle "uso contextual ativo" depende do
+// adicional premium (customAiAllowed).
+
+export function getContextOverview(): Promise<TenantContextOverview> {
+  return apiFetch<TenantContextOverview>('/context/overview');
+}
+export function listContextDirectives(): Promise<TenantDirectiveData[]> {
+  return apiFetch<TenantDirectiveData[]>('/context/directives');
+}
+export function createContextDirective(dto: UpsertTenantDirectiveRequest): Promise<TenantDirectiveData> {
+  return apiFetch<TenantDirectiveData>('/context/directives', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateContextDirective(id: string, dto: UpsertTenantDirectiveRequest): Promise<TenantDirectiveData> {
+  return apiFetch<TenantDirectiveData>(`/context/directives/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+/** Rascunho → Em revisão → Aprovada | Revogada (a API exige justificativa ao revogar). */
+export function changeContextDirectiveStatus(id: string, dto: ChangeTenantDirectiveStatusRequest): Promise<TenantDirectiveData> {
+  return apiFetch<TenantDirectiveData>(`/context/directives/${id}/status`, { method: 'POST', body: JSON.stringify(dto) });
+}
+export function listContextDocuments(status?: string): Promise<TenantDocumentData[]> {
+  return apiFetch<TenantDocumentData[]>(`/context/documents${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+}
+export function getContextDocument(id: string): Promise<TenantDocumentData> {
+  return apiFetch<TenantDocumentData>(`/context/documents/${id}`);
+}
+
+/** Monta o multipart de documento (campos texto + `file` opcional). `modules` vai como JSON. */
+function documentFormData(fields: Record<string, string | string[] | null | undefined>, file?: File | null): FormData {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null) continue;
+    fd.append(k, Array.isArray(v) ? JSON.stringify(v) : v);
+  }
+  if (file) fd.append('file', file);
+  return fd;
+}
+/** POST multipart autenticado — não usa apiFetch (que força JSON); o browser define o boundary. */
+async function postMultipart<T>(path: string, fd: FormData): Promise<T> {
+  const token = getToken();
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+      signal: AbortSignal.timeout(60000),
+    });
+  } catch {
+    throw new Error('Falha no envio. Verifique sua conexão e tente novamente.');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new ApiError(mensagemDeErroApi(err, res.status), res.status, res.headers.get('x-request-id') ?? '');
+  }
+  return res.json() as Promise<T>;
+}
+/** "Adicionar documento": upload real (`file`) ou referência por `url`. Entra como Rascunho. */
+export function createContextDocument(dto: CreateTenantDocumentRequest, file?: File | null): Promise<TenantDocumentData> {
+  return postMultipart<TenantDocumentData>('/context/documents', documentFormData({ ...dto, modules: dto.modules }, file));
+}
+/** Nova versão: arquivo ou URL; a anterior vira Substituído e o vínculo nos casos de uso migra. */
+export function replaceContextDocument(id: string, dto: { version?: string; url?: string | null }, file?: File | null): Promise<TenantDocumentData> {
+  return postMultipart<TenantDocumentData>(`/context/documents/${id}/replace`, documentFormData(dto, file));
+}
+export function changeContextDocumentStatus(id: string, dto: ChangeTenantDocumentStatusRequest): Promise<TenantDocumentData> {
+  return apiFetch<TenantDocumentData>(`/context/documents/${id}/status`, { method: 'POST', body: JSON.stringify(dto) });
+}
+/** Revogar — justificativa obrigatória (a API recusa vazio). */
+export function revokeContextDocument(id: string, justification: string): Promise<TenantDocumentData> {
+  return apiFetch<TenantDocumentData>(`/context/documents/${id}/revoke`, { method: 'POST', body: JSON.stringify({ justification }) });
+}
+/** Baixa o arquivo enviado de um documento (autenticado) e dispara o download. */
+export async function downloadContextDocumentFile(id: string, fileName: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${apiBase()}/context/documents/${id}/file`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Falha ao baixar o arquivo');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+export function listContextTerms(): Promise<TenantTermData[]> {
+  return apiFetch<TenantTermData[]>('/context/terms');
+}
+export function createContextTerm(dto: UpsertTenantTermRequest): Promise<TenantTermData> {
+  return apiFetch<TenantTermData>('/context/terms', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateContextTerm(id: string, dto: UpsertTenantTermRequest): Promise<TenantTermData> {
+  return apiFetch<TenantTermData>(`/context/terms/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+export function deleteContextTerm(id: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/context/terms/${id}`, { method: 'DELETE' });
+}
+export function listContextAiUseCases(): Promise<TenantAiUseCasesResponse> {
+  return apiFetch<TenantAiUseCasesResponse>('/context/ai-use-cases');
+}
+export function updateContextAiUseCase(useCase: string, dto: UpdateTenantAiUseCaseContextRequest): Promise<TenantAiUseCaseContextData> {
+  return apiFetch<TenantAiUseCaseContextData>(`/context/ai-use-cases/${encodeURIComponent(useCase)}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+export function listContextAudit(): Promise<TenantContextAuditEntry[]> {
+  return apiFetch<TenantContextAuditEntry[]>('/context/audit');
 }

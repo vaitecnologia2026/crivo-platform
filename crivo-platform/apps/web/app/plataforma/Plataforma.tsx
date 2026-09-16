@@ -95,9 +95,9 @@ import { QuestionarioScreen } from "./QuestionarioScreen";
 import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
 import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
 import { PocketScreen } from "./PocketScreen";
-import { SoonScreen } from "./SoonScreen";
 import { GovernancaIaScreen } from "./GovernancaIaScreen";
 import { WorkforceScreen } from "./WorkforceScreen";
+import { ContextoScreen } from "./ContextoScreen";
 import { EvidenciasScreen } from "./EvidenciasScreen";
 import { DocumentosScreen } from "./DocumentosScreen";
 import { ContratacaoScreen } from "./ContratacaoScreen";
@@ -350,8 +350,7 @@ export function Plataforma() {
       // se passando por funcionalidade — DoD v3.1). Ativados via contratação.
       if (name === "govia") mountIsland("govia-root", <GovernancaIaScreen />); // Programas › Governança de IA (módulo govia)
       if (name === "workforce") mountIsland("workforce-root", <WorkforceScreen />); // Programas › Workforce Intelligence (módulo workforce)
-      if (name === "contexto")
-        mountIsland("contexto-root", <SoonScreen title="Contexto e Diretrizes" sub="Workspace da IA Contextualizada do Cliente — base segregada por CNPJ, contrato e finalidade." message="Programa em implantação. Aqui a sua empresa vai aprovar diretrizes, documentos e terminologia que a IA CRIVO pode usar — sempre em base segregada, sem uso cruzado entre clientes. Adicional premium do Motor de IA." />);
+      if (name === "contexto") mountIsland("contexto-root", <ContextoScreen />); // Programas › Contexto e Diretrizes (módulo contexto)
       const meta = routeMeta[name];
       if (meta) {
         // O topo da tela usa o MESMO nome do menu. Sem solução contratada

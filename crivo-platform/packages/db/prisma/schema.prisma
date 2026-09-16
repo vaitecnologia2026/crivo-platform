@@ -590,6 +590,9 @@ model AiCallLog {
   completionTokens Int?     @map("completion_tokens")
   totalTokens      Int?     @map("total_tokens")
   latencyMs        Int      @map("latency_ms")
+  /// Rastreabilidade do contexto do cliente (módulo contexto): quais
+  /// documentos autorizados/diretrizes entraram no prompt desta chamada.
+  meta             Json?
   createdAt        DateTime @default(now())
 
   @@index([createdAt])
@@ -1306,6 +1309,12 @@ model Organization {
   workTasks           WorkTask[]
   workSkills          WorkSkill[]
   workPilots          WorkPilot[]
+  // Contexto e Diretrizes (módulo contexto) — data plane do cliente.
+  tenantDirectives    TenantDirective[]
+  tenantDocuments     TenantDocument[]
+  tenantDocumentFiles TenantDocumentFile[]
+  tenantTerms         TenantTerm[]
+  tenantAiUseCases    TenantAiUseCaseContext[]
 
   @@map("organizations")
 }
@@ -1334,7 +1343,8 @@ model Unit {
   region    String?
   createdAt DateTime     @default(now())
 
-  teams Team[]
+  teams     Team[]
+  documents TenantDocument[] // Contexto e Diretrizes: documentos autorizados da unidade
 
   @@index([tenantId])
   @@index([companyId])
@@ -3043,4 +3053,140 @@ model WorkPilot {
   @@index([tenantId])
   @@index([processId])
   @@map("work_pilots")
+}
+
+// =====================================================================
+// CONTEXTO E DIRETRIZES (módulo 'contexto' — Programas › Contexto e
+// Diretrizes). Workspace da IA Contextualizada do CLIENTE: diretrizes
+// institucionais, documentos autorizados com ciclo de vida, terminologia e o
+// vínculo por caso de uso da IA. Data plane (tenantId + RLS). Só o que está
+// APROVADO entra no prompt (AiSettingsService.buildTenantDirectives lê com
+// tenantId explícito) — rascunho, substituído e revogado nunca.
+// =====================================================================
+
+enum TenantDirectiveStatus {
+  RASCUNHO
+  EM_REVISAO
+  APROVADA
+  REVOGADA
+}
+
+enum TenantDocumentStatus {
+  RASCUNHO
+  EM_REVISAO
+  APROVADO_PUBLICADO
+  SUBSTITUIDO
+  REVOGADO
+}
+
+/// Diretriz institucional (missão, valores, prioridades, compromissos…).
+/// `version` sobe quando uma diretriz APROVADA é editada (volta a RASCUNHO).
+model TenantDirective {
+  id                 String                @id @default(uuid()) @db.Uuid
+  tenantId           String                @db.Uuid
+  org                Organization          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title              String
+  text               String                @db.Text
+  status             TenantDirectiveStatus @default(RASCUNHO)
+  version            Int                   @default(1)
+  approvedByUserId   String?               @map("approved_by_user_id") @db.Uuid
+  approvedByName     String?               @map("approved_by_name")
+  approvedAt         DateTime?             @map("approved_at")
+  revokeJustification String?              @map("revoke_justification")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("tenant_directives")
+}
+
+/// Documento autorizado. `code` é "D-NNN" sequencial POR EMPRESA. O binário
+/// fica em TenantDocumentFile (1:1); aqui só metadados + texto extraído.
+model TenantDocument {
+  id                  String               @id @default(uuid()) @db.Uuid
+  tenantId            String               @db.Uuid
+  org                 Organization         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code                String // D-001, D-002… (sequencial por tenant)
+  title               String
+  kind                String // Política | Manual | Diretriz… (texto livre)
+  cnpj                String?
+  unitId              String?              @map("unit_id") @db.Uuid
+  unit                Unit?                @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  version             String               @default("v1.0")
+  issuedAt            DateTime?            @map("issued_at")
+  owner               String // responsável (texto)
+  purpose             String // finalidade
+  modules             String[]             @default([]) // códigos de MODULES autorizados
+  accessLevel         String               @map("access_level")
+  status              TenantDocumentStatus @default(RASCUNHO)
+  replacedById        String?              @map("replaced_by_id") @db.Uuid // documento que o substituiu
+  revokeJustification String?              @map("revoke_justification")
+  url                 String? // referência externa (quando não há upload)
+  fileName            String?              @map("file_name")
+  fileMime            String?              @map("file_mime")
+  fileSize            Int?                 @map("file_size")
+  extractedText       String?              @map("extracted_text") @db.Text // texto que vai ao prompt
+  extractedChars      Int                  @default(0) @map("extracted_chars") // tamanho do texto (listagem sem carregar o texto)
+  approvedByUserId    String?              @map("approved_by_user_id") @db.Uuid
+  approvedByName      String?              @map("approved_by_name")
+  approvedAt          DateTime?            @map("approved_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  file TenantDocumentFile?
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("tenant_documents")
+}
+
+/// Bytes do arquivo de um documento autorizado (padrão EvidenceFile): tabela
+/// separada para os bytes nunca virem em listagem — só no download.
+model TenantDocumentFile {
+  id         String         @id @default(uuid()) @db.Uuid
+  tenantId   String         @db.Uuid
+  org        Organization   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documentId String         @unique @map("document_id") @db.Uuid
+  document   TenantDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  data       Bytes
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("tenant_document_files")
+}
+
+/// Terminologia e regras de negócio do cliente (aba "Terminologia e Regras").
+model TenantTerm {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @db.Uuid
+  org        Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  term       String
+  definition String       @db.Text
+  context    String // módulos/áreas onde vale (texto)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("tenant_terms")
+}
+
+/// Caso de uso REAL da Central de Prompts (copiloto | pocket_summary |
+/// people_analytics | preliminary_report | document_texts | dossie_action_plan)
+/// × documentos autorizados + toggle "uso contextual ativo". Uma linha por
+/// (empresa, caso); sem linha = desligado.
+model TenantAiUseCaseContext {
+  id          String       @id @default(uuid()) @db.Uuid
+  tenantId    String       @db.Uuid
+  org         Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  useCase     String       @map("use_case")
+  documentIds String[]     @default([]) @map("document_ids") @db.Uuid
+  active      Boolean      @default(false)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@unique([tenantId, useCase])
+  @@index([tenantId])
+  @@map("tenant_ai_use_case_contexts")
 }

@@ -48,15 +48,19 @@ export const PERMISSIONS = [
   // Workforce Intelligence (Programas › Workforce Intelligence): cadastro de
   // processos/tarefas/skills/pilotos e a decisão humana por tarefa. Leitura é por papel.
   { code: "workforce:manage", module: "workforce", action: "manage", label: "Gerir Workforce Intelligence" },
+  // Contexto e Diretrizes (Programas › Contexto e Diretrizes): cadastro e ciclo
+  // de vida de diretrizes/documentos/terminologia e o vínculo por caso de uso
+  // da IA. Leitura é por papel.
+  { code: "context:manage", module: "contexto", action: "manage", label: "Gerir Contexto e Diretrizes" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view", "govia:manage", "workforce:manage"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage", "context:manage"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage", "context:manage"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view", "govia:manage", "workforce:manage", "context:manage"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage", "context:manage"],
   LIDER: ["icd:view", "library:view"],
   JURIDICO: ["icd:view", "library:view", "parecer:view"],
   COLABORADOR: ["library:view"],
@@ -4731,6 +4735,194 @@ export interface WorkforceAdminSummary {
 export interface WorkProcessDetail {
   process: WorkProcessData;
   tasks: WorkTaskData[];
+}
+
+// ── Contexto e Diretrizes (módulo 'contexto' — Programas › Contexto e Diretrizes) ──
+// Workspace da IA Contextualizada do CLIENTE: base segregada por empresa
+// (tenantId + RLS) com diretrizes institucionais, documentos autorizados com
+// ciclo de vida, terminologia e o vínculo por caso de uso da IA. Só o que está
+// APROVADO entra no prompt (buildTenantDirectives) — rascunhos nunca. É
+// adicional premium do Motor de IA (Product.allowsCustomAi): sem ele a tela
+// existe, mas o "uso contextual ativo" fica desligado com aviso honesto.
+
+export const TENANT_DIRECTIVE_STATUSES = ['RASCUNHO', 'EM_REVISAO', 'APROVADA', 'REVOGADA'] as const;
+export type TenantDirectiveStatus = (typeof TENANT_DIRECTIVE_STATUSES)[number];
+export const TENANT_DIRECTIVE_STATUS_LABEL: Record<TenantDirectiveStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  EM_REVISAO: 'Em revisão',
+  APROVADA: 'Aprovada',
+  REVOGADA: 'Revogada',
+};
+
+export const TENANT_DOCUMENT_STATUSES = ['RASCUNHO', 'EM_REVISAO', 'APROVADO_PUBLICADO', 'SUBSTITUIDO', 'REVOGADO'] as const;
+export type TenantDocumentStatus = (typeof TENANT_DOCUMENT_STATUSES)[number];
+export const TENANT_DOCUMENT_STATUS_LABEL: Record<TenantDocumentStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  EM_REVISAO: 'Em revisão',
+  APROVADO_PUBLICADO: 'Aprovado/Publicado',
+  SUBSTITUIDO: 'Substituído',
+  REVOGADO: 'Revogado/Inativo',
+};
+
+/** Formatos aceitos no upload de documento (mesmo pipeline de extração dos anexos de prompt). */
+export const TENANT_DOCUMENT_FILE_EXTENSIONS = ['pdf', 'txt', 'md', 'csv', 'docx', 'xlsx', 'xls'] as const;
+
+/**
+ * Casos de uso REAIS da Central de Prompts que podem consumir contexto do
+ * cliente. A chave é o `useCase` gravado em ai_call_logs — nada de nome
+ * comercial inventado. A ordem é a exibida na aba "Casos de Uso da IA".
+ */
+export const CONTEXT_AI_USE_CASES = [
+  'copiloto',
+  'pocket_summary',
+  'people_analytics',
+  'preliminary_report',
+  'document_texts',
+  'dossie_action_plan',
+] as const;
+export type ContextAiUseCase = (typeof CONTEXT_AI_USE_CASES)[number];
+export const CONTEXT_AI_USE_CASE_LABEL: Record<ContextAiUseCase, string> = {
+  copiloto: 'Copiloto CRIVO (Área do Líder)',
+  pocket_summary: 'Resumo do Pocket CRIVO',
+  people_analytics: 'Leitura de People Analytics',
+  preliminary_report: 'Relatório preliminar (pré-diagnóstico)',
+  document_texts: 'Textos dos documentos emitidos',
+  dossie_action_plan: 'Plano de ação do Dossiê',
+};
+
+export interface TenantDirectiveData {
+  id: string;
+  title: string;
+  text: string;
+  status: TenantDirectiveStatus;
+  version: number;
+  approvedByUserId: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  revokeJustification: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface UpsertTenantDirectiveRequest {
+  title: string;
+  text: string;
+}
+/** Transição de status; `justification` é obrigatória ao revogar. */
+export interface ChangeTenantDirectiveStatusRequest {
+  status: TenantDirectiveStatus;
+  justification?: string | null;
+}
+
+export interface TenantDocumentData {
+  id: string;
+  /** "D-001" sequencial por empresa (nunca reaproveitado). */
+  code: string;
+  title: string;
+  kind: string;
+  cnpj: string | null;
+  unitId: string | null;
+  unitName: string | null;
+  version: string;
+  issuedAt: string | null;
+  owner: string;
+  purpose: string;
+  /** Códigos de MODULES autorizados a consumir o documento. */
+  modules: string[];
+  accessLevel: string;
+  status: TenantDocumentStatus;
+  /** Documento que substituiu este (quando SUBSTITUIDO). */
+  replacedById: string | null;
+  replacedByCode: string | null;
+  revokeJustification: string | null;
+  url: string | null;
+  fileName: string | null;
+  fileMime: string | null;
+  fileSize: number | null;
+  /** Tamanho do texto extraído (o texto em si só vai para o prompt). */
+  extractedChars: number;
+  approvedByName: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+/** Campos do formulário "Adicionar documento" (multipart com `file` OU JSON com `url`). */
+export interface CreateTenantDocumentRequest {
+  title: string;
+  kind: string;
+  cnpj?: string | null;
+  unitId?: string | null;
+  version?: string;
+  issuedAt?: string | null;
+  owner: string;
+  purpose: string;
+  modules: string[];
+  accessLevel: string;
+  url?: string | null;
+}
+export interface ChangeTenantDocumentStatusRequest {
+  status: TenantDocumentStatus;
+  justification?: string | null;
+}
+export interface RevokeTenantDocumentRequest {
+  justification: string;
+}
+/** Nova versão: arquivo (multipart) ou `url`; `version` opcional (default: incrementa). */
+export interface ReplaceTenantDocumentRequest {
+  version?: string;
+  url?: string | null;
+}
+
+export interface TenantTermData {
+  id: string;
+  term: string;
+  definition: string;
+  context: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface UpsertTenantTermRequest {
+  term: string;
+  definition: string;
+  context: string;
+}
+
+/** Vínculo caso de uso da IA × documentos autorizados + toggle "uso contextual ativo". */
+export interface TenantAiUseCaseContextData {
+  useCase: ContextAiUseCase;
+  label: string;
+  documentIds: string[];
+  /** Códigos (D-001…) dos documentos vinculados, na mesma ordem de documentIds. */
+  documentCodes: string[];
+  active: boolean;
+  updatedAt: string | null;
+}
+export interface UpdateTenantAiUseCaseContextRequest {
+  documentIds: string[];
+  active: boolean;
+}
+/** GET /context/ai-use-cases — os 6 casos sempre presentes + gate comercial. */
+export interface TenantAiUseCasesResponse {
+  /** Product.allowsCustomAi do contrato vigente: sem ele o toggle não liga. */
+  customAiAllowed: boolean;
+  items: TenantAiUseCaseContextData[];
+}
+
+/** Metadados para os formulários (CNPJ da empresa e unidades cadastradas). */
+export interface TenantContextOverview {
+  customAiAllowed: boolean;
+  taxId: string | null;
+  units: { id: string; name: string }[];
+  counts: { directives: number; approvedDirectives: number; documents: number; publishedDocuments: number; terms: number; activeUseCases: number };
+}
+
+/** Evento da aba "Histórico e Auditoria" (AuditLog filtrado por context.*). */
+export interface TenantContextAuditEntry {
+  id: string;
+  action: string;
+  target: string | null;
+  actorEmail: string | null;
+  at: string;
+  meta: Record<string, unknown> | null;
 }
 
 export * from './lead-email';
