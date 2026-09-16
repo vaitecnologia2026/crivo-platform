@@ -73,6 +73,8 @@ import { AiCustomPromptsController } from './ai-custom-prompts.controller';
 import { AiCustomPromptsService } from './ai-custom-prompts.service';
 import { LiderancaAdminController } from './lideranca.controller';
 import { LiderancaAdminService } from './lideranca.service';
+import { AiGovernanceAdminController } from './ai-governance.controller';
+import { AiGovernanceAdminService } from './ai-governance.service';
 // Módulos › Liderança reutiliza os services do portal (mesma composição de
 // agregados). Entram como PROVIDERS daqui — não como import de IcdCyclesModule/
 // PocketModule — porque IcdCyclesModule → IamModule → AdminModule fecharia um
@@ -80,6 +82,10 @@ import { LiderancaAdminService } from './lideranca.service';
 // (global) e, o Pocket, de AiSettingsService/AiPromptsService (já daqui).
 import { IcdCyclesService } from '../icd-cycles/icd-cycles.service';
 import { PocketService } from '../pocket/pocket.service';
+// Módulos › Governança de IA: mesma razão — o AiGovernanceService (só Prisma +
+// AuditService) entra como provider daqui para o controller admin ler os
+// mesmos dados do portal sem importar AiGovernanceModule (→ IamModule → ciclo).
+import { AiGovernanceService } from '../ai-governance/ai-governance.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -124,6 +130,7 @@ import { PocketService } from '../pocket/pocket.service';
     MailSettingsController,
     AiCustomPromptsController,
     LiderancaAdminController,
+    AiGovernanceAdminController,
   ],
   providers: [
     AdminAuthService,
@@ -165,6 +172,8 @@ import { PocketService } from '../pocket/pocket.service';
     LiderancaAdminService,
     IcdCyclesService,
     PocketService,
+    AiGovernanceAdminService,
+    AiGovernanceService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })

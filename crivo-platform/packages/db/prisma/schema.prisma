@@ -1295,6 +1295,12 @@ model Organization {
   devolutivas         DevolutivaRecord[]
   diagnosticCycles    DiagnosticCycle[]
   CampaignInvite      CampaignInvite[]
+  // Governança de IA (módulo govia) — data plane do cliente.
+  aiUseCases          AiUseCase[]
+  aiUseCaseDecisions  AiUseCaseDecision[]
+  aiUseCaseLinks      AiUseCaseLink[]
+  aiIncidents         AiIncident[]
+  aiPolicies          AiPolicy[]
 
   @@map("organizations")
 }
@@ -2688,4 +2694,172 @@ model PushToken {
   @@index([userId])
   @@index([tenantId])
   @@map("push_tokens")
+}
+
+// =====================================================================
+// GOVERNANÇA DE IA (módulo 'govia' — Programas › Governança de IA). Serviço
+// contratado pelo CLIENTE para governar as PRÓPRIAS IAs: inventário de casos
+// de uso, risco inerente/residual (julgamento do cliente, não score CRIVO),
+// decisão humana com justificativa obrigatória e trilha, vínculos com
+// Evidências/Plano de Evolução, incidentes, políticas e agenda de revisão.
+// Data plane (RLS por tenant) — separado de AiSettings/AiPrompt (control
+// plane, que configuram o motor CRIVO). O Super Admin (Módulos › Governança
+// de IA) lê estas mesmas tabelas com tenantId explícito; não escreve.
+// =====================================================================
+
+enum AiRiskLevel {
+  ALTO
+  MEDIO
+  BAIXO
+}
+
+enum AiUseCaseStatus {
+  RASCUNHO
+  EM_AVALIACAO
+  APROVADO
+  CONDICIONADO
+  RESTRITO
+  REJEITADO
+}
+
+enum AiDecision {
+  APROVAR
+  CONDICIONAR
+  RESTRINGIR
+  REJEITAR
+}
+
+enum AiLinkKind {
+  EVIDENCE
+  ACTION_ITEM
+  WORKFORCE
+}
+
+enum AiIncidentSeverity {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum AiIncidentStatus {
+  ABERTO
+  ENCERRADO
+}
+
+enum AiPolicyStatus {
+  RASCUNHO
+  EM_REVISAO
+  APROVADO
+}
+
+/// Caso de uso de IA do cliente. `code` é "IA-NN" sequencial POR EMPRESA
+/// (gerado no service dentro da transação do tenant; único por tenant).
+model AiUseCase {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @db.Uuid
+  org           Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code          String // IA-01, IA-02… (sequencial por tenant)
+  name          String
+  purpose       String // finalidade
+  area          String
+  ownerName     String          @map("owner_name") // responsável (texto — pode não ser usuário do portal)
+  ownerUserId   String?         @map("owner_user_id") @db.Uuid // opcional: usuário do portal responsável
+  technology    String
+  vendor        String?
+  dataUsed      String          @map("data_used") // dados utilizados
+  audience      String // público afetado
+  inherentRisk  AiRiskLevel     @map("inherent_risk")
+  residualRisk  AiRiskLevel     @map("residual_risk")
+  controls      String[]        @default([]) // controles principais (lista curta)
+  status        AiUseCaseStatus @default(RASCUNHO)
+  justification String? // justificativa vigente (espelha a última decisão)
+  nextReviewAt  DateTime?       @map("next_review_at")
+  createdBy     String          @map("created_by") // nome/e-mail de quem cadastrou
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  decisions AiUseCaseDecision[]
+  links     AiUseCaseLink[]
+  incidents AiIncident[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("ai_use_cases")
+}
+
+/// Trilha da decisão humana (uma linha por decisão; nunca editada). O status
+/// do caso reflete a ÚLTIMA decisão; a história fica aqui + AuditLog.
+model AiUseCaseDecision {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  org             Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  useCaseId       String       @map("use_case_id") @db.Uuid
+  useCase         AiUseCase    @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+  decision        AiDecision
+  justification   String // obrigatória
+  decidedByUserId String       @map("decided_by_user_id") @db.Uuid
+  decidedByName   String       @map("decided_by_name")
+  decidedAt       DateTime     @default(now()) @map("decided_at")
+
+  @@index([tenantId])
+  @@index([useCaseId])
+  @@map("ai_use_case_decisions")
+}
+
+/// Vínculo navegável do caso com Evidência (Evidence.id), ação do Plano de
+/// Evolução (ActionItem.id) ou, quando o módulo existir, tarefa Workforce.
+/// Sem FK: o alvo pode ser apagado sem quebrar o caso (o service resolve o
+/// título e devolve null quando não existe mais).
+model AiUseCaseLink {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  useCaseId String       @map("use_case_id") @db.Uuid
+  useCase   AiUseCase    @relation(fields: [useCaseId], references: [id], onDelete: Cascade)
+  kind      AiLinkKind
+  targetId  String       @map("target_id") @db.Uuid
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@unique([useCaseId, kind, targetId])
+  @@index([tenantId])
+  @@map("ai_use_case_links")
+}
+
+/// Incidente de IA (opcionalmente ligado a um caso de uso).
+model AiIncident {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @db.Uuid
+  org         Organization       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  useCaseId   String?            @map("use_case_id") @db.Uuid
+  useCase     AiUseCase?         @relation(fields: [useCaseId], references: [id], onDelete: SetNull)
+  severity    AiIncidentSeverity
+  occurredAt  DateTime           @map("occurred_at")
+  description String
+  status      AiIncidentStatus   @default(ABERTO)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([useCaseId])
+  @@map("ai_incidents")
+}
+
+/// Política/documento de governança de IA do cliente (versão + status + data).
+/// O arquivo, quando houver, é um link (url) — pode apontar para uma
+/// Evidência do portal ou para o repositório do cliente.
+model AiPolicy {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @db.Uuid
+  org         Organization   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  version     String
+  status      AiPolicyStatus @default(RASCUNHO)
+  publishedAt DateTime?      @map("published_at")
+  url         String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("ai_policies")
 }

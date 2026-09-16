@@ -60,6 +60,15 @@ import type {
   IcdCycleData,
   IcdCycleHistoryEntry,
   LiderancaAdminSummary,
+  // Governança de IA (Módulos › Governança de IA — leitura)
+  AiGovernanceAdminSummary,
+  AiUseCaseData,
+  AiUseCaseDetail,
+  AiUseCaseDecisionData,
+  AiIncidentData,
+  AiPolicyData,
+  AiReviewEntry,
+  AiReviewDue,
   PocketAggregate,
   CompanyQuarterlyIcdData,
 } from "@crivo/types";
@@ -1768,6 +1777,40 @@ export function getTenantIcdHistory(tenantId: string): Promise<IcdCycleHistoryEn
 export function getTenantPocketAggregate(tenantId: string, cycleId?: string): Promise<PocketAggregate> {
   const qs = cycleId ? `?cycleId=${encodeURIComponent(cycleId)}` : "";
   return adminFetch<PocketAggregate>(`/admin/tenants/${tenantId}/pocket/aggregate${qs}`);
+}
+
+// ── Módulos › Governança de IA (Super Admin) — /admin/tenants/:id/ai-governance/* ──
+// SOMENTE LEITURA sobre os mesmos AiUseCase/AiUseCaseDecision/AiIncident/
+// AiPolicy que o cliente governa no portal; `tenantId` é Tenant.id.
+
+export function getTenantAiGovernanceSummary(tenantId: string): Promise<AiGovernanceAdminSummary> {
+  return adminFetch<AiGovernanceAdminSummary>(`/admin/tenants/${tenantId}/ai-governance/summary`);
+}
+export function listTenantAiUseCases(
+  tenantId: string,
+  filters: { area?: string; risk?: string; status?: string } = {},
+): Promise<AiUseCaseData[]> {
+  const q = new URLSearchParams();
+  if (filters.area) q.set("area", filters.area);
+  if (filters.risk) q.set("risk", filters.risk);
+  if (filters.status) q.set("status", filters.status);
+  const qs = q.toString();
+  return adminFetch<AiUseCaseData[]>(`/admin/tenants/${tenantId}/ai-governance/use-cases${qs ? `?${qs}` : ""}`);
+}
+export function getTenantAiUseCase(tenantId: string, useCaseId: string): Promise<AiUseCaseDetail> {
+  return adminFetch<AiUseCaseDetail>(`/admin/tenants/${tenantId}/ai-governance/use-cases/${useCaseId}`);
+}
+export function listTenantAiDecisions(tenantId: string): Promise<AiUseCaseDecisionData[]> {
+  return adminFetch<AiUseCaseDecisionData[]>(`/admin/tenants/${tenantId}/ai-governance/decisions`);
+}
+export function listTenantAiIncidents(tenantId: string): Promise<AiIncidentData[]> {
+  return adminFetch<AiIncidentData[]>(`/admin/tenants/${tenantId}/ai-governance/incidents`);
+}
+export function listTenantAiPolicies(tenantId: string): Promise<AiPolicyData[]> {
+  return adminFetch<AiPolicyData[]>(`/admin/tenants/${tenantId}/ai-governance/policies`);
+}
+export function listTenantAiReviews(tenantId: string, due: AiReviewDue = "all"): Promise<AiReviewEntry[]> {
+  return adminFetch<AiReviewEntry[]>(`/admin/tenants/${tenantId}/ai-governance/reviews?due=${due}`);
 }
 
 // ── Motor 4 — Relatórios e Dossiês (R-001): repositório cross-tenant + revisão ──

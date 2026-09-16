@@ -96,6 +96,7 @@ import { PlanoAcaoScreen } from "./PlanoAcaoScreen";
 import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
 import { PocketScreen } from "./PocketScreen";
 import { SoonScreen } from "./SoonScreen";
+import { GovernancaIaScreen } from "./GovernancaIaScreen";
 import { EvidenciasScreen } from "./EvidenciasScreen";
 import { DocumentosScreen } from "./DocumentosScreen";
 import { ContratacaoScreen } from "./ContratacaoScreen";
@@ -346,8 +347,7 @@ export function Plataforma() {
       if (name === "suporte") mountIsland("suporte-root", <SuporteScreen />);
       // Programas Plus ainda não implantados: tela honesta de status (nada de mock
       // se passando por funcionalidade — DoD v3.1). Ativados via contratação.
-      if (name === "govia")
-        mountIsland("govia-root", <SoonScreen title="Governança de IA" sub="Casos de uso, riscos, controles, aprovações e incidentes das IAs da sua empresa." message="Programa em implantação. A Governança de IA é um módulo do CRIVO Plus: inventário de casos de uso, avaliação de riscos, controles, aprovações com decisão humana e trilha de incidentes. Fale com a CRIVO para ativar na sua contratação." />);
+      if (name === "govia") mountIsland("govia-root", <GovernancaIaScreen />); // Programas › Governança de IA (módulo govia)
       if (name === "workforce")
         mountIsland("workforce-root", <SoonScreen title="Workforce Intelligence" sub="Processos, tarefas, skills e cenários Pessoa × Processo × IA. A decisão permanece humana." message="Programa em implantação. O Workforce Intelligence mapeia como o trabalho está organizado e como pode ser redesenhado entre pessoas, processos e IA — com pilotos e evolução acompanhados no seu plano. Fale com a CRIVO para ativar na sua contratação." />);
       if (name === "contexto")

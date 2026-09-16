@@ -42,15 +42,18 @@ export const PERMISSIONS = [
   { code: "library:manage", module: "library", action: "manage", label: "Gerir biblioteca" },
   { code: "parecer:view", module: "parecer", action: "view", label: "Ver parecer consultivo" },
   { code: "parecer:manage", module: "parecer", action: "manage", label: "Redigir/publicar parecer" },
+  // Governança de IA (Programas › Governança de IA): escrita no inventário de
+  // casos de uso, decisão humana, incidentes e políticas. Leitura é por papel.
+  { code: "govia:manage", module: "govia", action: "manage", label: "Gerir Governança de IA" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view", "govia:manage"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
   LIDER: ["icd:view", "library:view"],
   JURIDICO: ["icd:view", "library:view", "parecer:view"],
   COLABORADOR: ["library:view"],
@@ -4208,6 +4211,247 @@ export function mensagemDeErroApi(corpo: unknown, status: number): string {
     return mostrados.join(' · ') + (resto > 0 ? ` (e mais ${resto} problema${resto > 1 ? 's' : ''})` : '');
   }
   return generico;
+}
+
+// ── Governança de IA (módulo 'govia' — Programas › Governança de IA) ──
+// Serviço contratado pelo CLIENTE para governar as PRÓPRIAS IAs: inventário de
+// casos de uso, classificação de risco (julgamento do cliente, não score
+// CRIVO — "avaliação não certificadora"), decisão humana com justificativa
+// obrigatória e trilha, incidentes, políticas e agenda de revisão. Nada aqui
+// toca AiSettings/AiPrompt (que configuram o motor CRIVO). O Super Admin
+// (Módulos › Governança de IA) LÊ os mesmos dados — acompanha, não decide.
+
+export const AI_RISK_LEVELS = ['ALTO', 'MEDIO', 'BAIXO'] as const;
+export type AiRiskLevel = (typeof AI_RISK_LEVELS)[number];
+export const AI_RISK_LABEL: Record<AiRiskLevel, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
+
+export const AI_USE_CASE_STATUSES = ['RASCUNHO', 'EM_AVALIACAO', 'APROVADO', 'CONDICIONADO', 'RESTRITO', 'REJEITADO'] as const;
+export type AiUseCaseStatus = (typeof AI_USE_CASE_STATUSES)[number];
+export const AI_USE_CASE_STATUS_LABEL: Record<AiUseCaseStatus, string> = {
+  RASCUNHO: 'Rascunho',
+  EM_AVALIACAO: 'Em avaliação',
+  APROVADO: 'Aprovado',
+  CONDICIONADO: 'Condicionado',
+  RESTRITO: 'Restrito',
+  REJEITADO: 'Rejeitado',
+};
+
+/** Decisão humana sobre um caso de uso (bloco "Decisão humana" do drawer). */
+export const AI_DECISIONS = ['APROVAR', 'CONDICIONAR', 'RESTRINGIR', 'REJEITAR'] as const;
+export type AiDecision = (typeof AI_DECISIONS)[number];
+export const AI_DECISION_LABEL: Record<AiDecision, string> = {
+  APROVAR: 'Aprovar',
+  CONDICIONAR: 'Condicionar',
+  RESTRINGIR: 'Restringir',
+  REJEITAR: 'Rejeitar',
+};
+/** Cada decisão leva o caso a exatamente um status — a API não aceita outro caminho. */
+export const AI_DECISION_TO_STATUS: Record<AiDecision, AiUseCaseStatus> = {
+  APROVAR: 'APROVADO',
+  CONDICIONAR: 'CONDICIONADO',
+  RESTRINGIR: 'RESTRITO',
+  REJEITAR: 'REJEITADO',
+};
+
+/** Vínculo navegável do caso com outro registro do tenant. WORKFORCE fica
+ *  previsto para WorkTask (módulo Workforce) — a API só aceita quando existir. */
+export const AI_LINK_KINDS = ['EVIDENCE', 'ACTION_ITEM', 'WORKFORCE'] as const;
+export type AiLinkKind = (typeof AI_LINK_KINDS)[number];
+export const AI_LINK_KIND_LABEL: Record<AiLinkKind, string> = {
+  EVIDENCE: 'Evidência',
+  ACTION_ITEM: 'Plano de Evolução',
+  WORKFORCE: 'Workforce',
+};
+
+export const AI_INCIDENT_SEVERITIES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+export type AiIncidentSeverity = (typeof AI_INCIDENT_SEVERITIES)[number];
+export const AI_INCIDENT_SEVERITY_LABEL: Record<AiIncidentSeverity, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
+export const AI_INCIDENT_STATUSES = ['ABERTO', 'ENCERRADO'] as const;
+export type AiIncidentStatus = (typeof AI_INCIDENT_STATUSES)[number];
+export const AI_INCIDENT_STATUS_LABEL: Record<AiIncidentStatus, string> = { ABERTO: 'Aberto', ENCERRADO: 'Encerrado' };
+
+export const AI_POLICY_STATUSES = ['RASCUNHO', 'EM_REVISAO', 'APROVADO'] as const;
+export type AiPolicyStatus = (typeof AI_POLICY_STATUSES)[number];
+export const AI_POLICY_STATUS_LABEL: Record<AiPolicyStatus, string> = { RASCUNHO: 'Rascunho', EM_REVISAO: 'Em revisão', APROVADO: 'Aprovado' };
+
+/** Caso de uso de IA (inventário). `code` é IA-NN sequencial por empresa. */
+export interface AiUseCaseData {
+  id: string;
+  code: string;
+  name: string;
+  purpose: string;
+  area: string;
+  ownerName: string;
+  ownerUserId: string | null;
+  technology: string;
+  vendor: string | null;
+  dataUsed: string;
+  audience: string;
+  inherentRisk: AiRiskLevel;
+  residualRisk: AiRiskLevel;
+  controls: string[];
+  status: AiUseCaseStatus;
+  justification: string | null;
+  nextReviewAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Última decisão humana registrada (aprovador/data) — null enquanto RASCUNHO/EM_AVALIACAO sem decisão. */
+  lastDecision: AiUseCaseDecisionData | null;
+  incidentsCount: number;
+  linksCount: number;
+}
+
+export interface AiUseCaseDecisionData {
+  id: string;
+  useCaseId: string;
+  useCaseCode?: string;
+  useCaseName?: string;
+  decision: AiDecision;
+  justification: string;
+  decidedByUserId: string;
+  decidedByName: string;
+  decidedAt: string;
+}
+
+export interface AiUseCaseLinkData {
+  id: string;
+  useCaseId: string;
+  kind: AiLinkKind;
+  targetId: string;
+  /** Título resolvido do alvo (evidência/ação) — null se o alvo foi removido. */
+  label: string | null;
+}
+
+export interface AiIncidentData {
+  id: string;
+  useCaseId: string | null;
+  useCaseCode: string | null;
+  useCaseName: string | null;
+  severity: AiIncidentSeverity;
+  occurredAt: string;
+  description: string;
+  status: AiIncidentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiPolicyData {
+  id: string;
+  title: string;
+  version: string;
+  status: AiPolicyStatus;
+  publishedAt: string | null;
+  url: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Caso de uso com a trilha completa (GET /ai-governance/use-cases/:id). */
+export interface AiUseCaseDetail extends AiUseCaseData {
+  decisions: AiUseCaseDecisionData[];
+  links: AiUseCaseLinkData[];
+  incidents: AiIncidentData[];
+}
+
+/** Item da agenda de revisões (derivado de nextReviewAt — não é tabela). */
+export interface AiReviewEntry {
+  useCaseId: string;
+  code: string;
+  name: string;
+  area: string;
+  ownerName: string;
+  status: AiUseCaseStatus;
+  nextReviewAt: string;
+  /** Dias até a revisão (negativo = vencida). */
+  daysUntil: number;
+  overdue: boolean;
+}
+export type AiReviewDue = 'overdue' | '30d' | 'all';
+
+/** KPIs da Visão Geral (GET /ai-governance/summary) — contagens reais. */
+export interface AiGovernanceSummary {
+  useCases: number;
+  byStatus: Record<AiUseCaseStatus, number>;
+  byInherentRisk: Record<AiRiskLevel, number>;
+  byResidualRisk: Record<AiRiskLevel, number>;
+  approved: number;
+  highInherentRisk: number;
+  /** Incidentes com occurredAt nos últimos 12 meses (filtro real por data). */
+  incidents12m: number;
+  openIncidents: number;
+  reviewsOverdue: number;
+  reviewsNext30d: number;
+  decisions: number;
+  policies: { total: number; approved: number };
+  areas: string[];
+}
+
+export interface UpsertAiUseCaseRequest {
+  name: string;
+  purpose: string;
+  area: string;
+  ownerName: string;
+  ownerUserId?: string | null;
+  technology: string;
+  vendor?: string | null;
+  dataUsed: string;
+  audience: string;
+  inherentRisk: AiRiskLevel;
+  residualRisk: AiRiskLevel;
+  controls?: string[];
+  justification?: string | null;
+  nextReviewAt?: string | null;
+  /** Só RASCUNHO ↔ EM_AVALIACAO por aqui; os demais status nascem de uma decisão. */
+  status?: 'RASCUNHO' | 'EM_AVALIACAO';
+}
+
+export interface DecideAiUseCaseRequest {
+  decision: AiDecision;
+  /** Obrigatória: a trilha exige o "porquê" de quem decidiu. */
+  justification: string;
+  nextReviewAt?: string | null;
+}
+
+export interface AddAiUseCaseLinkRequest {
+  kind: AiLinkKind;
+  targetId: string;
+}
+
+export interface CreateAiIncidentRequest {
+  useCaseId?: string | null;
+  severity: AiIncidentSeverity;
+  occurredAt: string;
+  description: string;
+}
+export interface UpdateAiIncidentRequest {
+  severity?: AiIncidentSeverity;
+  occurredAt?: string;
+  description?: string;
+  status?: AiIncidentStatus;
+}
+
+export interface UpsertAiPolicyRequest {
+  title: string;
+  version: string;
+  status?: AiPolicyStatus;
+  publishedAt?: string | null;
+  url?: string | null;
+}
+export interface UpdateAiPolicyRequest {
+  title?: string;
+  version?: string;
+  status?: AiPolicyStatus;
+  publishedAt?: string | null;
+  url?: string | null;
+}
+
+/** Painel Módulos › Governança de IA do Super Admin (GET /admin/tenants/:id/ai-governance/summary). */
+export interface AiGovernanceAdminSummary {
+  company: { tenantId: string; organizationId: string; name: string; cnpj: string | null };
+  /** Estado de liberação do módulo 'govia' (mesma fonte do ModulesModal). */
+  module: Pick<TenantModuleSummary, 'code' | 'name' | 'enabled' | 'availableForPlan' | 'minPlan'>;
+  summary: AiGovernanceSummary;
 }
 
 export * from './lead-email';

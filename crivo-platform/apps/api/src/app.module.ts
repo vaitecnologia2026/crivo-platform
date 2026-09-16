@@ -26,6 +26,7 @@ import { InvisibleCostsModule } from './invisible-costs/invisible-costs.module';
 import { PeopleAnalyticsModule } from './people-analytics/people-analytics.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AiGovernanceModule } from './ai-governance/ai-governance.module';
 import { HealthController } from './health/health.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ClientErrorsController } from './common/client-errors.controller';
@@ -59,6 +60,7 @@ import { ClientErrorsController } from './common/client-errors.controller';
     PeopleAnalyticsModule,
     AlertsModule,
     NotificationsModule,
+    AiGovernanceModule,
   ],
   // ClientErrors recebe do navegador o que o servidor nao ve sozinho: falha de
   // rede (a requisicao nunca chegou) e tela que quebrou.

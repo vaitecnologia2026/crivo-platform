@@ -59,7 +59,11 @@ DECLARE
                          -- Recuperação de senha: token de uso único por usuário.
                          'password_reset_tokens',
                          -- Convite de colaborador para uma campanha (link /r/<token>).
-                         'campaign_invites'];
+                         'campaign_invites',
+                         -- Governança de IA (módulo govia): casos de uso, trilha de decisão,
+                         -- vínculos, incidentes e políticas que o CLIENTE governa no portal.
+                         'ai_use_cases','ai_use_case_decisions','ai_use_case_links',
+                         'ai_incidents','ai_policies'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

@@ -65,6 +65,23 @@ import type {
   PocketAggregate,
   CompanyQuarterlyIcdData,
   IcdCycleData,
+  // Governança de IA (módulo govia)
+  AiGovernanceSummary,
+  AiUseCaseData,
+  AiUseCaseDetail,
+  AiUseCaseDecisionData,
+  AiUseCaseLinkData,
+  AiIncidentData,
+  AiPolicyData,
+  AiReviewEntry,
+  AiReviewDue,
+  UpsertAiUseCaseRequest,
+  DecideAiUseCaseRequest,
+  AddAiUseCaseLinkRequest,
+  CreateAiIncidentRequest,
+  UpdateAiIncidentRequest,
+  UpsertAiPolicyRequest,
+  UpdateAiPolicyRequest,
 } from '@crivo/types';
 import { mensagemDeErroApi } from '@crivo/types';
 
@@ -1244,4 +1261,64 @@ export function openCycle(dto: OpenCycleRequest): Promise<DiagnosticCycleData> {
 }
 export function closeCycle(id: string): Promise<DiagnosticCycleData> {
   return apiFetch<DiagnosticCycleData>(`/action-plans/cycles/${id}/close`, { method: 'POST' });
+}
+
+// ── Programas › Governança de IA (módulo 'govia') — /ai-governance/* ──
+// O cliente governa as PRÓPRIAS IAs: inventário, decisão humana com
+// justificativa, vínculos com Evidências/Plano de Evolução, incidentes,
+// políticas e revisões (derivadas de nextReviewAt).
+
+export function getAiGovernanceSummary(): Promise<AiGovernanceSummary> {
+  return apiFetch<AiGovernanceSummary>('/ai-governance/summary');
+}
+export function listAiUseCases(filters: { area?: string; risk?: string; status?: string } = {}): Promise<AiUseCaseData[]> {
+  const q = new URLSearchParams();
+  if (filters.area) q.set('area', filters.area);
+  if (filters.risk) q.set('risk', filters.risk);
+  if (filters.status) q.set('status', filters.status);
+  const qs = q.toString();
+  return apiFetch<AiUseCaseData[]>(`/ai-governance/use-cases${qs ? `?${qs}` : ''}`);
+}
+export function getAiUseCase(id: string): Promise<AiUseCaseDetail> {
+  return apiFetch<AiUseCaseDetail>(`/ai-governance/use-cases/${id}`);
+}
+export function createAiUseCase(dto: UpsertAiUseCaseRequest): Promise<AiUseCaseData> {
+  return apiFetch<AiUseCaseData>('/ai-governance/use-cases', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateAiUseCase(id: string, dto: UpsertAiUseCaseRequest): Promise<AiUseCaseData> {
+  return apiFetch<AiUseCaseData>(`/ai-governance/use-cases/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+/** Decisão humana — a justificativa é obrigatória (a API recusa vazio). */
+export function decideAiUseCase(id: string, dto: DecideAiUseCaseRequest): Promise<AiUseCaseDetail> {
+  return apiFetch<AiUseCaseDetail>(`/ai-governance/use-cases/${id}/decision`, { method: 'POST', body: JSON.stringify(dto) });
+}
+export function addAiUseCaseLink(id: string, dto: AddAiUseCaseLinkRequest): Promise<AiUseCaseLinkData> {
+  return apiFetch<AiUseCaseLinkData>(`/ai-governance/use-cases/${id}/links`, { method: 'POST', body: JSON.stringify(dto) });
+}
+export function removeAiUseCaseLink(id: string, linkId: string): Promise<{ ok: true }> {
+  return apiFetch<{ ok: true }>(`/ai-governance/use-cases/${id}/links/${linkId}`, { method: 'DELETE' });
+}
+export function listAiDecisions(): Promise<AiUseCaseDecisionData[]> {
+  return apiFetch<AiUseCaseDecisionData[]>('/ai-governance/decisions');
+}
+export function listAiIncidents(): Promise<AiIncidentData[]> {
+  return apiFetch<AiIncidentData[]>('/ai-governance/incidents');
+}
+export function createAiIncident(dto: CreateAiIncidentRequest): Promise<AiIncidentData> {
+  return apiFetch<AiIncidentData>('/ai-governance/incidents', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateAiIncident(id: string, dto: UpdateAiIncidentRequest): Promise<AiIncidentData> {
+  return apiFetch<AiIncidentData>(`/ai-governance/incidents/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+export function listAiPolicies(): Promise<AiPolicyData[]> {
+  return apiFetch<AiPolicyData[]>('/ai-governance/policies');
+}
+export function createAiPolicy(dto: UpsertAiPolicyRequest): Promise<AiPolicyData> {
+  return apiFetch<AiPolicyData>('/ai-governance/policies', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateAiPolicy(id: string, dto: UpdateAiPolicyRequest): Promise<AiPolicyData> {
+  return apiFetch<AiPolicyData>(`/ai-governance/policies/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+export function listAiReviews(due: AiReviewDue = 'all'): Promise<AiReviewEntry[]> {
+  return apiFetch<AiReviewEntry[]>(`/ai-governance/reviews?due=${due}`);
 }

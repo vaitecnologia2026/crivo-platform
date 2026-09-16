@@ -264,7 +264,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "relatorios" && <ReportsSection />}
           {section === "engineconfig" && <EngineConfigSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "lideranca" && <LiderancaSection onNavigate={(sec) => setSection(sec as Section)} />}
-          {section === "govia" && <AiGovernanceSection />}
+          {section === "govia" && <AiGovernanceSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "workforce" && <WorkforceSection />}
           {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}
@@ -382,6 +382,9 @@ const ACTION_LABEL: Record<string, string> = {
   "icd.cycle.create": "Ciclo ICD aberto",
   "icd.cycle.close": "Ciclo ICD fechado",
   "lideranca.view": "Painel de Liderança consultado",
+  // Módulos › Governança de IA (decisão humana do cliente no portal; painel consultado)
+  "ai_governance.decision": "Decisão humana em caso de uso de IA",
+  "ai_governance.view": "Painel de Governança de IA consultado",
   "group.portal.view": "Portal do grupo acessado",
   "tenant.group.set": "Empresa vinculada a grupo",
   // Papéis & permissões (RBAC por empresa)
