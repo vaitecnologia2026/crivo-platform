@@ -9,7 +9,7 @@ import { Roles } from '../iam/roles.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { PeopleAnalyticsService } from './people-analytics.service';
-import { AnalyzePeopleDto, SavePeopleAnalyticsDto } from './dto';
+import { AnalyzePeopleDto, SavePeopleAnalyticsDto, SavePeopleCatalogDto } from './dto';
 
 const ROLES = ['RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR'] as const;
 
@@ -38,5 +38,19 @@ export class PeopleAnalyticsController {
   @Roles(...ROLES)
   analyze(@CurrentUser() user: SessionUser, @Body() dto: AnalyzePeopleDto) {
     return this.svc.analyze(user.tenantId, dto.context, user.email);
+  }
+
+  /** Catálogo de indicadores (metadados de governança + customizados). */
+  @Get('catalog')
+  @Roles(...ROLES)
+  getCatalog(@CurrentUser() user: SessionUser) {
+    return this.svc.getCatalog(user.tenantId);
+  }
+
+  /** Grava o catálogo; 'Score metodológico' é read-only (validado no serviço). */
+  @Put('catalog')
+  @Roles(...ROLES)
+  saveCatalog(@CurrentUser() user: SessionUser, @Body() dto: SavePeopleCatalogDto) {
+    return this.svc.saveCatalog(user.tenantId, dto, user.email);
   }
 }

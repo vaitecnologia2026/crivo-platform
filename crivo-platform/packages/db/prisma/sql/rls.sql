@@ -46,8 +46,9 @@ DECLARE
                          'psychosocial_responses',
                          'diagnostic_links',
                          'diagnostic_responses',
-                         -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant.
-                         'invisible_cost_estimates',
+                         -- Custos Invisíveis (Fase 2) — estimativa do custo oculto por tenant
+                         -- + snapshots por ciclo (aba Histórico do Radar).
+                         'invisible_cost_estimates','invisible_cost_snapshots',
                          -- People Analytics (Fase 4) — indicadores de RH por tenant.
                          'people_analytics_data',
                          -- F2 Pacote de Templates: trilha por ação + devolutiva.

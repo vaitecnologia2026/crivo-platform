@@ -2628,12 +2628,35 @@ export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   framework: 'Framework',
 };
 
+/** Nível do conteúdo (Academia) — o protótipo mostra Básico/Intermediário/Avançado
+ *  como pill outline no card. Opcional: conteúdo antigo sem nível não quebra. */
+export const LIBRARY_LEVELS = ['BASICO', 'INTERMEDIARIO', 'AVANCADO'] as const;
+export type LibraryLevel = (typeof LIBRARY_LEVELS)[number];
+export const LIBRARY_LEVEL_LABEL: Record<LibraryLevel, string> = {
+  BASICO: 'Básico',
+  INTERMEDIARIO: 'Intermediário',
+  AVANCADO: 'Avançado',
+};
+
+/** Duração em minutos → texto curto do card ("45 min", "1h", "1h30", "8h").
+ *  Guardamos minutos (número) e formatamos na UI — o protótipo tinha texto livre. */
+export function formatDurationMin(min: number | null | undefined): string | null {
+  if (min == null || !Number.isFinite(min) || min <= 0) return null;
+  const m = Math.round(min);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r === 0 ? `${h}h` : `${h}h${String(r).padStart(2, '0')}`;
+}
+
 export interface LibraryItemData {
   id: string;
   title: string;
   description: string | null;
   kind: LibraryKind;
   url: string | null;
+  durationMin: number | null;
+  level: LibraryLevel | null;
   createdAt: string;
 }
 
@@ -2642,6 +2665,8 @@ export interface CreateLibraryItemRequest {
   description?: string;
   kind: LibraryKind;
   url?: string;
+  durationMin?: number | null;
+  level?: LibraryLevel | null;
 }
 
 export interface UpdateLibraryItemRequest {
@@ -2649,6 +2674,8 @@ export interface UpdateLibraryItemRequest {
   description?: string;
   kind?: LibraryKind;
   url?: string;
+  durationMin?: number | null;
+  level?: LibraryLevel | null;
 }
 
 /**
@@ -3770,6 +3797,8 @@ export interface GlobalAcademyContentData {
   url: string | null;
   category: string | null;
   tags: string[];
+  durationMin: number | null;
+  level: LibraryLevel | null;
   published: boolean;
   createdAt: string;
   updatedAt: string;
@@ -3782,6 +3811,8 @@ export interface UpsertGlobalAcademyContentRequest {
   url?: string;
   category?: string;
   tags?: string[];
+  durationMin?: number | null;
+  level?: LibraryLevel | null;
   published?: boolean;
 }
 
@@ -3789,6 +3820,21 @@ export interface UpsertGlobalAcademyContentRequest {
 // Estimativa gerencial do custo oculto: por item, custo = variação × volume ×
 // custo unitário. Três cenários (faixa) + nível de confiança. É ESTIMATIVA de
 // apoio à decisão — nunca afirma economia garantida nem causalidade automática.
+
+/** Natureza de cada componente do Radar (protótipo: Observado / Estimado /
+ *  Hipótese). Só rotula a origem do número — não entra no cálculo. */
+export const INVISIBLE_COST_NATURES = ['OBSERVADO', 'ESTIMADO', 'HIPOTESE'] as const;
+export type InvisibleCostNature = (typeof INVISIBLE_COST_NATURES)[number];
+export const INVISIBLE_COST_NATURE_LABEL: Record<InvisibleCostNature, string> = {
+  OBSERVADO: 'Observado',
+  ESTIMADO: 'Estimado',
+  HIPOTESE: 'Hipótese',
+};
+export const INVISIBLE_COST_NATURE_HINT: Record<InvisibleCostNature, string> = {
+  OBSERVADO: 'Medido em base interna (contábil/RH).',
+  ESTIMADO: 'Derivado de fórmula CRIVO sobre dados observados.',
+  HIPOTESE: 'Premissa a validar — peso menor na leitura.',
+};
 
 export interface InvisibleCostItem {
   key: string;
@@ -3798,6 +3844,31 @@ export interface InvisibleCostItem {
   volume: number; // volume afetado (ex.: colaboradores, horas)
   unitCost: number; // custo unitário estimado (R$)
   note?: string;
+  // Governança por componente (ficha do protótipo). Todos opcionais: a
+  // estimativa antiga continua válida e computeInvisibleCosts ignora estes campos.
+  nature?: InvisibleCostNature;
+  source?: string; // fonte do dado (ex.: "Folha · RH")
+  formula?: string; // fórmula/premissa em texto
+  period?: string; // período de referência (ex.: "12m móveis")
+  owner?: string; // responsável pelo componente
+  version?: string; // rótulo de versão (ex.: "v1.2")
+  validatedAt?: string; // última validação (data ISO AAAA-MM-DD)
+  confidence?: CostConfidence; // sobrescreve a confiança global no RENDER; nunca no cálculo
+}
+
+/** Snapshot ("Congelar como ciclo") da estimativa — série 'Evolução do total'
+ *  da aba Histórico. Totais gravados vêm de computeInvisibleCosts na hora do
+ *  congelamento, então o histórico não muda quando os itens forem editados. */
+export interface InvisibleCostSnapshotData {
+  id: string;
+  label: string;
+  items: InvisibleCostItem[];
+  scenarios: InvisibleCostScenarios;
+  confidence: CostConfidence;
+  totals: { base: number; conservador: number; moderado: number; otimista: number };
+  itemsCount: number;
+  createdByName: string | null;
+  createdAt: string;
 }
 
 export interface InvisibleCostScenarios {
@@ -3895,10 +3966,145 @@ export const PEOPLE_INDICATORS: PeopleIndicatorDef[] = [
   { key: 'denuncias', label: 'Denúncias', unit: 'nº', higherIsBetter: false },
 ];
 
+/** Recorte de headcount por área dentro de um período. Recortes reintroduzem a
+ *  regra n<5 (§11): quem RENDERIZA suprime áreas com n < PEOPLE_MIN_SLICE_N. */
+export interface PeopleHeadcountByArea {
+  area: string;
+  n: number;
+}
+
 export interface PeoplePeriod {
   period: string; // ex.: "2026-Q1" ou "2026-01"
   headcount?: number | null;
   values: Record<string, number | null>; // indicatorKey → valor
+  headcountByArea?: PeopleHeadcountByArea[] | null; // opcional; não entra em computePeopleTrends
+}
+
+/** Mínimo de pessoas para exibir um recorte de área (mesma regra §11 do ICD). */
+export const PEOPLE_MIN_SLICE_N = 5;
+
+// ── Catálogo de indicadores (governança por indicador) ──
+// PEOPLE_INDICATORS continua sendo a lista FIXA que entra no cálculo de
+// tendências; o catálogo só guarda METADADOS de governança (fonte, fórmula,
+// responsável, versão, confiança, status de validação) + indicadores
+// customizados do tenant. Nada aqui altera computePeopleTrends.
+
+export const PEOPLE_CATALOG_STATUSES = ['VALIDADO', 'EM_REVISAO', 'RASCUNHO'] as const;
+export type PeopleCatalogStatus = (typeof PEOPLE_CATALOG_STATUSES)[number];
+export const PEOPLE_CATALOG_STATUS_LABEL: Record<PeopleCatalogStatus, string> = {
+  VALIDADO: 'Validado',
+  EM_REVISAO: 'Em revisão',
+  RASCUNHO: 'Rascunho',
+};
+
+/** IMPORTADO = a empresa informa/importa; SCORE_METODOLOGICO = vem do ICD/NR-1
+ *  (read-only aqui — People Analytics nunca escreve em score metodológico). */
+export const PEOPLE_CATALOG_NATURES = ['IMPORTADO', 'SCORE_METODOLOGICO'] as const;
+export type PeopleCatalogNature = (typeof PEOPLE_CATALOG_NATURES)[number];
+export const PEOPLE_CATALOG_NATURE_LABEL: Record<PeopleCatalogNature, string> = {
+  IMPORTADO: 'Importado',
+  SCORE_METODOLOGICO: 'Score metodológico',
+};
+
+export const PEOPLE_CATALOG_CONFIDENCES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+export type PeopleCatalogConfidence = (typeof PEOPLE_CATALOG_CONFIDENCES)[number];
+
+export interface PeopleCatalogEntry {
+  key: string; // chave do indicador (a de PEOPLE_INDICATORS ou uma customizada)
+  name: string;
+  category: string;
+  formula?: string | null;
+  unit?: string | null;
+  source?: string | null;
+  period?: string | null;
+  frequency?: string | null;
+  owner?: string | null;
+  version?: string | null;
+  confidence?: PeopleCatalogConfidence | null;
+  slices?: string | null; // recortes autorizados (texto: "Unidade, Área (n>=5)")
+  status: PeopleCatalogStatus;
+  nature: PeopleCatalogNature;
+  /** true = entrada fixa do sistema (PEOPLE_INDICATORS ou score metodológico);
+   *  false = indicador customizado do tenant. Derivado no GET, não gravado. */
+  builtin?: boolean;
+}
+
+/** Categoria padrão de cada indicador fixo (editável pelo tenant no catálogo). */
+const PEOPLE_INDICATOR_DEFAULT_CATEGORY: Record<string, string> = {
+  turnover: 'Comportamental',
+  absenteismo: 'Comportamental',
+  afastamentos: 'Comportamental',
+  horasExtras: 'Operacional',
+  retrabalho: 'Qualidade',
+  produtividade: 'Operacional',
+  reclamacoes: 'Qualidade',
+  denuncias: 'Comportamental',
+};
+
+/** Scores metodológicos que o catálogo LISTA para deixar claro que existem e
+ *  de onde vêm — nunca editáveis por aqui (validado no PUT do catálogo). */
+export const PEOPLE_METHODOLOGICAL_ENTRIES: PeopleCatalogEntry[] = [
+  {
+    key: 'icd',
+    name: 'ICD oficial (ciclo trimestral)',
+    category: 'Liderança',
+    unit: 'pts',
+    source: 'CRIVO · Índice de Consciência Decisória',
+    formula: 'Metodologia CRIVO — calculado pelo sistema no fechamento do ciclo',
+    frequency: 'Trimestral',
+    owner: 'CRIVO',
+    status: 'VALIDADO',
+    nature: 'SCORE_METODOLOGICO',
+    builtin: true,
+  },
+  {
+    key: 'psicossocial',
+    name: 'Risco psicossocial (NR-1)',
+    category: 'Saúde e segurança',
+    unit: 'score',
+    source: 'CRIVO · Diagnóstico psicossocial',
+    formula: 'Metodologia CRIVO — calculado pelo sistema a partir das respostas',
+    frequency: 'Por campanha',
+    owner: 'CRIVO',
+    status: 'VALIDADO',
+    nature: 'SCORE_METODOLOGICO',
+    builtin: true,
+  },
+];
+
+/** Entradas fixas dos indicadores importados (sem metadados até o tenant preencher). */
+export function peopleIndicatorBaseEntries(): PeopleCatalogEntry[] {
+  return PEOPLE_INDICATORS.map((d) => ({
+    key: d.key,
+    name: d.label,
+    category: PEOPLE_INDICATOR_DEFAULT_CATEGORY[d.key] ?? 'Geral',
+    unit: d.unit,
+    status: 'RASCUNHO',
+    nature: 'IMPORTADO',
+    builtin: true,
+  }));
+}
+
+/**
+ * Catálogo efetivo = scores metodológicos (fixos, read-only) + indicadores
+ * fixos com os metadados gravados pelo tenant por cima + customizados.
+ * Pura — usada no GET da API e testável.
+ */
+export function mergePeopleCatalog(stored: PeopleCatalogEntry[] | null | undefined): PeopleCatalogEntry[] {
+  const byKey = new Map<string, PeopleCatalogEntry>();
+  for (const e of stored ?? []) byKey.set(e.key, e);
+  const fixed = peopleIndicatorBaseEntries().map((base) => {
+    const over = byKey.get(base.key);
+    if (!over) return base;
+    byKey.delete(base.key);
+    // Natureza e chave são do sistema; o resto o tenant pode ajustar.
+    return { ...base, ...over, key: base.key, nature: 'IMPORTADO' as const, builtin: true };
+  });
+  const methodologicalKeys = new Set(PEOPLE_METHODOLOGICAL_ENTRIES.map((e) => e.key));
+  const custom = [...byKey.values()]
+    .filter((e) => !methodologicalKeys.has(e.key))
+    .map((e) => ({ ...e, nature: 'IMPORTADO' as const, builtin: false }));
+  return [...PEOPLE_METHODOLOGICAL_ENTRIES, ...fixed, ...custom];
 }
 
 export interface PeopleTrend {

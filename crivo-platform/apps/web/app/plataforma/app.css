@@ -771,6 +771,53 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .pill--danger { background: var(--danger-soft); color: var(--danger); }
 .pill--gold { background: rgba(168, 105, 61, 0.12); color: var(--gold-deep); }
+/* Pill outline (nível do conteúdo na Academia, status da mentoria) — protótipo: Badge variant="outline". */
+.pill--outline { background: transparent; border: 1px solid var(--line); color: var(--text-sec); }
+.pill--sm { padding: 2px 9px; font-size: 10.5px; }
+/* Delta desfavorável (turnover subindo etc.) — o --down herdado é "queda boa" (azul). */
+.kpi__delta--bad { background: var(--danger-soft); color: var(--danger); }
+.kpi__delta--neutral { background: var(--line-soft); color: var(--text-sec); }
+
+/* Fatia 6 — abas de tela (Radar: Composição/Detalhamento/Cenários/Histórico).
+   Mesmo padrão visual do .adm-tabs do Super Admin, sem depender do escopo .adm. */
+.scr-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.scr-tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 9px 14px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--text-sec); transition: color .15s ease, border-color .15s ease;
+}
+.scr-tab:hover { color: var(--text); }
+.scr-tab.is-active { color: var(--gold-deep); border-bottom-color: var(--gold-deep); }
+
+/* Natureza do componente (Radar de Custos Invisíveis) — tema monocromático
+   azul/laranja do app.css (sem verde/amarelo, conforme regra do cliente). */
+.bar__fill--observado { background: linear-gradient(90deg, var(--azul-cobalto), var(--azul-claro)); }
+.bar__fill--estimado { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+.bar__fill--hipotese { background: linear-gradient(90deg, var(--ink-600), var(--ink-300, var(--line))); opacity: .7; }
+
+/* Lista de agenda (Mentorias) — card único, uma linha por sessão. */
+.agenda-list { display: flex; flex-direction: column; }
+.agenda-row {
+  display: grid; grid-template-columns: 84px 1fr auto; gap: 14px; align-items: center;
+  padding: 14px 4px; border-bottom: 1px solid var(--line);
+}
+.agenda-row:last-child { border-bottom: none; }
+.agenda-row__when { text-align: center; }
+.agenda-row__date { display: block; font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: var(--text); }
+.agenda-row__time { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec); margin-top: 2px; }
+.agenda-row__body { min-width: 0; }
+.agenda-row__theme { font-weight: 600; color: var(--text); }
+.agenda-row__mentor { font-size: 12px; color: var(--text-sec); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+.agenda-row__actions { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 640px) {
+  .agenda-row { grid-template-columns: 1fr; text-align: left; }
+  .agenda-row__when { text-align: left; display: flex; gap: 8px; align-items: baseline; }
+}
+
+/* Academia — carga + nível no rodapé do card de conteúdo. */
+.lib-card__meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.lib-card__title { display: flex; align-items: center; gap: 8px; color: var(--gold-deep); }
+.lib-card__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 /* ==================== GRID ==================== */
 .grid { display: grid; gap: 24px; margin-bottom: 24px; }
@@ -1668,6 +1715,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .camp-progress__top span { font-size: 13px; color: var(--text-sec); }
 .camp-sectors { display: flex; flex-direction: column; gap: 12px; }
 .camp-sectors li { display: grid; grid-template-columns: 110px 1fr 40px; align-items: center; gap: 12px; }
+/* Composição do Radar de Custos Invisíveis: valores em R$ precisam de mais espaço
+   que a contagem simples do BarList original. */
+.camp-sectors--cost li { grid-template-columns: 170px 1fr 108px; }
 .camp-sectors li span { font-size: 13px; font-weight: 500; }
 .camp-sectors li em { font-style: normal; font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-align: right; }
 .links-list { display: flex; flex-direction: column; gap: 8px; }

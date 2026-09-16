@@ -23,6 +23,7 @@ import type {
   CreateLibraryItemRequest,
   DocumentDescriptor,
   LibraryItemData,
+  LibraryLevel,
   EssentialRecordData,
   EvidenceData,
   GeneratedDocument,
@@ -51,8 +52,10 @@ import type {
   UpsertParecerRequest,
   UpsertPocketReflectionRequest,
   InvisibleCostItem,
+  InvisibleCostSnapshotData,
   InvisibleCostScenarios,
   PeoplePeriod,
+  PeopleCatalogEntry,
   OperationalAlertsResult,
   GroupOverview,
   DevolutivaData,
@@ -346,6 +349,8 @@ export interface GlobalAcademyLite {
   url: string | null;
   category: string | null;
   tags: string[];
+  durationMin: number | null;
+  level: LibraryLevel | null;
 }
 export function getMyGlobalAcademy(): Promise<GlobalAcademyLite[]> {
   return apiFetch<GlobalAcademyLite[]>('/me/global-academy');
@@ -800,6 +805,7 @@ export interface InvisibleCostsData {
   confidence: string;
   notes: string | null;
   updatedAt: string | null;
+  updatedBy: string | null;
   isDefault: boolean;
 }
 export function getInvisibleCosts(): Promise<InvisibleCostsData> {
@@ -812,6 +818,13 @@ export function saveInvisibleCosts(dto: {
   notes?: string;
 }): Promise<InvisibleCostsData> {
   return apiFetch<InvisibleCostsData>('/invisible-costs', { method: 'PUT', body: JSON.stringify(dto) });
+}
+/** Aba Histórico do Radar: snapshots congelados ("Congelar como ciclo"). */
+export function listCostSnapshots(): Promise<InvisibleCostSnapshotData[]> {
+  return apiFetch<InvisibleCostSnapshotData[]>('/invisible-costs/snapshots');
+}
+export function createCostSnapshot(label: string): Promise<InvisibleCostSnapshotData> {
+  return apiFetch<InvisibleCostSnapshotData>('/invisible-costs/snapshots', { method: 'POST', body: JSON.stringify({ label }) });
 }
 
 // ── People Analytics (Fase 4) ──
@@ -839,6 +852,18 @@ export function analyzePeople(context?: string): Promise<{ analysis: PeopleAnaly
     body: JSON.stringify({ context }),
     signal: AbortSignal.timeout(60000),
   });
+}
+/** Catálogo de indicadores (metadados de governança + customizados). */
+export interface PeopleCatalogData {
+  entries: PeopleCatalogEntry[];
+  updatedAt: string | null;
+}
+export function getPeopleCatalog(): Promise<PeopleCatalogData> {
+  return apiFetch<PeopleCatalogData>('/people-analytics/catalog');
+}
+/** Manda só o que o tenant pode gravar (entradas IMPORTADO); o servidor recusa score metodológico. */
+export function savePeopleCatalog(entries: PeopleCatalogEntry[]): Promise<PeopleCatalogData> {
+  return apiFetch<PeopleCatalogData>('/people-analytics/catalog', { method: 'PUT', body: JSON.stringify({ entries }) });
 }
 
 // ── Gestão de usuários / equipe (telas por usuário + limite por produto) ──

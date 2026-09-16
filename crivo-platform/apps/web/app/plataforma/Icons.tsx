@@ -50,3 +50,43 @@ export const IconGrid = (p: IconProps) => (
   <Svg {...p}><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></Svg>
 );
 export const IconDot = (p: IconProps) => (<Svg {...p}><circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none" /></Svg>);
+
+// Fatia 6 — ícones das telas Academia / Mentorias / Radar / People Analytics
+// (o protótipo usa lucide: PlayCircle, BookOpen, FileText, CalendarClock, Eye,
+// Download, ShieldCheck, Settings2). Mesmo traço, cor do contexto.
+export const IconPlayCircle = (p: IconProps) => (
+  <Svg {...p}><circle cx="12" cy="12" r="9" /><path d="M10 8.5l5 3.5-5 3.5z" /></Svg>
+);
+export const IconBook = (p: IconProps) => (
+  <Svg {...p}><path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5z" /><path d="M4 20.5V5.5" /><path d="M6.5 18H20" /></Svg>
+);
+export const IconFileText = (p: IconProps) => (
+  <Svg {...p}><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h6" /></Svg>
+);
+export const IconGraduation = (p: IconProps) => (
+  <Svg {...p}><path d="M3 9l9-4 9 4-9 4z" /><path d="M7 11v4.5c0 1.2 2.2 2.5 5 2.5s5-1.3 5-2.5V11" /><path d="M21 9v5" /></Svg>
+);
+export const IconMic = (p: IconProps) => (
+  <Svg {...p}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0014 0" /><path d="M12 18v3" /></Svg>
+);
+export const IconClock = (p: IconProps) => (
+  <Svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Svg>
+);
+export const IconCalendarClock = (p: IconProps) => (
+  <Svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /><path d="M12 14v3l2 1" /></Svg>
+);
+export const IconEye = (p: IconProps) => (
+  <Svg {...p}><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></Svg>
+);
+export const IconDownload = (p: IconProps) => (<Svg {...p}><path d="M12 4v11" /><path d="M7 10l5 5 5-5" /><path d="M4 20h16" /></Svg>);
+export const IconShield = (p: IconProps) => (
+  <Svg {...p}><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /><path d="M9.5 12l2 2 3.5-4" /></Svg>
+);
+export const IconSettings = (p: IconProps) => (
+  <Svg {...p}><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></Svg>
+);
+export const IconPlus = (p: IconProps) => (<Svg {...p}><path d="M12 5v14" /><path d="M5 12h14" /></Svg>);
+export const IconRefresh = (p: IconProps) => (<Svg {...p}><path d="M20 12a8 8 0 1 1-2.3-5.7" /><path d="M20 4v5h-5" /></Svg>);
+export const IconUsers = (p: IconProps) => (
+  <Svg {...p}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0113 0" /><path d="M16 4.5a3.5 3.5 0 010 7" /><path d="M17 13.5a6.5 6.5 0 014.5 6.5" /></Svg>
+);

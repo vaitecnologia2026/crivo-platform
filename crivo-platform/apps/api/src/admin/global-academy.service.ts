@@ -36,6 +36,8 @@ export class GlobalAcademyService {
         url: dto.url ?? null,
         category: dto.category ?? null,
         tags: dto.tags ?? [],
+        durationMin: dto.durationMin ?? null,
+        level: dto.level ?? null,
         published: dto.published ?? false,
       },
     });
@@ -54,6 +56,9 @@ export class GlobalAcademyService {
         url: dto.url ?? null,
         category: dto.category ?? null,
         tags: dto.tags ?? [],
+        // undefined = mantém (o toggle de publicação manda o resto do item, não estes).
+        durationMin: dto.durationMin === undefined ? existing.durationMin : dto.durationMin,
+        level: dto.level === undefined ? existing.level : dto.level,
         published: dto.published ?? existing.published,
       },
     });
@@ -75,6 +80,8 @@ function toData(row: any): GlobalAcademyContentData {
     url: row.url,
     category: row.category,
     tags: row.tags ?? [],
+    durationMin: row.durationMin ?? null,
+    level: row.level ?? null,
     published: row.published,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

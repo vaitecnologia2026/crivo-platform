@@ -4,6 +4,7 @@ import type {
   CreateLibraryItemRequest,
   LibraryItemData,
   LibraryKind,
+  LibraryLevel,
   UpdateLibraryItemRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +16,8 @@ function toData(i: LibraryItem): LibraryItemData {
     description: i.description,
     kind: i.kind as LibraryKind,
     url: i.url,
+    durationMin: i.durationMin ?? null,
+    level: (i.level as LibraryLevel | null) ?? null,
     createdAt: i.createdAt.toISOString(),
   };
 }
@@ -40,6 +43,8 @@ export class LibraryService {
           description: dto.description?.trim() || null,
           kind: dto.kind,
           url: dto.url?.trim() || null,
+          durationMin: dto.durationMin ?? null,
+          level: dto.level ?? null,
         },
       });
       return toData(item);
@@ -57,6 +62,9 @@ export class LibraryService {
           description: dto.description === undefined ? existing.description : dto.description?.trim() || null,
           kind: dto.kind ?? existing.kind,
           url: dto.url === undefined ? existing.url : dto.url?.trim() || null,
+          // undefined = não mexer; null = limpar (mesma convenção de description/url).
+          durationMin: dto.durationMin === undefined ? existing.durationMin : dto.durationMin,
+          level: dto.level === undefined ? existing.level : dto.level,
         },
       });
       return toData(item);
@@ -98,6 +106,9 @@ export class LibraryService {
           description: content.description,
           kind: content.kind,
           url: content.url,
+          // Carga e nível viajam junto — o card do tenant fica igual ao do catálogo.
+          durationMin: content.durationMin ?? null,
+          level: content.level ?? null,
         },
       });
       return toData(item);

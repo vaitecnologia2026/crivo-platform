@@ -533,6 +533,10 @@ model GlobalAcademyContent {
   url         String?
   category    String?
   tags        String[] @default([])
+  // Carga (minutos) e nível (BASICO | INTERMEDIARIO | AVANCADO) — layout do
+  // card da Academia (protótipo). Opcionais: conteúdo antigo continua válido.
+  durationMin Int?     @map("duration_min")
+  level       String?
   published   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1187,6 +1191,9 @@ model LibraryItem {
   description String?
   kind        String // artigo | podcast | ebook | curso | framework
   url         String?
+  // Carga (minutos) e nível — mesmos campos do catálogo global; import-global copia.
+  durationMin Int?         @map("duration_min")
+  level       String? // BASICO | INTERMEDIARIO | AVANCADO
   createdAt   DateTime     @default(now())
 
   @@index([tenantId])
@@ -1315,6 +1322,8 @@ model Organization {
   tenantDocumentFiles TenantDocumentFile[]
   tenantTerms         TenantTerm[]
   tenantAiUseCases    TenantAiUseCaseContext[]
+  // Radar de Custos Invisíveis — histórico congelado por ciclo.
+  invisibleCostSnapshots InvisibleCostSnapshot[]
 
   @@map("organizations")
 }
@@ -2663,12 +2672,37 @@ model InvisibleCostEstimate {
   @@map("invisible_cost_estimates")
 }
 
+/// Snapshot da estimativa de custos invisíveis ("Congelar como ciclo") — aba
+/// Histórico do Radar. InvisibleCostEstimate é 1 por tenant e não guarda
+/// histórico; cada snapshot congela itens + cenários + totais calculados por
+/// computeInvisibleCosts naquele momento. Data plane (RLS por tenant).
+model InvisibleCostSnapshot {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  org             Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label           String // rótulo do ciclo/período (ex.: "2026.1")
+  items           Json // InvisibleCostItem[] congelados
+  scenarios       Json // { conservador, moderado, otimista } vigentes
+  confidence      String       @default("MEDIA")
+  totals          Json // { base, conservador, moderado, otimista }
+  createdByUserId String?      @map("created_by_user_id") @db.Uuid
+  createdByName   String?      @map("created_by_name")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("invisible_cost_snapshots")
+}
+
 /// People Analytics (Fase 4) — indicadores de RH por período + última análise da IA.
 /// 1 por empresa, protegido por RLS (tenantId = current_tenant()).
 model PeopleAnalyticsData {
   id         String    @id @default(uuid()) @db.Uuid
   tenantId   String    @db.Uuid
-  periods    Json // PeoplePeriod[]
+  periods    Json // PeoplePeriod[] (cada período pode ter headcountByArea opcional)
+  // Catálogo de indicadores: metadados de governança por indicador fixo +
+  // indicadores customizados (PeopleCatalogEntry[]). Só metadados — nunca
+  // altera computePeopleTrends nem scores metodológicos.
+  catalog    Json?
   analysis   Json? // { summary, alerts[], hypotheses[], recommendations[] }
   analysisAt DateTime?
   updatedBy  String?

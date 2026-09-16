@@ -1,12 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCheck, IconChevronDown, IconChevronRight, IconClose, IconExternal } from "./Icons";
 import {
+  IconBook,
+  IconCheck,
+  IconChevronDown,
+  IconChevronRight,
+  IconClose,
+  IconDownload,
+  IconExternal,
+  IconFileText,
+  IconGraduation,
+  IconMic,
+  IconPlayCircle,
+} from "./Icons";
+import {
+  formatDurationMin,
   LIBRARY_KINDS,
   LIBRARY_KIND_LABEL,
+  LIBRARY_LEVELS,
+  LIBRARY_LEVEL_LABEL,
   type LibraryItemData,
   type LibraryKind,
+  type LibraryLevel,
 } from "@crivo/types";
 import {
   createLibraryItem,
@@ -18,6 +34,23 @@ import {
   updateLibraryItem,
   type GlobalAcademyLite,
 } from "@/lib/api";
+import { exportPDF, exportXLSX, useExportContext } from "@/lib/exports";
+
+/** Ícone por tipo de conteúdo (protótipo: Curso=PlayCircle, Guia=BookOpen,
+ *  Playbook=FileText; demais tipos do catálogo real recebem um ícone coerente).
+ *  Regra do cliente: nunca emoji — sempre SVG de traço. */
+function iconForKind(kind: string) {
+  switch (kind) {
+    case "curso": return IconPlayCircle;
+    case "video": return IconPlayCircle;
+    case "podcast": return IconMic;
+    case "trilha": return IconGraduation;
+    case "framework": return IconFileText;
+    case "artigo": return IconFileText;
+    case "ebook": return IconBook;
+    default: return IconBook;
+  }
+}
 
 type LoadStatus = "loading" | "error" | "ok";
 type Editing = LibraryItemData | "new" | null;
@@ -29,6 +62,7 @@ export function BibliotecaScreen() {
   const [canManage, setCanManage] = useState(false);
   const [editing, setEditing] = useState<Editing>(null);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
+  const exportCtx = useExportContext();
 
   async function load() {
     setStatus("loading");
@@ -60,6 +94,35 @@ export function BibliotecaScreen() {
           {canManage && (
             <button className="btn btn--terra btn--sm" onClick={() => setEditing("new")}>Adicionar conteúdo</button>
           )}
+          <button
+            className="btn btn--outline-dark btn--sm"
+            disabled={!exportCtx || !data?.length}
+            onClick={() => exportCtx && exportXLSX("crivo-academia", [{
+              name: "Acervo",
+              rows: (data ?? []).map((d) => ({
+                Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
+                Duração: formatDurationMin(d.durationMin) ?? "—",
+                Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
+                Link: d.url ?? "—",
+              })),
+            }], exportCtx)}
+          >
+            <IconDownload size={14} /> XLSX
+          </button>
+          <button
+            className="btn btn--outline-dark btn--sm"
+            disabled={!exportCtx || !data?.length}
+            onClick={() => exportCtx && exportPDF("crivo-academia", "Academia e Recursos · Acervo", [{
+              heading: "Acervo",
+              rows: (data ?? []).map((d) => ({
+                Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
+                Duração: formatDurationMin(d.durationMin) ?? "—",
+                Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
+              })),
+            }], exportCtx)}
+          >
+            <IconFileText size={14} /> PDF
+          </button>
           <button className="btn btn--outline-dark btn--sm" onClick={load} disabled={status === "loading"}>
             {status === "loading" ? "Atualizando…" : "Atualizar"}
           </button>
@@ -85,22 +148,32 @@ export function BibliotecaScreen() {
 
       {status === "ok" && data && data.length > 0 && (
         <div className="grid grid--3">
-          {data.map((item) => (
-            <div key={item.id} className="card card--mini">
-              <span className="card__eyebrow">{LIBRARY_KIND_LABEL[item.kind] ?? item.kind}</span>
-              <h4>{item.title}</h4>
-              {item.description && <p>{item.description}</p>}
-              <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6 }}>
-                <button className="link-gold" onClick={() => setPreview(item)}>Acessar →</button>
-                {canManage && (
-                  <>
-                    <button className="lib-act" onClick={() => setEditing(item)}>Editar</button>
-                    <button className="lib-act lib-act--danger" onClick={() => del(item)}>Excluir</button>
-                  </>
-                )}
+          {data.map((item) => {
+            const Ic = iconForKind(item.kind);
+            const duration = formatDurationMin(item.durationMin);
+            return (
+              <div key={item.id} className="card card--mini">
+                <div className="lib-card__meta">
+                  <span className="pill pill--sm pill--gold">{LIBRARY_KIND_LABEL[item.kind] ?? item.kind}</span>
+                  {duration && <span className="card__sub" style={{ fontSize: 11 }}>{duration}</span>}
+                </div>
+                <h4 className="lib-card__title"><Ic size={18} />{item.title}</h4>
+                {item.description && <p>{item.description}</p>}
+                <div className="lib-card__foot">
+                  {item.level && <span className="pill pill--outline pill--sm">{LIBRARY_LEVEL_LABEL[item.level]}</span>}
+                </div>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 10 }}>
+                  <button className="link-gold" onClick={() => setPreview(item)}>Acessar →</button>
+                  {canManage && (
+                    <>
+                      <button className="lib-act" onClick={() => setEditing(item)}>Editar</button>
+                      <button className="lib-act lib-act--danger" onClick={() => del(item)}>Excluir</button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -165,13 +238,21 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
   const [kind, setKind] = useState<LibraryKind>(initial?.kind ?? "curso");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [url, setUrl] = useState(initial?.url ?? "");
+  // Carga em minutos (input em horas para o usuário digitar "1,5" e afins) + nível.
+  const [durationH, setDurationH] = useState(initial?.durationMin ? String(initial.durationMin / 60) : "");
+  const [level, setLevel] = useState<LibraryLevel | "">(initial?.level ?? "");
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { title: title.trim(), kind, description: description || undefined, url: url || undefined };
+      const h = durationH.trim() === "" ? null : Number(durationH.replace(",", "."));
+      const durationMin = h == null || !Number.isFinite(h) || h <= 0 ? null : Math.round(h * 60);
+      const payload = {
+        title: title.trim(), kind, description: description || undefined, url: url || undefined,
+        durationMin, level: level || null,
+      };
       if (initial) await updateLibraryItem(initial.id, payload);
       else await createLibraryItem(payload);
       onSaved();
@@ -200,6 +281,15 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
             </label>
             <label className="prod-field"><span>Link (YouTube/LinkedIn/PDF/URL)</span>
               <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+            </label>
+            <label className="prod-field"><span>Carga (horas)</span>
+              <input inputMode="decimal" value={durationH} onChange={(e) => setDurationH(e.target.value)} placeholder="ex.: 0,75 (45 min) ou 8" />
+            </label>
+            <label className="prod-field"><span>Nível</span>
+              <select value={level} onChange={(e) => setLevel(e.target.value as LibraryLevel | "")}>
+                <option value="">— não informado —</option>
+                {LIBRARY_LEVELS.map((l) => (<option key={l} value={l}>{LIBRARY_LEVEL_LABEL[l]}</option>))}
+              </select>
             </label>
             <label className="prod-field prod-field--full"><span>Descrição</span>
               <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />

@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import {
+  formatDurationMin,
+  LIBRARY_LEVELS,
+  LIBRARY_LEVEL_LABEL,
   MENTORIA_FORMAT_LABEL,
   MENTORIA_STATUS_LABEL,
   type ActionTemplateData,
   type EditableTextData,
   type GlobalAcademyContentData,
+  type LibraryLevel,
   type MentoriaData,
   type MentoriaFormat,
 } from "@crivo/types";
@@ -427,7 +431,7 @@ function EditableTextsTab() {
 function GlobalAcademyTab() {
   const [rows, setRows] = useState<GlobalAcademyContentData[] | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [form, setForm] = useState({ title: "", kind: "curso", description: "", url: "", category: "", published: false });
+  const [form, setForm] = useState({ title: "", kind: "curso", description: "", url: "", category: "", durationH: "", level: "" as LibraryLevel | "", published: false });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -441,16 +445,20 @@ function GlobalAcademyTab() {
     if (form.title.length < 3) { setError("Título obrigatório."); return; }
     setBusy(true);
     try {
+      const h = form.durationH.trim() === "" ? null : Number(form.durationH.replace(",", "."));
+      const durationMin = h == null || !Number.isFinite(h) || h <= 0 ? null : Math.round(h * 60);
       await createGlobalAcademy({
         title: form.title.trim(),
         kind: form.kind,
         description: form.description.trim() || undefined,
         url: form.url.trim() || undefined,
         category: form.category.trim() || undefined,
+        durationMin,
+        level: form.level || null,
         published: form.published,
       });
       setShowNew(false);
-      setForm({ title: "", kind: "curso", description: "", url: "", category: "", published: false });
+      setForm({ title: "", kind: "curso", description: "", url: "", category: "", durationH: "", level: "", published: false });
       await load();
     } catch (e) { setError(e instanceof Error ? e.message : "Falha"); } finally { setBusy(false); }
   }
@@ -463,6 +471,8 @@ function GlobalAcademyTab() {
         url: item.url ?? undefined,
         category: item.category ?? undefined,
         tags: item.tags,
+        durationMin: item.durationMin,
+        level: item.level,
         published: !item.published,
       });
       await load();
@@ -507,6 +517,17 @@ function GlobalAcademyTab() {
             Categoria
             <input className="rounded-[3px] border border-line bg-white px-2 py-1.5 text-[13px] text-text" placeholder="Liderança, Cultura…" value={form.category} onChange={(e) => setForm({...form, category: e.target.value})} />
           </label>
+          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.1em] text-text-sec">
+            Carga (horas)
+            <input className="rounded-[3px] border border-line bg-white px-2 py-1.5 text-[13px] text-text" placeholder="ex.: 0,75 ou 8" value={form.durationH} onChange={(e) => setForm({...form, durationH: e.target.value})} />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] uppercase tracking-[0.1em] text-text-sec">
+            Nível
+            <select className="rounded-[3px] border border-line bg-white px-2 py-1.5 text-[13px] text-text" value={form.level} onChange={(e) => setForm({...form, level: e.target.value as LibraryLevel | ""})}>
+              <option value="">— não informado —</option>
+              {LIBRARY_LEVELS.map((l) => (<option key={l} value={l}>{LIBRARY_LEVEL_LABEL[l]}</option>))}
+            </select>
+          </label>
           <label className="col-span-full flex items-center gap-2 text-[13px] text-text">
             <input type="checkbox" checked={form.published} onChange={(e) => setForm({...form, published: e.target.checked})} />
             <span>Publicado (visível aos clientes)</span>
@@ -524,13 +545,15 @@ function GlobalAcademyTab() {
         <p className="adm-empty">Nenhum conteúdo cadastrado.</p>
       ) : (
         <table className="data-table">
-          <thead><tr><th>Título</th><th>Tipo</th><th>Categoria</th><th>URL</th><th>Publicado</th></tr></thead>
+          <thead><tr><th>Título</th><th>Tipo</th><th>Categoria</th><th>Carga</th><th>Nível</th><th>URL</th><th>Publicado</th></tr></thead>
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
                 <td>{c.title}</td>
                 <td>{c.kind}</td>
                 <td>{c.category ?? "—"}</td>
+                <td>{formatDurationMin(c.durationMin) ?? "—"}</td>
+                <td>{c.level ? LIBRARY_LEVEL_LABEL[c.level] : "—"}</td>
                 <td>{c.url ? <a className="text-azul-cobalto hover:underline" href={c.url} target="_blank" rel="noopener">link</a> : "—"}</td>
                 <td>
                   <button className="text-[11px] text-azul-cobalto hover:underline" onClick={() => togglePublish(c)}>

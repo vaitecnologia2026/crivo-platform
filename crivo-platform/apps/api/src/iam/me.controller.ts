@@ -383,6 +383,8 @@ export class MeController {
       url: r.url,
       category: r.category,
       tags: r.tags ?? [],
+      durationMin: r.durationMin ?? null,
+      level: r.level ?? null,
     }));
   }
 

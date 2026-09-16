@@ -16,6 +16,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -24,6 +25,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { CurrentAdmin } from './platform-admin.decorator';
@@ -32,8 +34,10 @@ import { ActionTemplatesService } from './action-templates.service';
 import { EditableTextsService } from './editable-texts.service';
 import { GlobalAcademyService } from './global-academy.service';
 import {
+  LIBRARY_LEVELS,
   MENTORIA_FORMATS,
   MENTORIA_STATUSES,
+  type LibraryLevel,
   type PlatformAdmin,
 } from '@crivo/types';
 
@@ -101,6 +105,9 @@ class UpsertGlobalAcademyDto {
   @IsOptional() @IsString() @MaxLength(400) url?: string;
   @IsOptional() @IsString() @MaxLength(60) category?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) tags?: string[];
+  // Carga (minutos, até 100 h) e nível — layout do card da Academia. null limpa.
+  @ValidateIf((_, v) => v !== null && v !== undefined) @IsInt() @Min(1) @Max(6000) durationMin?: number | null;
+  @ValidateIf((_, v) => v !== null && v !== undefined) @IsIn(LIBRARY_LEVELS) level?: LibraryLevel | null;
   @IsOptional() @IsBoolean() published?: boolean;
 }
 

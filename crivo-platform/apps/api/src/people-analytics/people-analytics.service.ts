@@ -1,9 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { computePeopleTrends, type PeoplePeriod } from '@crivo/types';
+import {
+  computePeopleTrends,
+  mergePeopleCatalog,
+  PEOPLE_METHODOLOGICAL_ENTRIES,
+  type PeopleCatalogEntry,
+  type PeopleHeadcountByArea,
+  type PeoplePeriod,
+} from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { AiPromptsService } from '../admin/ai-prompts.service';
-import { SavePeopleAnalyticsDto } from './dto';
+import { SavePeopleAnalyticsDto, SavePeopleCatalogDto } from './dto';
 
 type PeopleAnalysis = {
   summary: string;
@@ -45,6 +52,8 @@ export class PeopleAnalyticsService {
       values: Object.fromEntries(
         Object.entries(p.values ?? {}).map(([k, v]) => [k, v == null || (v as unknown) === '' ? null : Number(v)]),
       ),
+      // Recorte por área (opcional): guarda limpo; a supressão n<5 é no render.
+      headcountByArea: sanitizeHeadcountByArea(p.headcountByArea),
     }));
     return this.prisma.forTenant(tenantId, async (tx) => {
       const data = { periods: periods as unknown as object, updatedBy: actor ?? null };
@@ -57,6 +66,39 @@ export class PeopleAnalyticsService {
         periods: row.periods as unknown as PeoplePeriod[],
         analysis: (row.analysis as PeopleAnalysis | null) ?? null,
         analysisAt: row.analysisAt,
+        updatedAt: row.updatedAt,
+      };
+    });
+  }
+
+  /** Catálogo efetivo: scores metodológicos (fixos) + indicadores fixos com os
+   *  metadados do tenant + customizados. Só metadados — nunca valores. */
+  async getCatalog(tenantId: string): Promise<{ entries: PeopleCatalogEntry[]; updatedAt: Date | null }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const row = await tx.peopleAnalyticsData.findUnique({ where: { tenantId } });
+      return {
+        entries: mergePeopleCatalog((row?.catalog as unknown as PeopleCatalogEntry[] | null) ?? null),
+        updatedAt: row?.updatedAt ?? null,
+      };
+    });
+  }
+
+  /**
+   * Grava o catálogo do tenant. Regra de governança: natureza 'Score
+   * metodológico' é READ-ONLY aqui (vem do ICD/NR-1 — People Analytics nunca
+   * escreve em score metodológico), e as chaves desses scores não podem ser
+   * reaproveitadas por indicador customizado.
+   */
+  async saveCatalog(tenantId: string, dto: SavePeopleCatalogDto, actor?: string) {
+    const entries = validateCatalogEntries(dto.entries);
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const row = await tx.peopleAnalyticsData.upsert({
+        where: { tenantId },
+        create: { tenantId, periods: [], catalog: entries as unknown as object, updatedBy: actor ?? null },
+        update: { catalog: entries as unknown as object, updatedBy: actor ?? null },
+      });
+      return {
+        entries: mergePeopleCatalog(row.catalog as unknown as PeopleCatalogEntry[]),
         updatedAt: row.updatedAt,
       };
     });
@@ -148,4 +190,65 @@ export class PeopleAnalyticsService {
       recommendations: arr(parsed.recommendations),
     };
   }
+}
+
+/** Limpa o recorte por área: área sem nome ou n inválido cai fora; ausente vira null. */
+export function sanitizeHeadcountByArea(
+  input: PeopleHeadcountByArea[] | null | undefined,
+): PeopleHeadcountByArea[] | null {
+  if (!input || !Array.isArray(input)) return null;
+  const out = input
+    .map((a) => ({ area: String(a.area ?? '').trim(), n: Number(a.n) }))
+    .filter((a) => a.area.length > 0 && Number.isFinite(a.n) && a.n >= 0)
+    .map((a) => ({ area: a.area, n: Math.round(a.n) }));
+  return out.length ? out : null;
+}
+
+/**
+ * Regras do PUT /people-analytics/catalog (puras, testáveis):
+ *  - nenhuma entrada pode ter nature SCORE_METODOLOGICO (read-only);
+ *  - chave de score metodológico (icd, psicossocial) não pode ser usada;
+ *  - chaves únicas; campos de texto aparados; `builtin` nunca é gravado.
+ * Devolve só o que o tenant pode gravar (entradas IMPORTADO).
+ */
+export function validateCatalogEntries(entries: SavePeopleCatalogDto['entries']): PeopleCatalogEntry[] {
+  const methodological = new Set(PEOPLE_METHODOLOGICAL_ENTRIES.map((e) => e.key));
+  const seen = new Set<string>();
+  const out: PeopleCatalogEntry[] = [];
+  for (const e of entries) {
+    const key = e.key.trim();
+    if (e.nature === 'SCORE_METODOLOGICO') {
+      throw new BadRequestException(
+        `"${e.name}": indicadores de natureza "Score metodológico" vêm do ICD/NR-1 e não podem ser editados em People Analytics.`,
+      );
+    }
+    if (methodological.has(key)) {
+      throw new BadRequestException(`A chave "${key}" é reservada a um score metodológico.`);
+    }
+    if (seen.has(key)) {
+      throw new BadRequestException(`Indicador duplicado no catálogo: "${key}".`);
+    }
+    seen.add(key);
+    const txt = (v: string | null | undefined, max: number) => {
+      const t = (v ?? '').trim();
+      return t ? t.slice(0, max) : null;
+    };
+    out.push({
+      key,
+      name: e.name.trim(),
+      category: e.category.trim() || 'Geral',
+      formula: txt(e.formula, 400),
+      unit: txt(e.unit, 30),
+      source: txt(e.source, 120),
+      period: txt(e.period, 60),
+      frequency: txt(e.frequency, 40),
+      owner: txt(e.owner, 120),
+      version: txt(e.version, 20),
+      confidence: (e.confidence as PeopleCatalogEntry['confidence']) ?? null,
+      slices: txt(e.slices, 160),
+      status: e.status as PeopleCatalogEntry['status'],
+      nature: 'IMPORTADO',
+    });
+  }
+  return out;
 }
