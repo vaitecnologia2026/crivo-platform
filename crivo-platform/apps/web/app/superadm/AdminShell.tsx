@@ -265,7 +265,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "engineconfig" && <EngineConfigSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "lideranca" && <LiderancaSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "govia" && <AiGovernanceSection onNavigate={(sec) => setSection(sec as Section)} />}
-          {section === "workforce" && <WorkforceSection />}
+          {section === "workforce" && <WorkforceSection onNavigate={(sec) => setSection(sec as Section)} />}
           {section === "inteligencia" && <IntelligenceSection />}
           {section === "basecrivo" && <BaseCrivoSection />}
           {section === "ia" && <AiSettingsSection />}
@@ -385,6 +385,19 @@ const ACTION_LABEL: Record<string, string> = {
   // Módulos › Governança de IA (decisão humana do cliente no portal; painel consultado)
   "ai_governance.decision": "Decisão humana em caso de uso de IA",
   "ai_governance.view": "Painel de Governança de IA consultado",
+  "workforce.view": "Painel de Workforce Intelligence consultado",
+  "workforce.process.create": "Processo Workforce cadastrado",
+  "workforce.process.update": "Processo Workforce alterado",
+  "workforce.process.delete": "Processo Workforce excluído",
+  "workforce.task.create": "Tarefa Workforce cadastrada",
+  "workforce.task.update": "Tarefa Workforce alterada",
+  "workforce.task.delete": "Tarefa Workforce excluída",
+  "workforce.task.validate": "Validação CRIVO de tarefa Workforce",
+  "workforce.task.decision": "Decisão do cliente em tarefa Workforce (portal)",
+  "workforce.skills.update": "Skills Workforce atualizadas",
+  "workforce.pilot.create": "Piloto/blueprint Workforce cadastrado",
+  "workforce.pilot.update": "Piloto/blueprint Workforce alterado",
+  "workforce.pilot.delete": "Piloto/blueprint Workforce excluído",
   "group.portal.view": "Portal do grupo acessado",
   "tenant.group.set": "Empresa vinculada a grupo",
   // Papéis & permissões (RBAC por empresa)

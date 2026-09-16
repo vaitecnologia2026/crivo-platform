@@ -82,6 +82,19 @@ import type {
   UpdateAiIncidentRequest,
   UpsertAiPolicyRequest,
   UpdateAiPolicyRequest,
+  // Workforce Intelligence (módulo workforce)
+  WorkforceSummary,
+  WorkProcessData,
+  WorkTaskData,
+  WorkTaskFilters,
+  WorkSkillData,
+  WorkPilotData,
+  UpsertWorkProcessRequest,
+  UpsertWorkTaskRequest,
+  DecideWorkTaskRequest,
+  SaveWorkSkillsRequest,
+  UpsertWorkPilotRequest,
+  UpdateWorkPilotRequest,
 } from '@crivo/types';
 import { mensagemDeErroApi } from '@crivo/types';
 
@@ -1321,4 +1334,56 @@ export function updateAiPolicy(id: string, dto: UpdateAiPolicyRequest): Promise<
 }
 export function listAiReviews(due: AiReviewDue = 'all'): Promise<AiReviewEntry[]> {
   return apiFetch<AiReviewEntry[]>(`/ai-governance/reviews?due=${due}`);
+}
+
+// ── Programas › Workforce Intelligence (módulo 'workforce') — /workforce/* ──
+// Processos, tarefas (com validação CRIVO feita no Super Admin), skills e
+// pilotos da empresa; a decisão humana por tarefa é do cliente (POST decision).
+// Percentuais são julgamentos informados — nada calculado por IA/score.
+
+export function getWorkforceSummary(): Promise<WorkforceSummary> {
+  return apiFetch<WorkforceSummary>('/workforce/summary');
+}
+export function listWorkProcesses(): Promise<WorkProcessData[]> {
+  return apiFetch<WorkProcessData[]>('/workforce/processes');
+}
+export function createWorkProcess(dto: UpsertWorkProcessRequest): Promise<WorkProcessData> {
+  return apiFetch<WorkProcessData>('/workforce/processes', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateWorkProcess(id: string, dto: UpsertWorkProcessRequest): Promise<WorkProcessData> {
+  return apiFetch<WorkProcessData>(`/workforce/processes/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+export function listWorkTasks(filters: WorkTaskFilters = {}): Promise<WorkTaskData[]> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v);
+  const qs = params.toString();
+  return apiFetch<WorkTaskData[]>(`/workforce/tasks${qs ? `?${qs}` : ''}`);
+}
+export function getWorkTask(id: string): Promise<WorkTaskData> {
+  return apiFetch<WorkTaskData>(`/workforce/tasks/${id}`);
+}
+export function createWorkTask(dto: UpsertWorkTaskRequest): Promise<WorkTaskData> {
+  return apiFetch<WorkTaskData>('/workforce/tasks', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateWorkTask(id: string, dto: UpsertWorkTaskRequest): Promise<WorkTaskData> {
+  return apiFetch<WorkTaskData>(`/workforce/tasks/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+}
+/** Decisão do cliente (Aceitar/Condicionar/Devolver/Rejeitar) — persiste quem/quando. */
+export function decideWorkTask(id: string, dto: DecideWorkTaskRequest): Promise<WorkTaskData> {
+  return apiFetch<WorkTaskData>(`/workforce/tasks/${id}/decision`, { method: 'POST', body: JSON.stringify(dto) });
+}
+export function listWorkSkills(): Promise<WorkSkillData[]> {
+  return apiFetch<WorkSkillData[]>('/workforce/skills');
+}
+export function saveWorkSkills(dto: SaveWorkSkillsRequest): Promise<WorkSkillData[]> {
+  return apiFetch<WorkSkillData[]>('/workforce/skills', { method: 'PUT', body: JSON.stringify(dto) });
+}
+export function listWorkPilots(): Promise<WorkPilotData[]> {
+  return apiFetch<WorkPilotData[]>('/workforce/pilots');
+}
+export function createWorkPilot(dto: UpsertWorkPilotRequest): Promise<WorkPilotData> {
+  return apiFetch<WorkPilotData>('/workforce/pilots', { method: 'POST', body: JSON.stringify(dto) });
+}
+export function updateWorkPilot(id: string, dto: UpdateWorkPilotRequest): Promise<WorkPilotData> {
+  return apiFetch<WorkPilotData>(`/workforce/pilots/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }

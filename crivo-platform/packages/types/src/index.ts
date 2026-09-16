@@ -45,15 +45,18 @@ export const PERMISSIONS = [
   // Governança de IA (Programas › Governança de IA): escrita no inventário de
   // casos de uso, decisão humana, incidentes e políticas. Leitura é por papel.
   { code: "govia:manage", module: "govia", action: "manage", label: "Gerir Governança de IA" },
+  // Workforce Intelligence (Programas › Workforce Intelligence): cadastro de
+  // processos/tarefas/skills/pilotos e a decisão humana por tarefa. Leitura é por papel.
+  { code: "workforce:manage", module: "workforce", action: "manage", label: "Gerir Workforce Intelligence" },
 ] as const;
 export type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 
 /** Papéis de sistema → permissões. Espelha o RBAC estático atual (compat). */
 export const ROLE_PERMISSIONS: Record<Role, PermissionCode[]> = {
-  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
-  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
-  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view", "govia:manage"],
-  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage"],
+  ADMIN: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
+  CEO: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "branding:edit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
+  GESTOR: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "library:view", "parecer:view", "govia:manage", "workforce:manage"],
+  RH: ["leads:view", "leads:create", "leads:edit", "icd:view", "icd:submit", "users:view", "users:create", "users:edit", "library:view", "library:manage", "parecer:view", "parecer:manage", "govia:manage", "workforce:manage"],
   LIDER: ["icd:view", "library:view"],
   JURIDICO: ["icd:view", "library:view", "parecer:view"],
   COLABORADOR: ["library:view"],
@@ -4452,6 +4455,282 @@ export interface AiGovernanceAdminSummary {
   /** Estado de liberação do módulo 'govia' (mesma fonte do ModulesModal). */
   module: Pick<TenantModuleSummary, 'code' | 'name' | 'enabled' | 'availableForPlan' | 'minPlan'>;
   summary: AiGovernanceSummary;
+}
+
+// ── Workforce Intelligence (módulo 'workforce' — Programas › Workforce Intelligence) ──
+// Como o trabalho está organizado (processos, funções, tarefas, skills) e como
+// pode ser redesenhado entre pessoas, processos e IA. Os percentuais (potencial
+// IA, essencialidade humana, prontidão) são JULGAMENTOS informados por quem
+// mapeou (consultor CRIVO ou cliente) — nunca score CRIVO nem cálculo de IA.
+// Fluxo: cadastro → validação CRIVO (Super Admin) → decisão humana do cliente
+// (portal). O módulo não decide contratação/desligamento nem promete economia.
+
+/** Origem epistêmica de um insight/tarefa (compartilhada com Governança e Inteligência). */
+export const INSIGHT_ORIGINS = ['FATO', 'INFERENCIA', 'HIPOTESE', 'RECOMENDACAO'] as const;
+export type InsightOrigin = (typeof INSIGHT_ORIGINS)[number];
+export const INSIGHT_ORIGIN_LABEL: Record<InsightOrigin, string> = {
+  FATO: 'Fato',
+  INFERENCIA: 'Inferência',
+  HIPOTESE: 'Hipótese',
+  RECOMENDACAO: 'Recomendação',
+};
+
+/** Taxonomia fixa dos 7 cenários de redesenho (protótipo Super Admin › Cenários de Redesenho). */
+export const WORKFORCE_SCENARIOS = [
+  'MANTER_HUMANO',
+  'REDESENHAR_PROCESSO',
+  'CAPACITAR',
+  'AUTOMATIZAR_PARTE',
+  'COPILOTO',
+  'AGENTE_SUPERVISIONADO',
+  'NAO_RECOMENDAR_IA',
+] as const;
+export type WorkforceScenario = (typeof WORKFORCE_SCENARIOS)[number];
+export const WORKFORCE_SCENARIO_LABEL: Record<WorkforceScenario, string> = {
+  MANTER_HUMANO: 'Manter humano',
+  REDESENHAR_PROCESSO: 'Redesenhar processo',
+  CAPACITAR: 'Capacitar',
+  AUTOMATIZAR_PARTE: 'Automatizar parte',
+  COPILOTO: 'Copiloto',
+  AGENTE_SUPERVISIONADO: 'Agente supervisionado',
+  NAO_RECOMENDAR_IA: 'Não recomendar IA',
+};
+
+export const WORK_CRITICALITIES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+export type WorkCriticality = (typeof WORK_CRITICALITIES)[number];
+export const WORK_CRITICALITY_LABEL: Record<WorkCriticality, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
+
+export const WORK_RISKS = ['ALTO', 'MEDIO', 'BAIXO'] as const;
+export type WorkRisk = (typeof WORK_RISKS)[number];
+export const WORK_RISK_LABEL: Record<WorkRisk, string> = { ALTO: 'Alto', MEDIO: 'Médio', BAIXO: 'Baixo' };
+
+/** Estágio da tarefa no fluxo cadastro → validação CRIVO → decisão do cliente. */
+export const WORK_TASK_STAGES = ['RASCUNHO', 'EM_VALIDACAO_CRIVO', 'VALIDADO_CRIVO', 'DECIDIDO'] as const;
+export type WorkTaskStage = (typeof WORK_TASK_STAGES)[number];
+export const WORK_TASK_STAGE_LABEL: Record<WorkTaskStage, string> = {
+  RASCUNHO: 'Rascunho',
+  EM_VALIDACAO_CRIVO: 'Validação CRIVO',
+  VALIDADO_CRIVO: 'Validado CRIVO',
+  DECIDIDO: 'Decidido pelo cliente',
+};
+
+/** Decisão humana do cliente sobre o cenário da tarefa (bloco "Decisão do cliente"). */
+export const WORK_DECISIONS = ['ACEITAR', 'CONDICIONAR', 'DEVOLVER', 'REJEITAR'] as const;
+export type WorkDecision = (typeof WORK_DECISIONS)[number];
+export const WORK_DECISION_LABEL: Record<WorkDecision, string> = {
+  ACEITAR: 'Aceitar',
+  CONDICIONAR: 'Condicionar',
+  DEVOLVER: 'Devolver',
+  REJEITAR: 'Rejeitar',
+};
+/** DEVOLVER manda a tarefa de volta à fila de validação CRIVO; as demais encerram em DECIDIDO. */
+export const WORK_DECISION_TO_STAGE: Record<WorkDecision, WorkTaskStage> = {
+  ACEITAR: 'DECIDIDO',
+  CONDICIONAR: 'DECIDIDO',
+  DEVOLVER: 'EM_VALIDACAO_CRIVO',
+  REJEITAR: 'DECIDIDO',
+};
+
+/** Resultado da validação CRIVO (Super Admin › Validação CRIVO). */
+export const WORK_VALIDATION_RESULTS = ['VALIDADO', 'DEVOLVIDO'] as const;
+export type WorkValidationResult = (typeof WORK_VALIDATION_RESULTS)[number];
+
+export const WORK_PILOT_KINDS = ['BLUEPRINT', 'PILOTO'] as const;
+export type WorkPilotKind = (typeof WORK_PILOT_KINDS)[number];
+export const WORK_PILOT_KIND_LABEL: Record<WorkPilotKind, string> = { BLUEPRINT: 'Blueprint', PILOTO: 'Piloto' };
+
+export const WORK_CONFIDENCES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
+export type WorkConfidence = (typeof WORK_CONFIDENCES)[number];
+export const WORK_CONFIDENCE_LABEL: Record<WorkConfidence, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
+
+export const WORK_PILOT_STATUSES = ['EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'] as const;
+export type WorkPilotStatus = (typeof WORK_PILOT_STATUSES)[number];
+export const WORK_PILOT_STATUS_LABEL: Record<WorkPilotStatus, string> = {
+  EM_ANDAMENTO: 'Em andamento',
+  CONCLUIDO: 'Concluído',
+  CANCELADO: 'Cancelado',
+};
+
+/** Default do CAMPO aiThresholdPct de um processo novo (editável por processo — não é regra fixa). */
+export const WORKFORCE_AI_THRESHOLD_DEFAULT = 60;
+
+/** Processo mapeado + agregados derivados das tarefas (nunca informados à mão). */
+export interface WorkProcessData {
+  id: string;
+  name: string;
+  area: string;
+  unitId: string | null;
+  /** Limiar da empresa: tarefa com aiPotential ≥ limiar conta na cobertura de IA. */
+  aiThresholdPct: number;
+  tasksCount: number;
+  /** % de tarefas com aiPotential ≥ aiThresholdPct; null sem tarefas. */
+  aiCoveragePct: number | null;
+  /** Cenário mais frequente entre as tarefas; null sem tarefas. */
+  dominantScenario: WorkforceScenario | null;
+  /** Maior risco entre as tarefas; null sem tarefas. */
+  highestRisk: WorkRisk | null;
+  byStage: Record<WorkTaskStage, number>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkTaskData {
+  id: string;
+  /** "T-NN" sequencial por empresa (gerado no service). */
+  code: string;
+  processId: string;
+  processName: string;
+  role: string;
+  area: string;
+  name: string;
+  input: string;
+  output: string;
+  volumePerMonth: number;
+  durationMin: number;
+  criticality: WorkCriticality;
+  aiPotential: number;
+  humanEssentiality: number;
+  risk: WorkRisk;
+  readiness: number;
+  scenario: WorkforceScenario;
+  origin: InsightOrigin;
+  stage: WorkTaskStage;
+  validationNote: string | null;
+  validatedAt: string | null;
+  validatedByName: string | null;
+  decision: WorkDecision | null;
+  decisionNote: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkSkillData {
+  id: string;
+  name: string;
+  current: number;
+  target: number;
+  updatedAt: string;
+}
+
+export interface WorkPilotData {
+  id: string;
+  processId: string | null;
+  processName: string | null;
+  kind: WorkPilotKind;
+  name: string;
+  baseline: string;
+  indicator: string;
+  result: string;
+  confidence: WorkConfidence;
+  status: WorkPilotStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** KPIs da Visão Geral (GET /workforce/summary) — contagens reais. */
+export interface WorkforceSummary {
+  processes: number;
+  tasks: number;
+  skills: number;
+  pilots: { total: number; inProgress: number; concluded: number; blueprints: number };
+  byStage: Record<WorkTaskStage, number>;
+  byRisk: Record<WorkRisk, number>;
+  byScenario: Record<WorkforceScenario, number>;
+  byDecision: Record<WorkDecision, number>;
+  areas: string[];
+}
+
+export interface UpsertWorkProcessRequest {
+  name: string;
+  area: string;
+  unitId?: string | null;
+  aiThresholdPct?: number;
+}
+
+export interface UpsertWorkTaskRequest {
+  processId: string;
+  role: string;
+  area: string;
+  name: string;
+  input: string;
+  output: string;
+  volumePerMonth: number;
+  durationMin: number;
+  criticality: WorkCriticality;
+  aiPotential: number;
+  humanEssentiality: number;
+  risk: WorkRisk;
+  readiness: number;
+  scenario: WorkforceScenario;
+  origin: InsightOrigin;
+  /** Só RASCUNHO ↔ EM_VALIDACAO_CRIVO por aqui; VALIDADO_CRIVO/DECIDIDO nascem da validação e da decisão. */
+  stage?: 'RASCUNHO' | 'EM_VALIDACAO_CRIVO';
+}
+
+export interface DecideWorkTaskRequest {
+  decision: WorkDecision;
+  note?: string | null;
+}
+
+/** Validação CRIVO: VALIDADO → VALIDADO_CRIVO; DEVOLVIDO → volta a RASCUNHO. Nota obrigatória. */
+export interface ValidateWorkTaskRequest {
+  result?: WorkValidationResult;
+  note: string;
+}
+
+export interface WorkSkillInput {
+  name: string;
+  current: number;
+  target: number;
+}
+/** PUT /workforce/skills substitui o conjunto: quem não vier na lista é removido. */
+export interface SaveWorkSkillsRequest {
+  skills: WorkSkillInput[];
+}
+
+export interface UpsertWorkPilotRequest {
+  processId?: string | null;
+  kind: WorkPilotKind;
+  name: string;
+  baseline: string;
+  indicator: string;
+  result?: string;
+  confidence: WorkConfidence;
+  status?: WorkPilotStatus;
+}
+export interface UpdateWorkPilotRequest {
+  processId?: string | null;
+  kind?: WorkPilotKind;
+  name?: string;
+  baseline?: string;
+  indicator?: string;
+  result?: string;
+  confidence?: WorkConfidence;
+  status?: WorkPilotStatus;
+}
+
+export interface WorkTaskFilters {
+  area?: string;
+  risk?: string;
+  stage?: string;
+  processId?: string;
+  scenario?: string;
+}
+
+/** Painel Módulos › Workforce Intelligence do Super Admin (GET /admin/tenants/:id/workforce/summary). */
+export interface WorkforceAdminSummary {
+  company: { tenantId: string; organizationId: string; name: string; cnpj: string | null };
+  /** Estado de liberação do módulo 'workforce' (mesma fonte do ModulesModal). */
+  module: Pick<TenantModuleSummary, 'code' | 'name' | 'enabled' | 'availableForPlan' | 'minPlan'>;
+  summary: WorkforceSummary;
+}
+
+/** Detalhamento por processo (Super Admin, export CSV): processo + suas tarefas. */
+export interface WorkProcessDetail {
+  process: WorkProcessData;
+  tasks: WorkTaskData[];
 }
 
 export * from './lead-email';

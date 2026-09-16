@@ -60,6 +60,20 @@ import type {
   IcdCycleData,
   IcdCycleHistoryEntry,
   LiderancaAdminSummary,
+  // Workforce Intelligence (Módulos › Workforce Intelligence — CRUD + validação CRIVO)
+  WorkforceAdminSummary,
+  WorkProcessData,
+  WorkProcessDetail,
+  WorkTaskData,
+  WorkTaskFilters,
+  WorkSkillData,
+  WorkPilotData,
+  UpsertWorkProcessRequest,
+  UpsertWorkTaskRequest,
+  ValidateWorkTaskRequest,
+  SaveWorkSkillsRequest,
+  UpsertWorkPilotRequest,
+  UpdateWorkPilotRequest,
   // Governança de IA (Módulos › Governança de IA — leitura)
   AiGovernanceAdminSummary,
   AiUseCaseData,
@@ -2043,4 +2057,67 @@ export function importReportTemplateDocx(
     body: JSON.stringify(input),
     signal: AbortSignal.timeout(60000),
   });
+}
+
+// ── Módulos › Workforce Intelligence (Super Admin) — /admin/tenants/:id/workforce/* ──
+// `tenantId` é Tenant.id (control plane). A equipe CRIVO alimenta processos,
+// tarefas, skills e pilotos e VALIDA tarefas (fila EM_VALIDACAO_CRIVO); a
+// decisão humana é do cliente, no portal — não há rota de decisão aqui.
+
+const wfBase = (tenantId: string) => `/admin/tenants/${tenantId}/workforce`;
+
+export function getTenantWorkforceSummary(tenantId: string): Promise<WorkforceAdminSummary> {
+  return adminFetch<WorkforceAdminSummary>(`${wfBase(tenantId)}/summary`);
+}
+export function listTenantWorkProcesses(tenantId: string): Promise<WorkProcessData[]> {
+  return adminFetch<WorkProcessData[]>(`${wfBase(tenantId)}/processes`);
+}
+export function getTenantWorkProcessDetail(tenantId: string, processId: string): Promise<WorkProcessDetail> {
+  return adminFetch<WorkProcessDetail>(`${wfBase(tenantId)}/processes/${processId}/detail`);
+}
+export function createTenantWorkProcess(tenantId: string, dto: UpsertWorkProcessRequest): Promise<WorkProcessData> {
+  return adminFetch<WorkProcessData>(`${wfBase(tenantId)}/processes`, { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateTenantWorkProcess(tenantId: string, processId: string, dto: UpsertWorkProcessRequest): Promise<WorkProcessData> {
+  return adminFetch<WorkProcessData>(`${wfBase(tenantId)}/processes/${processId}`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function deleteTenantWorkProcess(tenantId: string, processId: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`${wfBase(tenantId)}/processes/${processId}`, { method: "DELETE" });
+}
+export function listTenantWorkTasks(tenantId: string, filters: WorkTaskFilters = {}): Promise<WorkTaskData[]> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v);
+  const qs = params.toString();
+  return adminFetch<WorkTaskData[]>(`${wfBase(tenantId)}/tasks${qs ? `?${qs}` : ""}`);
+}
+export function createTenantWorkTask(tenantId: string, dto: UpsertWorkTaskRequest): Promise<WorkTaskData> {
+  return adminFetch<WorkTaskData>(`${wfBase(tenantId)}/tasks`, { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateTenantWorkTask(tenantId: string, taskId: string, dto: UpsertWorkTaskRequest): Promise<WorkTaskData> {
+  return adminFetch<WorkTaskData>(`${wfBase(tenantId)}/tasks/${taskId}`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function deleteTenantWorkTask(tenantId: string, taskId: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`${wfBase(tenantId)}/tasks/${taskId}`, { method: "DELETE" });
+}
+/** Validação CRIVO: VALIDADO (→ VALIDADO_CRIVO) ou DEVOLVIDO (→ RASCUNHO), nota obrigatória, auditado. */
+export function validateTenantWorkTask(tenantId: string, taskId: string, dto: ValidateWorkTaskRequest): Promise<WorkTaskData> {
+  return adminFetch<WorkTaskData>(`${wfBase(tenantId)}/tasks/${taskId}/validate`, { method: "POST", body: JSON.stringify(dto) });
+}
+export function listTenantWorkSkills(tenantId: string): Promise<WorkSkillData[]> {
+  return adminFetch<WorkSkillData[]>(`${wfBase(tenantId)}/skills`);
+}
+export function saveTenantWorkSkills(tenantId: string, dto: SaveWorkSkillsRequest): Promise<WorkSkillData[]> {
+  return adminFetch<WorkSkillData[]>(`${wfBase(tenantId)}/skills`, { method: "PUT", body: JSON.stringify(dto) });
+}
+export function listTenantWorkPilots(tenantId: string): Promise<WorkPilotData[]> {
+  return adminFetch<WorkPilotData[]>(`${wfBase(tenantId)}/pilots`);
+}
+export function createTenantWorkPilot(tenantId: string, dto: UpsertWorkPilotRequest): Promise<WorkPilotData> {
+  return adminFetch<WorkPilotData>(`${wfBase(tenantId)}/pilots`, { method: "POST", body: JSON.stringify(dto) });
+}
+export function updateTenantWorkPilot(tenantId: string, pilotId: string, dto: UpdateWorkPilotRequest): Promise<WorkPilotData> {
+  return adminFetch<WorkPilotData>(`${wfBase(tenantId)}/pilots/${pilotId}`, { method: "PATCH", body: JSON.stringify(dto) });
+}
+export function deleteTenantWorkPilot(tenantId: string, pilotId: string): Promise<{ ok: true }> {
+  return adminFetch<{ ok: true }>(`${wfBase(tenantId)}/pilots/${pilotId}`, { method: "DELETE" });
 }

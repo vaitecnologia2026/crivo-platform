@@ -97,6 +97,7 @@ import { DiagnosticoEssencialScreen } from "./DiagnosticoEssencialScreen";
 import { PocketScreen } from "./PocketScreen";
 import { SoonScreen } from "./SoonScreen";
 import { GovernancaIaScreen } from "./GovernancaIaScreen";
+import { WorkforceScreen } from "./WorkforceScreen";
 import { EvidenciasScreen } from "./EvidenciasScreen";
 import { DocumentosScreen } from "./DocumentosScreen";
 import { ContratacaoScreen } from "./ContratacaoScreen";
@@ -348,8 +349,7 @@ export function Plataforma() {
       // Programas Plus ainda não implantados: tela honesta de status (nada de mock
       // se passando por funcionalidade — DoD v3.1). Ativados via contratação.
       if (name === "govia") mountIsland("govia-root", <GovernancaIaScreen />); // Programas › Governança de IA (módulo govia)
-      if (name === "workforce")
-        mountIsland("workforce-root", <SoonScreen title="Workforce Intelligence" sub="Processos, tarefas, skills e cenários Pessoa × Processo × IA. A decisão permanece humana." message="Programa em implantação. O Workforce Intelligence mapeia como o trabalho está organizado e como pode ser redesenhado entre pessoas, processos e IA — com pilotos e evolução acompanhados no seu plano. Fale com a CRIVO para ativar na sua contratação." />);
+      if (name === "workforce") mountIsland("workforce-root", <WorkforceScreen />); // Programas › Workforce Intelligence (módulo workforce)
       if (name === "contexto")
         mountIsland("contexto-root", <SoonScreen title="Contexto e Diretrizes" sub="Workspace da IA Contextualizada do Cliente — base segregada por CNPJ, contrato e finalidade." message="Programa em implantação. Aqui a sua empresa vai aprovar diretrizes, documentos e terminologia que a IA CRIVO pode usar — sempre em base segregada, sem uso cruzado entre clientes. Adicional premium do Motor de IA." />);
       const meta = routeMeta[name];

@@ -1301,6 +1301,11 @@ model Organization {
   aiUseCaseLinks      AiUseCaseLink[]
   aiIncidents         AiIncident[]
   aiPolicies          AiPolicy[]
+  // Workforce Intelligence (módulo workforce) — data plane do cliente.
+  workProcesses       WorkProcess[]
+  workTasks           WorkTask[]
+  workSkills          WorkSkill[]
+  workPilots          WorkPilot[]
 
   @@map("organizations")
 }
@@ -2862,4 +2867,180 @@ model AiPolicy {
 
   @@index([tenantId])
   @@map("ai_policies")
+}
+
+// =====================================================================
+// WORKFORCE INTELLIGENCE (módulo 'workforce' — Programas › Workforce
+// Intelligence). Como o trabalho está organizado (processos, funções, tarefas,
+// skills) e como pode ser redesenhado entre pessoas, processos e IA. Os
+// percentuais (potencial IA, essencialidade humana, prontidão) são JULGAMENTOS
+// de quem mapeou — nunca score CRIVO nem cálculo de IA. Fluxo da tarefa:
+// cadastro → EM_VALIDACAO_CRIVO → VALIDADO_CRIVO (Super Admin, com nota) →
+// DECIDIDO (decisão humana do cliente no portal, com quem/quando). Data plane
+// (RLS por tenant): o Super Admin escreve/lê os MESMOS models via forTenant
+// com o organizationId resolvido de Tenant.id.
+// =====================================================================
+
+enum WorkCriticality {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum WorkRisk {
+  ALTO
+  MEDIO
+  BAIXO
+}
+
+/// Taxonomia fixa dos 7 cenários de redesenho (WORKFORCE_SCENARIOS em @crivo/types).
+enum WorkScenario {
+  MANTER_HUMANO
+  REDESENHAR_PROCESSO
+  CAPACITAR
+  AUTOMATIZAR_PARTE
+  COPILOTO
+  AGENTE_SUPERVISIONADO
+  NAO_RECOMENDAR_IA
+}
+
+/// Origem epistêmica (INSIGHT_ORIGINS em @crivo/types): Fato / Inferência / Hipótese / Recomendação.
+enum InsightOrigin {
+  FATO
+  INFERENCIA
+  HIPOTESE
+  RECOMENDACAO
+}
+
+enum WorkTaskStage {
+  RASCUNHO
+  EM_VALIDACAO_CRIVO
+  VALIDADO_CRIVO
+  DECIDIDO
+}
+
+enum WorkDecision {
+  ACEITAR
+  CONDICIONAR
+  DEVOLVER
+  REJEITAR
+}
+
+enum WorkPilotKind {
+  BLUEPRINT
+  PILOTO
+}
+
+enum WorkConfidence {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum WorkPilotStatus {
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+/// Processo mapeado. `aiThresholdPct` é o limiar DA EMPRESA para "cobertura de
+/// IA" (% de tarefas com aiPotential ≥ limiar) — 60 é só o default do campo.
+model WorkProcess {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @db.Uuid
+  org            Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  area           String
+  unitId         String?      @map("unit_id") @db.Uuid // recorte opcional (Unit do Grupo Empresarial), sem FK
+  aiThresholdPct Int          @default(60) @map("ai_threshold_pct")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  tasks  WorkTask[]
+  pilots WorkPilot[]
+
+  @@index([tenantId])
+  @@map("work_processes")
+}
+
+/// Tarefa do trabalho real. `code` é "T-NN" sequencial POR EMPRESA (gerado no
+/// service). Validação CRIVO e decisão do cliente ficam na própria linha (a
+/// história completa vai para o AuditLog: workforce.task.validate / .decision).
+model WorkTask {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @db.Uuid
+  org               Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processId         String          @map("process_id") @db.Uuid
+  process           WorkProcess     @relation(fields: [processId], references: [id], onDelete: Cascade)
+  code              String
+  role              String // função
+  area              String
+  name              String // tarefa
+  input             String // entrada
+  output            String // saída
+  volumePerMonth    Int             @map("volume_per_month")
+  durationMin       Int             @map("duration_min")
+  criticality       WorkCriticality
+  aiPotential       Int             @map("ai_potential") // 0-100, julgamento informado
+  humanEssentiality Int             @map("human_essentiality") // 0-100, julgamento informado
+  risk              WorkRisk
+  readiness         Int // prontidão 0-100, julgamento informado
+  scenario          WorkScenario
+  origin            InsightOrigin
+  stage             WorkTaskStage   @default(RASCUNHO)
+  validationNote    String?         @map("validation_note")
+  validatedAt       DateTime?       @map("validated_at")
+  validatedByName   String?         @map("validated_by_name") // e-mail/nome do super admin (sem relation)
+  decision          WorkDecision?
+  decisionNote      String?         @map("decision_note")
+  decidedByUserId   String?         @map("decided_by_user_id") @db.Uuid
+  decidedByName     String?         @map("decided_by_name")
+  decidedAt         DateTime?       @map("decided_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, stage])
+  @@index([processId])
+  @@map("work_tasks")
+}
+
+/// Skill prioritária: nível atual × alvo (0-100), agregado da empresa.
+model WorkSkill {
+  id        String       @id @default(uuid()) @db.Uuid
+  tenantId  String       @db.Uuid
+  org       Organization @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  current   Int
+  target    Int
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("work_skills")
+}
+
+/// Blueprint ou piloto (entregas dentro do módulo, não códigos de módulo).
+/// Resultado com confiança declarada — nunca "economia garantida".
+model WorkPilot {
+  id         String          @id @default(uuid()) @db.Uuid
+  tenantId   String          @db.Uuid
+  org        Organization    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processId  String?         @map("process_id") @db.Uuid
+  process    WorkProcess?    @relation(fields: [processId], references: [id], onDelete: SetNull)
+  kind       WorkPilotKind   @default(PILOTO)
+  name       String
+  baseline   String
+  indicator  String
+  result     String          @default("")
+  confidence WorkConfidence
+  status     WorkPilotStatus @default(EM_ANDAMENTO)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([processId])
+  @@map("work_pilots")
 }

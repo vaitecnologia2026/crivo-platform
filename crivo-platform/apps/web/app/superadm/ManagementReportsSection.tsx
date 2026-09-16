@@ -75,7 +75,7 @@ const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 /** CSV com separador ";" e BOM — abre direto no Excel em pt-BR, sem passo de importação. */
-function downloadCsv(fileName: string, rows: (string | number)[][]) {
+export function downloadCsv(fileName: string, rows: (string | number)[][]) {
   const esc = (v: string | number) => {
     const s = String(v ?? "");
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

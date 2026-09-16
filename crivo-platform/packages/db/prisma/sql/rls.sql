@@ -63,7 +63,10 @@ DECLARE
                          -- Governança de IA (módulo govia): casos de uso, trilha de decisão,
                          -- vínculos, incidentes e políticas que o CLIENTE governa no portal.
                          'ai_use_cases','ai_use_case_decisions','ai_use_case_links',
-                         'ai_incidents','ai_policies'];
+                         'ai_incidents','ai_policies',
+                         -- Workforce Intelligence (módulo workforce): processos, tarefas
+                         -- (validação CRIVO + decisão do cliente), skills e pilotos.
+                         'work_processes','work_tasks','work_skills','work_pilots'];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Colunas em camelCase (Prisma não snake_case sem @map) → %I as cita.

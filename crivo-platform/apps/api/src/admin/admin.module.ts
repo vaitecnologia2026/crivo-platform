@@ -75,6 +75,8 @@ import { LiderancaAdminController } from './lideranca.controller';
 import { LiderancaAdminService } from './lideranca.service';
 import { AiGovernanceAdminController } from './ai-governance.controller';
 import { AiGovernanceAdminService } from './ai-governance.service';
+import { WorkforceAdminController } from './workforce.controller';
+import { WorkforceAdminService } from './workforce.service';
 // Módulos › Liderança reutiliza os services do portal (mesma composição de
 // agregados). Entram como PROVIDERS daqui — não como import de IcdCyclesModule/
 // PocketModule — porque IcdCyclesModule → IamModule → AdminModule fecharia um
@@ -86,6 +88,10 @@ import { PocketService } from '../pocket/pocket.service';
 // AuditService) entra como provider daqui para o controller admin ler os
 // mesmos dados do portal sem importar AiGovernanceModule (→ IamModule → ciclo).
 import { AiGovernanceService } from '../ai-governance/ai-governance.service';
+// Módulos › Workforce Intelligence: idem — o WorkforceService (Prisma +
+// AuditService) entra como provider para a CRIVO alimentar/validar os mesmos
+// models do portal, sem importar WorkforceModule (→ IamModule → ciclo).
+import { WorkforceService } from '../workforce/workforce.service';
 
 /**
  * Control Plane (F1) — super admin global + gestão/provisionamento de tenants.
@@ -131,6 +137,7 @@ import { AiGovernanceService } from '../ai-governance/ai-governance.service';
     AiCustomPromptsController,
     LiderancaAdminController,
     AiGovernanceAdminController,
+    WorkforceAdminController,
   ],
   providers: [
     AdminAuthService,
@@ -174,6 +181,8 @@ import { AiGovernanceService } from '../ai-governance/ai-governance.service';
     PocketService,
     AiGovernanceAdminService,
     AiGovernanceService,
+    WorkforceAdminService,
+    WorkforceService,
   ],
   exports: [AiSettingsService, EditableTextsService, AuditService, GroupsService, AiPromptsService],
 })
