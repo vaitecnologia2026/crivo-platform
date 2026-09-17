@@ -56,6 +56,7 @@ type SkillRow = { id: string; name: string; current: number; target: number; upd
 type PilotRow = {
   id: string; processId: string | null; kind: string; name: string; baseline: string; indicator: string;
   result: string; confidence: string; status: string; createdAt: Date; updatedAt: Date;
+  effort: string | null; potentialValue: string | null; partner: string | null;
   process?: { name: string } | null;
 };
 
@@ -96,7 +97,7 @@ export class WorkforceService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const [processes, tasks, skills, pilots] = await Promise.all([
         tx.workProcess.count(),
-        tx.workTask.findMany({ select: { stage: true, risk: true, scenario: true, decision: true, area: true } }),
+        tx.workTask.findMany({ select: { stage: true, risk: true, scenario: true, decision: true, area: true, role: true } }),
         tx.workSkill.count(),
         tx.workPilot.findMany({ select: { status: true, kind: true } }),
       ]);
@@ -105,12 +106,16 @@ export class WorkforceService {
       const byScenario = zero(WORKFORCE_SCENARIOS) as Record<WorkforceScenario, number>;
       const byDecision = zero(WORK_DECISIONS) as Record<WorkDecision, number>;
       const areas = new Set<string>();
+      // Funções distintas (normalizadas: trim + minúsculas) — KPI "Vagas analisadas".
+      const roles = new Set<string>();
       for (const t of tasks) {
         byStage[t.stage as WorkTaskStage] += 1;
         byRisk[t.risk as WorkRisk] += 1;
         byScenario[t.scenario as WorkforceScenario] += 1;
         if (t.decision) byDecision[t.decision as WorkDecision] += 1;
         areas.add(t.area);
+        const role = t.role.trim().toLowerCase();
+        if (role) roles.add(role);
       }
       return {
         processes,
@@ -121,7 +126,9 @@ export class WorkforceService {
           inProgress: pilots.filter((p) => p.status === 'EM_ANDAMENTO').length,
           concluded: pilots.filter((p) => p.status === 'CONCLUIDO').length,
           blueprints: pilots.filter((p) => p.kind === 'BLUEPRINT').length,
+          approvedBlueprints: pilots.filter((p) => p.kind === 'BLUEPRINT' && p.status === 'APROVADO').length,
         },
+        roles: roles.size,
         byStage,
         byRisk,
         byScenario,
@@ -417,6 +424,9 @@ export class WorkforceService {
           result: dto.result?.trim() ?? '',
           confidence: dto.confidence,
           status: dto.status ?? 'EM_ANDAMENTO',
+          effort: clean(dto.effort),
+          potentialValue: clean(dto.potentialValue),
+          partner: clean(dto.partner),
         },
         include: TASK_INCLUDE,
       });
@@ -443,6 +453,9 @@ export class WorkforceService {
           result: dto.result === undefined ? existing.result : dto.result.trim(),
           confidence: dto.confidence ?? existing.confidence,
           status: dto.status ?? existing.status,
+          effort: dto.effort === undefined ? existing.effort : clean(dto.effort),
+          potentialValue: dto.potentialValue === undefined ? existing.potentialValue : clean(dto.potentialValue),
+          partner: dto.partner === undefined ? existing.partner : clean(dto.partner),
         },
         include: TASK_INCLUDE,
       });
@@ -584,10 +597,19 @@ export class WorkforceService {
       result: p.result,
       confidence: p.confidence as WorkPilotData['confidence'],
       status: p.status as WorkPilotData['status'],
+      effort: p.effort,
+      potentialValue: p.potentialValue,
+      partner: p.partner,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     };
   }
+}
+
+/** Texto opcional: trim; vazio/undefined/null vira null (coluna nullable). */
+function clean(v: string | null | undefined): string | null {
+  const t = v?.trim() ?? '';
+  return t ? t : null;
 }
 
 function zero(keys: readonly string[]): Record<string, number> {

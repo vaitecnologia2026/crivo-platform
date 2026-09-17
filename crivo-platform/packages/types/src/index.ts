@@ -4765,10 +4765,16 @@ export const WORK_CONFIDENCES = ['ALTA', 'MEDIA', 'BAIXA'] as const;
 export type WorkConfidence = (typeof WORK_CONFIDENCES)[number];
 export const WORK_CONFIDENCE_LABEL: Record<WorkConfidence, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
 
-export const WORK_PILOT_STATUSES = ['EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO'] as const;
+/** Ciclo de vida do blueprint/piloto (protótipo Lovable do Super Admin): um blueprint
+ *  passa por EM_REVISAO → APROVADO (decisão do cliente) antes de virar piloto; um
+ *  piloto pode ser SUSPENSO conforme evidências. */
+export const WORK_PILOT_STATUSES = ['EM_REVISAO', 'APROVADO', 'EM_ANDAMENTO', 'SUSPENSO', 'CONCLUIDO', 'CANCELADO'] as const;
 export type WorkPilotStatus = (typeof WORK_PILOT_STATUSES)[number];
 export const WORK_PILOT_STATUS_LABEL: Record<WorkPilotStatus, string> = {
+  EM_REVISAO: 'Em revisão',
+  APROVADO: 'Aprovado',
   EM_ANDAMENTO: 'Em andamento',
+  SUSPENSO: 'Suspenso',
   CONCLUIDO: 'Concluído',
   CANCELADO: 'Cancelado',
 };
@@ -4853,6 +4859,11 @@ export interface WorkPilotData {
   result: string;
   confidence: WorkConfidence;
   status: WorkPilotStatus;
+  /** Atributos de decisão do blueprint (Super Admin › Blueprints): texto livre,
+   *  ex. "6 semanas" / "Estimado" / "A definir" — nunca valor garantido; null = não informado. */
+  effort: string | null;
+  potentialValue: string | null;
+  partner: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -4862,7 +4873,10 @@ export interface WorkforceSummary {
   processes: number;
   tasks: number;
   skills: number;
-  pilots: { total: number; inProgress: number; concluded: number; blueprints: number };
+  /** approvedBlueprints = kind BLUEPRINT com status APROVADO (KPI "Blueprints aprovados"). */
+  pilots: { total: number; inProgress: number; concluded: number; blueprints: number; approvedBlueprints: number };
+  /** Funções (WorkTask.role, normalizadas) distintas com ≥ 1 tarefa — KPI "Vagas analisadas". */
+  roles: number;
   byStage: Record<WorkTaskStage, number>;
   byRisk: Record<WorkRisk, number>;
   byScenario: Record<WorkforceScenario, number>;
@@ -4931,6 +4945,9 @@ export interface UpsertWorkPilotRequest {
   result?: string;
   confidence: WorkConfidence;
   status?: WorkPilotStatus;
+  effort?: string | null;
+  potentialValue?: string | null;
+  partner?: string | null;
 }
 export interface UpdateWorkPilotRequest {
   processId?: string | null;
@@ -4941,6 +4958,9 @@ export interface UpdateWorkPilotRequest {
   result?: string;
   confidence?: WorkConfidence;
   status?: WorkPilotStatus;
+  effort?: string | null;
+  potentialValue?: string | null;
+  partner?: string | null;
 }
 
 export interface WorkTaskFilters {

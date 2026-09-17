@@ -172,6 +172,15 @@ export class UpsertWorkPilotDto {
 
   @IsOptional() @IsIn([...WORK_PILOT_STATUSES])
   status?: WorkPilotStatus;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  effort?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  potentialValue?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  partner?: string | null;
 }
 
 export class UpdateWorkPilotDto {
@@ -198,4 +207,13 @@ export class UpdateWorkPilotDto {
 
   @IsOptional() @IsIn([...WORK_PILOT_STATUSES])
   status?: WorkPilotStatus;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  effort?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  potentialValue?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  partner?: string | null;
 }

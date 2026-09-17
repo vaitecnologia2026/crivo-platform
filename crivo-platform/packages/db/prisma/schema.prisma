@@ -2988,6 +2988,11 @@ enum WorkPilotStatus {
   EM_ANDAMENTO
   CONCLUIDO
   CANCELADO
+  // Protótipo Lovable do Super Admin (aba Blueprints): um blueprint passa por
+  // revisão e aprovação antes de virar piloto; um piloto pode ser suspenso.
+  EM_REVISAO
+  APROVADO
+  SUSPENSO
 }
 
 /// Processo mapeado. `aiThresholdPct` é o limiar DA EMPRESA para "cobertura de
@@ -3091,6 +3096,11 @@ model WorkPilot {
   result     String          @default("")
   confidence WorkConfidence
   status     WorkPilotStatus @default(EM_ANDAMENTO)
+  // Atributos de decisão do blueprint (protótipo Lovable do Super Admin):
+  // texto livre informado pela CRIVO, nunca valor garantido — nulos até então.
+  effort         String? @map("effort")
+  potentialValue String? @map("potential_value")
+  partner        String? @map("partner")
   createdAt  DateTime        @default(now()) @map("created_at")
   updatedAt  DateTime        @updatedAt @map("updated_at")
 

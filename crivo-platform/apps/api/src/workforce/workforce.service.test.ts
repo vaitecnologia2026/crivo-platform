@@ -356,17 +356,19 @@ describe('WorkforceService.summary — contagens reais', () => {
       workProcess: { count: vi.fn(async () => 2) },
       workTask: {
         findMany: vi.fn(async () => [
-          { stage: 'RASCUNHO', risk: 'ALTO', scenario: 'COPILOTO', decision: null, area: 'Financeiro' },
-          { stage: 'EM_VALIDACAO_CRIVO', risk: 'BAIXO', scenario: 'COPILOTO', decision: null, area: 'Pessoas' },
-          { stage: 'DECIDIDO', risk: 'MEDIO', scenario: 'MANTER_HUMANO', decision: 'ACEITAR', area: 'Pessoas' },
+          // roles: 'Analista fiscal' e ' analista FISCAL ' são a MESMA função (normalização) → 2 distintas com 'Gerente'.
+          { stage: 'RASCUNHO', risk: 'ALTO', scenario: 'COPILOTO', decision: null, area: 'Financeiro', role: 'Analista fiscal' },
+          { stage: 'EM_VALIDACAO_CRIVO', risk: 'BAIXO', scenario: 'COPILOTO', decision: null, area: 'Pessoas', role: ' analista FISCAL ' },
+          { stage: 'DECIDIDO', risk: 'MEDIO', scenario: 'MANTER_HUMANO', decision: 'ACEITAR', area: 'Pessoas', role: 'Gerente' },
         ]),
       },
       workSkill: { count: vi.fn(async () => 5) },
-      workPilot: { findMany: vi.fn(async () => [{ status: 'EM_ANDAMENTO', kind: 'PILOTO' }, { status: 'CONCLUIDO', kind: 'PILOTO' }, { status: 'EM_ANDAMENTO', kind: 'BLUEPRINT' }]) },
+      workPilot: { findMany: vi.fn(async () => [{ status: 'EM_ANDAMENTO', kind: 'PILOTO' }, { status: 'CONCLUIDO', kind: 'PILOTO' }, { status: 'EM_ANDAMENTO', kind: 'BLUEPRINT' }, { status: 'APROVADO', kind: 'BLUEPRINT' }, { status: 'APROVADO', kind: 'PILOTO' }]) },
     };
     const svc = new WorkforceService(prismaCom(tx) as never, auditFalso() as never);
     const s = await svc.summary(TENANT);
-    expect(s).toMatchObject({ processes: 2, tasks: 3, skills: 5, pilots: { total: 3, inProgress: 2, concluded: 1, blueprints: 1 } });
+    // approvedBlueprints conta só kind BLUEPRINT + APROVADO (o piloto APROVADO não entra); roles = funções distintas normalizadas.
+    expect(s).toMatchObject({ processes: 2, tasks: 3, skills: 5, roles: 2, pilots: { total: 5, inProgress: 2, concluded: 1, blueprints: 2, approvedBlueprints: 1 } });
     expect(s.byStage).toMatchObject({ RASCUNHO: 1, EM_VALIDACAO_CRIVO: 1, VALIDADO_CRIVO: 0, DECIDIDO: 1 });
     expect(s.byRisk).toMatchObject({ ALTO: 1, MEDIO: 1, BAIXO: 1 });
     expect(s.byScenario.COPILOTO).toBe(2);
