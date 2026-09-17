@@ -85,6 +85,10 @@ type PolicyRow = {
  *  - o status APROVADO/CONDICIONADO/RESTRITO/REJEITADO só nasce de uma decisão
  *    humana (decide) com justificativa obrigatória — cada decisão grava uma
  *    linha própria (AiUseCaseDecision) + AuditLog ('ai_governance.decision');
+ *  - toda ESCRITA do cliente (caso, incidente, política) vai para o AuditLog
+ *    com o ator, no mesmo padrão da decisão ('ai_governance.<alvo>.<ação>',
+ *    gravado após a transação do tenant) — é o que a aba Auditoria do Super
+ *    Admin promete ("decisões, aprovações e incidentes");
  *  - a classificação de risco é julgamento do cliente, não score CRIVO —
  *    nenhum motor de pontuação é consultado ("avaliação não certificadora");
  *  - a agenda de revisões é DERIVADA de nextReviewAt (não há tabela).
@@ -197,7 +201,7 @@ export class AiGovernanceService {
   }
 
   async createUseCase(tenantId: string, dto: UpsertAiUseCaseRequest, actor: AiGovernanceActor): Promise<AiUseCaseData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    const created = await this.prisma.forTenant(tenantId, async (tx) => {
       const code = await this.nextCode(tx);
       const row = await tx.aiUseCase.create({
         data: {
@@ -224,10 +228,18 @@ export class AiGovernanceService {
       });
       return this.toUseCase(row);
     });
+    await this.audit.record({
+      action: 'ai_governance.usecase.create',
+      actor: { id: actor.id, email: actor.email },
+      target: created.code,
+      tenantId,
+      meta: { useCaseId: created.id, code: created.code, name: created.name, inherentRisk: created.inherentRisk, status: created.status },
+    });
+    return created;
   }
 
-  async updateUseCase(tenantId: string, id: string, dto: UpsertAiUseCaseRequest): Promise<AiUseCaseData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  async updateUseCase(tenantId: string, id: string, dto: UpsertAiUseCaseRequest, actor: AiGovernanceActor): Promise<AiUseCaseData> {
+    const updated = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.aiUseCase.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Caso de uso não encontrado.');
       // Um caso já decidido só muda de status por NOVA decisão (trilha). A
@@ -259,6 +271,14 @@ export class AiGovernanceService {
       });
       return this.toUseCase(row);
     });
+    await this.audit.record({
+      action: 'ai_governance.usecase.update',
+      actor: { id: actor.id, email: actor.email },
+      target: updated.code,
+      tenantId,
+      meta: { useCaseId: id, code: updated.code, name: updated.name, inherentRisk: updated.inherentRisk, residualRisk: updated.residualRisk, status: updated.status },
+    });
+    return updated;
   }
 
   /**
@@ -356,10 +376,10 @@ export class AiGovernanceService {
     });
   }
 
-  async createIncident(tenantId: string, dto: CreateAiIncidentRequest): Promise<AiIncidentData> {
+  async createIncident(tenantId: string, dto: CreateAiIncidentRequest, actor: AiGovernanceActor): Promise<AiIncidentData> {
     const occurredAt = parseDate(dto.occurredAt);
     if (!occurredAt) throw new BadRequestException('Data do incidente inválida.');
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    const created = await this.prisma.forTenant(tenantId, async (tx) => {
       if (dto.useCaseId) {
         const uc = await tx.aiUseCase.findUnique({ where: { id: dto.useCaseId }, select: { id: true } });
         if (!uc) throw new NotFoundException('Caso de uso não encontrado.');
@@ -376,10 +396,18 @@ export class AiGovernanceService {
       });
       return this.toIncident(row);
     });
+    await this.audit.record({
+      action: 'ai_governance.incident.create',
+      actor: { id: actor.id, email: actor.email },
+      target: created.useCaseCode ?? created.id,
+      tenantId,
+      meta: { incidentId: created.id, useCaseId: created.useCaseId, code: created.useCaseCode, severity: created.severity, status: created.status, occurredAt: created.occurredAt },
+    });
+    return created;
   }
 
-  async updateIncident(tenantId: string, id: string, dto: UpdateAiIncidentRequest): Promise<AiIncidentData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  async updateIncident(tenantId: string, id: string, dto: UpdateAiIncidentRequest, actor: AiGovernanceActor): Promise<AiIncidentData> {
+    const updated = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.aiIncident.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Incidente não encontrado.');
       const occurredAt = dto.occurredAt === undefined ? existing.occurredAt : parseDate(dto.occurredAt);
@@ -394,8 +422,16 @@ export class AiGovernanceService {
         },
         include: { useCase: { select: { code: true, name: true } } },
       });
-      return this.toIncident(row);
+      return { incident: this.toIncident(row), from: existing.status as AiIncidentData['status'] };
     });
+    await this.audit.record({
+      action: 'ai_governance.incident.update',
+      actor: { id: actor.id, email: actor.email },
+      target: updated.incident.useCaseCode ?? id,
+      tenantId,
+      meta: { incidentId: id, useCaseId: updated.incident.useCaseId, code: updated.incident.useCaseCode, severity: updated.incident.severity, from: updated.from, to: updated.incident.status },
+    });
+    return updated.incident;
   }
 
   // ── Políticas ───────────────────────────────────────────────────────
@@ -407,8 +443,8 @@ export class AiGovernanceService {
     });
   }
 
-  async createPolicy(tenantId: string, dto: UpsertAiPolicyRequest): Promise<AiPolicyData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  async createPolicy(tenantId: string, dto: UpsertAiPolicyRequest, actor: AiGovernanceActor): Promise<AiPolicyData> {
+    const created = await this.prisma.forTenant(tenantId, async (tx) => {
       const status = dto.status ?? 'RASCUNHO';
       const row = await tx.aiPolicy.create({
         data: {
@@ -423,10 +459,18 @@ export class AiGovernanceService {
       });
       return this.toPolicy(row);
     });
+    await this.audit.record({
+      action: 'ai_governance.policy.create',
+      actor: { id: actor.id, email: actor.email },
+      target: `${created.title} v${created.version}`,
+      tenantId,
+      meta: { policyId: created.id, title: created.title, version: created.version, status: created.status },
+    });
+    return created;
   }
 
-  async updatePolicy(tenantId: string, id: string, dto: UpdateAiPolicyRequest): Promise<AiPolicyData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  async updatePolicy(tenantId: string, id: string, dto: UpdateAiPolicyRequest, actor: AiGovernanceActor): Promise<AiPolicyData> {
+    const updated = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.aiPolicy.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Política não encontrada.');
       const status = dto.status ?? existing.status;
@@ -442,8 +486,16 @@ export class AiGovernanceService {
           url: dto.url === undefined ? existing.url : dto.url?.trim() || null,
         },
       });
-      return this.toPolicy(row);
+      return { policy: this.toPolicy(row), from: existing.status as AiPolicyData['status'] };
     });
+    await this.audit.record({
+      action: 'ai_governance.policy.update',
+      actor: { id: actor.id, email: actor.email },
+      target: `${updated.policy.title} v${updated.policy.version}`,
+      tenantId,
+      meta: { policyId: id, title: updated.policy.title, version: updated.policy.version, from: updated.from, to: updated.policy.status },
+    });
+    return updated.policy;
   }
 
   // ── Revisões (derivadas de nextReviewAt) ────────────────────────────

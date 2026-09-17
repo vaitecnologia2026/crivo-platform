@@ -382,8 +382,14 @@ const ACTION_LABEL: Record<string, string> = {
   "icd.cycle.create": "Ciclo ICD aberto",
   "icd.cycle.close": "Ciclo ICD fechado",
   "lideranca.view": "Painel de Liderança consultado",
-  // Módulos › Governança de IA (decisão humana do cliente no portal; painel consultado)
+  // Módulos › Governança de IA (escritas do cliente no portal; painel consultado)
   "ai_governance.decision": "Decisão humana em caso de uso de IA",
+  "ai_governance.usecase.create": "Caso de uso de IA cadastrado (portal)",
+  "ai_governance.usecase.update": "Caso de uso de IA alterado (portal)",
+  "ai_governance.incident.create": "Incidente de IA registrado (portal)",
+  "ai_governance.incident.update": "Incidente de IA alterado (portal)",
+  "ai_governance.policy.create": "Política de IA cadastrada (portal)",
+  "ai_governance.policy.update": "Política de IA alterada (portal)",
   "ai_governance.view": "Painel de Governança de IA consultado",
   "workforce.view": "Painel de Workforce Intelligence consultado",
   "workforce.process.create": "Processo Workforce cadastrado",

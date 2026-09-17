@@ -153,7 +153,7 @@ describe('AiGovernanceService.updateUseCase — edição não decide', () => {
     await svc.updateUseCase(TENANT, 'uc-1', {
       name: 'Triagem', purpose: 'x', area: 'Pessoas', ownerName: 'R', technology: 'LLM', dataUsed: 'CV', audience: 'Cand.',
       inherentRisk: 'ALTO', residualRisk: 'MEDIO', status: 'RASCUNHO',
-    });
+    }, ACTOR);
     expect(data.status).toBe('APROVADO');
   });
 });
@@ -264,5 +264,122 @@ describe('AiGovernanceService.createUseCase — código IA-NN sequencial por emp
     await svc.createUseCase('org-2', dto, ACTOR);
     expect(created[0].code).toBe('IA-04');
     expect(prisma.forTenant.mock.calls.every((c) => c[0] === 'org-2')).toBe(true);
+  });
+});
+
+describe('AiGovernanceService — auditoria das escritas do cliente (casos, incidentes, políticas)', () => {
+  // A aba Auditoria do Super Admin promete "decisões, aprovações e incidentes":
+  // cada escrita do cliente precisa virar um evento ai_governance.* com ator
+  // e o tenant certo, no MESMO padrão da decisão (gravado após a transação).
+  const auditEntry = (audit: { record: ReturnType<typeof vi.fn> }) =>
+    audit.record.mock.calls[0][0] as { action: string; actor: { id: string; email: string }; tenantId: string; target: string; meta: Record<string, unknown> };
+
+  const incidente = (extra: Record<string, unknown> = {}) => ({
+    id: 'inc-1', useCaseId: 'uc-1', severity: 'MEDIA', occurredAt: new Date('2026-09-10T00:00:00Z'), description: 'Resposta inconsistente',
+    status: 'ABERTO', createdAt: new Date('2026-09-10T00:00:00Z'), updatedAt: new Date('2026-09-10T00:00:00Z'),
+    useCase: { code: 'IA-01', name: 'Triagem de currículos' }, ...extra,
+  });
+  const politica = (extra: Record<string, unknown> = {}) => ({
+    id: 'pol-1', title: 'Política de uso de IA', version: '1.0', status: 'RASCUNHO', publishedAt: null, url: null,
+    createdAt: new Date('2026-09-01T00:00:00Z'), updatedAt: new Date('2026-09-01T00:00:00Z'), ...extra,
+  });
+  const dtoCaso = {
+    name: 'Chatbot', purpose: 'Atendimento', area: 'Comercial', ownerName: 'João', technology: 'LLM API',
+    dataUsed: 'Tickets', audience: 'Clientes', inherentRisk: 'MEDIO', residualRisk: 'BAIXO',
+  } as const;
+
+  it('ai_governance.usecase.create — cadastro de caso audita com ator, código e tenant', async () => {
+    const tx = {
+      aiUseCase: {
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async (args: { data: Record<string, unknown> }) => caso({ ...args.data, code: args.data.code as string })),
+      },
+    };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.createUseCase(TENANT, dtoCaso, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.usecase.create', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: TENANT, target: 'IA-01',
+      meta: { useCaseId: 'uc-1', code: 'IA-01' },
+    });
+  });
+
+  it('ai_governance.usecase.update — edição de caso audita com ator e tenant', async () => {
+    const tx = {
+      aiUseCase: {
+        findUnique: vi.fn(async () => caso()),
+        update: vi.fn(async () => caso({ name: 'Triagem v2' })),
+      },
+    };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.updateUseCase('org-2', 'uc-1', dtoCaso, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.usecase.update', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: 'org-2', target: 'IA-01',
+      meta: { useCaseId: 'uc-1', name: 'Triagem v2' },
+    });
+  });
+
+  it('ai_governance.incident.create — incidente registrado audita com ator, caso vinculado e tenant', async () => {
+    const tx = {
+      aiUseCase: { findUnique: vi.fn(async () => ({ id: 'uc-1' })) },
+      aiIncident: { create: vi.fn(async () => incidente()) },
+    };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.createIncident(TENANT, { useCaseId: 'uc-1', severity: 'MEDIA', occurredAt: '2026-09-10', description: 'Resposta inconsistente' }, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.incident.create', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: TENANT, target: 'IA-01',
+      meta: { incidentId: 'inc-1', useCaseId: 'uc-1', severity: 'MEDIA', status: 'ABERTO' },
+    });
+  });
+
+  it('ai_governance.incident.update — mudança de situação do incidente audita a transição (from → to) no tenant certo', async () => {
+    const tx = {
+      aiIncident: {
+        findUnique: vi.fn(async () => incidente()),
+        update: vi.fn(async () => incidente({ status: 'ENCERRADO' })),
+      },
+    };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.updateIncident('org-2', 'inc-1', { status: 'ENCERRADO' }, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.incident.update', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: 'org-2', target: 'IA-01',
+      meta: { incidentId: 'inc-1', from: 'ABERTO', to: 'ENCERRADO' },
+    });
+  });
+
+  it('ai_governance.policy.create — política cadastrada audita com ator, título/versão e tenant', async () => {
+    const tx = { aiPolicy: { create: vi.fn(async () => politica()) } };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.createPolicy(TENANT, { title: 'Política de uso de IA', version: '1.0' }, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.policy.create', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: TENANT, target: 'Política de uso de IA v1.0',
+      meta: { policyId: 'pol-1', status: 'RASCUNHO' },
+    });
+  });
+
+  it('ai_governance.policy.update — aprovação de política audita a transição de status no tenant certo', async () => {
+    const tx = {
+      aiPolicy: {
+        findUnique: vi.fn(async () => politica()),
+        update: vi.fn(async () => politica({ status: 'APROVADO', publishedAt: new Date('2026-09-17T00:00:00Z') })),
+      },
+    };
+    const audit = auditFalso();
+    const svc = new AiGovernanceService(prismaCom(tx) as never, audit as never);
+    await svc.updatePolicy('org-2', 'pol-1', { status: 'APROVADO' }, ACTOR);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect(auditEntry(audit)).toMatchObject({
+      action: 'ai_governance.policy.update', actor: { id: 'user-1', email: 'renata@empresa.com' }, tenantId: 'org-2', target: 'Política de uso de IA v1.0',
+      meta: { policyId: 'pol-1', from: 'RASCUNHO', to: 'APROVADO' },
+    });
   });
 });

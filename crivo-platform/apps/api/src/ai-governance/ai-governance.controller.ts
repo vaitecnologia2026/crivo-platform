@@ -90,7 +90,7 @@ export class AiGovernanceController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpsertAiUseCaseDto,
   ) {
-    return this.svc.updateUseCase(user.tenantId, id, dto);
+    return this.svc.updateUseCase(user.tenantId, id, dto, this.actor(user));
   }
 
   /** Decisão humana (Aprovar/Condicionar/Restringir/Rejeitar) — justificativa obrigatória, trilha + auditoria. */
@@ -141,7 +141,7 @@ export class AiGovernanceController {
   @Post('incidents')
   @RequirePermission('govia:manage')
   createIncident(@CurrentUser() user: SessionUser, @Body() dto: CreateAiIncidentDto) {
-    return this.svc.createIncident(user.tenantId, dto);
+    return this.svc.createIncident(user.tenantId, dto, this.actor(user));
   }
 
   @Patch('incidents/:id')
@@ -151,7 +151,7 @@ export class AiGovernanceController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAiIncidentDto,
   ) {
-    return this.svc.updateIncident(user.tenantId, id, dto);
+    return this.svc.updateIncident(user.tenantId, id, dto, this.actor(user));
   }
 
   // ── Políticas ──
@@ -164,7 +164,7 @@ export class AiGovernanceController {
   @Post('policies')
   @RequirePermission('govia:manage')
   createPolicy(@CurrentUser() user: SessionUser, @Body() dto: CreateAiPolicyDto) {
-    return this.svc.createPolicy(user.tenantId, dto);
+    return this.svc.createPolicy(user.tenantId, dto, this.actor(user));
   }
 
   @Patch('policies/:id')
@@ -174,7 +174,7 @@ export class AiGovernanceController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAiPolicyDto,
   ) {
-    return this.svc.updatePolicy(user.tenantId, id, dto);
+    return this.svc.updatePolicy(user.tenantId, id, dto, this.actor(user));
   }
 
   // ── Revisões (derivadas de nextReviewAt) ──

@@ -46,6 +46,18 @@ import {
  * Contexto e Diretrizes (IA contextualizada do cliente). A liberação do
  * módulo 'govia' continua em Contratos e Liberações (chip aqui é só leitura).
  * Nada demonstrativo: toda aba nasce com estado vazio honesto.
+ *
+ * Desvios do protótipo (decisão de produto, não de tela):
+ *  - Riscos e Classificação: o protótipo mostra status do CONTROLE
+ *    (Implementado / Em implementação); AiUseCase.controls é lista de strings
+ *    sem status por controle. Mostramos "Status do caso" + contagem de
+ *    controles declarados. Evoluir `controls` para {descricao, status} fica
+ *    como decisão de produto.
+ *  - Evidências › "Ciclo": derivado de nextReviewAt (AAAA.S, S = semestre) —
+ *    não há entidade de ciclo no modelo.
+ *  - Visão Executiva: "evolução por trimestre" é derivada de createdAt /
+ *    decidedAt dos dados carregados; "próximos comitês" NÃO existe (sem fonte
+ *    no modelo) e não foi inventado.
  */
 
 type Tab = "visao" | "inventario" | "casos" | "riscos" | "politicas" | "aprovacoes" | "incidentes" | "evidencias" | "indicadores" | "auditoria";
@@ -65,6 +77,22 @@ const TABS: Array<[Tab, string]> = [
 const AUDIT_PREFIXES = ["ai_governance."];
 const fmtDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
 const fmtDateTime = (d: string | null | undefined) => (d ? new Date(d).toLocaleString("pt-BR") : "—");
+/** "AAAA.S" — semestre (1 = jan–jun, 2 = jul–dez) da data; "—" sem data. */
+const semestreDe = (d: string | null | undefined) => {
+  if (!d) return "—";
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return "—";
+  return `${dt.getFullYear()}.${dt.getMonth() < 6 ? 1 : 2}`;
+};
+/** "AAAA.Tn" — trimestre civil da data; null se inválida. */
+const trimestreDe = (d: string | null | undefined) => {
+  if (!d) return null;
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return null;
+  return `${dt.getFullYear()}.T${Math.floor(dt.getMonth() / 3) + 1}`;
+};
+const TRUNC = 80;
+const truncar = (t: string) => (t.length > TRUNC ? `${t.slice(0, TRUNC - 1).trimEnd()}…` : t);
 
 /** Caixa tracejada "Regras desta tela" (RuleBox do protótipo) — reusa .adm-callout. */
 function RuleBox({ children }: { children: ReactNode }) {
@@ -197,10 +225,10 @@ export function AiGovernanceSection({ onNavigate }: { onNavigate?: (section: str
               <strong className="kpi__value">{s.openIncidents}</strong>
               <span className="card__hint">{s.incidents12m} nos últimos 12 meses</span>
             </div>
-            <div className="kpi">
-              <span className="kpi__label" title="Casos com próxima revisão já vencida (nextReviewAt < hoje)">Revisões pendentes</span>
-              <strong className="kpi__value">{s.reviewsOverdue}</strong>
-              <span className="card__hint">{s.reviewsNext30d} nos próximos 30 dias</span>
+            <div className="kpi" title={`vencidas + próximos 30 dias: ${s.reviewsOverdue} vencidas · ${s.reviewsNext30d} a vencer`}>
+              <span className="kpi__label" title={`vencidas + próximos 30 dias: ${s.reviewsOverdue} vencidas · ${s.reviewsNext30d} a vencer`}>Revisões pendentes</span>
+              <strong className="kpi__value">{s.reviewsOverdue + s.reviewsNext30d}</strong>
+              <span className="card__hint">{s.reviewsOverdue} vencida(s) · {s.reviewsNext30d} a vencer em 30 dias</span>
             </div>
           </div>
 
@@ -223,10 +251,11 @@ export function AiGovernanceSection({ onNavigate }: { onNavigate?: (section: str
           {tab === "auditoria" && <AuditoriaTab key={data.company.organizationId} organizationId={data.company.organizationId} />}
 
           <RuleBox>
-            <strong>Regras desta tela.</strong> <b>IA da Plataforma</b> configura o motor CRIVO (token, modelo, prompts); <b>Governança de IA</b> é o
-            serviço contratado para o cliente governar as PRÓPRIAS IAs — a CRIVO acompanha, não decide. Cadastro, classificação de risco (avaliação do
-            cliente, não certificadora), decisão humana com justificativa, incidentes e políticas são feitos pela empresa no portal
-            (Programas › Governança de IA). Aqui é somente leitura; a liberação do módulo fica em Contratos e Liberações.
+            <strong>Regras desta tela.</strong> <b>IA da Plataforma</b> administra a tecnologia usada pela plataforma CRIVO. <b>Contexto e Diretrizes</b> adapta
+            a IA ao contexto do cliente. <b>Governança de IA</b> é o serviço contratado pelo cliente para governar seus próprios casos de uso — os três
+            domínios são separados. A CRIVO acompanha, não decide: cadastro, classificação de risco (avaliação do cliente, não certificadora), decisão
+            humana com justificativa, incidentes e políticas são feitos pela empresa no portal (Programas › Governança de IA). Aqui é somente leitura;
+            a liberação do módulo fica em Contratos e Liberações.
           </RuleBox>
         </>
       )}
@@ -242,6 +271,15 @@ function VisaoTab({ tenantId, data, onOpen }: { tenantId: string; data: AiGovern
   const s = data.summary;
   const casos = useLista(() => listTenantAiUseCases(tenantId), [tenantId]);
   const revisoes = useLista(() => listTenantAiReviews(tenantId, "overdue"), [tenantId]);
+  const dec = useLista<AiUseCaseDecisionData[]>(() => listTenantAiDecisions(tenantId), [tenantId]);
+  // Evolução por trimestre: casos por createdAt e decisões por decidedAt (só do que já foi carregado).
+  const trimestres = useMemo(() => {
+    const m = new Map<string, { casos: number; decisoes: number }>();
+    const get = (k: string) => { const cur = m.get(k) ?? { casos: 0, decisoes: 0 }; m.set(k, cur); return cur; };
+    for (const c of casos.data ?? []) { const k = trimestreDe(c.createdAt); if (k) get(k).casos += 1; }
+    for (const d of dec.data ?? []) { const k = trimestreDe(d.decidedAt); if (k) get(k).decisoes += 1; }
+    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [casos.data, dec.data]);
   const matriz = useMemo(() => {
     const m: Record<AiRiskLevel, Record<AiRiskLevel, number>> = { ALTO: { ALTO: 0, MEDIO: 0, BAIXO: 0 }, MEDIO: { ALTO: 0, MEDIO: 0, BAIXO: 0 }, BAIXO: { ALTO: 0, MEDIO: 0, BAIXO: 0 } };
     for (const c of casos.data ?? []) m[c.inherentRisk][c.residualRisk] += 1;
@@ -251,7 +289,7 @@ function VisaoTab({ tenantId, data, onOpen }: { tenantId: string; data: AiGovern
   if (s.useCases === 0) {
     return (
       <div className="card">
-        <div className="card__head"><div><h3>Panorama executivo do programa de IA do cliente</h3><span className="card__sub">Matriz de risco, pendências e revisões — a partir do que a empresa cadastrou.</span></div></div>
+        <div className="card__head"><div><h3>Panorama executivo do programa de IA do cliente</h3><span className="card__sub">Matriz de risco, pendências, revisões e evolução por trimestre — a partir do que a empresa cadastrou.</span></div></div>
         <p className="dash-state" style={{ margin: 0 }}>Esta empresa ainda não cadastrou casos de uso. O panorama aparece quando o inventário for iniciado no portal (Programas › Governança de IA).</p>
       </div>
     );
@@ -294,6 +332,22 @@ function VisaoTab({ tenantId, data, onOpen }: { tenantId: string; data: AiGovern
               ))}
             </ul>
           </>
+        )}
+      </div>
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="card__head"><div><h3>Evolução por trimestre</h3><span className="card__sub">Casos cadastrados (data de criação) e decisões registradas (data da decisão) por trimestre civil — derivado do inventário real; sem projeção.</span></div></div>
+        {(casos.err || dec.err) && <div className="dash-state dash-state--error">{casos.err ?? dec.err}</div>}
+        {!casos.err && !dec.err && (!casos.data || !dec.data) && <p className="dash-state">Carregando…</p>}
+        {casos.data && dec.data && trimestres.length === 0 && <p className="dash-state" style={{ margin: 0 }}>Sem casos ou decisões com data — nada a evoluir ainda.</p>}
+        {casos.data && dec.data && trimestres.length > 0 && (
+          <table className="data-table">
+            <thead><tr><th>Trimestre</th><th>Casos cadastrados</th><th>Decisões registradas</th></tr></thead>
+            <tbody>
+              {trimestres.map(([tri, v]) => (
+                <tr key={tri}><td><strong>{tri}</strong></td><td>{v.casos}</td><td>{v.decisoes}</td></tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -368,14 +422,19 @@ function RiscosTab({ tenantId, onOpen }: { tenantId: string; onOpen: (id: string
   const casos = useLista(() => listTenantAiUseCases(tenantId), [tenantId]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Riscos e classificação</h3><span className="card__sub">Uma linha por caso: risco inerente → residual e os controles declarados. Classificação da empresa, não score CRIVO.</span></div></div>
+      <div className="card__head"><div><h3>Riscos e classificação</h3><span className="card__sub">Uma linha por caso: risco inerente → residual, os controles declarados (texto livre, sem status de implementação) e o status do caso. Classificação da empresa, não score CRIVO.</span></div></div>
       <Tabela
         estado={casos}
         vazio="Sem casos de uso — não há riscos classificados."
-        head={["Risco", "Controle", "Status"]}
+        head={["Risco", "Controle", { label: "Controles", title: "Quantidade de controles declarados pela empresa no caso (não há status por controle no cadastro)" }, { label: "Status do caso", title: "Status do caso de uso — não do controle" }]}
         rows={(casos.data ?? []).map((c) => [
           <span key="r"><a href="#" onClick={(e) => { e.preventDefault(); onOpen(c.id); }} style={{ color: "var(--gold-deep)", fontWeight: 600 }}>{c.code}</a> · <Chip tone={riskTone(c.inherentRisk)}>inerente {AI_RISK_LABEL[c.inherentRisk]}</Chip> <Chip tone={riskTone(c.residualRisk)}>residual {AI_RISK_LABEL[c.residualRisk]}</Chip></span>,
           c.controls.length ? c.controls.join(" · ") : "— nenhum controle declarado",
+          c.controls.length
+            ? `${c.controls.length} controle(s) declarado(s)`
+            : c.inherentRisk === "ALTO"
+              ? <Chip key="c" tone="danger">Sem controle declarado</Chip>
+              : "Sem controle declarado",
           <Chip key="s" tone={statusTone(c.status)}>{AI_USE_CASE_STATUS_LABEL[c.status]}</Chip>,
         ])}
         keys={(casos.data ?? []).map((c) => c.id)}
@@ -441,7 +500,7 @@ function IncidentesTab({ tenantId, onOpen }: { tenantId: string; onOpen: (id: st
         vazio="Nenhum incidente registrado por esta empresa."
         head={["Título", "Caso", "Severidade", "Data", "Status"]}
         rows={(inc.data ?? []).map((i) => [
-          <span key="d">{i.description}</span>,
+          <span key="d" title={i.description}>{truncar(i.description)}</span>,
           i.useCaseId ? <a key="c" href="#" onClick={(e) => { e.preventDefault(); onOpen(i.useCaseId!); }} style={{ color: "var(--gold-deep)" }}>{i.useCaseCode}</a> : "—",
           <Chip key="s" tone={i.severity === "ALTA" ? "danger" : i.severity === "MEDIA" ? "gold" : undefined}>{AI_INCIDENT_SEVERITY_LABEL[i.severity]}</Chip>,
           fmtDate(i.occurredAt),
@@ -461,17 +520,17 @@ function EvidenciasTab({ tenantId, onOpen }: { tenantId: string; onOpen: (id: st
   const porCaso = useMemo(() => new Map((revisoes.data ?? []).map((r) => [r.useCaseId, r])), [revisoes.data]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Evidências e revisões</h3><span className="card__sub">Vínculos do caso com Evidências / Plano de Evolução (contagem; os títulos ficam no detalhe) e a próxima revisão. Não há “ciclo” próprio: a revisão é a data informada pela empresa.</span></div></div>
+      <div className="card__head"><div><h3>Evidências e revisões</h3><span className="card__sub">“Ciclo” é o semestre da próxima revisão informada pela empresa (AAAA.1 = jan–jun, AAAA.2 = jul–dez); “Evidências” é a contagem de vínculos do caso com Evidências / Plano de Evolução / Workforce (os títulos ficam no detalhe).</span></div></div>
       <Tabela
         estado={casos}
         vazio="Esta empresa ainda não cadastrou casos de uso."
-        head={["Caso de uso", "Próxima revisão", "Evidências / vínculos", "Status"]}
+        head={["Caso de uso", { label: "Ciclo", title: "Semestre da próxima revisão informada pela empresa (AAAA.S)" }, { label: "Evidências", title: "Quantidade de vínculos do caso (Evidências / Plano de Evolução / Workforce)" }, "Status"]}
         rows={(casos.data ?? []).map((c) => {
           const r = porCaso.get(c.id);
           return [
             <a key="n" href="#" onClick={(e) => { e.preventDefault(); onOpen(c.id); }} style={{ color: "var(--gold-deep)", fontWeight: 600 }}>{c.code} · {c.name}</a>,
-            r ? <span key="r">{fmtDate(r.nextReviewAt)} {r.overdue && <Chip tone="danger">vencida</Chip>}</span> : "—",
-            c.linksCount > 0 ? `${c.linksCount} vínculo(s)` : "nenhum",
+            <span key="r" title={c.nextReviewAt ? `Próxima revisão: ${fmtDate(c.nextReviewAt)}` : "Sem próxima revisão informada"}>{semestreDe(c.nextReviewAt)} {r?.overdue && <Chip tone="danger">vencida</Chip>}</span>,
+            c.linksCount,
             <Chip key="s" tone={statusTone(c.status)}>{AI_USE_CASE_STATUS_LABEL[c.status]}</Chip>,
           ];
         })}
@@ -546,7 +605,7 @@ function AuditoriaTab({ organizationId }: { organizationId: string }) {
   }, [organizationId]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Trilha completa de decisões, aprovações e incidentes</h3><span className="card__sub">Eventos ai_governance.* desta empresa: decisões humanas registradas no portal e consultas deste painel.</span></div></div>
+      <div className="card__head"><div><h3>Trilha completa de decisões, aprovações e incidentes</h3><span className="card__sub">Eventos ai_governance.* desta empresa: casos, decisões humanas, incidentes e políticas registrados no portal, e consultas deste painel.</span></div></div>
       {err && <div className="dash-state dash-state--error">{err}</div>}
       {rows === null && !err && <p className="dash-state">Carregando…</p>}
       {rows && rows.length === 0 && <p className="dash-state">Nenhum evento registrado para esta empresa ainda.</p>}
@@ -566,6 +625,12 @@ function AuditoriaTab({ organizationId }: { organizationId: string }) {
 
 const AUDIT_LABEL: Record<string, string> = {
   "ai_governance.decision": "Decisão humana registrada (portal)",
+  "ai_governance.usecase.create": "Caso de uso cadastrado (portal)",
+  "ai_governance.usecase.update": "Caso de uso alterado (portal)",
+  "ai_governance.incident.create": "Incidente registrado (portal)",
+  "ai_governance.incident.update": "Incidente alterado (portal)",
+  "ai_governance.policy.create": "Política cadastrada (portal)",
+  "ai_governance.policy.update": "Política alterada (portal)",
   "ai_governance.view": "Painel de Governança de IA consultado",
 };
 
@@ -643,10 +708,11 @@ function CasoModal({ tenantId, useCaseId, onClose }: { tenantId: string; useCase
 
 // ── Tabela genérica com estados (carregando / erro / vazio) ──
 
+type HeadCell = string | { label: string; title?: string };
 function Tabela<T>({ estado, vazio, head, rows, keys }: {
   estado: { data: T | null; err: string | null };
   vazio: string;
-  head: string[];
+  head: HeadCell[];
   rows: ReactNode[][];
   keys: string[];
 }) {
@@ -656,7 +722,7 @@ function Tabela<T>({ estado, vazio, head, rows, keys }: {
   return (
     <div style={{ overflowX: "auto" }}>
       <table className="data-table">
-        <thead><tr>{head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+        <thead><tr>{head.map((h) => (typeof h === "string" ? <th key={h}>{h}</th> : <th key={h.label} title={h.title}>{h.label}</th>))}</tr></thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={keys[i] ?? i}>{r.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
