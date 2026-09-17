@@ -140,12 +140,12 @@ export class WorkforceController {
   @Post('pilots')
   @RequirePermission('workforce:manage')
   createPilot(@CurrentUser() user: SessionUser, @Body() dto: UpsertWorkPilotDto) {
-    return this.svc.createPilot(user.tenantId, dto);
+    return this.svc.createPilot(user.tenantId, dto, this.actor(user));
   }
 
   @Patch('pilots/:id')
   @RequirePermission('workforce:manage')
   updatePilot(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateWorkPilotDto) {
-    return this.svc.updatePilot(user.tenantId, id, dto);
+    return this.svc.updatePilot(user.tenantId, id, dto, this.actor(user));
   }
 }

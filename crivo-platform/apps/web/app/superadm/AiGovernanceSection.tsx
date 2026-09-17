@@ -77,12 +77,16 @@ const TABS: Array<[Tab, string]> = [
 const AUDIT_PREFIXES = ["ai_governance."];
 const fmtDate = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
 const fmtDateTime = (d: string | null | undefined) => (d ? new Date(d).toLocaleString("pt-BR") : "—");
-/** "AAAA.S" — semestre (1 = jan–jun, 2 = jul–dez) da data; "—" sem data. */
+/** `nextReviewAt` é date-only gravado como meia-noite UTC: formatar em UTC para
+ *  não recuar um dia em fusos negativos (pt-BR). Só para essa data. */
+const fmtDateUTC = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—");
+/** "AAAA.S" — semestre (1 = jan–jun, 2 = jul–dez) da data; "—" sem data.
+ *  Em UTC: `nextReviewAt` é meia-noite UTC e o fuso local moveria 01/07 para 30/06. */
 const semestreDe = (d: string | null | undefined) => {
   if (!d) return "—";
   const dt = new Date(d);
   if (Number.isNaN(dt.getTime())) return "—";
-  return `${dt.getFullYear()}.${dt.getMonth() < 6 ? 1 : 2}`;
+  return `${dt.getUTCFullYear()}.${dt.getUTCMonth() < 6 ? 1 : 2}`;
 };
 /** "AAAA.Tn" — trimestre civil da data; null se inválida. */
 const trimestreDe = (d: string | null | undefined) => {
@@ -218,7 +222,7 @@ export function AiGovernanceSection({ onNavigate }: { onNavigate?: (section: str
             <div className="kpi">
               <span className="kpi__label" title="Risco inerente Alto, conforme classificação da própria empresa (não certificadora)">Riscos altos</span>
               <strong className="kpi__value">{s.highInherentRisk}</strong>
-              <span className="card__hint">{s.byResidualRisk.ALTO} com residual alto após controles</span>
+              <span className="card__hint">{s.byResidualRisk.ALTO} caso(s) com risco residual alto (independente do inerente)</span>
             </div>
             <div className="kpi">
               <span className="kpi__label">Incidentes abertos</span>
@@ -328,7 +332,7 @@ function VisaoTab({ tenantId, data, onOpen }: { tenantId: string; data: AiGovern
             <p className="card__hint" style={{ marginTop: 12 }}>Revisões vencidas:</p>
             <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 13 }}>
               {revisoes.data.map((r) => (
-                <li key={r.useCaseId}><a href="#" onClick={(e) => { e.preventDefault(); onOpen(r.useCaseId); }} style={{ color: "var(--gold-deep)" }}>{r.code} · {r.name}</a> — venceu em {fmtDate(r.nextReviewAt)}</li>
+                <li key={r.useCaseId}><a href="#" onClick={(e) => { e.preventDefault(); onOpen(r.useCaseId); }} style={{ color: "var(--gold-deep)" }}>{r.code} · {r.name}</a> — venceu em {fmtDateUTC(r.nextReviewAt)}</li>
               ))}
             </ul>
           </>
@@ -498,7 +502,7 @@ function IncidentesTab({ tenantId, onOpen }: { tenantId: string; onOpen: (id: st
       <Tabela
         estado={inc}
         vazio="Nenhum incidente registrado por esta empresa."
-        head={["Título", "Caso", "Severidade", "Data", "Status"]}
+        head={["Descrição", "Caso", "Severidade", "Data", "Status"]}
         rows={(inc.data ?? []).map((i) => [
           <span key="d" title={i.description}>{truncar(i.description)}</span>,
           i.useCaseId ? <a key="c" href="#" onClick={(e) => { e.preventDefault(); onOpen(i.useCaseId!); }} style={{ color: "var(--gold-deep)" }}>{i.useCaseCode}</a> : "—",
@@ -529,7 +533,7 @@ function EvidenciasTab({ tenantId, onOpen }: { tenantId: string; onOpen: (id: st
           const r = porCaso.get(c.id);
           return [
             <a key="n" href="#" onClick={(e) => { e.preventDefault(); onOpen(c.id); }} style={{ color: "var(--gold-deep)", fontWeight: 600 }}>{c.code} · {c.name}</a>,
-            <span key="r" title={c.nextReviewAt ? `Próxima revisão: ${fmtDate(c.nextReviewAt)}` : "Sem próxima revisão informada"}>{semestreDe(c.nextReviewAt)} {r?.overdue && <Chip tone="danger">vencida</Chip>}</span>,
+            <span key="r" title={c.nextReviewAt ? `Próxima revisão: ${fmtDateUTC(c.nextReviewAt)}` : "Sem próxima revisão informada"}>{semestreDe(c.nextReviewAt)} {r?.overdue && <Chip tone="danger">vencida</Chip>}</span>,
             c.linksCount,
             <Chip key="s" tone={statusTone(c.status)}>{AI_USE_CASE_STATUS_LABEL[c.status]}</Chip>,
           ];
@@ -605,7 +609,7 @@ function AuditoriaTab({ organizationId }: { organizationId: string }) {
   }, [organizationId]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Trilha completa de decisões, aprovações e incidentes</h3><span className="card__sub">Eventos ai_governance.* desta empresa: casos, decisões humanas, incidentes e políticas registrados no portal, e consultas deste painel.</span></div></div>
+      <div className="card__head"><div><h3>Trilha completa de decisões, aprovações e incidentes</h3><span className="card__sub">Eventos ai_governance.* desta empresa: casos, decisões humanas, incidentes e políticas registrados no portal, e consultas deste painel. Últimos 100 eventos; vínculos com Evidências/Plano/Workforce não geram evento.</span></div></div>
       {err && <div className="dash-state dash-state--error">{err}</div>}
       {rows === null && !err && <p className="dash-state">Carregando…</p>}
       {rows && rows.length === 0 && <p className="dash-state">Nenhum evento registrado para esta empresa ainda.</p>}
@@ -679,7 +683,7 @@ function CasoModal({ tenantId, useCaseId, onClose }: { tenantId: string; useCase
               </div>
               <F label="Controles" value={caso.controls.length ? caso.controls.join(" · ") : "—"} />
               <F label="Justificativa vigente" value={caso.justification ?? "—"} />
-              <F label="Próxima revisão" value={fmtDate(caso.nextReviewAt)} />
+              <F label="Próxima revisão" value={fmtDateUTC(caso.nextReviewAt)} />
               <F label="Vínculos" value={caso.links.length ? caso.links.map((l) => `${AI_LINK_KIND_LABEL[l.kind]}: ${l.label ?? "(removido)"}`).join(" · ") : "—"} />
               <F label="Incidentes" value={caso.incidents.length ? caso.incidents.map((i) => `${fmtDate(i.occurredAt)} · ${AI_INCIDENT_SEVERITY_LABEL[i.severity]} · ${AI_INCIDENT_STATUS_LABEL[i.status]}`).join(" · ") : "nenhum"} />
               <div>

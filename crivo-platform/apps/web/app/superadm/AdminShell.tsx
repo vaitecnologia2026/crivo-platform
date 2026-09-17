@@ -400,6 +400,7 @@ const ACTION_LABEL: Record<string, string> = {
   "workforce.task.delete": "Tarefa Workforce excluída",
   "workforce.task.validate": "Validação CRIVO de tarefa Workforce",
   "workforce.task.decision": "Decisão do cliente em tarefa Workforce (portal)",
+  "workforce.pilot.status": "Status de blueprint/piloto Workforce alterado pelo cliente (portal)",
   "workforce.skills.update": "Skills Workforce atualizadas",
   "workforce.pilot.create": "Piloto/blueprint Workforce cadastrado",
   "workforce.pilot.update": "Piloto/blueprint Workforce alterado",

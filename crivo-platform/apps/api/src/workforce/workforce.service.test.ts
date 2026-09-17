@@ -368,11 +368,61 @@ describe('WorkforceService.summary — contagens reais', () => {
     const svc = new WorkforceService(prismaCom(tx) as never, auditFalso() as never);
     const s = await svc.summary(TENANT);
     // approvedBlueprints conta só kind BLUEPRINT + APROVADO (o piloto APROVADO não entra); roles = funções distintas normalizadas.
-    expect(s).toMatchObject({ processes: 2, tasks: 3, skills: 5, roles: 2, pilots: { total: 5, inProgress: 2, concluded: 1, blueprints: 2, approvedBlueprints: 1 } });
+    // inProgress/concluded contam só PILOTO (o blueprint EM_ANDAMENTO fica fora).
+    expect(s).toMatchObject({ processes: 2, tasks: 3, skills: 5, roles: 2, pilots: { total: 5, inProgress: 1, concluded: 1, blueprints: 2, approvedBlueprints: 1 } });
     expect(s.byStage).toMatchObject({ RASCUNHO: 1, EM_VALIDACAO_CRIVO: 1, VALIDADO_CRIVO: 0, DECIDIDO: 1 });
     expect(s.byRisk).toMatchObject({ ALTO: 1, MEDIO: 1, BAIXO: 1 });
     expect(s.byScenario.COPILOTO).toBe(2);
     expect(s.byDecision).toMatchObject({ ACEITAR: 1, CONDICIONAR: 0, DEVOLVER: 0, REJEITAR: 0 });
     expect(s.areas).toEqual(['Financeiro', 'Pessoas']);
+  });
+});
+
+describe('WorkforceService.updatePilot/createPilot — status do blueprint decidido pelo cliente deixa rastro', () => {
+  const piloto = (extra: Record<string, unknown> = {}) => ({
+    id: 'bp-1', processId: null, kind: 'BLUEPRINT', name: 'Blueprint N1', baseline: 'b', indicator: 'i', result: '',
+    confidence: 'MEDIA', status: 'EM_REVISAO', effort: null, potentialValue: null, partner: null,
+    createdAt: AGORA, updatedAt: AGORA, process: null, ...extra,
+  });
+  function montar(statusAtual = 'EM_REVISAO') {
+    const tx = {
+      workPilot: {
+        findUnique: vi.fn(async () => piloto({ status: statusAtual })),
+        update: vi.fn(async (args: { data: Record<string, unknown> }) => piloto({ status: statusAtual, ...args.data })),
+        create: vi.fn(async (args: { data: Record<string, unknown> }) => piloto(args.data)),
+      },
+    };
+    const audit = auditFalso();
+    const svc = new WorkforceService(prismaCom(tx) as never, audit as never);
+    return { svc, audit };
+  }
+
+  it('cliente (portal, com ator) aprova: audita workforce.pilot.status com from/to e quem', async () => {
+    const { svc, audit } = montar('EM_REVISAO');
+    const out = await svc.updatePilot(TENANT, 'bp-1', { status: 'APROVADO' }, CLIENTE);
+    expect(out.status).toBe('APROVADO');
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect((audit.record as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({
+      action: 'workforce.pilot.status', tenantId: TENANT, target: 'Blueprint N1',
+      actor: { id: 'user-1', email: 'renata@empresa.com' },
+      meta: { pilotId: 'bp-1', from: 'EM_REVISAO', to: 'APROVADO', byName: 'Renata Dias' },
+    });
+  });
+
+  it('edição sem mudar status (só esforço) NÃO gera evento; sem ator (wrapper admin) também não', async () => {
+    const a = montar('EM_REVISAO');
+    await a.svc.updatePilot(TENANT, 'bp-1', { effort: '6 semanas' }, CLIENTE);
+    expect(a.audit.record).not.toHaveBeenCalled();
+
+    const b = montar('EM_REVISAO');
+    await b.svc.updatePilot(TENANT, 'bp-1', { status: 'SUSPENSO' });
+    expect(b.audit.record).not.toHaveBeenCalled();
+  });
+
+  it('criar já com status diferente do default, com ator, audita (from null)', async () => {
+    const { svc, audit } = montar();
+    await svc.createPilot(TENANT, { kind: 'BLUEPRINT', name: 'Blueprint N1', baseline: 'b', indicator: 'i', confidence: 'MEDIA', status: 'EM_REVISAO' }, CLIENTE);
+    expect(audit.record).toHaveBeenCalledTimes(1);
+    expect((audit.record as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ action: 'workforce.pilot.status', meta: { from: null, to: 'EM_REVISAO' } });
   });
 });

@@ -123,8 +123,10 @@ export class WorkforceService {
         skills,
         pilots: {
           total: pilots.length,
-          inProgress: pilots.filter((p) => p.status === 'EM_ANDAMENTO').length,
-          concluded: pilots.filter((p) => p.status === 'CONCLUIDO').length,
+          // 'Pilotos em andamento/concluídos' é o que a UI rotula — blueprints ficam fora
+          // (um blueprint EM_ANDAMENTO não é um piloto rodando).
+          inProgress: pilots.filter((p) => p.kind === 'PILOTO' && p.status === 'EM_ANDAMENTO').length,
+          concluded: pilots.filter((p) => p.kind === 'PILOTO' && p.status === 'CONCLUIDO').length,
           blueprints: pilots.filter((p) => p.kind === 'BLUEPRINT').length,
           approvedBlueprints: pilots.filter((p) => p.kind === 'BLUEPRINT' && p.status === 'APROVADO').length,
         },
@@ -407,8 +409,15 @@ export class WorkforceService {
     });
   }
 
-  async createPilot(tenantId: string, dto: UpsertWorkPilotRequest): Promise<WorkPilotData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  /**
+   * Blueprints/pilotos. `actor` é o usuário do PORTAL (cliente): quando vem,
+   * toda mudança de status é auditada com quem/quando (`workforce.pilot.status`)
+   * — APROVADO é decisão do cliente e precisa deixar rastro, como decideTask.
+   * O wrapper do Super Admin não passa actor (ele já audita pilot.create/update
+   * com o ator CRIVO) e bloqueia APROVADO antes de chegar aqui.
+   */
+  async createPilot(tenantId: string, dto: UpsertWorkPilotRequest, actor?: WorkforceActor): Promise<WorkPilotData> {
+    const out = await this.prisma.forTenant(tenantId, async (tx) => {
       if (dto.processId) {
         const p = await tx.workProcess.findUnique({ where: { id: dto.processId }, select: { id: true } });
         if (!p) throw new NotFoundException('Processo não encontrado.');
@@ -432,10 +441,12 @@ export class WorkforceService {
       });
       return this.toPilot(row);
     });
+    if (actor && dto.status && dto.status !== 'EM_ANDAMENTO') await this.auditPilotStatus(tenantId, actor, out, null);
+    return out;
   }
 
-  async updatePilot(tenantId: string, id: string, dto: UpdateWorkPilotRequest): Promise<WorkPilotData> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+  async updatePilot(tenantId: string, id: string, dto: UpdateWorkPilotRequest, actor?: WorkforceActor): Promise<WorkPilotData> {
+    const out = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.workPilot.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Piloto não encontrado.');
       if (dto.processId) {
@@ -459,7 +470,20 @@ export class WorkforceService {
         },
         include: TASK_INCLUDE,
       });
-      return this.toPilot(row);
+      return { pilot: this.toPilot(row), from: existing.status as WorkPilotData['status'] };
+    });
+    if (actor && out.pilot.status !== out.from) await this.auditPilotStatus(tenantId, actor, out.pilot, out.from);
+    return out.pilot;
+  }
+
+  /** Trilha da mudança de status feita pelo CLIENTE no portal (APROVADO, SUSPENSO, CANCELADO…). */
+  private async auditPilotStatus(tenantId: string, actor: WorkforceActor, p: WorkPilotData, from: WorkPilotData['status'] | null) {
+    await this.audit.record({
+      action: 'workforce.pilot.status',
+      actor: { id: actor.id, email: actor.email },
+      target: p.name,
+      tenantId,
+      meta: { pilotId: p.id, kind: p.kind, from, to: p.status, byName: actor.name || actor.email },
     });
   }
 

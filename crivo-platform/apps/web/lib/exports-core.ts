@@ -11,7 +11,13 @@ export interface ExportContext {
   unit?: string | null;
   cycle?: string | null;
   contract?: string | null;
+  /** Origem do relatório (1ª linha da aba Identificação). Default: o portal;
+   *  o Super Admin passa "CRIVO · Super Admin". */
+  source?: string;
 }
+
+/** Origem padrão quando `ExportContext.source` não é informado. */
+export const DEFAULT_EXPORT_SOURCE = "CRIVO · Portal do Cliente";
 
 /** Uma aba do XLSX: as linhas viram colunas pelas chaves do objeto. */
 export interface ExportSheet {
@@ -61,7 +67,7 @@ export function formatGeneratedAt(d: Date = new Date()): string {
 /** Linhas da aba "Identificação" (sempre a primeira do XLSX). Cada campo
  *  opcional do contexto só entra quando existe. */
 export function buildIdentificationRows(ctx: ExportContext, geradoEm: Date = new Date()): (string | number)[][] {
-  const rows: (string | number)[][] = [["CRIVO · Portal do Cliente"], ["Empresa", ctx.company]];
+  const rows: (string | number)[][] = [[ctx.source?.trim() || DEFAULT_EXPORT_SOURCE], ["Empresa", ctx.company]];
   if (ctx.unit) rows.push(["Unidade", ctx.unit]);
   if (ctx.cycle) rows.push(["Ciclo", ctx.cycle]);
   if (ctx.contract) rows.push(["Contratação", ctx.contract]);

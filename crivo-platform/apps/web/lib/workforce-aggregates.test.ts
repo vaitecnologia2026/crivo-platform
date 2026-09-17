@@ -38,11 +38,19 @@ describe('primitivas', () => {
     expect(cenarioPredominante(['COPILOTO', 'CAPACITAR'])).toBe('COPILOTO');
     expect(cenarioPredominante([])).toBeNull();
   });
-  it('taxaAutomatizavelPct usa o limiar do processo da tarefa (≥) e ignora processo desconhecido', () => {
+  it('taxaAutomatizavelPct usa o limiar do processo da tarefa (≥)', () => {
     const limiares = new Map([['p1', 60], ['p2', 80]]);
     expect(taxaAutomatizavelPct(tasks.slice(0, 3), limiares)).toBe(67); // 70≥60 sim, 50≥60 não, 80≥80 sim
-    expect(taxaAutomatizavelPct([tasks[3]], limiares)).toBe(0);
     expect(taxaAutomatizavelPct([], limiares)).toBeNull();
+  });
+  it('taxaAutomatizavelPct: tarefa sem processo conhecido sai do denominador (não vira "não automatizável")', () => {
+    const limiares = new Map([['p1', 60], ['p2', 80]]);
+    // só a órfã → nada classificável → null (não 0%)
+    expect(taxaAutomatizavelPct([tasks[3]], limiares)).toBeNull();
+    // p2 (80≥80 sim) + órfã (99, mas sem limiar) → 1 de 1 classificável = 100%, não 50%
+    expect(taxaAutomatizavelPct([tasks[2], tasks[3]], limiares)).toBe(100);
+    // p1 50 (não) + órfã → 0 de 1 = 0%
+    expect(taxaAutomatizavelPct([tasks[1], tasks[3]], limiares)).toBe(0);
   });
   it('tempoMedioPorTarefaMin ignora tarefas sem duração e devolve null se nenhuma tiver', () => {
     expect(tempoMedioPorTarefaMin(tasks)).toBe(20); // (30+10+20)/3
@@ -56,12 +64,17 @@ describe('agregarPorFuncao', () => {
     const r = agregarPorFuncao(tasks, procs);
     expect(r.map((x) => x.funcao)).toEqual(['Analista Fiscal', 'Assistente']);
     expect(r[0]).toEqual({ funcao: 'Analista Fiscal', tarefas: 2, taxaAutomatizavelPct: 50, risco: 'MEDIO' });
-    // órfã (processo fora da lista) conta como tarefa mas não como automatizável
-    expect(r[1]).toEqual({ funcao: 'Assistente', tarefas: 2, taxaAutomatizavelPct: 50, risco: 'ALTO' });
+    // órfã (processo fora da lista) conta como tarefa e no risco, mas fica fora da taxa (1 de 1 classificável)
+    expect(r[1]).toEqual({ funcao: 'Assistente', tarefas: 2, taxaAutomatizavelPct: 100, risco: 'ALTO' });
   });
   it('taxa fica null quando nenhuma tarefa da função tem limiar conhecido', () => {
     const r = agregarPorFuncao([tasks[3]], procs);
     expect(r[0].taxaAutomatizavelPct).toBeNull();
+  });
+  it('ignora tarefas com função vazia (só espaços) — não cria linha "" ', () => {
+    const r = agregarPorFuncao([{ ...tasks[0], role: '   ' }, { ...tasks[2], role: '' }, tasks[2]], procs);
+    expect(r.map((x) => x.funcao)).toEqual(['Assistente']);
+    expect(r[0].tarefas).toBe(1);
   });
   it('vazio → lista vazia', () => {
     expect(agregarPorFuncao([], procs)).toEqual([]);

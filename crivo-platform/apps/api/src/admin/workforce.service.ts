@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   MODULES,
   planAllowsModule,
@@ -184,7 +184,13 @@ export class WorkforceAdminService {
     return this.wf.listPilots(t.organizationId);
   }
 
+  /** APROVADO é decisão do CLIENTE (no portal, auditada com o ator) — a CRIVO não aprova blueprint pelo Super Admin. */
+  private static assertNotApproving(status: string | undefined) {
+    if (status === 'APROVADO') throw new BadRequestException('A aprovação do blueprint é decisão do cliente, feita no portal.');
+  }
+
   async createPilot(tenantId: string, dto: UpsertWorkPilotRequest, actor: AuditActor) {
+    WorkforceAdminService.assertNotApproving(dto.status);
     const t = await this.resolve(tenantId);
     const p = await this.wf.createPilot(t.organizationId, dto);
     await this.record('workforce.pilot.create', tenantId, actor, p.name, { pilotId: p.id, kind: p.kind, status: p.status });
@@ -192,6 +198,7 @@ export class WorkforceAdminService {
   }
 
   async updatePilot(tenantId: string, pilotId: string, dto: UpdateWorkPilotRequest, actor: AuditActor) {
+    WorkforceAdminService.assertNotApproving(dto.status);
     const t = await this.resolve(tenantId);
     const p = await this.wf.updatePilot(t.organizationId, pilotId, dto);
     await this.record('workforce.pilot.update', tenantId, actor, p.name, { pilotId: p.id, kind: p.kind, status: p.status });

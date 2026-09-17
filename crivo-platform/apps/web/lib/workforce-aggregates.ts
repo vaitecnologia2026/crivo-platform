@@ -49,11 +49,15 @@ export function tarefaAutomatizavel(task: Pick<WorkTaskData, "processId" | "aiPo
   return limiar != null && task.aiPotential >= limiar;
 }
 
-/** % (inteiro) de tarefas automatizáveis pela regra acima; null sem tarefas. */
+/** % (inteiro) de tarefas automatizáveis pela regra acima. O denominador é só
+ *  as tarefas cujo processo tem limiar conhecido — uma tarefa sem limiar não
+ *  pode ser classificada, então não entra nem como "não automatizável".
+ *  null quando nenhuma tarefa tem limiar conhecido. */
 export function taxaAutomatizavelPct(tasks: ReadonlyArray<Pick<WorkTaskData, "processId" | "aiPotential">>, limiarPorProcesso: ReadonlyMap<string, number>): number | null {
-  if (tasks.length === 0) return null;
-  const n = tasks.filter((t) => tarefaAutomatizavel(t, limiarPorProcesso)).length;
-  return Math.round((n / tasks.length) * 100);
+  const classificaveis = tasks.filter((t) => limiarPorProcesso.has(t.processId));
+  if (classificaveis.length === 0) return null;
+  const n = classificaveis.filter((t) => tarefaAutomatizavel(t, limiarPorProcesso)).length;
+  return Math.round((n / classificaveis.length) * 100);
 }
 
 export function limiaresPorProcesso(processos: ReadonlyArray<Pick<WorkProcessData, "id" | "aiThresholdPct">>): Map<string, number> {
@@ -69,7 +73,8 @@ export interface FuncaoAgregada {
   risco: WorkRisk | null;
 }
 
-/** Agrupa tarefas por `role`; ordena por nº de tarefas desc e nome asc. */
+/** Agrupa tarefas por `role`; ordena por nº de tarefas desc e nome asc.
+ *  Tarefas com `role` vazio (só espaços) ficam fora — não há função a exibir. */
 export function agregarPorFuncao(
   tasks: ReadonlyArray<Pick<WorkTaskData, "role" | "processId" | "aiPotential" | "risk">>,
   processos: ReadonlyArray<Pick<WorkProcessData, "id" | "aiThresholdPct">>,
@@ -78,6 +83,7 @@ export function agregarPorFuncao(
   const grupos = new Map<string, { funcao: string; itens: typeof tasks[number][] }>();
   for (const t of tasks) {
     const k = chaveRotulo(t.role);
+    if (!k) continue;
     const g = grupos.get(k);
     if (g) g.itens.push(t);
     else grupos.set(k, { funcao: t.role.trim(), itens: [t] });
@@ -86,7 +92,8 @@ export function agregarPorFuncao(
     .map(({ funcao, itens }) => ({
       funcao,
       tarefas: itens.length,
-      taxaAutomatizavelPct: itens.some((t) => limiares.has(t.processId)) ? taxaAutomatizavelPct(itens, limiares) : null,
+      // null quando nenhuma tarefa da função tem limiar conhecido (regra da própria taxa).
+      taxaAutomatizavelPct: taxaAutomatizavelPct(itens, limiares),
       risco: maiorRisco(itens.map((t) => t.risk)),
     }))
     .sort((a, b) => b.tarefas - a.tarefas || a.funcao.localeCompare(b.funcao, "pt-BR"));

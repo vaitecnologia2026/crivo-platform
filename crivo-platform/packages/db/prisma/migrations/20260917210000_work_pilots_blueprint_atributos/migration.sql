@@ -7,9 +7,9 @@
 -- já cadastrado — a UI mostra "—") e 3 valores novos no enum WorkPilotStatus
 -- (os 3 existentes continuam válidos; nenhum registro muda de status).
 
-ALTER TYPE "WorkPilotStatus" ADD VALUE 'EM_REVISAO';
-ALTER TYPE "WorkPilotStatus" ADD VALUE 'APROVADO';
-ALTER TYPE "WorkPilotStatus" ADD VALUE 'SUSPENSO';
+ALTER TYPE "WorkPilotStatus" ADD VALUE IF NOT EXISTS 'EM_REVISAO';
+ALTER TYPE "WorkPilotStatus" ADD VALUE IF NOT EXISTS 'APROVADO';
+ALTER TYPE "WorkPilotStatus" ADD VALUE IF NOT EXISTS 'SUSPENSO';
 
 ALTER TABLE "work_pilots" ADD COLUMN "effort" TEXT;
 ALTER TABLE "work_pilots" ADD COLUMN "potential_value" TEXT;

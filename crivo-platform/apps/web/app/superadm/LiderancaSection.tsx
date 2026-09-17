@@ -243,9 +243,13 @@ function Kpis({ data }: { data: LiderancaAdminSummary }) {
         </span>
       </div>
       <div className="kpi">
-        <span className="kpi__label">Ciclos em andamento</span>
-        <strong className="kpi__value">{cyc ? 1 : 0}</strong>
-        <span className="card__hint">{icd.closedCycles} ciclo(s) fechado(s) · máx. 1 aberto por empresa</span>
+        <span className="kpi__label" title="Ciclo aberto cujo início já chegou (Programado não conta)">Ciclos em andamento</span>
+        <strong className="kpi__value">{cyc && cycleStatusLabel(cyc) === "Em andamento" ? 1 : 0}</strong>
+        <span className="card__hint">
+          {cyc && cycleStatusLabel(cyc) === "Programado"
+            ? `1 ciclo programado (início ${fmtDate(cyc.startsAt)})`
+            : `${icd.closedCycles} ciclo(s) fechado(s) · máx. 1 aberto por empresa`}
+        </span>
       </div>
       <div className="kpi">
         <span className="kpi__label" title="Versão vigente do banco de perguntas Pocket (POCKET_QUESTIONS_VERSION)">Última publicação</span>
@@ -279,7 +283,7 @@ function VisaoTab({ data, icdOn }: { data: LiderancaAdminSummary; icdOn: boolean
             <tr><td>Ciclo aberto</td><td>{icd.cycle ? `${cycleLabel(icd.cycle)} · ${fmtDate(icd.cycle.startsAt)} → ${fmtDate(icd.cycle.endsAt)}` : "Nenhum ciclo aberto"}</td></tr>
             <tr><td>ICD parcial (ciclo aberto)</td><td>{icd.icdMedio != null ? `${icd.icdMedio}/100 · ${icd.band?.label ?? ""}` : icd.suppressed ? `Suprimido (${icd.participatingLeaders} líder(es) — mínimo ${MIN_LEADERS_FOR_DISCLOSURE})` : "Sem avaliações no ciclo"}</td></tr>
             <tr><td>Último ciclo fechado</td><td>{icd.lastClosed ? `${icd.lastClosed.cycleName} · ${icd.lastClosed.score != null ? `${icd.lastClosed.score}/100` : "suprimido"} · ${icd.lastClosed.eligibleLeaders} líderes` : "Nenhum ciclo fechado ainda"}</td></tr>
-            <tr><td>Pocket</td><td>{p.suppressed ? (p.participatingLeaders === 0 ? "Sem sessões concluídas no período" : `Suprimido (${p.participatingLeaders} líder(es) — mínimo ${p.minLeadersForDisclosure})`) : `${p.completedSessions} sessões · adesão ${p.adhesionPct ?? "—"}%`}{p.period ? ` · ${p.period.cycleName}` : " · todo o histórico"}</td></tr>
+            <tr><td>Pocket</td><td>{p.suppressed ? (p.participatingLeaders === 0 ? "Sem sessões concluídas no período" : `Suprimido (${p.participatingLeaders} líder(es) — mínimo ${p.minLeadersForDisclosure})`) : `${p.completedSessions} sessões · ${p.adhesionPct == null ? "adesão —" : `adesão ${p.adhesionPct}%`}`}{p.period ? ` · ${p.period.cycleName}` : " · todo o histórico"}</td></tr>
           </tbody>
         </table>
       </div>
@@ -717,6 +721,9 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
   const [err, setErr] = useState<string | null>(null);
   const [pocketCycle, setPocketCycle] = useState("");
   const [pocketAgg, setPocketAgg] = useState<PocketAggregate | null>(null);
+  // Erro do agregado do ciclo escolhido: exibido no lugar do card — nunca cai
+  // em silêncio no período atual com o select apontando para outro ciclo.
+  const [pocketErr, setPocketErr] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -730,7 +737,9 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
   useEffect(() => {
     if (!pocketCycle) return;
     let alive = true;
-    getTenantPocketAggregate(tenantId, pocketCycle).then((a) => { if (alive) setPocketAgg(a); }).catch(() => { if (alive) setPocketAgg(null); });
+    getTenantPocketAggregate(tenantId, pocketCycle)
+      .then((a) => { if (alive) { setPocketAgg(a); setPocketErr(null); } })
+      .catch((e) => { if (alive) { setPocketAgg(null); setPocketErr(e instanceof Error ? e.message : "Não foi possível carregar o Pocket agregado deste ciclo."); } });
     return () => { alive = false; };
   }, [tenantId, pocketCycle]);
 
@@ -751,7 +760,7 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
             <div style={{ overflowX: "auto", minWidth: 0, flex: "1 1 420px" }}>
               <table className="data-table">
-                <thead><tr><th>Ciclo</th><th>Fechado em</th><th>Líderes elegíveis</th><th>ICD</th><th>Faixa</th><th>Eixos (C · Cr · A · S)</th></tr></thead>
+                <thead><tr><th>Ciclo</th><th>Fechado em</th><th title="Líderes com ≥ 1 decisão avaliada no ciclo (leaderScores) — base do agregado">Líderes avaliados</th><th>ICD</th><th>Faixa</th><th>Eixos (C · Cr · A · S)</th></tr></thead>
                 <tbody>
                   {fechados.map((e) => {
                     const r = e.company;
@@ -784,12 +793,14 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
       <div className="card">
         <div className="card__head">
           <div><h3>Pocket agregado por ciclo</h3><span className="card__sub">Escolha um ciclo para ver sessões por dimensão e adesão naquele período.</span></div>
-          <select value={pocketCycle} onChange={(e) => { setPocketAgg(null); setPocketCycle(e.target.value); }} style={{ minWidth: 220 }}>
+          <select value={pocketCycle} onChange={(e) => { setPocketAgg(null); setPocketErr(null); setPocketCycle(e.target.value); }} style={{ minWidth: 220 }}>
             <option value="">{data.icd.cycle ? `Ciclo aberto (${cycleLabel(data.icd.cycle)})` : "Todo o histórico"}</option>
             {(history ?? []).map((e) => <option key={e.cycle.id} value={e.cycle.id}>{cycleLabel(e.cycle)} · {e.cycle.status === "OPEN" ? "aberto" : "fechado"}</option>)}
           </select>
         </div>
-        <PocketAggregateCard p={pocketCycle && pocketAgg ? pocketAgg : data.pocket} title={pocketCycle && pocketAgg ? `Pocket — ${pocketAgg.period?.cycleName ?? ""}` : "Pocket — período atual"} />
+        {pocketCycle && pocketErr
+          ? <div className="dash-state dash-state--error">{pocketErr}</div>
+          : <PocketAggregateCard p={pocketCycle && pocketAgg ? pocketAgg : data.pocket} title={pocketCycle && pocketAgg ? `Pocket — ${pocketAgg.period?.cycleName ?? ""}` : "Pocket — período atual"} />}
       </div>
     </>
   );
@@ -805,18 +816,19 @@ function IcdRadarCard({ entry }: { entry: IcdCycleHistoryEntry }) {
       <div className="card__head" style={{ marginBottom: 6 }}>
         <div>
           <h3 style={{ fontSize: 14 }}>Radar ICD · {cycleLabel(entry.cycle)}</h3>
-          <span className="card__sub">4 eixos, média dos líderes elegíveis (0–100), congelada no fechamento.</span>
+          <span className="card__sub">4 eixos, média dos líderes avaliados (0–100), congelada no fechamento.</span>
         </div>
       </div>
       {!r && <p className="dash-state">Ciclo fechado sem resultado congelado — nada a desenhar.</p>}
-      {r && !axes && (
+      {r && r.suppressed && (
         <p className="dash-state">
-          Suprimido: {r.eligibleLeaders} líder(es) elegível(is) — abaixo de {MIN_LEADERS_FOR_DISCLOSURE} nenhuma média por eixo é exibida (§11).
+          Suprimido: {r.eligibleLeaders} líder(es) avaliado(s) — abaixo de {MIN_LEADERS_FOR_DISCLOSURE} nenhuma média por eixo é exibida (§11).
         </p>
       )}
+      {r && !r.suppressed && !axes && <p className="dash-state">Sem médias por eixo congeladas neste ciclo.</p>}
       {axes && <IcdRadar axes={axes} />}
       {axes && r?.score != null && (
-        <span className="card__hint" style={{ display: "block", marginTop: 6 }}>ICD {r.score}/100 · {r.band?.label ?? "—"} · {r.eligibleLeaders} líderes</span>
+        <span className="card__hint" style={{ display: "block", marginTop: 6 }}>ICD {r.score}/100 · {r.band?.label ?? "—"} · {r.eligibleLeaders} líder(es) avaliado(s)</span>
       )}
     </div>
   );
@@ -873,7 +885,23 @@ function IcdRadar({ axes }: { axes: IcdAxesScores }) {
 
 // ── Versões (somente leitura) ──
 
+/** Versão ativa do Mapa Executivo (mesma leitura da aba Mapa Executivo): rótulo, "sem versão" ou falha. */
+type MapaVersaoState = { status: "loading" } | { status: "error" } | { status: "ready"; active: MethodologyVersion | null };
+
 function VersoesTab({ data, onNavigate }: { data: LiderancaAdminSummary; onNavigate?: (s: string) => void }) {
+  const [mapa, setMapa] = useState<MapaVersaoState>({ status: "loading" });
+  useEffect(() => {
+    let alive = true;
+    getActiveMethodology(MAPA_INSTRUMENT)
+      .then((active) => { if (alive) setMapa({ status: "ready", active }); })
+      .catch(() => { if (alive) setMapa({ status: "error" }); });
+    return () => { alive = false; };
+  }, []);
+  const mapaVersao =
+    mapa.status === "loading" ? <span title="Lendo a versão ativa no Motor de Diagnósticos…">…</span>
+    : mapa.status === "error" ? <span title="não foi possível ler a versão ativa" style={{ cursor: "help" }}>—</span>
+    : mapa.active ? versionLabel(mapa.active)
+    : <span title={`Sem versão publicada (status ACTIVE) do instrumento ${MAPA_INSTRUMENT} no Motor de Diagnósticos.`} style={{ cursor: "help" }}>—</span>;
   return (
     <>
       <div className="card">
@@ -883,7 +911,7 @@ function VersoesTab({ data, onNavigate }: { data: LiderancaAdminSummary; onNavig
           <tbody>
             <tr><td>ICD CRIVO™ (4 eixos, P1–P8, escala, faixas)</td><td>Anexo Técnico ICD do Líder v1</td><td>@crivo/types (ICD_AXES, ICD_AXIS_QUESTIONS, ICD_MATURITY_BANDS)</td><td>Nova versão de metodologia por deploy</td></tr>
             <tr><td>CRIVO Pocket™ (banco C1–O2)</td><td>{data.pocketQuestionsVersion}</td><td>@crivo/types (POCKET_QUESTIONS, POCKET_QUESTIONS_VERSION)</td><td>Bump da versão por deploy; sessões antigas guardam a versão usada</td></tr>
-            <tr><td>Mapa Executivo CRIVO™</td><td>—</td><td>Motor de Diagnósticos › Diagnóstico Executivo</td><td>{onNavigate ? <a href="#" onClick={(e) => { e.preventDefault(); onNavigate("metodologia"); }}>versionado no Motor</a> : "versionado no Motor"}</td></tr>
+            <tr><td>Mapa Executivo CRIVO™</td><td>{mapaVersao}</td><td>Motor de Diagnósticos › Diagnóstico Executivo</td><td>{onNavigate ? <a href="#" onClick={(e) => { e.preventDefault(); onNavigate("metodologia"); }}>versionado no Motor</a> : "versionado no Motor"}</td></tr>
           </tbody>
         </table>
       </div>
@@ -906,7 +934,7 @@ function AuditoriaTab({ organizationId }: { organizationId: string }) {
   }, [organizationId]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Trilha de eventos do programa</h3><span className="card__sub">Abertura/fechamento de ciclo e consultas ao painel desta empresa (ações icd.*, pocket.*, lideranca.*).</span></div></div>
+      <div className="card__head"><div><h3>Trilha de eventos do programa</h3><span className="card__sub">Abertura/fechamento de ciclo e consultas ao painel desta empresa (ações icd.*, lideranca.*). Últimos 100 eventos.</span></div></div>
       {err && <div className="dash-state dash-state--error">{err}</div>}
       {rows === null && !err && <p className="dash-state">Carregando…</p>}
       {rows && rows.length === 0 && <p className="dash-state">Nenhum evento registrado para esta empresa ainda.</p>}

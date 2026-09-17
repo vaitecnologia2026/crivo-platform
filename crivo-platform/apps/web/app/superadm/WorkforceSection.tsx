@@ -92,6 +92,15 @@ const TABS: Array<[Tab, string]> = [
 ];
 
 const AUDIT_PREFIXES = ["workforce."];
+
+/**
+ * Status que a CRIVO pode definir pelo Super Admin. APROVADO é decisão do
+ * CLIENTE no portal (a API devolve 400 se o admin tentar) — só aparece na lista
+ * quando já é o status atual, para o select não "esconder" o valor vigente.
+ */
+function statusOptionsFor(current?: WorkPilotStatus): WorkPilotStatus[] {
+  return WORK_PILOT_STATUSES.filter((st) => st !== "APROVADO" || st === current);
+}
 const fmtDateTime = (d: string | null | undefined) => (d ? new Date(d).toLocaleString("pt-BR") : "—");
 
 /** Caixa tracejada "Regras desta tela" (RuleBox do protótipo) — reusa .adm-callout. */
@@ -225,7 +234,7 @@ export function WorkforceSection({ onNavigate }: { onNavigate?: (section: string
             <div className="kpi">
               <span className="kpi__label" title="Processos cadastrados no mapeamento">Processos mapeados</span>
               <strong className="kpi__value">{s.processes}</strong>
-              <span className="card__hint">{s.areas.length} área(s) com tarefas</span>
+              <span className="card__hint">{s.areas.length} área(s) informadas nas tarefas</span>
             </div>
             <div className="kpi">
               <span className="kpi__label" title="Cenários da taxonomia com pelo menos uma tarefa">Cenários ativos</span>
@@ -291,7 +300,7 @@ function VisaoTab({ tenantId, summary }: { tenantId: string; summary: WorkforceA
         <Tabela
           estado={estadoAreas}
           vazio="Nenhuma área mapeada — cadastre o primeiro processo em Tarefas e Processos."
-          head={["Área", "Processos", "Cenário", "Risco", "Status"]}
+          head={["Área", "Processos", "Cenário", "Risco", "Estágio mais avançado"]}
           rows={areas.map((a) => [
             <strong key="a">{a.area}</strong>,
             a.processos,
@@ -553,7 +562,7 @@ function EntregasTab({ tenantId, kind, onChanged }: { tenantId: string; kind: Wo
   }
   const statusSelect = (p: WorkPilotData) => (
     <select key="s" className="select-pill" value={p.status} disabled={busy === p.id} onChange={(e) => mudarStatus(p, e.target.value as WorkPilotStatus)} style={{ fontSize: 12 }}>
-      {WORK_PILOT_STATUSES.map((st) => <option key={st} value={st}>{WORK_PILOT_STATUS_LABEL[st]}</option>)}
+      {statusOptionsFor(p.status).map((st) => <option key={st} value={st}>{WORK_PILOT_STATUS_LABEL[st]}</option>)}
     </select>
   );
   const acoes = (p: WorkPilotData) => (
@@ -747,7 +756,7 @@ function AuditoriaTab({ organizationId }: { organizationId: string }) {
   }, [organizationId]);
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Governança e trilha completa das decisões</h3><span className="card__sub">Eventos workforce.* desta empresa: cadastro e validação pela CRIVO, decisões do cliente no portal e consultas deste painel.</span></div></div>
+      <div className="card__head"><div><h3>Governança e trilha completa das decisões</h3><span className="card__sub">Eventos workforce.* desta empresa: cadastro e validação pela CRIVO, decisões do cliente no portal e consultas deste painel. Últimos 100 eventos. Cadastros feitos pela própria empresa no portal (processos/tarefas) não geram evento; a mudança de status de blueprint/piloto pelo cliente gera (workforce.pilot.status).</span></div></div>
       {err && <div className="dash-state dash-state--error">{err}</div>}
       {rows === null && !err && <p className="dash-state">Carregando…</p>}
       {rows && rows.length === 0 && <p className="dash-state">Nenhum evento registrado para esta empresa ainda.</p>}
@@ -774,6 +783,7 @@ const AUDIT_LABEL: Record<string, string> = {
   "workforce.task.update": "Tarefa alterada",
   "workforce.task.delete": "Tarefa excluída",
   "workforce.task.validate": "Validação CRIVO",
+  "workforce.pilot.status": "Status de blueprint/piloto alterado pelo cliente (portal)",
   "workforce.task.decision": "Decisão do cliente (portal)",
   "workforce.skills.update": "Skills atualizadas",
   "workforce.pilot.create": "Piloto/blueprint cadastrado",
@@ -806,6 +816,7 @@ function DrillModal({ tenantId, company, modulo, onClose }: {
   // cabeçalho do XLSX usa a empresa selecionada; "contratação" só se o módulo
   // estiver liberado — o que não existe fica fora, nunca é inventado.
   const ctx: ExportContext = {
+    source: "CRIVO · Super Admin",
     company: company.cnpj ? `${company.name} · ${company.cnpj}` : company.name,
     contract: modulo.enabled ? modulo.name : null,
   };
@@ -815,12 +826,16 @@ function DrillModal({ tenantId, company, modulo, onClose }: {
     try {
       await exportXLSX("workforce-processos-detalhamento", [
         { name: "Processos", rows: linhas.map((l) => ({
-          Processo: l.processo, Área: l.area, Tarefas: l.tarefas, Automatizável: l.automatizavel, Limiar: l.limiar, Risco: l.risco, "Cenário predominante": l.cenario,
+          Processo: l.processo, Área: l.area, Tarefas: l.tarefas, "Cobertura IA (% tarefas ≥ limiar)": l.automatizavel, Limiar: l.limiar, Risco: l.risco, "Cenário predominante": l.cenario,
         })) },
+        // Todas as colunas de WorkTaskData que o detalhamento antigo (CSV) já exportava — nada calculado.
         { name: "Tarefas", rows: (tarefas.data ?? []).map((t) => ({
-          Código: t.code, Processo: t.processName, Área: t.area, Função: t.role, Tarefa: t.name, "Potencial IA (%)": t.aiPotential,
-          Risco: WORK_RISK_LABEL[t.risk], Cenário: WORKFORCE_SCENARIO_LABEL[t.scenario], Estágio: WORK_TASK_STAGE_LABEL[t.stage],
-          Decisão: t.decision ? WORK_DECISION_LABEL[t.decision] : "—",
+          Código: t.code, Processo: t.processName, Área: t.area, Função: t.role, Tarefa: t.name,
+          "Volume/mês": t.volumePerMonth, "Duração (min)": t.durationMin, Criticidade: WORK_CRITICALITY_LABEL[t.criticality],
+          "Potencial IA informado (%)": t.aiPotential, "Essencialidade humana (%)": t.humanEssentiality,
+          Risco: WORK_RISK_LABEL[t.risk], "Prontidão (%)": t.readiness, Cenário: WORKFORCE_SCENARIO_LABEL[t.scenario],
+          Origem: INSIGHT_ORIGIN_LABEL[t.origin], Estágio: WORK_TASK_STAGE_LABEL[t.stage],
+          Decisão: t.decision ? WORK_DECISION_LABEL[t.decision] : "—", "Decidido por": t.decidedByName ?? "—", "Decidido em": fmtDateTime(t.decidedAt),
         })) },
       ], ctx);
     } finally {
@@ -835,7 +850,7 @@ function DrillModal({ tenantId, company, modulo, onClose }: {
         <header className="modal__head">
           <div>
             <h2>Detalhamento por processo</h2>
-            <span className="card__hint">Registros que compõem os cenários e blueprints exibidos — {company.name}.</span>
+            <span className="card__hint">Processos e tarefas que compõem os cenários exibidos — {company.name}.</span>
           </div>
           <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Fechar</button>
         </header>
@@ -853,7 +868,7 @@ function DrillModal({ tenantId, company, modulo, onClose }: {
             rows={linhas.map((l) => [<strong key="p">{l.processo}</strong>, l.area, l.tarefas, l.automatizavel, l.limiar, l.risco, l.cenario])}
             keys={(procs.data ?? []).map((p) => p.id)}
           />
-          <p className="card__hint" style={{ marginTop: 10, fontSize: 10 }}>Detalhamento respeita permissões, amostra mínima e confidencialidade.</p>
+          <p className="card__hint" style={{ marginTop: 10, fontSize: 10 }}>Detalhamento respeita as permissões do painel e a confidencialidade da empresa.</p>
         </div>
         <div className="modal__foot">
           <button type="button" className="btn btn--gold btn--sm" disabled={!procs.data?.length || !tarefas.data || exportando} onClick={exportar}>{exportando ? "Exportando…" : "Exportar XLSX"}</button>
@@ -1168,7 +1183,7 @@ function PilotoForm({ tenantId, initial, kindPadrao = "PILOTO", onClose, onSaved
             </label>
             <label className="prod-field">
               <span>Status</span>
-              <select value={status} onChange={(e) => setStatus(e.target.value as WorkPilotStatus)}>{WORK_PILOT_STATUSES.map((s) => <option key={s} value={s}>{WORK_PILOT_STATUS_LABEL[s]}</option>)}</select>
+              <select value={status} onChange={(e) => setStatus(e.target.value as WorkPilotStatus)}>{statusOptionsFor(initial?.status).map((s) => <option key={s} value={s}>{WORK_PILOT_STATUS_LABEL[s]}</option>)}</select>
             </label>
             <label className="prod-field"><span>Esforço</span><input value={effort} onChange={(e) => setEffort(e.target.value)} placeholder="Ex.: 6 semanas" /></label>
             <label className="prod-field"><span>Valor potencial</span><input value={potentialValue} onChange={(e) => setPotentialValue(e.target.value)} placeholder="Ex.: Estimado — nunca garantido" /></label>

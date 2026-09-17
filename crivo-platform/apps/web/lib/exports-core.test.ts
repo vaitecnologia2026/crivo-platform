@@ -41,6 +41,11 @@ describe('aba Identificação', () => {
     expect(labels).toEqual(['CRIVO · Portal do Cliente', 'Empresa', 'Gerado em']);
     expect(JSON.stringify(rows)).not.toContain('—');
   });
+
+  it('usa `source` na 1ª linha quando informado (Super Admin) e cai no portal quando vazio', () => {
+    expect(buildIdentificationRows({ company: 'X', source: 'CRIVO · Super Admin' }, GERADO_EM)[0]).toEqual(['CRIVO · Super Admin']);
+    expect(buildIdentificationRows({ company: 'X', source: '   ' }, GERADO_EM)[0]).toEqual(['CRIVO · Portal do Cliente']);
+  });
 });
 
 describe('linha de contexto do PDF', () => {

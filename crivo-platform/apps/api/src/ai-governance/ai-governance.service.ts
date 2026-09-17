@@ -85,7 +85,9 @@ type PolicyRow = {
  *  - o status APROVADO/CONDICIONADO/RESTRITO/REJEITADO só nasce de uma decisão
  *    humana (decide) com justificativa obrigatória — cada decisão grava uma
  *    linha própria (AiUseCaseDecision) + AuditLog ('ai_governance.decision');
- *  - toda ESCRITA do cliente (caso, incidente, política) vai para o AuditLog
+ *  - as escritas de caso, incidente e política vão para o AuditLog (vínculos
+ *    com Evidências/Plano/Workforce não são auditados de propósito — são
+ *    referências, não decisões)
  *    com o ator, no mesmo padrão da decisão ('ai_governance.<alvo>.<ação>',
  *    gravado após a transação do tenant) — é o que a aba Auditoria do Super
  *    Admin promete ("decisões, aprovações e incidentes");

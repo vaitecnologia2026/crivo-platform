@@ -4873,7 +4873,7 @@ export interface WorkforceSummary {
   processes: number;
   tasks: number;
   skills: number;
-  /** approvedBlueprints = kind BLUEPRINT com status APROVADO (KPI "Blueprints aprovados"). */
+  /** inProgress/concluded = só kind PILOTO; approvedBlueprints = kind BLUEPRINT com status APROVADO. */
   pilots: { total: number; inProgress: number; concluded: number; blueprints: number; approvedBlueprints: number };
   /** Funções (WorkTask.role, normalizadas) distintas com ≥ 1 tarefa — KPI "Vagas analisadas". */
   roles: number;
