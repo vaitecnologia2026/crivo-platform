@@ -17,6 +17,7 @@ import {
   POCKET_DIMENSION_LABEL,
   POCKET_QUESTIONS,
   POCKET_QUESTIONS_VERSION,
+  type IcdAxesScores,
   type IcdAxis,
   type IcdCycleData,
   type IcdCycleHistoryEntry,
@@ -26,15 +27,20 @@ import {
 import {
   closeTenantIcdCycle,
   createTenantIcdCycle,
+  getActiveMethodology,
   getAuditLog,
   getIntelligenceCompanies,
   getLiderancaSummary,
   getTenantIcdHistory,
   getTenantPocketAggregate,
+  listReportTemplates,
   listTenantIcdCycles,
   type AuditEntry,
   type IntelligenceCompany,
+  type MethodologyVersion,
+  type ReportTemplateRow,
 } from "@/lib/admin-api";
+import { cycleStatusLabel } from "@/lib/icd-cycle-status";
 
 /**
  * Módulos › Liderança — workspace administrativo do programa Liderança
@@ -46,11 +52,20 @@ import {
  * liberação icd/lider/pocket, agregados do ciclo aberto), icd-cycles (listar/
  * abrir/fechar), icd-cycles/history (resultados congelados), pocket/aggregate
  * e /admin/audit filtrado por empresa + prefixo icd./pocket./lideranca.
+ * A aba Mapa Executivo lê o instrumento PRE_DIAGNOSTIC do Motor de
+ * Diagnósticos (GET /admin/methodology/instrument/PRE_DIAGNOSTIC/active) e os
+ * modelos de relatório vinculados a ele (GET /admin/reports/templates) — sem
+ * entidade própria aqui, para não duplicar cadastro.
  *
  * O que é DEFINIÇÃO (eixos, afirmações, escala, pesos, faixas, banco Pocket,
  * versões) vive em código (@crivo/types) e aparece aqui SOMENTE LEITURA — uma
- * alteração é nova versão de metodologia, publicada por deploy. Nada por
- * líder: só agregados com supressão n < MIN_LEADERS_FOR_DISCLOSURE.
+ * alteração é nova versão de metodologia, publicada por deploy. Decisão de
+ * produto: o editor no-code de perguntas/dimensões previsto no protótipo NÃO
+ * foi implementado (alterações passam por homologação e vão por deploy). Nada
+ * por líder: só agregados com supressão n < MIN_LEADERS_FOR_DISCLOSURE.
+ *
+ * Status "Programado" da aba Ciclos é DERIVADO (lib/icd-cycle-status.ts): o
+ * modelo só persiste OPEN/CLOSED.
  */
 
 type Tab = "visao" | "mapa" | "icd" | "pocket" | "perguntas" | "escalas" | "ciclos" | "resultados" | "versoes" | "auditoria";
@@ -176,8 +191,9 @@ export function LiderancaSection({ onNavigate }: { onNavigate?: (section: string
           <RuleBox>
             <strong>Regras desta tela.</strong> Registros de decisão e reflexões Pocket são de leitura restrita ao líder — o Super Admin
             vê apenas agregados com supressão n &lt; {MIN_LEADERS_FOR_DISCLOSURE} (Anexo ICD §11 / Anexo Pocket §13). O ICD segue quatro
-            eixos (Clareza · Critério · Alinhamento · Sustentação) com pesos iguais. Perguntas, escalas, pesos e faixas são definição em
-            código (@crivo/types): alteração é nova versão de metodologia, publicada por deploy — nunca editada aqui.
+            eixos (Clareza · Critério · Alinhamento · Sustentação) com pesos iguais. Não há ranking individual sensível. Novas versões
+            organizacionais requerem aprovação CRIVO + cliente. Perguntas, escalas, pesos e faixas são definição em código (@crivo/types):
+            alteração é nova versão de metodologia, publicada por deploy — nunca editada aqui.
           </RuleBox>
         </>
       )}
@@ -220,9 +236,11 @@ function Kpis({ data }: { data: LiderancaAdminSummary }) {
         <span className="card__hint">{cyc ? `no ciclo aberto ${cycleLabel(cyc)}` : "nenhum ciclo aberto"}</span>
       </div>
       <div className="kpi">
-        <span className="kpi__label" title="Líderes ativos (User.role LIDER) vs. líderes com ≥ 1 decisão avaliada no ciclo aberto">Líderes elegíveis · participantes</span>
-        <strong className="kpi__value">{icd.eligibleLeaders}<small> · {cyc ? icd.participatingLeaders : "—"}</small></strong>
-        <span className="card__hint">{cyc ? "elegíveis · com avaliação no ciclo aberto" : "líderes ativos cadastrados"}</span>
+        <span className="kpi__label" title="Líderes ativos da empresa (User.role LIDER, ativos) — elegíveis ao ICD">Líderes ativos</span>
+        <strong className="kpi__value">{icd.eligibleLeaders}</strong>
+        <span className="card__hint" title="Líderes distintos com ≥ 1 decisão avaliada pelo ICD no ciclo aberto">
+          {cyc ? `${icd.participatingLeaders} participante(s) no ciclo aberto` : "nenhum ciclo aberto"}
+        </span>
       </div>
       <div className="kpi">
         <span className="kpi__label">Ciclos em andamento</span>
@@ -269,12 +287,69 @@ function VisaoTab({ data, icdOn }: { data: LiderancaAdminSummary; icdOn: boolean
   );
 }
 
-// ── Mapa Executivo — sem entidade própria: encaminha ao Motor de Diagnósticos ──
+// ── Mapa Executivo — sem entidade própria: lê o instrumento PRE_DIAGNOSTIC do
+// Motor de Diagnósticos (versão ativa + modelos de relatório vinculados) ──
+
+const MAPA_INSTRUMENT = "PRE_DIAGNOSTIC";
+
+type MapaInstrumentState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; active: MethodologyVersion | null; templates: ReportTemplateRow[] };
+
+/** Rótulo de versão como o Motor mostra ("V3 - Diagnóstico Executivo"); cai no número quando não há rótulo. */
+const versionLabel = (v: MethodologyVersion) => (v.label?.trim() ? v.label.trim() : `V${v.version}`);
 
 function MapaTab({ onNavigate }: { onNavigate?: (s: string) => void }) {
+  const [state, setState] = useState<MapaInstrumentState>({ status: "loading" });
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getActiveMethodology(MAPA_INSTRUMENT), listReportTemplates()])
+      .then(([active, templates]) => {
+        if (!alive) return;
+        // Só os modelos ATIVOS vinculados ao instrumento — os desativados continuam
+        // no Motor 4 por histórico de emissões, mas não são "o template" vigente.
+        setState({ status: "ready", active, templates: templates.filter((t) => t.instrumentSlug === MAPA_INSTRUMENT && t.active) });
+      })
+      .catch(() => { if (alive) setState({ status: "error" }); });
+    return () => { alive = false; };
+  }, []);
+
+  const active = state.status === "ready" ? state.active : null;
+  const templates = state.status === "ready" ? state.templates : [];
+  const dash = (title: string) => <span title={title} style={{ cursor: "help" }}>—</span>;
+
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Mapa Executivo CRIVO™</h3><span className="card__sub">Instrumento de leitura executiva por C-level.</span></div></div>
+      <div className="card__head">
+        <div><h3>Mapa Executivo CRIVO™</h3><span className="card__sub">Instrumento de leitura executiva por C-level.</span></div>
+        {active && <Chip tone="gold">versão ativa no Motor</Chip>}
+      </div>
+
+      {state.status === "loading" && <p className="dash-state">Lendo o instrumento Diagnóstico Executivo no Motor de Diagnósticos…</p>}
+      {state.status === "error" && <div className="dash-state dash-state--error">Não foi possível ler o instrumento no Motor de Diagnósticos.</div>}
+      {state.status === "ready" && (
+        <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 8 }}>
+          <div className="card__hint" style={{ fontSize: 12 }}>
+            Versão{" "}
+            {active ? <strong>{versionLabel(active)}</strong> : dash(`Sem versão publicada (status ACTIVE) do instrumento ${MAPA_INSTRUMENT} no Motor de Diagnósticos.`)}
+            {" · "}Última publicação{" "}
+            {active?.publishedAt
+              ? <strong>{fmtDate(active.publishedAt)}</strong>
+              : dash(active ? "Versão ativa sem data de publicação registrada (publishedAt vazio)." : "Sem versão publicada — não há data.")}
+          </div>
+          <div style={{ color: "var(--text-sec)" }}>
+            {active ? <strong>{active.questions.length}</strong> : dash("Sem versão publicada — não há perguntas ativas.")}
+            {" "}perguntas ativas · template{" "}
+            {templates.length > 0
+              ? templates.map((t, i) => <span key={t.id}>{i > 0 ? " / " : ""}“{t.name}”</span>)
+              : dash("Nenhum modelo de relatório ATIVO vinculado ao instrumento em Relatórios e Dossiês › Modelos.")}
+            .
+          </div>
+        </div>
+      )}
+
       <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-sec)" }}>
         O Mapa Executivo não tem entidade própria nesta seção: as perguntas, o template do relatório e as versões são geridos no
         <strong> Motor de Diagnósticos › Diagnóstico Executivo</strong> (instrumento PRE_DIAGNOSTIC e seus modelos de relatório). Aqui ele
@@ -416,7 +491,12 @@ function PerguntasTab() {
           ))}
         </div>
       </div>
-      <RuleBox><strong>Definição em código.</strong> Perguntas e dimensões não são editáveis aqui: uma alteração é nova versão de metodologia (bump de POCKET_QUESTIONS_VERSION / Anexo ICD), publicada por deploy e homologada com o cliente.</RuleBox>
+      <RuleBox>
+        <strong>Definição em código.</strong> Perguntas e dimensões não são editáveis aqui: uma alteração é nova versão de metodologia (bump de
+        POCKET_QUESTIONS_VERSION / Anexo ICD), publicada por deploy e homologada com o cliente. <strong>Decisão de produto:</strong> o editor
+        no-code previsto no protótipo foi substituído por definição em código versionada — alterações passam por homologação e são publicadas
+        por deploy.
+      </RuleBox>
     </>
   );
 }
@@ -500,7 +580,7 @@ function CiclosTab({ tenantId, icdOn, onChanged }: { tenantId: string; icdOn: bo
                 <td>{c.quarter}º/{c.year}</td>
                 <td>{fmtDate(c.startsAt)}</td>
                 <td>{fmtDate(c.endsAt)}</td>
-                <td>{c.status === "OPEN" ? <Chip tone="gold">Em andamento</Chip> : <Chip>Fechado</Chip>}</td>
+                <td><CycleStatusChip cycle={c} /></td>
                 <td>{fmtDateTime(c.closedAt)}</td>
                 <td>{c.status === "OPEN" && <button className="btn btn--outline-dark btn--sm" onClick={() => setClosing(c)}>Fechar ciclo</button>}</td>
               </tr>
@@ -526,6 +606,16 @@ function CiclosTab({ tenantId, icdOn, onChanged }: { tenantId: string; icdOn: bo
       )}
     </div>
   );
+}
+
+/** Chip Programado / Em andamento / Fechado — derivado de status + startsAt (lib/icd-cycle-status). */
+function CycleStatusChip({ cycle }: { cycle: IcdCycleData }) {
+  const label = cycleStatusLabel(cycle);
+  if (label === "Programado") {
+    return <Chip><span title={`Ciclo aberto com início em ${fmtDate(cycle.startsAt)} — ainda não começou a acumular decisões`}>Programado</span></Chip>;
+  }
+  if (label === "Em andamento") return <Chip tone="gold">Em andamento</Chip>;
+  return <Chip>Fechado</Chip>;
 }
 
 function OpenCycleModal({ tenantId, onClose, onCreated }: { tenantId: string; onClose: () => void; onCreated: () => void }) {
@@ -644,34 +734,50 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
     return () => { alive = false; };
   }, [tenantId, pocketCycle]);
 
+  // history vem em ordem cronológica (year, quarter asc): o último fechado é o final da lista.
   const fechados = (history ?? []).filter((e) => e.cycle.status === "CLOSED");
+  // Ciclo do radar: clique na linha; sem escolha, o último fechado.
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const selected = fechados.find((e) => e.cycle.id === selectedCycleId) ?? fechados[fechados.length - 1] ?? null;
 
   return (
     <>
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card__head"><div><h3>Resultados por ciclo</h3><span className="card__sub">ICD oficial congelado no fechamento (CompanyQuarterlyIcd). Sem ranking individual — agregado, suprimido abaixo de {MIN_LEADERS_FOR_DISCLOSURE} líderes.</span></div></div>
+        <div className="card__head"><div><h3>Resultados por ciclo</h3><span className="card__sub">ICD oficial congelado no fechamento (CompanyQuarterlyIcd). Sem ranking individual — agregado, suprimido abaixo de {MIN_LEADERS_FOR_DISCLOSURE} líderes. Clique numa linha para ver o radar dos 4 eixos.</span></div></div>
         {err && <div className="dash-state dash-state--error">{err}</div>}
         {history === null && !err && <p className="dash-state">Carregando…</p>}
         {history && fechados.length === 0 && <p className="dash-state">Nenhum ciclo fechado ainda. Os resultados aparecem após o fechamento de um ciclo.</p>}
         {fechados.length > 0 && (
-          <table className="data-table">
-            <thead><tr><th>Ciclo</th><th>Fechado em</th><th>Líderes elegíveis</th><th>ICD</th><th>Faixa</th><th>Eixos (C · Cr · A · S)</th></tr></thead>
-            <tbody>
-              {fechados.map((e) => {
-                const r = e.company;
-                return (
-                  <tr key={e.cycle.id}>
-                    <td><strong>{cycleLabel(e.cycle)}</strong></td>
-                    <td>{fmtDateTime(e.cycle.closedAt)}</td>
-                    <td>{r?.eligibleLeaders ?? "—"}</td>
-                    <td>{!r ? "—" : r.suppressed || r.score == null ? <Chip>Suprimido (&lt; {MIN_LEADERS_FOR_DISCLOSURE})</Chip> : <strong>{r.score}/100</strong>}</td>
-                    <td>{r?.band?.label ?? "—"}</td>
-                    <td>{r?.axesAverage ? ICD_AXES.map((ax) => Math.round(r.axesAverage![ax] ?? 0)).join(" · ") : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ overflowX: "auto", minWidth: 0, flex: "1 1 420px" }}>
+              <table className="data-table">
+                <thead><tr><th>Ciclo</th><th>Fechado em</th><th>Líderes elegíveis</th><th>ICD</th><th>Faixa</th><th>Eixos (C · Cr · A · S)</th></tr></thead>
+                <tbody>
+                  {fechados.map((e) => {
+                    const r = e.company;
+                    const isSel = selected?.cycle.id === e.cycle.id;
+                    return (
+                      <tr
+                        key={e.cycle.id}
+                        onClick={() => setSelectedCycleId(e.cycle.id)}
+                        aria-selected={isSel}
+                        title="Ver o radar dos 4 eixos deste ciclo"
+                        style={{ cursor: "pointer", background: isSel ? "var(--line-soft)" : undefined, boxShadow: isSel ? "inset 3px 0 0 var(--gold)" : undefined }}
+                      >
+                        <td><strong>{cycleLabel(e.cycle)}</strong></td>
+                        <td>{fmtDateTime(e.cycle.closedAt)}</td>
+                        <td>{r?.eligibleLeaders ?? "—"}</td>
+                        <td>{!r ? "—" : r.suppressed || r.score == null ? <Chip>Suprimido (&lt; {MIN_LEADERS_FOR_DISCLOSURE})</Chip> : <strong>{r.score}/100</strong>}</td>
+                        <td>{r?.band?.label ?? "—"}</td>
+                        <td>{r?.axesAverage ? ICD_AXES.map((ax) => Math.round(r.axesAverage![ax] ?? 0)).join(" · ") : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {selected && <IcdRadarCard entry={selected} />}
+          </div>
         )}
       </div>
 
@@ -686,6 +792,82 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
         <PocketAggregateCard p={pocketCycle && pocketAgg ? pocketAgg : data.pocket} title={pocketCycle && pocketAgg ? `Pocket — ${pocketAgg.period?.cycleName ?? ""}` : "Pocket — período atual"} />
       </div>
     </>
+  );
+}
+
+// ── Radar dos 4 eixos do ciclo selecionado (SVG inline, escala 0–100) ──
+
+function IcdRadarCard({ entry }: { entry: IcdCycleHistoryEntry }) {
+  const r = entry.company;
+  const axes = r && !r.suppressed ? r.axesAverage : null;
+  return (
+    <div className="card" style={{ padding: 16, minWidth: 260, maxWidth: 320 }}>
+      <div className="card__head" style={{ marginBottom: 6 }}>
+        <div>
+          <h3 style={{ fontSize: 14 }}>Radar ICD · {cycleLabel(entry.cycle)}</h3>
+          <span className="card__sub">4 eixos, média dos líderes elegíveis (0–100), congelada no fechamento.</span>
+        </div>
+      </div>
+      {!r && <p className="dash-state">Ciclo fechado sem resultado congelado — nada a desenhar.</p>}
+      {r && !axes && (
+        <p className="dash-state">
+          Suprimido: {r.eligibleLeaders} líder(es) elegível(is) — abaixo de {MIN_LEADERS_FOR_DISCLOSURE} nenhuma média por eixo é exibida (§11).
+        </p>
+      )}
+      {axes && <IcdRadar axes={axes} />}
+      {axes && r?.score != null && (
+        <span className="card__hint" style={{ display: "block", marginTop: 6 }}>ICD {r.score}/100 · {r.band?.label ?? "—"} · {r.eligibleLeaders} líderes</span>
+      )}
+    </div>
+  );
+}
+
+/** Radar de 4 eixos (Clareza · Critério · Alinhamento · Sustentação), 0–100, sem biblioteca. */
+function IcdRadar({ axes }: { axes: IcdAxesScores }) {
+  const width = 340;
+  const height = 240;
+  const cx = width / 2;
+  const cy = height / 2;
+  const radius = 76;
+  // Ângulos: Clareza no topo e sentido horário — a ordem de ICD_AXES.
+  const point = (i: number, v: number) => {
+    const ang = -Math.PI / 2 + (i * Math.PI) / 2;
+    const rr = (Math.max(0, Math.min(100, v)) / 100) * radius;
+    return [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)] as const;
+  };
+  const polygon = ICD_AXES.map((ax, i) => point(i, axes[ax] ?? 0).join(",")).join(" ");
+  // Rótulos: topo/base centralizados a 14px do vértice; direita/esquerda ancorados para fora.
+  const labelPos = (i: number) => {
+    const [x, y] = point(i, 100);
+    if (i === 0) return [x, y - 14] as const;
+    if (i === 2) return [x, y + 14] as const;
+    return [i === 1 ? x + 8 : x - 8, y] as const;
+  };
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={`Radar ICD: ${ICD_AXES.map((ax) => `${AXIS_SHORT[ax]} ${Math.round(axes[ax] ?? 0)}`).join(", ")}`} style={{ display: "block", maxWidth: 300 }}>
+      {[25, 50, 75, 100].map((lvl) => (
+        <polygon key={lvl} points={ICD_AXES.map((_, i) => point(i, lvl).join(",")).join(" ")} fill="none" stroke="var(--line)" strokeWidth={lvl === 100 ? 1.2 : 0.8} strokeDasharray={lvl === 100 ? undefined : "3 3"} />
+      ))}
+      {ICD_AXES.map((ax, i) => {
+        const [x, y] = point(i, 100);
+        return <line key={ax} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--line)" strokeWidth={0.8} />;
+      })}
+      <polygon points={polygon} fill="var(--gold)" fillOpacity={0.22} stroke="var(--gold-deep)" strokeWidth={2} strokeLinejoin="round" />
+      {ICD_AXES.map((ax, i) => {
+        const [x, y] = point(i, axes[ax] ?? 0);
+        return <circle key={ax} cx={x} cy={y} r={3.5} fill="var(--gold-deep)" />;
+      })}
+      {ICD_AXES.map((ax, i) => {
+        const [x, y] = labelPos(i);
+        const anchor = i === 1 ? "start" : i === 3 ? "end" : "middle";
+        return (
+          <text key={ax} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontSize={11} fill="var(--text-sec)">
+            <tspan fontWeight={600} fill="var(--text)">{AXIS_SHORT[ax]}</tspan>
+            <tspan> {Math.round(axes[ax] ?? 0)}</tspan>
+          </text>
+        );
+      })}
+    </svg>
   );
 }
 
