@@ -859,6 +859,9 @@ model Contract {
   rounds         Int       @default(1) // rodadas/ciclos/pulsos
   maxRespondents Int       @default(0) // 0 = ilimitado
   maxLeaders     Int       @default(0)
+  // Horas de mentoria contratadas no ciclo (Programas › Mentorias e Agenda,
+  // KPI "Horas contratadas"). null = não informado no contrato.
+  contractedHours Int? @map("contracted_hours")
 
   // Módulos opcionais ativados além do CORE do produto (códigos do ModuleCatalog).
   optionalModules Json    @default("[]")
@@ -3030,6 +3033,13 @@ model WorkTask {
   risk              WorkRisk
   readiness         Int // prontidão 0-100, julgamento informado
   scenario          WorkScenario
+  // Narrativas de transição por tarefa (protótipo Lovable, aba "Cenários Pessoa
+  // × Processo × IA"): como o trabalho é feito HOJE, como fica com IA
+  // ASSISTINDO e como fica REDESENHADO. Texto livre, opcional — complementam
+  // `scenario` (categoria), não o substituem.
+  scenarioCurrent    String?         @map("scenario_current")
+  scenarioAssisted   String?         @map("scenario_assisted")
+  scenarioRedesigned String?         @map("scenario_redesigned")
   origin            InsightOrigin
   stage             WorkTaskStage   @default(RASCUNHO)
   validationNote    String?         @map("validation_note")
