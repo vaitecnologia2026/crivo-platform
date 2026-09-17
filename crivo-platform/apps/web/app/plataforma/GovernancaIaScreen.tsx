@@ -29,6 +29,7 @@ import {
   type AiUseCaseDetail,
   type AiUseCaseStatus,
   type UpsertAiUseCaseRequest,
+  type WorkTaskData,
 } from "@crivo/types";
 import {
   ApiError,
@@ -46,6 +47,7 @@ import {
   listAiPolicies,
   listAiReviews,
   listAiUseCases,
+  listWorkTasks,
   removeAiUseCaseLink,
   updateAiIncident,
   updateAiPolicy,
@@ -150,6 +152,21 @@ export function GovernancaIaScreen() {
   const [novoCaso, setNovoCaso] = useState(false);
   const [editando, setEditando] = useState<AiUseCaseData | null>(null);
 
+  // Filtros da aba "Casos de Uso" — vivem AQUI (não no filho CasosTab) para
+  // que a exportação XLSX/PDF (buildSheets abaixo) exporte exatamente o que
+  // está filtrado na tela, nunca o inventário completo por baixo do filtro.
+  const [filtroArea, setFiltroArea] = useState("todas");
+  const [filtroRisco, setFiltroRisco] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const casosFiltrados = useMemo(() => {
+    const lista = casos.data ?? [];
+    return lista.filter((c) =>
+      (filtroArea === "todas" || c.area === filtroArea) &&
+      (filtroRisco === "todos" || c.inherentRisk === filtroRisco) &&
+      (filtroStatus === "todos" || c.status === filtroStatus),
+    );
+  }, [casos.data, filtroArea, filtroRisco, filtroStatus]);
+
   useEffect(() => {
     let alive = true;
     getMyPermissions()
@@ -161,9 +178,10 @@ export function GovernancaIaScreen() {
   const semModulo = summary.status === "ok" && !summary.data;
   const loading = [summary, casos, decisoes, incidentes, politicas, revisoes].some((r) => r.status === "loading");
 
-  // ── Exportação (helper compartilhado). Só o que está na tela. ──
+  // ── Exportação (helper compartilhado). Só o que está na tela — os casos
+  // usam a lista JÁ FILTRADA (casosFiltrados), não o inventário completo. ──
   function buildSheets(): ExportSheet[] {
-    const rows = (casos.data ?? []).map((c) => ({
+    const rows = casosFiltrados.map((c) => ({
       ID: c.code, Nome: c.name, Área: c.area, Responsável: c.ownerName, Tecnologia: c.technology,
       "Risco inerente": AI_RISK_LABEL[c.inherentRisk], "Risco residual": AI_RISK_LABEL[c.residualRisk],
       Status: AI_USE_CASE_STATUS_LABEL[c.status], Aprovador: c.lastDecision?.decidedByName ?? "—",
@@ -237,8 +255,15 @@ export function GovernancaIaScreen() {
           {tab === "casos" && (
             <CasosTab
               casos={casos}
+              filtrados={casosFiltrados}
               summary={summary.data}
               canManage={canManage}
+              filtroArea={filtroArea}
+              setFiltroArea={setFiltroArea}
+              filtroRisco={filtroRisco}
+              setFiltroRisco={setFiltroRisco}
+              filtroStatus={filtroStatus}
+              setFiltroStatus={setFiltroStatus}
               onOpen={(id) => setSelecionadoId(id)}
               onNovo={() => setNovoCaso(true)}
             />
@@ -335,23 +360,23 @@ function VisaoTab({ summary, incidentes }: { summary: ReturnType<typeof useRecur
 
 // ── Casos de Uso ───────────────────────────────────────────────────────────
 
-function CasosTab({ casos, summary, canManage, onOpen, onNovo }: {
+function CasosTab({ casos, filtrados, summary, canManage, filtroArea, setFiltroArea, filtroRisco, setFiltroRisco, filtroStatus, setFiltroStatus, onOpen, onNovo }: {
   casos: ReturnType<typeof useRecurso<AiUseCaseData[]>>;
+  /** Lista já filtrada — calculada no pai para que a exportação use o mesmo recorte da tela. */
+  filtrados: AiUseCaseData[];
   summary: AiGovernanceSummary | null;
   canManage: boolean;
+  filtroArea: string;
+  setFiltroArea: (v: string) => void;
+  filtroRisco: string;
+  setFiltroRisco: (v: string) => void;
+  filtroStatus: string;
+  setFiltroStatus: (v: string) => void;
   onOpen: (id: string) => void;
   onNovo: () => void;
 }) {
-  const [filtroArea, setFiltroArea] = useState("todas");
-  const [filtroRisco, setFiltroRisco] = useState("todos");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
   const lista = useMemo(() => casos.data ?? [], [casos.data]);
   const areas = useMemo(() => summary?.areas ?? Array.from(new Set(lista.map((c) => c.area))), [summary, lista]);
-  const filtrados = useMemo(() => lista.filter((c) =>
-    (filtroArea === "todas" || c.area === filtroArea) &&
-    (filtroRisco === "todos" || c.inherentRisk === filtroRisco) &&
-    (filtroStatus === "todos" || c.status === filtroStatus),
-  ), [lista, filtroArea, filtroRisco, filtroStatus]);
 
   if (casos.status === "loading") return <p className="dash-state">Carregando inventário…</p>;
   if (casos.status === "error") return <div className="dash-state dash-state--error">Não foi possível carregar os casos de uso. {casos.erro}</div>;
@@ -996,10 +1021,13 @@ function CasoDrawer({ id, canManage, onClose, onChanged, onEdit }: {
   );
 }
 
-/** Vínculos com Evidências e Plano de Evolução — seleção de itens EXISTENTES (nunca texto livre). */
+type LinkKind = "EVIDENCE" | "ACTION_ITEM" | "WORKFORCE";
+
+/** Vínculos com Evidências, Plano de Evolução e Workforce — seleção de itens EXISTENTES (nunca texto livre). */
 function VinculosBloco({ caso, canManage, onChanged }: { caso: AiUseCaseDetail; canManage: boolean; onChanged: () => Promise<void> }) {
   const [planos, setPlanos] = useState<ActionPlanData[] | null>(null);
-  const [kind, setKind] = useState<"EVIDENCE" | "ACTION_ITEM">("EVIDENCE");
+  const [tarefas, setTarefas] = useState<WorkTaskData[] | null>(null);
+  const [kind, setKind] = useState<LinkKind>("EVIDENCE");
   const [targetId, setTargetId] = useState("");
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -1007,15 +1035,18 @@ function VinculosBloco({ caso, canManage, onChanged }: { caso: AiUseCaseDetail; 
   useEffect(() => {
     if (!canManage) return;
     let alive = true;
-    // Evidências e ações vêm do módulo Relatórios (/action-plans); sem ele
-    // (403) o bloco simplesmente não oferece vínculo — não é erro da tela.
+    // Evidências e ações vêm do módulo Relatórios (/action-plans); tarefas
+    // vêm do módulo Workforce (/workforce/tasks). Sem o módulo (403) a lista
+    // fica vazia — não é erro da tela, o bloco só não oferece aquele vínculo.
     listActionPlans().then((p) => { if (alive) setPlanos(p); }).catch(() => { if (alive) setPlanos([]); });
+    listWorkTasks().then((t) => { if (alive) setTarefas(t); }).catch(() => { if (alive) setTarefas([]); });
     return () => { alive = false; };
   }, [canManage]);
 
   const evidencias = useMemo(() => (planos ?? []).flatMap((p) => p.items.flatMap((i) => i.evidences.map((ev) => ({ id: ev.id, label: `${ev.title} (${i.action})` })))), [planos]);
   const acoes = useMemo(() => (planos ?? []).flatMap((p) => p.items.map((i) => ({ id: i.id, label: `${i.action} — ${p.title}` }))), [planos]);
-  const opcoes = kind === "EVIDENCE" ? evidencias : acoes;
+  const tarefasWorkforce = useMemo(() => (tarefas ?? []).map((t) => ({ id: t.id, label: `${t.code} · ${t.name} (${t.area})` })), [tarefas]);
+  const opcoes = kind === "EVIDENCE" ? evidencias : kind === "ACTION_ITEM" ? acoes : tarefasWorkforce;
 
   async function vincular() {
     if (!targetId) return;
@@ -1043,7 +1074,7 @@ function VinculosBloco({ caso, canManage, onChanged }: { caso: AiUseCaseDetail; 
 
   return (
     <div>
-      <div className="card__hint" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600, fontSize: 10, marginBottom: 6 }}>Vínculos (Evidências · Plano de Evolução)</div>
+      <div className="card__hint" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600, fontSize: 10, marginBottom: 6 }}>Vínculos (Evidências · Plano de Evolução · Workforce)</div>
       {caso.links.length === 0 ? (
         <div style={{ fontSize: 14 }}>—</div>
       ) : (
@@ -1056,13 +1087,14 @@ function VinculosBloco({ caso, canManage, onChanged }: { caso: AiUseCaseDetail; 
           ))}
         </div>
       )}
-      {canManage && planos && (evidencias.length > 0 || acoes.length > 0) && (
+      {canManage && planos && tarefas && (evidencias.length > 0 || acoes.length > 0 || tarefasWorkforce.length > 0) && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "end", marginTop: 8 }}>
           <label className="prod-field" style={{ minWidth: 140 }}>
             <span>Tipo</span>
-            <select value={kind} onChange={(e) => { setKind(e.target.value as "EVIDENCE" | "ACTION_ITEM"); setTargetId(""); }}>
+            <select value={kind} onChange={(e) => { setKind(e.target.value as LinkKind); setTargetId(""); }}>
               <option value="EVIDENCE">Evidência</option>
               <option value="ACTION_ITEM">Ação do Plano de Evolução</option>
+              <option value="WORKFORCE">Workforce (tarefa)</option>
             </select>
           </label>
           <label className="prod-field" style={{ flex: 1, minWidth: 200 }}>
@@ -1075,8 +1107,8 @@ function VinculosBloco({ caso, canManage, onChanged }: { caso: AiUseCaseDetail; 
           <button type="button" className="btn btn--outline-dark btn--sm" disabled={!targetId || busy} onClick={vincular}>Vincular</button>
         </div>
       )}
-      {canManage && planos && evidencias.length === 0 && acoes.length === 0 && (
-        <p className="card__hint" style={{ marginTop: 6 }}>Nenhuma evidência ou ação cadastrada ainda (módulo Relatórios). Os vínculos apontam para itens existentes.</p>
+      {canManage && planos && tarefas && evidencias.length === 0 && acoes.length === 0 && tarefasWorkforce.length === 0 && (
+        <p className="card__hint" style={{ marginTop: 6 }}>Nenhuma evidência, ação (módulo Relatórios) ou tarefa do Workforce cadastrada ainda. Os vínculos apontam para itens existentes.</p>
       )}
       {erro && <div className="dash-state dash-state--error" style={{ margin: "8px 0 0" }}>{erro}</div>}
     </div>

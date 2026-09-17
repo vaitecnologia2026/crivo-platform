@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AiGovernanceService } from './ai-governance.service';
 
 /**
@@ -103,6 +103,40 @@ describe('AiGovernanceService.decide — decisão humana', () => {
     expect(created[0].decision).toBe('RESTRINGIR');
     // Só INSERT na trilha: o service não tem caminho de update/delete de decisão.
     expect(Object.keys(tx.aiUseCaseDecision)).toEqual(['create']);
+  });
+});
+
+describe('AiGovernanceService.addLink — vínculos (Evidências · Plano de Evolução · Workforce)', () => {
+  function montar(overrides: { workTask?: Record<string, unknown> | null; existingLink?: unknown } = {}) {
+    const createdLinks: Record<string, unknown>[] = [];
+    const tx = {
+      aiUseCase: { findUnique: vi.fn(async () => ({ id: 'uc-1' })) },
+      workTask: {
+        findUnique: vi.fn(async () => ('workTask' in overrides ? overrides.workTask : { code: 'T-03', name: 'Atendimento nível 1' })),
+      },
+      aiUseCaseLink: {
+        findFirst: vi.fn(async () => overrides.existingLink ?? null),
+        create: vi.fn(async (args: { data: Record<string, unknown> }) => { createdLinks.push(args.data); return { id: 'link-1', ...args.data }; }),
+      },
+    };
+    const svc = new AiGovernanceService(prismaCom(tx) as never, auditFalso() as never);
+    return { svc, tx, createdLinks };
+  }
+
+  it('vínculo WORKFORCE resolve a tarefa (código + nome) e cria o vínculo — não é mais bloqueado como "indisponível"', async () => {
+    const { svc, tx, createdLinks } = montar();
+    const link = await svc.addLink(TENANT, 'uc-1', { kind: 'WORKFORCE', targetId: 'task-1' });
+
+    expect(tx.workTask.findUnique).toHaveBeenCalledWith({ where: { id: 'task-1' }, select: { code: true, name: true } });
+    expect(link).toMatchObject({ kind: 'WORKFORCE', targetId: 'task-1', label: 'T-03 · Atendimento nível 1' });
+    expect(createdLinks).toHaveLength(1);
+    expect(createdLinks[0]).toMatchObject({ tenantId: TENANT, useCaseId: 'uc-1', kind: 'WORKFORCE', targetId: 'task-1' });
+  });
+
+  it('tarefa do Workforce inexistente (ou de outro tenant, filtrada pela RLS) devolve 404 e não cria vínculo', async () => {
+    const { svc, createdLinks } = montar({ workTask: null });
+    await expect(svc.addLink(TENANT, 'uc-1', { kind: 'WORKFORCE', targetId: 'task-x' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(createdLinks).toHaveLength(0);
   });
 });
 

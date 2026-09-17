@@ -6,6 +6,7 @@ import {
   type AddAiUseCaseLinkRequest,
   type AiGovernanceSummary,
   type AiIncidentData,
+  type AiLinkKind,
   type AiPolicyData,
   type AiReviewDue,
   type AiReviewEntry,
@@ -41,6 +42,13 @@ export interface UseCaseFilters {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REVIEW_WINDOW_DAYS = 30;
+
+/** Mensagem de 404 por tipo de vínculo quando o alvo não existe (mais) no tenant. */
+const NOT_FOUND_BY_KIND: Record<AiLinkKind, string> = {
+  EVIDENCE: 'Evidência não encontrada.',
+  ACTION_ITEM: 'Ação do Plano de Evolução não encontrada.',
+  WORKFORCE: 'Tarefa do Workforce não encontrada.',
+};
 
 /** Linha crua do caso + agregados que a listagem já traz (evita N+1). */
 type UseCaseRow = {
@@ -309,20 +317,16 @@ export class AiGovernanceService {
     return this.getUseCase(tenantId, id);
   }
 
-  // ── Vínculos (Evidências / Plano de Evolução) ───────────────────────
+  // ── Vínculos (Evidências / Plano de Evolução / Workforce) ───────────
 
   async addLink(tenantId: string, useCaseId: string, dto: AddAiUseCaseLinkRequest): Promise<AiUseCaseLinkData> {
-    if (dto.kind === 'WORKFORCE') {
-      // Previsto para WorkTask; até o módulo Workforce existir não há alvo real.
-      throw new BadRequestException('Vínculo com Workforce ainda não está disponível.');
-    }
     return this.prisma.forTenant(tenantId, async (tx) => {
       const useCase = await tx.aiUseCase.findUnique({ where: { id: useCaseId }, select: { id: true } });
       if (!useCase) throw new NotFoundException('Caso de uso não encontrado.');
       // O alvo precisa existir NO TENANT (a RLS já limita; o 404 é explícito).
       const label = await this.labelOf(tx, dto.kind, dto.targetId);
       if (label === null) {
-        throw new NotFoundException(dto.kind === 'EVIDENCE' ? 'Evidência não encontrada.' : 'Ação do Plano de Evolução não encontrada.');
+        throw new NotFoundException(NOT_FOUND_BY_KIND[dto.kind]);
       }
       const existing = await tx.aiUseCaseLink.findFirst({ where: { useCaseId, kind: dto.kind, targetId: dto.targetId } });
       if (existing) return { id: existing.id, useCaseId, kind: dto.kind, targetId: dto.targetId, label };
@@ -506,6 +510,11 @@ export class AiGovernanceService {
     if (kind === 'ACTION_ITEM') {
       const it = await tx.actionItem.findUnique({ where: { id: targetId }, select: { action: true, point: true } });
       return it ? it.action || it.point : null;
+    }
+    if (kind === 'WORKFORCE') {
+      // WorkTask (módulo Workforce) — a RLS de tx já limita ao tenant.
+      const t = await tx.workTask.findUnique({ where: { id: targetId }, select: { code: true, name: true } });
+      return t ? `${t.code} · ${t.name}` : null;
     }
     return null;
   }

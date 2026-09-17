@@ -4474,8 +4474,8 @@ export const AI_DECISION_TO_STATUS: Record<AiDecision, AiUseCaseStatus> = {
   REJEITAR: 'REJEITADO',
 };
 
-/** Vínculo navegável do caso com outro registro do tenant. WORKFORCE fica
- *  previsto para WorkTask (módulo Workforce) — a API só aceita quando existir. */
+/** Vínculo navegável do caso com outro registro do tenant. WORKFORCE aponta
+ *  para uma WorkTask (módulo Workforce) — a API valida que ela existe no tenant. */
 export const AI_LINK_KINDS = ['EVIDENCE', 'ACTION_ITEM', 'WORKFORCE'] as const;
 export type AiLinkKind = (typeof AI_LINK_KINDS)[number];
 export const AI_LINK_KIND_LABEL: Record<AiLinkKind, string> = {
