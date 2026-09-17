@@ -28,7 +28,9 @@ const AGORA = new Date('2026-09-16T12:00:00Z');
 const tarefa = (extra: Record<string, unknown> = {}) => ({
   id: 't-1', code: 'T-01', processId: 'p-1', role: 'Analista Fiscal', area: 'Financeiro', name: 'Conciliação de notas',
   input: 'NFs', output: 'Relatório', volumePerMonth: 320, durationMin: 18, criticality: 'ALTA', aiPotential: 82,
-  humanEssentiality: 40, risk: 'MEDIO', readiness: 58, scenario: 'COPILOTO', origin: 'RECOMENDACAO', stage: 'VALIDADO_CRIVO',
+  humanEssentiality: 40, risk: 'MEDIO', readiness: 58, scenario: 'COPILOTO',
+  scenarioCurrent: null, scenarioAssisted: null, scenarioRedesigned: null,
+  origin: 'RECOMENDACAO', stage: 'VALIDADO_CRIVO',
   validationNote: 'ok', validatedAt: AGORA, validatedByName: 'Consultor CRIVO', decision: null, decisionNote: null,
   decidedByUserId: null, decidedByName: null, decidedAt: null, createdAt: AGORA, updatedAt: AGORA,
   process: { name: 'Faturamento' },
@@ -272,6 +274,79 @@ describe('WorkforceService.createTask — código T-NN por empresa', () => {
     const { svc, data } = montar(['T-01', 'T-03', 'T-07']);
     await svc.createTask(TENANT, dto);
     expect(data().code).toBe('T-08');
+  });
+});
+
+describe('WorkforceService — cenários narrativos (scenarioCurrent/Assisted/Redesigned)', () => {
+  // Aba "Cenários Pessoa × Processo × IA": as 3 narrativas de transição por
+  // tarefa (gap da auditoria Programas vs. protótipo Lovable, 17/09) precisam
+  // ir e voltar pela API tal como os demais campos da tarefa.
+  const dto = {
+    processId: 'p-1', role: 'Analista', area: 'Financeiro', name: 'Conciliação', input: 'NFs', output: 'Relatório',
+    volumePerMonth: 1, durationMin: 1, criticality: 'ALTA', aiPotential: 50, humanEssentiality: 50, risk: 'BAIXO', readiness: 50,
+    scenario: 'COPILOTO', origin: 'FATO',
+    scenarioCurrent: 'Conferência manual em planilha.',
+    scenarioAssisted: 'Motor de anomalias sugere itens a revisar.',
+    scenarioRedesigned: 'Analista revisa apenas exceções sinalizadas.',
+  } as const;
+
+  it('createTask grava as 3 narrativas (trim) e a tarefa criada as devolve', async () => {
+    let data: Record<string, unknown> = {};
+    const tx = {
+      workProcess: { findUnique: vi.fn(async () => ({ id: 'p-1' })) },
+      workTask: {
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async (args: { data: Record<string, unknown> }) => { data = args.data; return tarefa({ ...args.data }); }),
+      },
+    };
+    const svc = new WorkforceService(prismaCom(tx) as never, auditFalso() as never);
+    const criada = await svc.createTask(TENANT, { ...dto, scenarioCurrent: '  Conferência manual em planilha.  ' });
+
+    expect(data).toMatchObject({
+      scenarioCurrent: 'Conferência manual em planilha.',
+      scenarioAssisted: 'Motor de anomalias sugere itens a revisar.',
+      scenarioRedesigned: 'Analista revisa apenas exceções sinalizadas.',
+    });
+    expect(criada.scenarioCurrent).toBe('Conferência manual em planilha.');
+    expect(criada.scenarioAssisted).toBe('Motor de anomalias sugere itens a revisar.');
+    expect(criada.scenarioRedesigned).toBe('Analista revisa apenas exceções sinalizadas.');
+  });
+
+  it('updateTask atualiza as narrativas de uma tarefa existente e as lê de volta', async () => {
+    let data: Record<string, unknown> = {};
+    const tx = {
+      workTask: {
+        findUnique: vi.fn(async () => tarefa({ stage: 'RASCUNHO', scenarioCurrent: null, scenarioAssisted: null, scenarioRedesigned: null })),
+        update: vi.fn(async (args: { data: Record<string, unknown> }) => { data = args.data; return tarefa({ stage: 'RASCUNHO', ...args.data }); }),
+      },
+    };
+    const svc = new WorkforceService(prismaCom(tx) as never, auditFalso() as never);
+    const atualizada = await svc.updateTask(TENANT, 't-1', dto);
+
+    expect(data).toMatchObject({
+      scenarioCurrent: 'Conferência manual em planilha.',
+      scenarioAssisted: 'Motor de anomalias sugere itens a revisar.',
+      scenarioRedesigned: 'Analista revisa apenas exceções sinalizadas.',
+    });
+    expect(atualizada.scenarioCurrent).toBe('Conferência manual em planilha.');
+    expect(atualizada.scenarioAssisted).toBe('Motor de anomalias sugere itens a revisar.');
+    expect(atualizada.scenarioRedesigned).toBe('Analista revisa apenas exceções sinalizadas.');
+  });
+
+  it('narrativa ausente ou só espaço vira null (campo opcional, não obrigatório)', async () => {
+    let data: Record<string, unknown> = {};
+    const tx = {
+      workTask: {
+        findUnique: vi.fn(async () => tarefa({ stage: 'RASCUNHO' })),
+        update: vi.fn(async (args: { data: Record<string, unknown> }) => { data = args.data; return tarefa({ stage: 'RASCUNHO', ...args.data }); }),
+      },
+    };
+    const svc = new WorkforceService(prismaCom(tx) as never, auditFalso() as never);
+    await svc.updateTask(TENANT, 't-1', { ...dto, scenarioCurrent: '   ', scenarioAssisted: undefined, scenarioRedesigned: null });
+
+    expect(data.scenarioCurrent).toBeNull();
+    expect(data.scenarioAssisted).toBeNull();
+    expect(data.scenarioRedesigned).toBeNull();
   });
 });
 

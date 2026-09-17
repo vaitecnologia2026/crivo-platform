@@ -4811,6 +4811,12 @@ export interface WorkTaskData {
   risk: WorkRisk;
   readiness: number;
   scenario: WorkforceScenario;
+  /** Narrativas de transição (protótipo Lovable, aba "Cenários Pessoa × Processo
+   *  × IA"): como a tarefa é feita hoje, com IA assistindo e redesenhada.
+   *  Texto livre opcional — complementam `scenario` (categoria), não substituem. */
+  scenarioCurrent: string | null;
+  scenarioAssisted: string | null;
+  scenarioRedesigned: string | null;
   origin: InsightOrigin;
   stage: WorkTaskStage;
   validationNote: string | null;
@@ -4882,6 +4888,10 @@ export interface UpsertWorkTaskRequest {
   risk: WorkRisk;
   readiness: number;
   scenario: WorkforceScenario;
+  /** Narrativas de transição opcionais — ver WorkTaskData.scenarioCurrent. */
+  scenarioCurrent?: string | null;
+  scenarioAssisted?: string | null;
+  scenarioRedesigned?: string | null;
   origin: InsightOrigin;
   /** Só RASCUNHO ↔ EM_VALIDACAO_CRIVO por aqui; VALIDADO_CRIVO/DECIDIDO nascem da validação e da decisão. */
   stage?: 'RASCUNHO' | 'EM_VALIDACAO_CRIVO';

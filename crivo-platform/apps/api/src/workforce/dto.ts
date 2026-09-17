@@ -93,6 +93,17 @@ export class UpsertWorkTaskDto {
   @IsIn([...WORKFORCE_SCENARIOS])
   scenario!: WorkforceScenario;
 
+  // Narrativas de transição (aba "Cenários Pessoa × Processo × IA") — texto
+  // livre opcional, complementam `scenario` sem substituí-lo.
+  @IsOptional() @IsString() @MaxLength(2000)
+  scenarioCurrent?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  scenarioAssisted?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  scenarioRedesigned?: string | null;
+
   @IsIn([...INSIGHT_ORIGINS])
   origin!: InsightOrigin;
 

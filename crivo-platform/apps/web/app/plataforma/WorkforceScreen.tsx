@@ -622,38 +622,88 @@ function CenariosTab({ tarefas, filtradas, areas, filtros, setFiltros, onOpen }:
 }) {
   if (tarefas.status === "loading") return <p className="dash-state">Carregando cenários…</p>;
   if (tarefas.status === "error") return <div className="dash-state dash-state--error">Não foi possível carregar as tarefas. {tarefas.erro}</div>;
+
+  // Comparação de 3 colunas (protótipo): só tarefas com ao menos uma narrativa
+  // preenchida entram — evita 3 colunas vazias para quem ainda não descreveu cenário.
+  const comparaveis = filtradas.filter((t) => t.scenarioCurrent || t.scenarioAssisted || t.scenarioRedesigned);
+
+  // Visão secundária: agrupamento pela categoria única `scenario` (taxonomia CRIVO).
   const porCenario = new Map<WorkforceScenario, WorkTaskData[]>();
   for (const t of filtradas) porCenario.set(t.scenario, [...(porCenario.get(t.scenario) ?? []), t]);
+
   return (
     <>
       <Filtros areas={areas} filtros={filtros} setFiltros={setFiltros} />
       {(tarefas.data?.length ?? 0) === 0 && (
-        <p className="dash-state">Nenhuma tarefa catalogada — os cenários são atribuídos tarefa a tarefa a partir da taxonomia CRIVO abaixo.</p>
+        <p className="dash-state">Nenhuma tarefa catalogada — os cenários narrativos são preenchidos tarefa a tarefa no cadastro.</p>
       )}
-      <div className="grid grid--3">
-        {WORKFORCE_SCENARIOS.map((sc) => {
-          const itens = porCenario.get(sc) ?? [];
-          return (
-            <div key={sc} className="card" style={{ marginBottom: 0 }}>
-              <div className="card__hint" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600, fontSize: 10 }}>{WORKFORCE_SCENARIO_LABEL[sc]}</div>
-              {itens.length === 0 ? (
-                <p className="card__hint" style={{ marginTop: 8 }}>Nenhuma tarefa neste cenário{filtradas.length !== (tarefas.data?.length ?? 0) ? " (para os filtros aplicados)" : ""}.</p>
-              ) : (
-                <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 8, fontSize: 12 }}>
-                  {itens.map((t) => (
-                    <li key={t.id} style={{ borderLeft: "2px solid var(--gold)", paddingLeft: 8 }}>
-                      <a href="#" onClick={(e) => { e.preventDefault(); onOpen(t.id); }} style={{ color: "var(--gold-deep)" }}>
-                        <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10, color: "var(--text-sec)" }}>{t.code}</span> {t.name}
-                      </a>
-                      <div className="card__hint">{t.processName} · IA {t.aiPotential}% · humano {t.humanEssentiality}% · {t.decision ? WORK_DECISION_LABEL[t.decision] : WORK_TASK_STAGE_LABEL[t.stage]}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+
+      {(tarefas.data?.length ?? 0) > 0 && (
+        <div className="card">
+          <div className="card__head">
+            <div>
+              <h3>Cenários Pessoa × Processo × IA</h3>
+              <span className="card__sub">Como o trabalho é feito hoje, com IA assistindo e redesenhado — lado a lado, por tarefa.</span>
             </div>
-          );
-        })}
-      </div>
+          </div>
+          {comparaveis.length === 0 ? (
+            <p className="dash-state" style={{ margin: 0 }}>
+              Nenhuma tarefa{filtradas.length !== (tarefas.data?.length ?? 0) ? " (para os filtros aplicados)" : ""} tem os cenários narrativos preenchidos ainda. Descreva Cenário Atual, Assistido por IA e/ou Redesenhado no cadastro da tarefa para ela aparecer aqui.
+            </p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="data-table">
+                <thead><tr><th style={{ minWidth: 180 }}>Tarefa</th><th style={{ minWidth: 220 }}>Atual</th><th style={{ minWidth: 220 }}>Assistido por IA</th><th style={{ minWidth: 220 }}>Redesenhado</th></tr></thead>
+                <tbody>
+                  {comparaveis.map((t) => (
+                    <tr key={t.id}>
+                      <td>
+                        <a href="#" onClick={(e) => { e.preventDefault(); onOpen(t.id); }} style={{ color: "var(--gold-deep)" }}>
+                          <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10, color: "var(--text-sec)" }}>{t.code}</span> <strong>{t.name}</strong>
+                        </a>
+                        <div className="card__hint">{t.processName} · {t.area}</div>
+                      </td>
+                      <td style={{ fontSize: 12 }}>{t.scenarioCurrent || "—"}</td>
+                      <td style={{ fontSize: 12 }}>{t.scenarioAssisted || "—"}</td>
+                      <td style={{ fontSize: 12 }}>{t.scenarioRedesigned || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(tarefas.data?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div className="card__hint" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600, fontSize: 10, marginBottom: 8 }}>Visão secundária — por categoria de cenário</div>
+          <div className="grid grid--3">
+            {WORKFORCE_SCENARIOS.map((sc) => {
+              const itens = porCenario.get(sc) ?? [];
+              return (
+                <div key={sc} className="card" style={{ marginBottom: 0 }}>
+                  <div className="card__hint" style={{ textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 600, fontSize: 10 }}>{WORKFORCE_SCENARIO_LABEL[sc]}</div>
+                  {itens.length === 0 ? (
+                    <p className="card__hint" style={{ marginTop: 8 }}>Nenhuma tarefa neste cenário{filtradas.length !== (tarefas.data?.length ?? 0) ? " (para os filtros aplicados)" : ""}.</p>
+                  ) : (
+                    <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 8, fontSize: 12 }}>
+                      {itens.map((t) => (
+                        <li key={t.id} style={{ borderLeft: "2px solid var(--gold)", paddingLeft: 8 }}>
+                          <a href="#" onClick={(e) => { e.preventDefault(); onOpen(t.id); }} style={{ color: "var(--gold-deep)" }}>
+                            <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10, color: "var(--text-sec)" }}>{t.code}</span> {t.name}
+                          </a>
+                          <div className="card__hint">{t.processName} · IA {t.aiPotential}% · humano {t.humanEssentiality}% · {t.decision ? WORK_DECISION_LABEL[t.decision] : WORK_TASK_STAGE_LABEL[t.stage]}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -798,6 +848,13 @@ function TarefaDrawer({ id, canManage, onClose, onChanged, onEdit }: {
               <div style={{ paddingTop: 12, borderTop: "1px solid var(--line)" }}>
                 <Field label="Cenário de redesenho" value={WORKFORCE_SCENARIO_LABEL[tarefa.scenario]} />
               </div>
+              {(tarefa.scenarioCurrent || tarefa.scenarioAssisted || tarefa.scenarioRedesigned) && (
+                <div style={{ paddingTop: 12, borderTop: "1px solid var(--line)", display: "grid", gap: 10 }}>
+                  <Field label="Cenário Atual" value={tarefa.scenarioCurrent || "—"} />
+                  <Field label="Cenário Assistido por IA" value={tarefa.scenarioAssisted || "—"} />
+                  <Field label="Cenário Redesenhado" value={tarefa.scenarioRedesigned || "—"} />
+                </div>
+              )}
               <div style={{ paddingTop: 12, borderTop: "1px solid var(--line)" }}>
                 <Field
                   label="Validação CRIVO"
@@ -929,6 +986,9 @@ function TarefaForm({ initial, processos, onClose, onSaved }: { initial: WorkTas
     risk: initial?.risk ?? "MEDIO",
     readiness: initial?.readiness ?? 0,
     scenario: initial?.scenario ?? "MANTER_HUMANO",
+    scenarioCurrent: initial?.scenarioCurrent ?? "",
+    scenarioAssisted: initial?.scenarioAssisted ?? "",
+    scenarioRedesigned: initial?.scenarioRedesigned ?? "",
     origin: initial?.origin ?? "HIPOTESE",
     stage: initial?.stage === "EM_VALIDACAO_CRIVO" ? "EM_VALIDACAO_CRIVO" : "RASCUNHO",
   });
@@ -1006,6 +1066,21 @@ function TarefaForm({ initial, processos, onClose, onSaved }: { initial: WorkTas
             </label>
           </div>
           <p className="card__hint" style={{ marginTop: 8 }}>Potencial IA, essencialidade humana e prontidão são julgamentos de quem mapeou — não são calculados pela CRIVO.</p>
+          <div style={{ display: "grid", gap: 10, marginTop: 8, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+            <p className="card__hint" style={{ margin: 0 }}>Cenários narrativos (opcionais) — como a tarefa é feita hoje, com IA assistindo e redesenhada. Complementam o cenário de redesenho acima; nenhum é obrigatório.</p>
+            <label className="prod-field prod-field--full">
+              <span>Cenário Atual</span>
+              <textarea rows={2} maxLength={2000} value={f.scenarioCurrent ?? ""} onChange={(e) => set("scenarioCurrent", e.target.value)} placeholder="Ex.: Análise manual documento a documento." />
+            </label>
+            <label className="prod-field prod-field--full">
+              <span>Cenário Assistido por IA</span>
+              <textarea rows={2} maxLength={2000} value={f.scenarioAssisted ?? ""} onChange={(e) => set("scenarioAssisted", e.target.value)} placeholder="Ex.: IA pré-valida e sinaliza divergências." />
+            </label>
+            <label className="prod-field prod-field--full">
+              <span>Cenário Redesenhado</span>
+              <textarea rows={2} maxLength={2000} value={f.scenarioRedesigned ?? ""} onChange={(e) => set("scenarioRedesigned", e.target.value)} placeholder="Ex.: Fluxo IA + revisão humana amostral." />
+            </label>
+          </div>
           {erro && <div className="dash-state dash-state--error" style={{ margin: 0 }}>{erro}</div>}
         </div>
         <div className="modal__foot">

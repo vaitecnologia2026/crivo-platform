@@ -40,6 +40,7 @@ type TaskRow = {
   id: string; code: string; processId: string; role: string; area: string; name: string;
   input: string; output: string; volumePerMonth: number; durationMin: number; criticality: string;
   aiPotential: number; humanEssentiality: number; risk: string; readiness: number; scenario: string;
+  scenarioCurrent: string | null; scenarioAssisted: string | null; scenarioRedesigned: string | null;
   origin: string; stage: string; validationNote: string | null; validatedAt: Date | null;
   validatedByName: string | null; decision: string | null; decisionNote: string | null;
   decidedByUserId: string | null; decidedByName: string | null; decidedAt: Date | null;
@@ -487,6 +488,9 @@ export class WorkforceService {
       risk: dto.risk,
       readiness: dto.readiness,
       scenario: dto.scenario,
+      scenarioCurrent: dto.scenarioCurrent?.trim() || null,
+      scenarioAssisted: dto.scenarioAssisted?.trim() || null,
+      scenarioRedesigned: dto.scenarioRedesigned?.trim() || null,
       origin: dto.origin,
     };
   }
@@ -547,6 +551,9 @@ export class WorkforceService {
       risk: t.risk as WorkRisk,
       readiness: t.readiness,
       scenario: t.scenario as WorkforceScenario,
+      scenarioCurrent: t.scenarioCurrent,
+      scenarioAssisted: t.scenarioAssisted,
+      scenarioRedesigned: t.scenarioRedesigned,
       origin: t.origin as WorkTaskData['origin'],
       stage: t.stage as WorkTaskStage,
       validationNote: t.validationNote,
