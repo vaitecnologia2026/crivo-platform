@@ -87,7 +87,7 @@ export function BibliotecaScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Academia CRIVO</h1>
+          <h1 className="page-title">Academia e Recursos</h1>
           <p className="page-sub">Cursos, trilhas, vídeos, mentorias, guias e materiais de liderança e cultura.</p>
         </div>
         <div className="route__actions">
@@ -163,7 +163,7 @@ export function BibliotecaScreen() {
                   {item.level && <span className="pill pill--outline pill--sm">{LIBRARY_LEVEL_LABEL[item.level]}</span>}
                 </div>
                 <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 10 }}>
-                  <button className="link-gold" onClick={() => setPreview(item)}>Acessar →</button>
+                  <button className="link-gold" onClick={() => setPreview(item)}>Abrir</button>
                   {canManage && (
                     <>
                       <button className="lib-act" onClick={() => setEditing(item)}>Editar</button>
@@ -193,7 +193,7 @@ export function BibliotecaScreen() {
 /** Forma mínima de um conteúdo para a prévia (serve para LibraryItem e catálogo global). */
 type PreviewItem = { title: string; kind: string; description?: string | null; url?: string | null; category?: string | null };
 
-/** Prévia do conteúdo da Academia. Sempre abre algo ao clicar "Acessar" —
+/** Prévia do conteúdo da Academia. Sempre abre algo ao clicar "Abrir" —
  *  evita link externo morto. Se houver URL válida, oferece abrir em nova aba. */
 function ContentPreviewModal({ item, onClose }: { item: PreviewItem; onClose: () => void }) {
   const label = LIBRARY_KIND_LABEL[item.kind as LibraryKind] ?? item.kind;
@@ -361,7 +361,7 @@ function GlobalCatalogPanel({ onImported, onPreview, existingUrls }: { onImporte
                     <h4>{it.title}</h4>
                     {it.description && <p>{it.description}</p>}
                     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
-                      <button className="link-gold" onClick={() => onPreview(it)}>Acessar →</button>
+                      <button className="link-gold" onClick={() => onPreview(it)}>Abrir</button>
                       {already ? (
                         <span className="card__sub" style={{ fontSize: 11 }}><IconCheck size={12} /> já está na sua biblioteca</span>
                       ) : (
