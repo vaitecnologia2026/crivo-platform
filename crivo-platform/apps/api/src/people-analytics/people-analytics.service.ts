@@ -104,6 +104,20 @@ export class PeopleAnalyticsService {
     });
   }
 
+  /**
+   * Unidades distintas do cadastro de colaboradores (campo `unit`) + quantas
+   * pessoas tem cada uma — fonte REAL para o filtro "Unidade" da tela (auditoria
+   * Programas vs. protótipo, 17/09/2026). Mesmo padrão de
+   * `psychosocial.sectorsOfTenant`, mas com contagem (o filtro mostra "N
+   * colaboradores" e alimenta o indicador "Headcount ativo" quando filtrado).
+   */
+  async unitsOfTenant(tenantId: string): Promise<{ units: { unit: string; count: number }[]; totalCollaborators: number }> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const rows = await tx.collaborator.findMany({ select: { unit: true } });
+      return { units: summarizeUnits(rows), totalCollaborators: rows.length };
+    });
+  }
+
   async analyze(tenantId: string, context: string | undefined, actor?: string) {
     // Respeita o interruptor GLOBAL de IA (governança/custo): se a IA estiver
     // desativada em Configurações de IA, não chama (nem cobra) a OpenAI.
@@ -190,6 +204,23 @@ export class PeopleAnalyticsService {
       recommendations: arr(parsed.recommendations),
     };
   }
+}
+
+/**
+ * Conta colaboradores por unidade a partir das linhas já buscadas — pura e
+ * testável (mesmo padrão de `sanitizeHeadcountByArea`). Ignora unidade
+ * vazia/nula; ordena por quantidade desc, depois nome.
+ */
+export function summarizeUnits(rows: { unit: string | null }[]): { unit: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const u = (r.unit ?? '').trim();
+    if (!u) continue;
+    counts.set(u, (counts.get(u) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([unit, count]) => ({ unit, count }))
+    .sort((a, b) => b.count - a.count || a.unit.localeCompare(b.unit));
 }
 
 /** Limpa o recorte por área: área sem nome ou n inválido cai fora; ausente vira null. */

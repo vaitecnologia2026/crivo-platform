@@ -40,6 +40,14 @@ export class PeopleAnalyticsController {
     return this.svc.analyze(user.tenantId, dto.context, user.email);
   }
 
+  /** Unidades distintas do cadastro de colaboradores (campo `unit`) + contagem —
+   *  fonte real do filtro "Unidade" da tela (nunca lista fixa/inventada). */
+  @Get('units')
+  @Roles(...ROLES)
+  units(@CurrentUser() user: SessionUser) {
+    return this.svc.unitsOfTenant(user.tenantId);
+  }
+
   /** Catálogo de indicadores (metadados de governança + customizados). */
   @Get('catalog')
   @Roles(...ROLES)

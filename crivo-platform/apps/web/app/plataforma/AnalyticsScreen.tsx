@@ -22,6 +22,7 @@ import {
 } from "@crivo/types";
 import {
   getMyAnalytics,
+  getPeopleAnalyticsUnits,
   getPeopleCatalog,
   getPeopleIndicators,
   savePeopleCatalog,
@@ -29,9 +30,10 @@ import {
   analyzePeople,
   type AnalyticsData,
   type PeopleAnalysis,
+  type PeopleUnitsData,
 } from "@/lib/api";
 import { exportPDF, exportXLSX, useExportContext } from "@/lib/exports";
-import { IconClose, IconDownload, IconFileText, IconPlus } from "./Icons";
+import { IconClose, IconDownload, IconFileText, IconPlus, IconSettings, IconShield } from "./Icons";
 
 type LoadStatus = "loading" | "ok" | "error";
 
@@ -44,6 +46,31 @@ type LoadStatus = "loading" | "ok" | "error";
 export function AnalyticsScreen() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
+
+  // Filtro global "Unidade" (auditoria Programas vs. protótipo, 17/09/2026,
+  // achado ALTA #1) — dados REAIS do cadastro de colaboradores (campo `unit`),
+  // nunca uma lista fixa. O protótipo também tinha "Senioridade": não existe
+  // esse conceito no modelo de colaborador (não há nível hierárquico), então
+  // foi OMITIDO aqui em vez de inventar uma taxonomia falsa — "Cargo" (role)
+  // é texto livre sem nenhuma seção nesta tela agregada por cargo hoje.
+  const [unitFilter, setUnitFilter] = useState<string>("todas");
+  const [unitsData, setUnitsData] = useState<PeopleUnitsData | null>(null);
+  const [unitsStatus, setUnitsStatus] = useState<LoadStatus>("loading");
+
+  // Cópia dos períodos de "Indicadores de RH" só para alimentar a grade de 6
+  // KPIs sempre visível (abaixo) — o estado editável continua vivendo em
+  // PeopleIndicators; este componente só recebe um eco via onPeriodsChange.
+  const [topPeriods, setTopPeriods] = useState<PeoplePeriod[] | null>(null);
+
+  // Catálogo filtrado (mesmas linhas da tabela do card Catálogo) para as
+  // exportações XLSX/PDF reaproveitarem o que já está renderizado — eco via
+  // onFilteredChange, mesmo padrão de topPeriods.
+  const [catalogForExport, setCatalogForExport] = useState<PeopleCatalogEntry[] | null>(null);
+
+  // Modal "Adicionar indicador" — controlado aqui para o botão do cabeçalho
+  // ("Configurar", item do protótipo) e o botão dentro do card Catálogo
+  // abrirem o mesmo modal.
+  const [catalogAdding, setCatalogAdding] = useState(false);
 
   async function refresh() {
     setStatus("loading");
@@ -63,10 +90,23 @@ export function AnalyticsScreen() {
     return () => { alive = false; };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    getPeopleAnalyticsUnits()
+      .then((d) => { if (alive) { setUnitsData(d); setUnitsStatus("ok"); } })
+      .catch(() => { if (alive) setUnitsStatus("error"); });
+    return () => { alive = false; };
+  }, []);
+
   const hasIcd = (data?.icdEvolution.length ?? 0) > 0;
   const hasDecisions = (data?.decisionsByCategory.length ?? 0) > 0;
   const hasPocket = (data?.pocketUsage.totalSessions ?? 0) > 0;
   const hasPlan = (data?.planSummary.total ?? 0) > 0;
+
+  const headlineKpis = useMemo(
+    () => buildHeadlineKpis(topPeriods, unitFilter, unitsData, unitsStatus),
+    [topPeriods, unitFilter, unitsData, unitsStatus],
+  );
 
   return (
     <>
@@ -78,11 +118,25 @@ export function AnalyticsScreen() {
           </p>
         </div>
         <div className="route__actions">
+          <button className="btn btn--outline-dark btn--sm" onClick={() => setCatalogAdding(true)}>
+            <IconSettings size={14} /> Configurar
+          </button>
           <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>
             {status === "loading" ? "Atualizando…" : "Atualizar"}
           </button>
         </div>
       </div>
+
+      <PeopleAnalyticsFilterBar
+        unitFilter={unitFilter}
+        setUnitFilter={setUnitFilter}
+        units={unitsData?.units ?? []}
+        unitsStatus={unitsStatus}
+      />
+
+      <GovernanceBanner />
+
+      <HeadlineKpis items={headlineKpis} />
 
       {status === "loading" && <p className="dash-state">Carregando indicadores…</p>}
       {status === "error" && <div className="dash-state dash-state--error">Não foi possível carregar.</div>}
@@ -209,21 +263,195 @@ export function AnalyticsScreen() {
           </div>
 
           {/* Indicadores de RH + IA Analítica (Fase 4) */}
-          <PeopleIndicators crivo={data} />
+          <PeopleIndicators crivo={data} onPeriodsChange={setTopPeriods} catalogForExport={catalogForExport} />
 
           {/* Catálogo de indicadores — metadados de governança (fonte, fórmula,
              responsável, versão, confiança, status) + indicadores customizados.
              Nunca escreve em score metodológico (validado no backend). */}
-          <PeopleCatalogCard />
+          <PeopleCatalogCard
+            adding={catalogAdding}
+            setAdding={setCatalogAdding}
+            onFilteredChange={setCatalogForExport}
+          />
         </>
       )}
     </>
   );
 }
 
+// ── Filtro global "Unidade" + banner de governança + 6 KPIs sempre visíveis ──
+// (auditoria Programas vs. protótipo Lovable, 17/09/2026 — achados ALTA #1 e #2)
+
+function PeopleAnalyticsFilterBar({
+  unitFilter,
+  setUnitFilter,
+  units,
+  unitsStatus,
+}: {
+  unitFilter: string;
+  setUnitFilter: (v: string) => void;
+  units: { unit: string; count: number }[];
+  unitsStatus: LoadStatus;
+}) {
+  return (
+    <div className="card" style={{ marginBottom: 16, display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--text-sec)" }}>
+          Unidade
+        </span>
+        <select
+          className="cost-in"
+          style={{ width: "auto", minWidth: 200 }}
+          value={unitFilter}
+          onChange={(e) => setUnitFilter(e.target.value)}
+          disabled={unitsStatus !== "ok" || units.length === 0}
+        >
+          <option value="todas">Todas as unidades</option>
+          {units.map((u) => (
+            <option key={u.unit} value={u.unit}>{u.unit} ({u.count})</option>
+          ))}
+        </select>
+      </label>
+      <span className="card__sub" style={{ fontSize: 11.5 }}>
+        {unitsStatus === "loading" && "Carregando unidades do cadastro de colaboradores…"}
+        {unitsStatus === "error" && "Não foi possível carregar as unidades cadastradas."}
+        {unitsStatus === "ok" && units.length === 0 &&
+          "Nenhuma unidade cadastrada ainda — preencha o campo Unidade no cadastro de colaboradores."}
+        {unitsStatus === "ok" && units.length > 0 &&
+          "Unidades do cadastro de colaboradores (tela Colaboradores) — filtra o indicador \"Headcount ativo\" abaixo."}
+      </span>
+    </div>
+  );
+}
+
+function GovernanceBanner() {
+  return (
+    <div
+      className="card"
+      style={{ marginBottom: 16, borderLeft: "4px solid var(--gold-deep)", display: "flex", gap: 10, alignItems: "flex-start" }}
+    >
+      <IconShield size={16} style={{ flexShrink: 0, marginTop: 2, color: "var(--gold-deep)" }} />
+      <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6 }}>
+        <strong>People Analytics recebe e valida indicadores da empresa</strong> — não altera automaticamente
+        scores metodológicos como NR-1 ou ICD. Métricas e recortes com menos de {PEOPLE_MIN_SLICE_N} pessoas
+        são suprimidos (§11).
+      </p>
+    </div>
+  );
+}
+
+/** Tom visual do card de KPI — mesma paleta de KpiTrendCard. */
+type KpiTone = "neutral" | "up" | "bad";
+interface HeadlineKpi {
+  key: string;
+  label: string;
+  value: string | null;
+  hint: string;
+  tone: KpiTone;
+}
+
+/**
+ * Os 6 KPIs fixos do protótipo (mesma ordem) — SEMPRE visíveis. O conteúdo é
+ * honesto: cada um só mostra número quando existe uma fonte real ligada;
+ * senão "—" com um hint explicando por quê (nunca dado inventado/mockado).
+ *  - Headcount ativo: cadastro de colaboradores (contagem real, respeita o
+ *    filtro Unidade — é a ÚNICA seção com granularidade real por unidade hoje).
+ *  - Turnover/Absenteísmo: último período informado em "Indicadores de RH"
+ *    (mesmo motor computePeopleTrends da tabela) — tenant-wide, sem recorte
+ *    por unidade na origem.
+ *  - eNPS/Tempo médio de casa/% Liderança feminina: nenhuma fonte conectada
+ *    ainda (entram quando o Super Admin ligar os indicadores importados).
+ */
+function buildHeadlineKpis(
+  periods: PeoplePeriod[] | null,
+  unitFilter: string,
+  unitsData: PeopleUnitsData | null,
+  unitsStatus: LoadStatus,
+): HeadlineKpi[] {
+  const trends = periods ? computePeopleTrends(periods) : null;
+  const trendFor = (key: string) => trends?.trends.find((t) => t.key === key) ?? null;
+  const unitNote = unitFilter !== "todas" ? " · sem recorte por unidade" : "";
+
+  const fromTrend = (t: PeopleTrend | null, suffix: string): { value: string | null; hint: string; tone: KpiTone } => {
+    if (!t || t.latest == null) {
+      return {
+        value: null,
+        hint: periods === null ? "Carregando…" : "Sem período informado — preencha em \"Indicadores de RH\" abaixo.",
+        tone: "neutral",
+      };
+    }
+    const deltaTxt =
+      t.direction === "na" ? "sem período anterior"
+      : t.direction === "flat" ? "estável"
+      : `${t.direction === "up" ? "▲" : "▼"} ${t.deltaPct != null ? `${Math.abs(t.deltaPct)}%` : Math.abs(t.delta ?? 0)}`;
+    return {
+      value: `${t.latest}${suffix}`,
+      hint: `${deltaTxt}${unitNote}`,
+      tone: t.direction === "na" || t.direction === "flat" ? "neutral" : t.good ? "up" : "bad",
+    };
+  };
+
+  let headcount: { value: string | null; hint: string; tone: KpiTone };
+  if (unitsStatus === "loading") {
+    headcount = { value: null, hint: "Carregando…", tone: "neutral" };
+  } else if (unitsStatus === "error") {
+    headcount = { value: null, hint: "Não foi possível carregar o cadastro de colaboradores.", tone: "neutral" };
+  } else if (unitFilter !== "todas") {
+    const found = (unitsData?.units ?? []).find((u) => u.unit === unitFilter);
+    headcount = { value: String(found?.count ?? 0), hint: `cadastro de colaboradores · unidade "${unitFilter}"`, tone: "neutral" };
+  } else if (unitsData) {
+    headcount = { value: String(unitsData.totalCollaborators), hint: "cadastro de colaboradores (todas as unidades)", tone: "neutral" };
+  } else {
+    headcount = { value: null, hint: "Nenhum colaborador cadastrado ainda.", tone: "neutral" };
+  }
+
+  const semFonte = (): { value: null; hint: string; tone: KpiTone } =>
+    ({ value: null, hint: "Sem fonte de dado conectada ainda.", tone: "neutral" });
+
+  return [
+    { key: "headcount", label: "Headcount ativo", ...headcount },
+    { key: "turnover", label: "Turnover anualizado", ...fromTrend(trendFor("turnover"), "%") },
+    { key: "absenteismo", label: "Absenteísmo", ...fromTrend(trendFor("absenteismo"), "%") },
+    { key: "enps", label: "eNPS interno", ...semFonte() },
+    { key: "tempoCasa", label: "Tempo médio de casa", ...semFonte() },
+    { key: "liderancaFeminina", label: "% Liderança feminina", ...semFonte() },
+  ];
+}
+
+function HeadlineKpis({ items }: { items: HeadlineKpi[] }) {
+  return (
+    <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", marginBottom: 16 }}>
+      {items.map((k) => (
+        <div className="kpi" key={k.key}>
+          <span className="kpi__label">{k.label}</span>
+          <strong className="kpi__value" style={{ fontSize: 28 }}>{k.value ?? "—"}</strong>
+          <span
+            className={`kpi__delta ${k.tone === "up" ? "kpi__delta--up" : k.tone === "bad" ? "kpi__delta--bad" : "kpi__delta--neutral"}`}
+            title={k.hint}
+          >
+            {k.hint}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── People Analytics: indicadores de RH editáveis + IA Analítica (Fase 4) ──
 
-function PeopleIndicators({ crivo }: { crivo: AnalyticsData }) {
+function PeopleIndicators({
+  crivo,
+  onPeriodsChange,
+  catalogForExport,
+}: {
+  crivo: AnalyticsData;
+  /** Eco dos períodos para a grade de 6 KPIs sempre visível no topo da tela
+   *  (AnalyticsScreen) — este componente continua sendo o dono do estado. */
+  onPeriodsChange?: (periods: PeoplePeriod[]) => void;
+  /** Linhas do Catálogo JÁ FILTRADAS (mesmas da tabela do card Catálogo),
+   *  para a exportação XLSX/PDF reaproveitar o que está renderizado ali. */
+  catalogForExport?: PeopleCatalogEntry[] | null;
+}) {
   const [periods, setPeriods] = useState<PeoplePeriod[]>([]);
   const [analysis, setAnalysis] = useState<PeopleAnalysis | null>(null);
   const [analysisAt, setAnalysisAt] = useState<string | null>(null);
@@ -244,6 +472,10 @@ function PeopleIndicators({ crivo }: { crivo: AnalyticsData }) {
       })
       .catch(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    onPeriodsChange?.(periods);
+  }, [periods, onPeriodsChange]);
 
   const trends = useMemo(() => computePeopleTrends(periods), [periods]);
 
@@ -293,7 +525,16 @@ function PeopleIndicators({ crivo }: { crivo: AnalyticsData }) {
     const seriesRows = [...periods].sort((a, b) => a.period.localeCompare(b.period)).map((p) => ({
       Período: p.period, Turnover: p.values?.turnover ?? "—", Absenteísmo: p.values?.absenteismo ?? "—",
     }));
-    return { kpiRows, seriesRows };
+    // Catálogo (filtrado) — mesmas linhas da tabela do card Catálogo (item MÉDIA #3/#4 da auditoria).
+    const catalogRows = (catalogForExport ?? []).map((e) => ({
+      Nome: e.name, Categoria: e.category, Unidade: e.unit ?? "—", Fonte: e.source ?? "—",
+      Período: e.period ?? "—", Frequência: e.frequency ?? "—", Responsável: e.owner ?? "—",
+      Versão: e.version ?? "—", Confiança: e.confidence ?? "—", Status: PEOPLE_CATALOG_STATUS_LABEL[e.status],
+    }));
+    // Headcount (por área) — mesmas áreas visíveis do card "Headcount por área" (n≥PEOPLE_MIN_SLICE_N, §11).
+    const headcount = latestVisibleHeadcountByArea(periods);
+    const headcountRows = (headcount?.areas ?? []).map((a) => ({ Área: a.area, "Nº pessoas": a.n }));
+    return { kpiRows, seriesRows, catalogRows, headcountRows };
   }
 
   return (
@@ -309,14 +550,30 @@ function PeopleIndicators({ crivo }: { crivo: AnalyticsData }) {
           <button
             className="btn btn--outline-dark btn--sm"
             disabled={!exportCtx || periods.length === 0}
-            onClick={() => { if (!exportCtx) return; const { kpiRows, seriesRows } = exportSheets(); exportXLSX("crivo-people-analytics", [{ name: "Indicadores destaque", rows: kpiRows }, { name: "Turnover e absenteísmo", rows: seriesRows }], exportCtx); }}
+            onClick={() => {
+              if (!exportCtx) return;
+              const { kpiRows, seriesRows, catalogRows, headcountRows } = exportSheets();
+              exportXLSX("crivo-people-analytics", [
+                { name: "Indicadores destaque", rows: kpiRows },
+                { name: "Catálogo (filtrado)", rows: catalogRows },
+                { name: "Turnover e absenteísmo", rows: seriesRows },
+                { name: "Headcount", rows: headcountRows },
+              ], exportCtx);
+            }}
           >
             <IconDownload size={14} /> XLSX
           </button>
           <button
             className="btn btn--outline-dark btn--sm"
             disabled={!exportCtx || periods.length === 0}
-            onClick={() => { if (!exportCtx) return; const { kpiRows } = exportSheets(); exportPDF("crivo-people-analytics", "People Analytics · Indicadores", [{ heading: "Indicadores destaque", rows: kpiRows }], exportCtx); }}
+            onClick={() => {
+              if (!exportCtx) return;
+              const { kpiRows, catalogRows } = exportSheets();
+              exportPDF("crivo-people-analytics", "People Analytics · Indicadores", [
+                { heading: "Indicadores destaque", rows: kpiRows },
+                { heading: "Catálogo (filtrado)", rows: catalogRows },
+              ], exportCtx);
+            }}
           >
             <IconFileText size={14} /> PDF
           </button>
@@ -584,21 +841,33 @@ function TurnoverAbsenteismoChart({ periods }: { periods: PeoplePeriod[] }) {
   );
 }
 
-/** Headcount por área do período mais recente que tiver o recorte preenchido —
- *  supressão n<5 (§11) aplicada aqui, no RENDER. */
-function HeadcountByAreaCard({ periods }: { periods: PeoplePeriod[] }) {
+/** Período mais recente com recorte por área preenchido, já separado em
+ *  visíveis (n≥PEOPLE_MIN_SLICE_N) e suprimidos (§11) — fonte única para o
+ *  card "Headcount por área" (render) E a exportação XLSX "Headcount", para
+ *  nunca divergirem entre tela e planilha. */
+function latestVisibleHeadcountByArea(
+  periods: PeoplePeriod[],
+): { period: string; areas: PeopleHeadcountByArea[]; suppressedCount: number } | null {
   const withAreas = [...periods].sort((a, b) => b.period.localeCompare(a.period)).find((p) => p.headcountByArea?.length);
   if (!withAreas?.headcountByArea) return null;
   const areas = withAreas.headcountByArea;
   const visible = areas.filter((a) => a.n >= PEOPLE_MIN_SLICE_N);
-  const suppressed = areas.length - visible.length;
+  return { period: withAreas.period, areas: visible, suppressedCount: areas.length - visible.length };
+}
+
+/** Headcount por área do período mais recente que tiver o recorte preenchido —
+ *  supressão n<5 (§11) aplicada aqui, no RENDER. */
+function HeadcountByAreaCard({ periods }: { periods: PeoplePeriod[] }) {
+  const result = latestVisibleHeadcountByArea(periods);
+  if (!result) return null;
+  const { period, areas: visible, suppressedCount } = result;
   const max = Math.max(...visible.map((a) => a.n), 1);
   return (
     <div className="card" style={{ marginTop: 16, marginBottom: 0 }}>
       <div className="card__head">
         <div>
           <h3>Headcount por área</h3>
-          <span className="card__sub">Período {withAreas.period} · recortes com n≥{PEOPLE_MIN_SLICE_N} (§11)</span>
+          <span className="card__sub">Período {period} · recortes com n≥{PEOPLE_MIN_SLICE_N} (§11)</span>
         </div>
       </div>
       {visible.length === 0 ? (
@@ -614,9 +883,9 @@ function HeadcountByAreaCard({ periods }: { periods: PeoplePeriod[] }) {
           ))}
         </ul>
       )}
-      {suppressed > 0 && (
+      {suppressedCount > 0 && (
         <p className="card__sub" style={{ fontSize: 11, marginTop: 10 }}>
-          {suppressed} área{suppressed === 1 ? "" : "s"} suprimida{suppressed === 1 ? "" : "s"} (n&lt;{PEOPLE_MIN_SLICE_N}).
+          {suppressedCount} área{suppressedCount === 1 ? "" : "s"} suprimida{suppressedCount === 1 ? "" : "s"} (n&lt;{PEOPLE_MIN_SLICE_N}).
         </p>
       )}
     </div>
@@ -668,13 +937,24 @@ function HeadcountAreaModal({
 
 // ── Catálogo de indicadores (metadados de governança) ──
 
-function PeopleCatalogCard() {
+function PeopleCatalogCard({
+  adding,
+  setAdding,
+  onFilteredChange,
+}: {
+  /** Modal "Adicionar indicador" controlado pelo pai — o botão do cabeçalho
+   *  da página ("Configurar") e o botão deste card abrem o mesmo modal. */
+  adding: boolean;
+  setAdding: (v: boolean) => void;
+  /** Eco das linhas atualmente filtradas (mesmas da tabela abaixo) para a
+   *  exportação XLSX/PDF de "Indicadores de RH" reaproveitar. */
+  onFilteredChange?: (rows: PeopleCatalogEntry[]) => void;
+}) {
   const [entries, setEntries] = useState<PeopleCatalogEntry[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
   const [filterCat, setFilterCat] = useState<string>("todas");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
-  const [adding, setAdding] = useState(false);
 
   async function load() {
     setStatus("loading");
@@ -692,6 +972,11 @@ function PeopleCatalogCard() {
   const filtered = (entries ?? []).filter(
     (e) => (filterCat === "todas" || e.category === filterCat) && (filterStatus === "todos" || e.status === filterStatus),
   );
+
+  useEffect(() => {
+    onFilteredChange?.(filtered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, filterCat, filterStatus]);
 
   async function persist(next: PeopleCatalogEntry[]) {
     setSaveState("saving");
@@ -716,7 +1001,7 @@ function PeopleCatalogCard() {
       <div className="card__head">
         <div>
           <h3>Catálogo de indicadores</h3>
-          <span className="card__sub">Metadados de governança por indicador — não altera scores metodológicos (ICD/NR-1)</span>
+          <span className="card__sub">Metadados de governança por indicador (fonte, fórmula, responsável, versão, confiança, status)</span>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setAdding(true)}><IconPlus size={14} /> Adicionar indicador</button>
       </div>

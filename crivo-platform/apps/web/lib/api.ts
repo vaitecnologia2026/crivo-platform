@@ -865,6 +865,15 @@ export function getPeopleCatalog(): Promise<PeopleCatalogData> {
 export function savePeopleCatalog(entries: PeopleCatalogEntry[]): Promise<PeopleCatalogData> {
   return apiFetch<PeopleCatalogData>('/people-analytics/catalog', { method: 'PUT', body: JSON.stringify({ entries }) });
 }
+/** Unidades distintas do cadastro de colaboradores (campo `unit`) + contagem —
+ *  fonte real do filtro "Unidade" da tela (nunca lista fixa/inventada). */
+export interface PeopleUnitsData {
+  units: { unit: string; count: number }[];
+  totalCollaborators: number;
+}
+export function getPeopleAnalyticsUnits(): Promise<PeopleUnitsData> {
+  return apiFetch<PeopleUnitsData>('/people-analytics/units');
+}
 
 // ── Gestão de usuários / equipe (telas por usuário + limite por produto) ──
 
