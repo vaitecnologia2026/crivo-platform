@@ -133,9 +133,16 @@ export function IcdScreen() {
     const pocketRows: Record<string, unknown>[] = (p?.byDimension ?? []).map((d) => ({
       Tema: d.label,
       "Sessões concluídas": d.sessions,
+      "Adesão do tema (%)": d.adhesionPct != null ? d.adhesionPct : "—",
     }));
     // Suprimido: a aba diz isso em texto — nunca um zero que pareceria contagem.
-    if (p && p.suppressed) pocketRows.push({ Tema: `Agregado suprimido (n < ${p.minLeadersForDisclosure})`, "Sessões concluídas": "suprimido" });
+    if (p && p.suppressed) {
+      pocketRows.push({
+        Tema: `Agregado suprimido (n < ${p.minLeadersForDisclosure})`,
+        "Sessões concluídas": "suprimido",
+        "Adesão do tema (%)": "suprimido",
+      });
+    }
     return [
       { name: "ICD por dimensão", rows: radar },
       { name: "Evolução do ICD", rows: evolucao },
@@ -503,10 +510,17 @@ function PocketCard({ pocket }: { pocket: ReturnType<typeof useAgregado<PocketAg
         <>
           <div className="bars">
             {p.byDimension.map((d) => (
-              <div className="bar-row" key={d.dimension}>
+              <div className="bar-row" key={d.dimension} style={{ gridTemplateColumns: "100px 1fr 40px 64px" }}>
                 <span className="bar-row__label" title={`Sessões concluídas com ao menos uma reflexão em ${d.label}`}>{d.label}</span>
                 <div className="bar"><div className="bar__fill" style={{ width: `${(d.sessions / max) * 100}%`, background: "var(--success)" }} /></div>
                 <span className="bar-row__value" style={{ fontVariantNumeric: "tabular-nums" }}>{d.sessions}</span>
+                <span
+                  className="bar-row__value"
+                  title={`Adesão do tema ${d.label}: ${d.leaders} líder(es) / ${p.eligibleLeaders} elegíveis`}
+                  style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-sec)" }}
+                >
+                  {d.adhesionPct != null ? `${d.adhesionPct}%` : "—"}
+                </span>
               </div>
             ))}
           </div>

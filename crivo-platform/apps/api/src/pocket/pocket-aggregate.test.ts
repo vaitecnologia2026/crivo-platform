@@ -12,7 +12,10 @@ import { PocketService } from './pocket.service';
  * (2) a contagem por dimensão vem do questionCode → dimensão do catálogo
  * oficial, contando a SESSÃO uma vez por dimensão tocada (não a reflexão);
  * (3) nenhum texto de reflexão nem leaderId sai na resposta; (4) o recorte é
- * o ciclo ICD (informado ou aberto), senão todo o histórico.
+ * o ciclo ICD (informado ou aberto), senão todo o histórico; (5) cada item de
+ * byDimension também traz "leaders" (líderes DISTINTOS que tocaram o tema —
+ * diferente de "sessions") e "adhesionPct" (leaders / eligibleLeaders), null
+ * quando eligibleLeaders = 0, mesmo padrão do adhesionPct agregado.
  */
 
 const TENANT = 'org-1';
@@ -81,8 +84,31 @@ describe('PocketService.aggregate — agregado por dimensão com supressão', ()
       ['V', 1],
       ['O', 2],
     ]);
+    // "leaders"/"adhesionPct" contam LÍDER DISTINTO por tema (não sessão): em C,
+    // l5 aparece 2x em "sessions" (3 no total) mas é 1 líder só — leaders = 2 (l1, l5).
+    expect(a.byDimension?.map((d) => [d.dimension, d.leaders, d.adhesionPct])).toEqual([
+      ['C', 2, 20], // l1, l5 → 2/10
+      ['R', 1, 10], // l3 → 1/10
+      ['I', 1, 10], // l1 → 1/10
+      ['V', 1, 10], // l2 → 1/10
+      ['O', 2, 20], // l4, l5 → 2/10
+    ]);
     expect(a.byDimension?.[0].label).toBe('Consciência');
     expect(a.questionsVersion).toBe(POCKET_QUESTIONS_VERSION);
+  });
+
+  it('eligibleLeaders = 0: adhesionPct por tema vem null (mesmo padrão do adhesionPct agregado)', async () => {
+    const { svc } = build({
+      leaders: 0,
+      sessions: ['l1', 'l2', 'l3', 'l4', 'l5'].map((l) => sessao(l, [['C1', 'texto']])),
+    });
+
+    const a = await svc.aggregate(TENANT);
+
+    expect(a.suppressed).toBe(false); // 5 líderes participantes ≥ MIN_LEADERS_FOR_DISCLOSURE
+    expect(a.adhesionPct).toBeNull();
+    expect(a.byDimension?.find((d) => d.dimension === 'C')).toMatchObject({ leaders: 5, adhesionPct: null });
+    expect(a.byDimension?.filter((d) => d.dimension !== 'C').every((d) => d.leaders === 0 && d.adhesionPct === null)).toBe(true);
   });
 
   it('nunca expõe texto de reflexão nem leaderId — só contagens', async () => {

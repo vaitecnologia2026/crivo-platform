@@ -3469,8 +3469,16 @@ export interface PocketAggregate {
   /** % de líderes elegíveis com ≥ 1 sessão concluída — null sob supressão ou sem elegíveis. */
   adhesionPct: number | null;
   /** Por dimensão C/R/I/V/O: sessões concluídas com ≥ 1 reflexão respondida
-   *  naquela dimensão. null sob supressão. */
-  byDimension: Array<{ dimension: PocketDimension; label: string; sessions: number }> | null;
+   *  naquela dimensão (sessions), líderes distintos que a tocaram (leaders) e
+   *  a adesão % daquele tema (leaders / eligibleLeaders, arredondado; null se
+   *  eligibleLeaders = 0). null sob supressão. */
+  byDimension: Array<{
+    dimension: PocketDimension;
+    label: string;
+    sessions: number;
+    leaders: number;
+    adhesionPct: number | null;
+  }> | null;
   questionsVersion: string;
 }
 

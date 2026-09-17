@@ -274,10 +274,14 @@ export class PocketService {
    *  Liderança do Super Admin). Anexo Pocket §13: sessões e reflexões são do
    *  líder — aqui só CONTAGENS (sessões concluídas com ≥ 1 reflexão respondida
    *  por dimensão) e adesão (% de líderes ativos com ≥ 1 sessão concluída).
+   *  byDimension traz, por tema, tanto "sessions" (contagem de sessões que
+   *  tocaram o tema) quanto "leaders"/"adhesionPct" (líderes DISTINTOS que
+   *  tocaram o tema / eligibleLeaders) — são números diferentes: um líder
+   *  pode gerar várias sessões no mesmo tema.
    *  Nunca texto, nunca por pessoa, nenhum score (o Pocket não pontua).
    *  Recorte: o ciclo ICD informado, senão o aberto, senão todo o histórico.
    *  Supressão §11: com menos de MIN_LEADERS_FOR_DISCLOSURE líderes com
-   *  sessão concluída, contagens e adesão vêm null. */
+   *  sessão concluída, contagens e adesão (agregada e por tema) vêm null. */
   async aggregate(tenantId: string, cycleId?: string): Promise<PocketAggregate> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const cycle = cycleId
@@ -303,6 +307,12 @@ export class PocketService {
       let completedSessions: number | null = null;
       if (!suppressed) {
         const perDim = new Map<PocketDimension, number>(POCKET_DIMENSIONS.map((d) => [d, 0]));
+        // Líderes distintos que tocaram cada dimensão — base da adesão % POR TEMA
+        // (não confundir com "sessions": uma sessão conta 1x por dimensão tocada,
+        // mas o mesmo líder pode ter várias sessões na mesma dimensão).
+        const perDimLeaders = new Map<PocketDimension, Set<string>>(
+          POCKET_DIMENSIONS.map((d) => [d, new Set<string>()]),
+        );
         for (const s of sessions) {
           const touched = new Set<PocketDimension>();
           for (const r of s.reflections) {
@@ -310,13 +320,21 @@ export class PocketService {
             const dim = QUESTION_DIMENSION.get(r.questionCode);
             if (answered && dim) touched.add(dim);
           }
-          for (const d of touched) perDim.set(d, (perDim.get(d) ?? 0) + 1);
+          for (const d of touched) {
+            perDim.set(d, (perDim.get(d) ?? 0) + 1);
+            perDimLeaders.get(d)?.add(s.leaderId);
+          }
         }
-        byDimension = POCKET_DIMENSIONS.map((d) => ({
-          dimension: d,
-          label: POCKET_DIMENSION_LABEL[d],
-          sessions: perDim.get(d) ?? 0,
-        }));
+        byDimension = POCKET_DIMENSIONS.map((d) => {
+          const leaders = perDimLeaders.get(d)?.size ?? 0;
+          return {
+            dimension: d,
+            label: POCKET_DIMENSION_LABEL[d],
+            sessions: perDim.get(d) ?? 0,
+            leaders,
+            adhesionPct: eligibleLeaders > 0 ? Math.round((leaders / eligibleLeaders) * 100) : null,
+          };
+        });
         completedSessions = sessions.length;
         adhesionPct = eligibleLeaders > 0 ? Math.round((participatingLeaders / eligibleLeaders) * 100) : null;
       }
