@@ -34,6 +34,7 @@ import {
   type WorkTaskStage,
   type WorkforceAdminSummary,
   type WorkforceScenario,
+  type WorkforceSummary,
 } from "@crivo/types";
 import {
   createTenantWorkPilot,
@@ -57,13 +58,15 @@ import {
   type AuditEntry,
   type IntelligenceCompany,
 } from "@/lib/admin-api";
-import { downloadCsv } from "./ManagementReportsSection";
+import { exportXLSX, type ExportContext } from "@/lib/exports";
+import { agregarPorArea, agregarPorFuncao, tempoMedioPorTarefaMin } from "@/lib/workforce-aggregates";
 
 /**
  * Módulos › Workforce Intelligence — workspace da equipe CRIVO, POR EMPRESA,
  * sobre os MESMOS WorkProcess / WorkTask / WorkSkill / WorkPilot que o cliente
  * lê no portal (Programas › Workforce Intelligence), no layout do protótipo
- * Lovable do Super Admin (KPIs + abas + drill "Detalhamento por processo").
+ * Lovable do Super Admin (KPIs Vagas/Processos/Cenários/Blueprints + 10 abas na
+ * ordem do protótipo + drill "Detalhamento por processo" com export XLSX).
  * Fase 1: a CRIVO alimenta processos, tarefas, skills e pilotos e VALIDA as
  * tarefas (fila EM_VALIDACAO_CRIVO, nota obrigatória, auditado); a decisão
  * humana é do cliente e aparece aqui só como leitura (estágio DECIDIDO).
@@ -73,14 +76,18 @@ import { downloadCsv } from "./ManagementReportsSection";
  * leitura). Nada demonstrativo: toda aba nasce com estado vazio honesto.
  */
 
-type Tab = "visao" | "processos" | "skills" | "cenarios" | "pilotos" | "validacao" | "auditoria";
+// Ordem do protótipo Lovable (Validação CRIVO é extra da implementação e fica).
+type Tab = "visao" | "vagas" | "processos" | "skills" | "cenarios" | "blueprints" | "pilotos" | "validacao" | "evidencias" | "auditoria";
 const TABS: Array<[Tab, string]> = [
   ["visao", "Visão Executiva"],
-  ["processos", "Processos e Tarefas"],
+  ["vagas", "Vagas, Funções e Trabalho Real"],
+  ["processos", "Tarefas e Processos"],
   ["skills", "Skills e Capacidade"],
   ["cenarios", "Cenários de Redesenho"],
-  ["pilotos", "Blueprints e Pilotos"],
+  ["blueprints", "Blueprints"],
+  ["pilotos", "Pilotos e Implementações"],
   ["validacao", "Validação CRIVO"],
+  ["evidencias", "Evidências e Indicadores"],
   ["auditoria", "Governança e Auditoria"],
 ];
 
@@ -98,6 +105,8 @@ function Chip({ tone, children, title }: { tone?: "gold" | "danger"; children: R
 }
 const riskTone = (r: WorkRisk | null): "gold" | "danger" | undefined => (r === "ALTO" ? "danger" : r === "MEDIO" ? "gold" : undefined);
 const stageTone = (s: WorkTaskStage): "gold" | "danger" | undefined => (s === "DECIDIDO" ? "gold" : s === "EM_VALIDACAO_CRIVO" ? "danger" : undefined);
+/** Cenários da taxonomia com ≥ 1 tarefa (KPI "Cenários ativos"). */
+const cenariosAtivos = (s: WorkforceSummary) => WORKFORCE_SCENARIOS.filter((sc) => (s.byScenario[sc] ?? 0) > 0).length;
 
 /** Estado de carregamento de uma lista por empresa (remonta ao trocar o select via `key`). */
 function useLista<T>(loader: () => Promise<T>, deps: unknown[]) {
@@ -205,26 +214,28 @@ export function WorkforceSection({ onNavigate }: { onNavigate?: (section: string
             <p className="dash-state">Módulo Workforce Intelligence não liberado para esta empresa — liberação em Contratos e Liberações. O que for cadastrado aqui só aparece no portal depois da liberação.</p>
           )}
 
+          {/* KPIs do protótipo (Vagas · Processos · Cenários · Blueprints) — contagens reais do summary.
+              "Tarefas" e "Em validação CRIVO" viraram hints aqui e resumo na aba Validação CRIVO. */}
           <div className="kpi-grid">
+            <div className="kpi">
+              <span className="kpi__label" title="Funções (WorkTask.role) distintas com pelo menos uma tarefa">Vagas analisadas</span>
+              <strong className="kpi__value">{s.roles}</strong>
+              <span className="card__hint">funções distintas com ≥ 1 tarefa · {s.tasks} tarefa(s)</span>
+            </div>
             <div className="kpi">
               <span className="kpi__label" title="Processos cadastrados no mapeamento">Processos mapeados</span>
               <strong className="kpi__value">{s.processes}</strong>
               <span className="card__hint">{s.areas.length} área(s) com tarefas</span>
             </div>
             <div className="kpi">
-              <span className="kpi__label" title="Tarefas do trabalho real (qualquer estágio)">Tarefas</span>
-              <strong className="kpi__value">{s.tasks}</strong>
-              <span className="card__hint">{s.byStage.VALIDADO_CRIVO} validada(s) · {s.byStage.DECIDIDO} decidida(s)</span>
+              <span className="kpi__label" title="Cenários da taxonomia com pelo menos uma tarefa">Cenários ativos</span>
+              <strong className="kpi__value">{cenariosAtivos(s)}</strong>
+              <span className="card__hint">dos {WORKFORCE_SCENARIOS.length} da taxonomia CRIVO · {s.byStage.EM_VALIDACAO_CRIVO} tarefa(s) em validação CRIVO</span>
             </div>
             <div className="kpi">
-              <span className="kpi__label" title="Tarefas na fila EM_VALIDACAO_CRIVO">Em validação CRIVO</span>
-              <strong className="kpi__value">{s.byStage.EM_VALIDACAO_CRIVO}</strong>
-              <span className="card__hint">{s.byStage.RASCUNHO} em rascunho</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label" title="Pilotos com status Em andamento">Pilotos em andamento</span>
-              <strong className="kpi__value">{s.pilots.inProgress}</strong>
-              <span className="card__hint">{s.pilots.blueprints} blueprint(s) · {s.pilots.concluded} concluído(s)</span>
+              <span className="kpi__label" title="Blueprints (kind BLUEPRINT) com status Aprovado">Blueprints aprovados</span>
+              <strong className="kpi__value">{s.pilots.approvedBlueprints}</strong>
+              <span className="card__hint">{s.pilots.blueprints} blueprint(s) no total · {s.pilots.inProgress} piloto(s) em andamento</span>
             </div>
           </div>
 
@@ -240,11 +251,14 @@ export function WorkforceSection({ onNavigate }: { onNavigate?: (section: string
 
           {/* key por empresa+tick: cada aba remonta com estado limpo ao trocar o select ou após escrita */}
           {tab === "visao" && <VisaoTab key={`${tenantId}-${tick}`} tenantId={tenantId} summary={data} />}
+          {tab === "vagas" && <VagasTab key={`${tenantId}-${tick}`} tenantId={tenantId} areas={s.areas} />}
           {tab === "processos" && <ProcessosTab key={`${tenantId}-${tick}`} tenantId={tenantId} areas={s.areas} onChanged={bump} />}
           {tab === "skills" && <SkillsTab key={`${tenantId}-${tick}`} tenantId={tenantId} onChanged={bump} />}
           {tab === "cenarios" && <CenariosTab key={`${tenantId}-${tick}`} tenantId={tenantId} />}
-          {tab === "pilotos" && <PilotosTab key={`${tenantId}-${tick}`} tenantId={tenantId} onChanged={bump} />}
-          {tab === "validacao" && <ValidacaoTab key={`${tenantId}-${tick}`} tenantId={tenantId} onChanged={bump} />}
+          {tab === "blueprints" && <EntregasTab key={`${tenantId}-${tick}`} tenantId={tenantId} kind="BLUEPRINT" onChanged={bump} />}
+          {tab === "pilotos" && <EntregasTab key={`${tenantId}-${tick}`} tenantId={tenantId} kind="PILOTO" onChanged={bump} />}
+          {tab === "validacao" && <ValidacaoTab key={`${tenantId}-${tick}`} tenantId={tenantId} summary={s} onChanged={bump} />}
+          {tab === "evidencias" && <EvidenciasTab key={`${tenantId}-${tick}`} tenantId={tenantId} summary={s} />}
           {tab === "auditoria" && <AuditoriaTab key={`${data.company.organizationId}-${tick}`} organizationId={data.company.organizationId} />}
 
           <RuleBox>
@@ -254,41 +268,95 @@ export function WorkforceSection({ onNavigate }: { onNavigate?: (section: string
             score CRIVO nem calculados por IA; a cobertura de IA usa o limiar definido em cada processo. A decisão humana é do cliente, no portal.
           </RuleBox>
 
-          {drill && <DrillModal tenantId={tenantId} company={data.company.name} onClose={() => setDrill(false)} />}
+          {drill && <DrillModal tenantId={tenantId} company={data.company} modulo={data.module} onClose={() => setDrill(false)} />}
         </>
       )}
     </div>
   );
 }
 
-// ── Visão Executiva (por processo: tarefas, cobertura, cenário predominante, risco, estágio) ──
+// ── Visão Executiva (por ÁREA, como no protótipo; a leitura por processo fica abaixo e no drill) ──
 
 function VisaoTab({ tenantId, summary }: { tenantId: string; summary: WorkforceAdminSummary }) {
   const procs = useLista(() => listTenantWorkProcesses(tenantId), [tenantId]);
+  const tarefas = useLista(() => listTenantWorkTasks(tenantId), [tenantId]);
   const s = summary.summary;
+  const areas = useMemo(() => agregarPorArea(procs.data ?? [], tarefas.data ?? []), [procs.data, tarefas.data]);
+  // A tabela por área só fica pronta com processos E tarefas carregados.
+  const estadoAreas = { data: procs.data && tarefas.data ? areas : null, err: procs.err ?? tarefas.err };
+  return (
+    <>
+      <div className="card">
+        <div className="card__head"><div><h3>Análises por área</h3><span className="card__sub">Processos da área, cenário predominante (moda das tarefas), maior risco e estágio mais avançado — derivados dos processos e tarefas cadastrados.</span></div></div>
+        <Tabela
+          estado={estadoAreas}
+          vazio="Nenhuma área mapeada — cadastre o primeiro processo em Tarefas e Processos."
+          head={["Área", "Processos", "Cenário", "Risco", "Status"]}
+          rows={areas.map((a) => [
+            <strong key="a">{a.area}</strong>,
+            a.processos,
+            a.cenario ? WORKFORCE_SCENARIO_LABEL[a.cenario] : "—",
+            a.risco ? <Chip key="r" tone={riskTone(a.risco)}>{WORK_RISK_LABEL[a.risco]}</Chip> : "—",
+            a.estagio ? <Chip key="s" tone={stageTone(a.estagio)}>{WORK_TASK_STAGE_LABEL[a.estagio]}</Chip> : <span title="Área sem tarefas">—</span>,
+          ])}
+          keys={areas.map((a) => a.area)}
+        />
+        {s.tasks > 0 && (
+          <p className="card__hint" style={{ marginTop: 12 }}>
+            Decisões do cliente: {WORK_DECISION_LABEL.ACEITAR.toLowerCase()} {s.byDecision.ACEITAR} · {WORK_DECISION_LABEL.CONDICIONAR.toLowerCase()} {s.byDecision.CONDICIONAR} · {WORK_DECISION_LABEL.DEVOLVER.toLowerCase()} {s.byDecision.DEVOLVER} · {WORK_DECISION_LABEL.REJEITAR.toLowerCase()} {s.byDecision.REJEITAR}.
+          </p>
+        )}
+      </div>
+      <div className="card">
+        <div className="card__head"><div><h3>Por processo</h3><span className="card__sub">Tarefas, cobertura de IA (limiar do processo), cenário predominante, maior risco e estágio. O mesmo recorte sai em XLSX no detalhamento.</span></div></div>
+        <Tabela
+          estado={procs}
+          vazio="Nenhum processo mapeado."
+          head={["Área", "Processo", "Tarefas", "Cobertura IA", "Cenário predominante", "Risco", "Estágio"]}
+          rows={(procs.data ?? []).map((p) => [
+            p.area,
+            <strong key="n">{p.name}</strong>,
+            p.tasksCount,
+            p.aiCoveragePct == null ? "—" : `${p.aiCoveragePct}% (≥ ${p.aiThresholdPct}%)`,
+            p.dominantScenario ? WORKFORCE_SCENARIO_LABEL[p.dominantScenario] : "—",
+            p.highestRisk ? <Chip key="r" tone={riskTone(p.highestRisk)}>{WORK_RISK_LABEL[p.highestRisk]}</Chip> : "—",
+            <EstagioResumo key="e" byStage={p.byStage} />,
+          ])}
+          keys={(procs.data ?? []).map((p) => p.id)}
+        />
+      </div>
+    </>
+  );
+}
+
+// ── Vagas, Funções e Trabalho Real (agregado por função, no cliente) ──
+
+function VagasTab({ tenantId, areas: areasDisponiveis }: { tenantId: string; areas: string[] }) {
+  const [area, setArea] = useState("");
+  const procs = useLista(() => listTenantWorkProcesses(tenantId), [tenantId]);
+  const tarefas = useLista(() => listTenantWorkTasks(tenantId, { area }), [tenantId, area]);
+  const funcoes = useMemo(() => agregarPorFuncao(tarefas.data ?? [], procs.data ?? []), [tarefas.data, procs.data]);
+  const estado = { data: procs.data && tarefas.data ? funcoes : null, err: procs.err ?? tarefas.err };
   return (
     <div className="card">
-      <div className="card__head"><div><h3>Análises por processo</h3><span className="card__sub">Tarefas, cobertura de IA (limiar do processo), cenário predominante, maior risco e estágio — derivados das tarefas cadastradas.</span></div></div>
+      <div className="card__head">
+        <div><h3>Vagas, funções e trabalho real</h3><span className="card__sub">Uma linha por função (campo Função das tarefas). Taxa automatizável = % de tarefas da função com potencial IA ≥ limiar do seu processo — mesma regra da cobertura de IA; não é score.</span></div>
+        <label className="prod-field" style={{ minWidth: 160 }}><span>Área</span>
+          <select value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas as áreas</option>{areasDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        </label>
+      </div>
       <Tabela
-        estado={procs}
-        vazio="Nenhum processo mapeado — cadastre o primeiro processo em Processos e Tarefas."
-        head={["Área", "Processo", "Tarefas", "Cobertura IA", "Cenário predominante", "Risco", "Estágio"]}
-        rows={(procs.data ?? []).map((p) => [
-          p.area,
-          <strong key="n">{p.name}</strong>,
-          p.tasksCount,
-          p.aiCoveragePct == null ? "—" : `${p.aiCoveragePct}% (≥ ${p.aiThresholdPct}%)`,
-          p.dominantScenario ? WORKFORCE_SCENARIO_LABEL[p.dominantScenario] : "—",
-          p.highestRisk ? <Chip key="r" tone={riskTone(p.highestRisk)}>{WORK_RISK_LABEL[p.highestRisk]}</Chip> : "—",
-          <EstagioResumo key="e" byStage={p.byStage} />,
+        estado={estado}
+        vazio={area ? "Nenhuma tarefa nesta área — nenhuma função a exibir." : "Nenhuma função analisada — as funções nascem das tarefas cadastradas em Tarefas e Processos."}
+        head={["Função", "Tarefas", "Taxa automatizável", "Risco"]}
+        rows={funcoes.map((f) => [
+          <strong key="f">{f.funcao}</strong>,
+          f.tarefas,
+          f.taxaAutomatizavelPct == null ? "—" : `${f.taxaAutomatizavelPct}%`,
+          f.risco ? <Chip key="r" tone={riskTone(f.risco)}>{WORK_RISK_LABEL[f.risco]}</Chip> : "—",
         ])}
-        keys={(procs.data ?? []).map((p) => p.id)}
+        keys={funcoes.map((f) => f.funcao)}
       />
-      {s.tasks > 0 && (
-        <p className="card__hint" style={{ marginTop: 12 }}>
-          Decisões do cliente: {WORK_DECISION_LABEL.ACEITAR.toLowerCase()} {s.byDecision.ACEITAR} · {WORK_DECISION_LABEL.CONDICIONAR.toLowerCase()} {s.byDecision.CONDICIONAR} · {WORK_DECISION_LABEL.DEVOLVER.toLowerCase()} {s.byDecision.DEVOLVER} · {WORK_DECISION_LABEL.REJEITAR.toLowerCase()} {s.byDecision.REJEITAR}.
-        </p>
-      )}
     </div>
   );
 }
@@ -300,7 +368,7 @@ function EstagioResumo({ byStage }: { byStage: Record<WorkTaskStage, number> }) 
   return <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{partes.map((st) => <Chip key={st} tone={stageTone(st)}>{byStage[st]} {WORK_TASK_STAGE_LABEL[st]}</Chip>)}</span>;
 }
 
-// ── Processos e Tarefas (CRUD pelo consultor CRIVO) ──
+// ── Tarefas e Processos (CRUD pelo consultor CRIVO) ──
 
 function ProcessosTab({ tenantId, areas, onChanged }: { tenantId: string; areas: string[]; onChanged: () => void }) {
   const procs = useLista(() => listTenantWorkProcesses(tenantId), [tenantId]);
@@ -465,12 +533,15 @@ function CenariosTab({ tenantId }: { tenantId: string }) {
   );
 }
 
-// ── Blueprints e Pilotos ──
+// ── Blueprints (kind BLUEPRINT) e Pilotos e Implementações (kind PILOTO) — mesma fonte, colunas do protótipo ──
 
-function PilotosTab({ tenantId, onChanged }: { tenantId: string; onChanged: () => void }) {
-  const pilotos = useLista(() => listTenantWorkPilots(tenantId), [tenantId]);
+function EntregasTab({ tenantId, kind, onChanged }: { tenantId: string; kind: WorkPilotKind; onChanged: () => void }) {
+  const todos = useLista(() => listTenantWorkPilots(tenantId), [tenantId]);
+  const itens = useMemo(() => (todos.data ?? []).filter((p) => p.kind === kind), [todos.data, kind]);
+  const estado = { data: todos.data ? itens : null, err: todos.err };
   const [form, setForm] = useState<{ open: boolean; initial: WorkPilotData | null }>({ open: false, initial: null });
   const [busy, setBusy] = useState<string | null>(null);
+  const blueprint = kind === "BLUEPRINT";
   async function excluir(p: WorkPilotData) {
     if (!window.confirm(`Excluir "${p.name}"? A ação é auditada.`)) return;
     setBusy(p.id);
@@ -480,37 +551,119 @@ function PilotosTab({ tenantId, onChanged }: { tenantId: string; onChanged: () =
     setBusy(p.id);
     try { await updateTenantWorkPilot(tenantId, p.id, { status }); onChanged(); } finally { setBusy(null); }
   }
+  const statusSelect = (p: WorkPilotData) => (
+    <select key="s" className="select-pill" value={p.status} disabled={busy === p.id} onChange={(e) => mudarStatus(p, e.target.value as WorkPilotStatus)} style={{ fontSize: 12 }}>
+      {WORK_PILOT_STATUSES.map((st) => <option key={st} value={st}>{WORK_PILOT_STATUS_LABEL[st]}</option>)}
+    </select>
+  );
+  const acoes = (p: WorkPilotData) => (
+    <span key="a" style={{ display: "flex", gap: 6 }}>
+      <button className="btn btn--outline-dark btn--sm" onClick={() => setForm({ open: true, initial: p })}>Editar</button>
+      <button className="btn btn--ghost-dark btn--sm" disabled={busy === p.id} onClick={() => excluir(p)}>Excluir</button>
+    </span>
+  );
   return (
     <div className="card">
       <div className="card__head">
-        <div><h3>Blueprints e pilotos</h3><span className="card__sub">Entregas dentro do módulo (não são códigos de módulo). Resultado só quando medido, com confiança declarada. Escala, revisa, suspende ou abandona conforme evidências e decisão do cliente.</span></div>
-        <button className="btn btn--gold btn--sm" onClick={() => setForm({ open: true, initial: null })}>Novo piloto / blueprint</button>
+        {blueprint ? (
+          <div><h3>Blueprints</h3><span className="card__sub">Entregas dentro do módulo (não são códigos de módulo). Esforço, valor potencial e parceiro são atributos de decisão informados — valor potencial é sempre estimado, nunca garantido. Aprovação é decisão do cliente.</span></div>
+        ) : (
+          <div><h3>Pilotos e implementações</h3><span className="card__sub">Escala, revisa, suspende ou abandona conforme evidências e decisão do cliente. Resultado só quando medido, com confiança declarada.</span></div>
+        )}
+        <button className="btn btn--gold btn--sm" onClick={() => setForm({ open: true, initial: null })}>{blueprint ? "Novo blueprint" : "Novo piloto"}</button>
       </div>
-      <Tabela
-        estado={pilotos}
-        vazio="Nenhum blueprint ou piloto registrado para esta empresa."
-        head={["Nome", "Tipo", "Processo", "Baseline", "Indicador", "Resultado", "Confiança", "Status", ""]}
-        rows={(pilotos.data ?? []).map((p) => [
-          <strong key="n">{p.name}</strong>, WORK_PILOT_KIND_LABEL[p.kind], p.processName ?? "—", p.baseline || "—", p.indicator || "—", p.result || "ainda não medido",
-          <Chip key="c">{WORK_CONFIDENCE_LABEL[p.confidence]}</Chip>,
-          <select key="s" className="select-pill" value={p.status} disabled={busy === p.id} onChange={(e) => mudarStatus(p, e.target.value as WorkPilotStatus)} style={{ fontSize: 12 }}>
-            {WORK_PILOT_STATUSES.map((st) => <option key={st} value={st}>{WORK_PILOT_STATUS_LABEL[st]}</option>)}
-          </select>,
-          <span key="a" style={{ display: "flex", gap: 6 }}>
-            <button className="btn btn--outline-dark btn--sm" onClick={() => setForm({ open: true, initial: p })}>Editar</button>
-            <button className="btn btn--ghost-dark btn--sm" disabled={busy === p.id} onClick={() => excluir(p)}>Excluir</button>
-          </span>,
-        ])}
-        keys={(pilotos.data ?? []).map((p) => p.id)}
-      />
-      {form.open && <PilotoForm tenantId={tenantId} initial={form.initial} onClose={() => setForm({ open: false, initial: null })} onSaved={() => { setForm({ open: false, initial: null }); onChanged(); }} />}
+      {blueprint ? (
+        <Tabela
+          estado={estado}
+          vazio="Nenhum blueprint registrado para esta empresa."
+          head={["Blueprint", "Esforço", "Valor potencial", "Parceiro", "Status", ""]}
+          rows={itens.map((p) => [<strong key="n">{p.name}</strong>, p.effort || "—", p.potentialValue || "—", p.partner || "—", statusSelect(p), acoes(p)])}
+          keys={itens.map((p) => p.id)}
+        />
+      ) : (
+        <Tabela
+          estado={estado}
+          vazio="Nenhum piloto registrado para esta empresa."
+          head={["Nome", "Processo", "Baseline", "Indicador", "Resultado", "Confiança", "Status", ""]}
+          rows={itens.map((p) => [
+            <strong key="n">{p.name}</strong>, p.processName ?? "—", p.baseline || "—", p.indicator || "—", p.result || "ainda não medido",
+            <Chip key="c">{WORK_CONFIDENCE_LABEL[p.confidence]}</Chip>, statusSelect(p), acoes(p),
+          ])}
+          keys={itens.map((p) => p.id)}
+        />
+      )}
+      {form.open && <PilotoForm tenantId={tenantId} initial={form.initial} kindPadrao={kind} onClose={() => setForm({ open: false, initial: null })} onSaved={() => { setForm({ open: false, initial: null }); onChanged(); }} />}
     </div>
+  );
+}
+
+// ── Evidências e Indicadores (por piloto/blueprint + indicadores agregados; nada estimado) ──
+
+function EvidenciasTab({ tenantId, summary: s }: { tenantId: string; summary: WorkforceSummary }) {
+  const pilotos = useLista(() => listTenantWorkPilots(tenantId), [tenantId]);
+  const tarefas = useLista(() => listTenantWorkTasks(tenantId), [tenantId]);
+  const tempoMedio = useMemo(() => tempoMedioPorTarefaMin(tarefas.data ?? []), [tarefas.data]);
+  const comDuracao = (tarefas.data ?? []).filter((t) => t.durationMin > 0).length;
+  const cenariosEmUso = WORKFORCE_SCENARIOS.filter((sc) => (s.byScenario[sc] ?? 0) > 0);
+  const totalDecisoes = s.byDecision.ACEITAR + s.byDecision.CONDICIONAR + s.byDecision.DEVOLVER + s.byDecision.REJEITAR;
+  return (
+    <>
+      <div className="card">
+        <div className="card__head"><div><h3>Evidências por piloto e blueprint</h3><span className="card__sub">Baseline → indicador → resultado medido → confiança. Resultado vazio aparece como "ainda não medido" — nunca estimativa.</span></div></div>
+        {pilotos.err && <div className="dash-state dash-state--error">{pilotos.err}</div>}
+        {!pilotos.data && !pilotos.err && <p className="dash-state">Carregando…</p>}
+        {pilotos.data && pilotos.data.length === 0 && <p className="dash-state" style={{ margin: 0 }}>Nenhum blueprint ou piloto registrado — sem evidências a exibir.</p>}
+        {pilotos.data && pilotos.data.length > 0 && (
+          <div className="grid grid--3">
+            {pilotos.data.map((p) => (
+              <div key={p.id} style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                  <strong style={{ fontSize: 13 }}>{p.name}</strong>
+                  <Chip>{WORK_PILOT_KIND_LABEL[p.kind]}</Chip>
+                </div>
+                {p.processName && <span className="card__hint">{p.processName}</span>}
+                <F label="Baseline" value={p.baseline || "—"} />
+                <F label="Indicador" value={p.indicator || "—"} />
+                <F label="Resultado" value={p.result || <span style={{ color: "var(--text-sec)" }}>ainda não medido</span>} />
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+                  <Chip>Confiança: {WORK_CONFIDENCE_LABEL[p.confidence]}</Chip>
+                  <Chip tone={p.status === "APROVADO" || p.status === "CONCLUIDO" ? "gold" : p.status === "SUSPENSO" || p.status === "CANCELADO" ? "danger" : undefined}>{WORK_PILOT_STATUS_LABEL[p.status]}</Chip>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="card">
+        <div className="card__head"><div><h3>Indicadores</h3><span className="card__sub">Somente o que foi informado nas tarefas e decidido pelo cliente. Sem economia garantida.</span></div></div>
+        <div className="grid grid--3">
+          <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 12 }}>
+            <F label="Tempo médio por tarefa" value={!tarefas.data ? "…" : tempoMedio == null ? "—" : `${tempoMedio} min`} />
+            <span className="card__hint">{tarefas.data ? `${comDuracao} de ${tarefas.data.length} tarefa(s) com duração informada` : "carregando tarefas…"}</span>
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 12 }}>
+            <F label="Cenários em uso" value={cenariosEmUso.length === 0 ? "—" : (
+              <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{cenariosEmUso.map((sc) => <Chip key={sc} tone="gold">{s.byScenario[sc]} {WORKFORCE_SCENARIO_LABEL[sc]}</Chip>)}</span>
+            )} />
+            <span className="card__hint">{cenariosEmUso.length} de {WORKFORCE_SCENARIOS.length} da taxonomia CRIVO</span>
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", padding: 12 }}>
+            <F label="Decisões do cliente" value={totalDecisoes === 0 ? "—" : (
+              <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {(["ACEITAR", "CONDICIONAR", "DEVOLVER", "REJEITAR"] as const).map((d) => <Chip key={d} tone={d === "REJEITAR" || d === "DEVOLVER" ? "danger" : "gold"}>{s.byDecision[d]} {WORK_DECISION_LABEL[d]}</Chip>)}
+              </span>
+            )} />
+            <span className="card__hint">a decisão é do cliente, no portal</span>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
 // ── Validação CRIVO (fila EM_VALIDACAO_CRIVO: validar / devolver com nota obrigatória) ──
 
-function ValidacaoTab({ tenantId, onChanged }: { tenantId: string; onChanged: () => void }) {
+function ValidacaoTab({ tenantId, summary: s, onChanged }: { tenantId: string; summary: WorkforceSummary; onChanged: () => void }) {
   const fila = useLista(() => listTenantWorkTasks(tenantId, { stage: "EM_VALIDACAO_CRIVO" }), [tenantId]);
   const [notas, setNotas] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -535,6 +688,11 @@ function ValidacaoTab({ tenantId, onChanged }: { tenantId: string; onChanged: ()
   return (
     <div className="card">
       <div className="card__head"><div><h3>Validação CRIVO</h3><span className="card__sub">Tarefas enviadas pelo consultor (ou pela empresa) aguardando a validação do cenário. Validar libera a decisão do cliente no portal; devolver leva a tarefa de volta a rascunho com a nota.</span></div></div>
+      {/* Resumo por estágio (antigos KPIs "Tarefas" e "Em validação CRIVO") */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        <Chip>{s.tasks} tarefa(s)</Chip>
+        <EstagioResumo byStage={s.byStage} />
+      </div>
       {erro && <div className="dash-state dash-state--error">{erro}</div>}
       {fila.err && <div className="dash-state dash-state--error">{fila.err}</div>}
       {!fila.data && !fila.err && <p className="dash-state">Carregando fila…</p>}
@@ -623,11 +781,17 @@ const AUDIT_LABEL: Record<string, string> = {
   "workforce.pilot.delete": "Piloto/blueprint excluído",
 };
 
-// ── Detalhamento por processo (drill + export CSV) ──
+// ── Detalhamento por processo (drill + export XLSX: abas "Processos" e "Tarefas") ──
 
-function DrillModal({ tenantId, company, onClose }: { tenantId: string; company: string; onClose: () => void }) {
+function DrillModal({ tenantId, company, modulo, onClose }: {
+  tenantId: string;
+  company: WorkforceAdminSummary["company"];
+  modulo: WorkforceAdminSummary["module"];
+  onClose: () => void;
+}) {
   const procs = useLista(() => listTenantWorkProcesses(tenantId), [tenantId]);
   const tarefas = useLista(() => listTenantWorkTasks(tenantId), [tenantId]);
+  const [exportando, setExportando] = useState(false);
   const linhas = useMemo(() => (procs.data ?? []).map((p) => ({
     processo: p.name,
     area: p.area,
@@ -638,51 +802,61 @@ function DrillModal({ tenantId, company, onClose }: { tenantId: string; company:
     cenario: p.dominantScenario ? WORKFORCE_SCENARIO_LABEL[p.dominantScenario] : "—",
   })), [procs.data]);
 
-  function exportar() {
-    const geradoEm = new Date().toLocaleString("pt-BR");
-    const porTarefa = (tarefas.data ?? []).map((t): (string | number)[] => [
-      t.code, t.processName, t.area, t.role, t.name, t.volumePerMonth, t.durationMin, WORK_CRITICALITY_LABEL[t.criticality], t.aiPotential, t.humanEssentiality,
-      WORK_RISK_LABEL[t.risk], t.readiness, WORKFORCE_SCENARIO_LABEL[t.scenario], INSIGHT_ORIGIN_LABEL[t.origin], WORK_TASK_STAGE_LABEL[t.stage],
-      t.decision ? WORK_DECISION_LABEL[t.decision] : "—", t.decidedByName ?? "—", fmtDateTime(t.decidedAt),
-    ]);
-    downloadCsv("workforce-processos-detalhamento.csv", [
-      ["Empresa", company],
-      ["Gerado em", geradoEm],
-      ["Cobertura de IA", "% de tarefas com potencial IA ≥ limiar do processo (limiar informado pela empresa; percentuais são julgamentos, não score)"],
-      [],
-      ["Processo", "Área", "Tarefas", "Cobertura IA", "Limiar", "Maior risco", "Cenário predominante"],
-      ...linhas.map((l): (string | number)[] => [l.processo, l.area, l.tarefas, l.automatizavel, l.limiar, l.risco, l.cenario]),
-      [],
-      ["ID", "Processo", "Área", "Função", "Tarefa", "Volume/mês", "Duração (min)", "Criticidade", "Potencial IA", "Essenc. humana", "Risco", "Prontidão", "Cenário", "Origem", "Estágio", "Decisão", "Decidido por", "Decidido em"],
-      ...porTarefa,
-    ]);
+  // O superadm não tem /me/organization (useExportContext é do portal): o
+  // cabeçalho do XLSX usa a empresa selecionada; "contratação" só se o módulo
+  // estiver liberado — o que não existe fica fora, nunca é inventado.
+  const ctx: ExportContext = {
+    company: company.cnpj ? `${company.name} · ${company.cnpj}` : company.name,
+    contract: modulo.enabled ? modulo.name : null,
+  };
+
+  async function exportar() {
+    setExportando(true);
+    try {
+      await exportXLSX("workforce-processos-detalhamento", [
+        { name: "Processos", rows: linhas.map((l) => ({
+          Processo: l.processo, Área: l.area, Tarefas: l.tarefas, Automatizável: l.automatizavel, Limiar: l.limiar, Risco: l.risco, "Cenário predominante": l.cenario,
+        })) },
+        { name: "Tarefas", rows: (tarefas.data ?? []).map((t) => ({
+          Código: t.code, Processo: t.processName, Área: t.area, Função: t.role, Tarefa: t.name, "Potencial IA (%)": t.aiPotential,
+          Risco: WORK_RISK_LABEL[t.risk], Cenário: WORKFORCE_SCENARIO_LABEL[t.scenario], Estágio: WORK_TASK_STAGE_LABEL[t.stage],
+          Decisão: t.decision ? WORK_DECISION_LABEL[t.decision] : "—",
+        })) },
+      ], ctx);
+    } finally {
+      setExportando(false);
+    }
   }
 
+  const registros = procs.data?.length ?? 0;
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
         <header className="modal__head">
           <div>
             <h2>Detalhamento por processo</h2>
-            <span className="card__hint">Registros que compõem os cenários e blueprints exibidos — {company}.</span>
+            <span className="card__hint">Registros que compõem os cenários e blueprints exibidos — {company.name}.</span>
           </div>
           <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Fechar</button>
         </header>
         <div className="modal__body">
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-            <Chip>Amostra · {procs.data?.length ?? 0} processo(s) · {tarefas.data?.length ?? 0} tarefa(s)</Chip>
-            <Chip title="Cobertura = % de tarefas com potencial IA ≥ limiar do processo">Cobertura por limiar do processo</Chip>
+            <Chip tone={modulo.enabled ? "gold" : "danger"} title={modulo.enabled ? "Liberado em Contratos e Liberações" : "Liberação em Contratos e Liberações"}>Módulo · {modulo.enabled ? "liberado" : "não liberado"}</Chip>
+            <Chip>{procs.data?.length ?? 0} processo(s) · {tarefas.data?.length ?? 0} tarefa(s)</Chip>
+            <Chip title="Automatizável = % de tarefas com potencial IA ≥ limiar do processo">Automatizável por limiar do processo</Chip>
           </div>
+          <p className="card__hint" style={{ margin: "0 0 8px" }}>{procs.data ? `${registros} registro${registros === 1 ? "" : "s"}` : "carregando…"}</p>
           <Tabela
             estado={procs}
             vazio="Nenhum processo mapeado — não há detalhamento a exportar."
-            head={["Processo", "Área", "Tarefas", "Cobertura IA", "Limiar", "Risco", "Cenário predominante"]}
+            head={["Processo", "Área", "Tarefas", "Automatizável", "Limiar", "Risco", "Cenário predominante"]}
             rows={linhas.map((l) => [<strong key="p">{l.processo}</strong>, l.area, l.tarefas, l.automatizavel, l.limiar, l.risco, l.cenario])}
             keys={(procs.data ?? []).map((p) => p.id)}
           />
+          <p className="card__hint" style={{ marginTop: 10, fontSize: 10 }}>Detalhamento respeita permissões, amostra mínima e confidencialidade.</p>
         </div>
         <div className="modal__foot">
-          <button type="button" className="btn btn--gold btn--sm" disabled={!procs.data?.length || !tarefas.data} onClick={exportar}>Exportar CSV</button>
+          <button type="button" className="btn btn--gold btn--sm" disabled={!procs.data?.length || !tarefas.data || exportando} onClick={exportar}>{exportando ? "Exportando…" : "Exportar XLSX"}</button>
         </div>
       </div>
     </div>
@@ -936,16 +1110,20 @@ function SkillsForm({ tenantId, initial, onClose, onSaved }: { tenantId: string;
   );
 }
 
-function PilotoForm({ tenantId, initial, onClose, onSaved }: { tenantId: string; initial: WorkPilotData | null; onClose: () => void; onSaved: () => void }) {
+/** Mesmo formulário para blueprint e piloto; `kindPadrao` só pré-seleciona o tipo da aba de origem. */
+function PilotoForm({ tenantId, initial, kindPadrao = "PILOTO", onClose, onSaved }: { tenantId: string; initial: WorkPilotData | null; kindPadrao?: WorkPilotKind; onClose: () => void; onSaved: () => void }) {
   const procs = useLista(() => listTenantWorkProcesses(tenantId), [tenantId]);
   const [name, setName] = useState(initial?.name ?? "");
-  const [kind, setKind] = useState<WorkPilotKind>(initial?.kind ?? "PILOTO");
+  const [kind, setKind] = useState<WorkPilotKind>(initial?.kind ?? kindPadrao);
   const [processId, setProcessId] = useState(initial?.processId ?? "");
   const [baseline, setBaseline] = useState(initial?.baseline ?? "");
   const [indicator, setIndicator] = useState(initial?.indicator ?? "");
   const [result, setResult] = useState(initial?.result ?? "");
   const [confidence, setConfidence] = useState<WorkConfidence>(initial?.confidence ?? "MEDIA");
-  const [status, setStatus] = useState<WorkPilotStatus>(initial?.status ?? "EM_ANDAMENTO");
+  const [status, setStatus] = useState<WorkPilotStatus>(initial?.status ?? (kindPadrao === "BLUEPRINT" ? "EM_REVISAO" : "EM_ANDAMENTO"));
+  const [effort, setEffort] = useState(initial?.effort ?? "");
+  const [potentialValue, setPotentialValue] = useState(initial?.potentialValue ?? "");
+  const [partner, setPartner] = useState(initial?.partner ?? "");
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   async function submit(e: FormEvent) {
@@ -953,7 +1131,10 @@ function PilotoForm({ tenantId, initial, onClose, onSaved }: { tenantId: string;
     setSaving(true);
     setErro(null);
     try {
-      const dto = { name: name.trim(), kind, processId: processId || null, baseline: baseline.trim(), indicator: indicator.trim(), result: result.trim(), confidence, status };
+      const dto = {
+        name: name.trim(), kind, processId: processId || null, baseline: baseline.trim(), indicator: indicator.trim(), result: result.trim(), confidence, status,
+        effort: effort.trim() || null, potentialValue: potentialValue.trim() || null, partner: partner.trim() || null,
+      };
       if (initial) await updateTenantWorkPilot(tenantId, initial.id, dto);
       else await createTenantWorkPilot(tenantId, dto);
       onSaved();
@@ -989,7 +1170,11 @@ function PilotoForm({ tenantId, initial, onClose, onSaved }: { tenantId: string;
               <span>Status</span>
               <select value={status} onChange={(e) => setStatus(e.target.value as WorkPilotStatus)}>{WORK_PILOT_STATUSES.map((s) => <option key={s} value={s}>{WORK_PILOT_STATUS_LABEL[s]}</option>)}</select>
             </label>
+            <label className="prod-field"><span>Esforço</span><input value={effort} onChange={(e) => setEffort(e.target.value)} placeholder="Ex.: 6 semanas" /></label>
+            <label className="prod-field"><span>Valor potencial</span><input value={potentialValue} onChange={(e) => setPotentialValue(e.target.value)} placeholder="Ex.: Estimado — nunca garantido" /></label>
+            <label className="prod-field"><span>Parceiro</span><input value={partner} onChange={(e) => setPartner(e.target.value)} placeholder="Ex.: A definir" /></label>
           </div>
+          <p className="card__hint" style={{ marginTop: 8 }}>Esforço, valor potencial e parceiro são atributos de decisão do blueprint (aba Blueprints) — texto livre, sem valor garantido. Vazio aparece como "—".</p>
           {erro && <div className="dash-state dash-state--error" style={{ margin: 0 }}>{erro}</div>}
         </div>
         <div className="modal__foot">
