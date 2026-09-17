@@ -29,6 +29,16 @@ import { IconClose, IconDownload, IconEye, IconFileText, IconShield } from "./Ic
  * (otimista–conservador) + nível de confiança. Persistido por empresa (RLS).
  * É ESTIMATIVA de apoio à decisão — não afirma economia garantida.
  *
+ * ATENÇÃO — rótulo exibido ≠ chave interna: no protótipo, "Conservador" é a
+ * faixa BAIXA e "Ampliado" é a faixa ALTA. As chaves internas deste arquivo
+ * (`scenarios.conservador`/`.otimista`, `result.total.conservador`/`.otimista`)
+ * continuam com o sentido antigo (conservador = multiplicador maior/faixa alta,
+ * otimista = multiplicador menor/faixa baixa) para não arriscar dado já
+ * persistido — só o TEXTO exibido ao usuário foi corrigido para bater com o
+ * protótipo (auditoria Programas vs. Lovable de 2026-09-17). Ou seja:
+ * `result.total.otimista` é exibido como "Conservador (mín.)" e
+ * `result.total.conservador` é exibido como "Ampliado (máx.)".
+ *
  * Fatia 6: layout do protótipo (Radar de Custos Invisíveis) — abas Composição/
  * Detalhamento/Cenários/Histórico + metadados de governança por item + snapshots
  * ("Congelar como ciclo"). O cálculo (computeInvisibleCosts) não muda.
@@ -55,6 +65,13 @@ function natureBarClass(n: InvisibleCostNature | undefined): string {
   if (n === "HIPOTESE") return "bar__fill--hipotese";
   return "bar__fill--estimado"; // ESTIMADO ou sem natureza informada
 }
+
+/** Frase descritiva de cada natureza (legenda da aba Composição — texto do protótipo). */
+const NATURE_HINT: Record<InvisibleCostNature, string> = {
+  OBSERVADO: "registro contábil/base primária",
+  ESTIMADO: "modelo aplicado sobre dados internos",
+  HIPOTESE: "faixa referencial CRIVO, não observada",
+};
 
 export function CustoScreen() {
   const [items, setItems] = useState<InvisibleCostItem[]>([]);
@@ -109,16 +126,59 @@ export function CustoScreen() {
     }
   }
 
+  // Cabeçalhos ≠ chaves internas: "Ampliado" vem de result.items[i].conservador
+  // (faixa alta) e "Conservador" vem de result.items[i].otimista (faixa baixa) —
+  // ver nota no topo do arquivo.
   function exportRows() {
     return items.map((it, i) => ({
       Item: it.label, Indicador: it.indicator ?? "—",
       Natureza: it.nature ? INVISIBLE_COST_NATURE_LABEL[it.nature] : "—",
-      Fonte: it.source ?? "—", "Custo base": Math.round(result.items[i]?.base ?? 0),
-      Conservador: Math.round(result.items[i]?.conservador ?? 0),
-      Otimista: Math.round(result.items[i]?.otimista ?? 0),
+      Fonte: it.source ?? "—",
+      Fórmula: it.formula ?? "—",
+      Período: it.period ?? "—",
+      Responsável: it.owner ?? "—",
+      Versão: it.version ?? "—",
+      "Custo base": Math.round(result.items[i]?.base ?? 0),
+      Ampliado: Math.round(result.items[i]?.conservador ?? 0),
+      Conservador: Math.round(result.items[i]?.otimista ?? 0),
       Confiança: it.confidence ? COST_CONFIDENCE_LABEL[it.confidence] : "—",
       "Última validação": it.validatedAt ?? "—",
     }));
+  }
+
+  // Reaproveita a mesma API da aba Histórico (listCostSnapshots) para incluir os
+  // ciclos congelados na exportação, sem duplicar a lógica de carregamento.
+  async function historicoRows() {
+    try {
+      const snapshots = await listCostSnapshots();
+      return snapshots.map((s) => ({
+        Ciclo: s.label,
+        "Total (moderado)": Math.round(s.totals.moderado),
+        Itens: s.itemsCount,
+        "Congelado por": s.createdByName ?? "—",
+        Quando: new Date(s.createdAt).toLocaleString("pt-BR"),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async function handleExportXLSX() {
+    if (!exportCtx) return;
+    const historico = await historicoRows();
+    await exportXLSX("crivo-custos-invisiveis", [
+      { name: "Composição", rows: exportRows() },
+      { name: "Histórico", rows: historico },
+    ], exportCtx);
+  }
+
+  async function handleExportPDF() {
+    if (!exportCtx) return;
+    const historico = await historicoRows();
+    await exportPDF("crivo-custos-invisiveis", "Radar de Custos Invisíveis", [
+      { heading: "Composição", rows: exportRows() },
+      { heading: "Histórico", rows: historico },
+    ], exportCtx);
   }
 
   return (
@@ -132,20 +192,20 @@ export function CustoScreen() {
           </p>
         </div>
         <div className="route__actions" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="pill pill--outline pill--sm" title="Isolamento por tenant (RLS) — sem cruzamento entre clientes">
-            <IconShield size={12} style={{ marginRight: 4 }} /> Dados segregados por cliente/CNPJ
+          <span className="pill pill--outline pill--sm">
+            <IconShield size={12} style={{ marginRight: 4 }} /> Dados segregados por cliente/CNPJ · sem cruzamento entre clientes
           </span>
           <button
             className="btn btn--outline-dark btn--sm"
             disabled={!exportCtx}
-            onClick={() => exportCtx && exportXLSX("crivo-custos-invisiveis", [{ name: "Composição", rows: exportRows() }], exportCtx)}
+            onClick={handleExportXLSX}
           >
             <IconDownload size={14} /> XLSX
           </button>
           <button
             className="btn btn--outline-dark btn--sm"
             disabled={!exportCtx}
-            onClick={() => exportCtx && exportPDF("crivo-custos-invisiveis", "Radar de Custos Invisíveis", [{ heading: "Composição", rows: exportRows() }], exportCtx)}
+            onClick={handleExportPDF}
           >
             <IconFileText size={14} /> PDF
           </button>
@@ -169,18 +229,22 @@ export function CustoScreen() {
           <span className="kpi__label">Custo invisível anual estimado (cenário moderado)</span>
           <strong className="kpi__value" style={{ color: "var(--gold-deep)" }}>{BRL(result.total.moderado)}</strong>
           <span className="kpi__delta">
-            Faixa: {BRL(result.total.otimista)} (otimista) — {BRL(result.total.conservador)} (conservador)
+            Faixa: {BRL(result.total.otimista)} (conservador) — {BRL(result.total.conservador)} (ampliado)
           </span>
         </div>
         <div className="kpi">
-          <span className="kpi__label">Otimista (mín.)</span>
+          <span className="kpi__label">Conservador (mín.)</span>
           <strong className="kpi__value" style={{ fontSize: 26 }}>{BRL(result.total.otimista)}</strong>
           <span className="kpi__delta">×{scenarios.otimista}</span>
         </div>
         <div className="kpi">
-          <span className="kpi__label">Conservador (máx.)</span>
+          <span className="kpi__label">Ampliado (máx.)</span>
           <strong className="kpi__value" style={{ fontSize: 26 }}>{BRL(result.total.conservador)}</strong>
           <span className="kpi__delta">×{scenarios.conservador}</span>
+        </div>
+        <div className="kpi">
+          <span className="kpi__label">Componentes</span>
+          <strong className="kpi__value" style={{ fontSize: 26 }}>{items.length}</strong>
         </div>
       </div>
 
@@ -211,6 +275,7 @@ export function CustoScreen() {
       {detail && (
         <ItemDetailModal
           item={detail.item}
+          computed={result.items[detail.index]}
           onClose={() => setDetail(null)}
           onSave={(patch) => { setItem(detail.index, patch); setDetail(null); }}
         />
@@ -240,7 +305,12 @@ function ComposicaoTab({
           <ul className="camp-sectors camp-sectors--cost" style={{ margin: 0 }}>
             {items.map((it, i) => (
               <li key={it.key ?? i} style={{ cursor: "pointer" }} onClick={() => onOpen(i)}>
-                <span>{it.label}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span>{it.label}</span>
+                  <small style={{ fontWeight: 400, fontSize: 10.5, color: "var(--text-sec)" }}>
+                    {it.nature ? INVISIBLE_COST_NATURE_LABEL[it.nature] : "Natureza não informada"}
+                  </small>
+                </div>
                 <div className="bar">
                   <div
                     className={`bar__fill ${natureBarClass(it.nature)}`}
@@ -261,6 +331,7 @@ function ComposicaoTab({
             <span key={n} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className={`bar__fill ${natureBarClass(n)}`} style={{ width: 28, height: 10, borderRadius: 4, display: "inline-block" }} />
               <strong>{INVISIBLE_COST_NATURE_LABEL[n]}</strong>
+              <span style={{ color: "var(--text-sec)", fontWeight: 400 }}>· {NATURE_HINT[n]}</span>
             </span>
           ))}
         </div>
@@ -304,6 +375,10 @@ function DetalhamentoTab({
               <th>Custo base</th>
               <th>Natureza</th>
               <th>Confiança</th>
+              <th>Fonte</th>
+              <th>Período</th>
+              <th>Versão</th>
+              <th>Última validação</th>
               <th aria-label="detalhe/remover" />
             </tr>
           </thead>
@@ -328,6 +403,10 @@ function DetalhamentoTab({
                     {CONFIDENCES.map((c) => (<option key={c} value={c}>{COST_CONFIDENCE_LABEL[c]}</option>))}
                   </select>
                 </td>
+                <td>{it.source ?? "—"}</td>
+                <td>{it.period ?? "—"}</td>
+                <td>{it.version ?? "—"}</td>
+                <td>{it.validatedAt ?? "—"}</td>
                 <td style={{ display: "flex", gap: 6 }}>
                   <button className="lib-act" title="Ficha completa" onClick={() => onOpen(i)}><IconEye size={14} /></button>
                   <button className="cost-del" title="Remover" onClick={() => removeItem(i)}>✕</button>
@@ -335,7 +414,7 @@ function DetalhamentoTab({
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td colSpan={9} style={{ color: "var(--ink-soft, #888)" }}>Sem itens — adicione um ou use o modelo padrão.</td></tr>
+              <tr><td colSpan={13} style={{ color: "var(--ink-soft, #888)" }}>Sem itens — adicione um ou use o modelo padrão.</td></tr>
             )}
           </tbody>
         </table>
@@ -363,18 +442,22 @@ function CenariosTab({
   num: (v: string) => number;
 }) {
   const max = Math.max(...result.items.map((r) => r.conservador), 1);
+  const totalMax = Math.max(result.total.otimista, result.total.moderado, result.total.conservador, 1);
   return (
     <div className="grid grid--2">
       <div className="card">
         <div className="card__head"><div><h3>Cenários &amp; confiança</h3><span className="card__sub">Multiplicadores da faixa</span></div></div>
+        {/* Rótulo exibido ≠ chave interna: "Ampliado" edita scenarios.conservador
+            (faixa alta) e "Conservador" edita scenarios.otimista (faixa baixa) —
+            ver nota no topo do arquivo. */}
         <div className="prod-form__grid">
-          <label className="prod-field"><span>Conservador (máx.)</span>
+          <label className="prod-field"><span>Ampliado (máx.)</span>
             <input type="number" min={0} step="0.05" value={scenarios.conservador} onChange={(e) => setScenarios((s) => ({ ...s, conservador: num(e.target.value) }))} />
           </label>
           <label className="prod-field"><span>Moderado (base)</span>
             <input type="number" min={0} step="0.05" value={scenarios.moderado} onChange={(e) => setScenarios((s) => ({ ...s, moderado: num(e.target.value) }))} />
           </label>
-          <label className="prod-field"><span>Otimista (mín.)</span>
+          <label className="prod-field"><span>Conservador (mín.)</span>
             <input type="number" min={0} step="0.05" value={scenarios.otimista} onChange={(e) => setScenarios((s) => ({ ...s, otimista: num(e.target.value) }))} />
           </label>
           <label className="prod-field"><span>Nível de confiança</span>
@@ -401,7 +484,26 @@ function CenariosTab({
 
       <div className="card" style={{ gridColumn: "1 / -1" }}>
         <div className="card__head">
-          <div><h3>Base × Conservador × Otimista, por item</h3><span className="card__sub">Faixa por componente (R$/ano)</span></div>
+          <div><h3>Conservador × Moderado × Ampliado — total</h3><span className="card__sub">Comparação dos três cenários (R$/ano)</span></div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {([
+            ["Conservador (mín.)", result.total.otimista, "bar__fill--observado"],
+            ["Moderado (base)", result.total.moderado, "bar__fill--estimado"],
+            ["Ampliado (máx.)", result.total.conservador, "bar__fill--hipotese"],
+          ] as const).map(([label, v, cls]) => (
+            <div key={label} style={{ display: "grid", gridTemplateColumns: "140px 1fr 130px", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600 }}>{label}</span>
+              <div className="bar"><div className={`bar__fill ${cls}`} style={{ width: `${Math.round((v / totalMax) * 100)}%` }} /></div>
+              <em style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, textAlign: "right" }}>{BRL(v)}</em>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ gridColumn: "1 / -1" }}>
+        <div className="card__head">
+          <div><h3>Base × Conservador × Ampliado, por item</h3><span className="card__sub">Faixa por componente (R$/ano)</span></div>
         </div>
         {items.length === 0 ? (
           <p className="dash-state" style={{ margin: 0 }}>Sem itens.</p>
@@ -413,7 +515,7 @@ function CenariosTab({
                 <div key={it.key ?? i}>
                   <span style={{ fontSize: 12.5, fontWeight: 600 }}>{it.label}</span>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
-                    {([["otimista", r?.otimista ?? 0, "bar__fill--observado"], ["moderado", r?.moderado ?? 0, "bar__fill--estimado"], ["conservador", r?.conservador ?? 0, "bar__fill--hipotese"]] as const).map(([k, v, cls]) => (
+                    {([["conservador", r?.otimista ?? 0, "bar__fill--observado"], ["moderado", r?.moderado ?? 0, "bar__fill--estimado"], ["ampliado", r?.conservador ?? 0, "bar__fill--hipotese"]] as const).map(([k, v, cls]) => (
                       <div key={k} style={{ display: "grid", gridTemplateColumns: "84px 1fr 90px", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 11, color: "var(--text-sec)", textTransform: "capitalize" }}>{k}</span>
                         <div className="bar"><div className={`bar__fill ${cls}`} style={{ width: `${Math.round((v / max) * 100)}%` }} /></div>
@@ -536,8 +638,14 @@ function HistoricoTab({ hasSavedEstimate }: { hasSavedEstimate: boolean }) {
 // ── Drawer/modal de detalhe (governança completa) — ver e editar um item ──
 
 function ItemDetailModal({
-  item, onClose, onSave,
-}: { item: InvisibleCostItem; onClose: () => void; onSave: (patch: Partial<InvisibleCostItem>) => void }) {
+  item, computed, onClose, onSave,
+}: {
+  item: InvisibleCostItem;
+  /** Resultado já calculado pela tela (result.items[index]) — não recalcula aqui. */
+  computed?: ReturnType<typeof computeInvisibleCosts>["items"][number];
+  onClose: () => void;
+  onSave: (patch: Partial<InvisibleCostItem>) => void;
+}) {
   const [source, setSource] = useState(item.source ?? "");
   const [formula, setFormula] = useState(item.formula ?? "");
   const [period, setPeriod] = useState(item.period ?? "");
@@ -557,6 +665,30 @@ function ItemDetailModal({
           <button className="icon-btn" onClick={onClose} title="Fechar"><IconClose size={16} /></button>
         </header>
         <div className="modal__body prod-form">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span className="pill pill--outline pill--sm">
+              {item.nature ? INVISIBLE_COST_NATURE_LABEL[item.nature] : "Natureza não informada"}
+            </span>
+            <span className="pill pill--outline pill--sm">
+              Confiança {item.confidence ? COST_CONFIDENCE_LABEL[item.confidence] : "—"}
+            </span>
+          </div>
+          {/* "Conservador" = faixa baixa (chave interna otimista); "Ampliado" =
+              faixa alta (chave interna conservador) — ver nota no topo do arquivo. */}
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div className="prod-field" style={{ minWidth: 130 }}>
+              <span>Valor base</span>
+              <strong>{BRL(computed?.base ?? 0)}</strong>
+            </div>
+            <div className="prod-field" style={{ minWidth: 130 }}>
+              <span>Conservador (mín.)</span>
+              <strong>{BRL(computed?.otimista ?? 0)}</strong>
+            </div>
+            <div className="prod-field" style={{ minWidth: 130 }}>
+              <span>Ampliado (máx.)</span>
+              <strong>{BRL(computed?.conservador ?? 0)}</strong>
+            </div>
+          </div>
           <div className="prod-form__grid">
             <label className="prod-field"><span>Fonte</span>
               <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="ex.: Folha · RH" />
