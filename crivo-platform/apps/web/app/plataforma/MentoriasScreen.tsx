@@ -19,6 +19,10 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 /** Mentorias do tenant (#59). Líder vê as suas; RH/CEO veem todas. */
 export function MentoriasScreen() {
   const [rows, setRows] = useState<MentoriaTenantEntry[] | null>(null);
+  // "Horas contratadas" vem do CONTRATO vigente da empresa (Contract.contractedHours,
+  // gravado pelo Super Admin). null = campo não preenchido no contrato — mostra
+  // "—" com o aviso, em vez de inventar um número.
+  const [contractedHours, setContractedHours] = useState<number | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [detail, setDetail] = useState<MentoriaTenantEntry | null>(null);
   const exportCtx = useExportContext();
@@ -26,7 +30,9 @@ export function MentoriasScreen() {
   async function refresh() {
     setStatus("loading");
     try {
-      setRows(await getMyMentorias());
+      const r = await getMyMentorias();
+      setRows(r.rows);
+      setContractedHours(r.contractedHours);
       setStatus("ok");
     } catch {
       setStatus("error");
@@ -36,7 +42,7 @@ export function MentoriasScreen() {
   useEffect(() => {
     let alive = true;
     getMyMentorias()
-      .then((r) => { if (alive) { setRows(r); setStatus("ok"); } })
+      .then((r) => { if (alive) { setRows(r.rows); setContractedHours(r.contractedHours); setStatus("ok"); } })
       .catch(() => { if (alive) setStatus("error"); });
     return () => { alive = false; };
   }, []);
@@ -44,9 +50,7 @@ export function MentoriasScreen() {
   const upcoming = rows?.filter((m) => m.status === "AGENDADA" && new Date(m.scheduledAt) >= new Date()) ?? [];
   const past = rows?.filter((m) => !upcoming.includes(m)) ?? [];
 
-  // KPIs calculados no cliente — mesmos critérios do protótipo, mas sobre dados reais:
-  // "Horas contratadas" não tem fonte no contrato hoje (§Mentorias do blueprint), então
-  // fica "—" com hint honesto em vez de inventar um número.
+  // KPIs calculados no cliente — mesmos critérios do protótipo, mas sobre dados reais.
   const now = Date.now();
   const proximos30 = upcoming.filter((m) => new Date(m.scheduledAt).getTime() - now <= 30 * DIA_MS).length;
   const mentoresDesignados = new Set((rows ?? []).map((m) => m.mentorName).filter(Boolean)).size;
@@ -116,8 +120,14 @@ export function MentoriasScreen() {
           </div>
           <div className="kpi">
             <span className="kpi__label">Horas contratadas</span>
-            <strong className="kpi__value">—</strong>
-            <span className="kpi__delta kpi__delta--neutral" title="Não informado no contrato">não informado no contrato</span>
+            {contractedHours != null ? (
+              <strong className="kpi__value">{contractedHours.toLocaleString("pt-BR")}</strong>
+            ) : (
+              <>
+                <strong className="kpi__value">—</strong>
+                <span className="kpi__delta kpi__delta--neutral" title="Não informado no contrato">não informado no contrato</span>
+              </>
+            )}
           </div>
           <div className="kpi">
             <span className="kpi__label">Horas utilizadas</span>

@@ -420,8 +420,14 @@ export interface MentoriaTenantEntry {
   notes: string | null;
   recordingUrl: string | null;
 }
-export function getMyMentorias(): Promise<MentoriaTenantEntry[]> {
-  return apiFetch<MentoriaTenantEntry[]>('/me/mentorias');
+/** KPI "Horas contratadas" (Programas › Mentorias e Agenda): vem do contrato
+ *  vigente da empresa; null = não informado no contrato (campo opcional). */
+export interface MentoriasResponse {
+  rows: MentoriaTenantEntry[];
+  contractedHours: number | null;
+}
+export function getMyMentorias(): Promise<MentoriasResponse> {
+  return apiFetch<MentoriasResponse>('/me/mentorias');
 }
 
 /** F3 — Consolidado do Grupo Empresarial do usuário logado (403 se sem acesso). */

@@ -1915,6 +1915,9 @@ export interface ContractData {
   rounds: number;
   maxRespondents: number;
   maxLeaders: number;
+  // Horas de mentoria contratadas no ciclo (Programas › Mentorias e Agenda,
+  // KPI "Horas contratadas"). null = não informado no contrato.
+  contractedHours: number | null;
   optionalModules: string[];
   responsible: string | null;
   notes: string | null;
@@ -1935,6 +1938,7 @@ export interface UpsertContractRequest {
   rounds?: number;
   maxRespondents?: number;
   maxLeaders?: number;
+  contractedHours?: number | null;
   optionalModules?: string[];
   responsible?: string | null;
   notes?: string | null;

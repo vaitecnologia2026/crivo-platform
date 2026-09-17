@@ -194,6 +194,8 @@ export class ContractsService {
       rounds: dto.rounds ?? existing?.rounds ?? 1,
       maxRespondents: dto.maxRespondents ?? existing?.maxRespondents ?? 0,
       maxLeaders: dto.maxLeaders ?? existing?.maxLeaders ?? 0,
+      contractedHours:
+        dto.contractedHours === undefined ? existing?.contractedHours ?? null : dto.contractedHours,
       optionalModules: (dto.optionalModules ?? (existing?.optionalModules as string[]) ?? []) as object,
       responsible: dto.responsible === undefined ? existing?.responsible ?? null : dto.responsible,
       notes: dto.notes === undefined ? existing?.notes ?? null : dto.notes,
@@ -310,6 +312,7 @@ export class ContractsService {
     rounds: number;
     maxRespondents: number;
     maxLeaders: number;
+    contractedHours: number | null;
     optionalModules: unknown;
     responsible: string | null;
     notes: string | null;
@@ -332,6 +335,7 @@ export class ContractsService {
       rounds: c.rounds,
       maxRespondents: c.maxRespondents,
       maxLeaders: c.maxLeaders,
+      contractedHours: c.contractedHours ?? null,
       optionalModules: Array.isArray(c.optionalModules) ? (c.optionalModules as string[]) : [],
       responsible: c.responsible,
       notes: c.notes,

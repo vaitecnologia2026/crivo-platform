@@ -410,48 +410,67 @@ export class MeController {
 
   /** #59 — Mentorias do tenant. Líder vê só as suas (match por e-mail no
    *  campo attendee); RH/CEO/GESTOR/ADMIN veem todas. Control plane sem RLS.
-   *  Gate de módulo "mentorias" (F4) só nesta rota: o resto de /me é da sessão. */
+   *  Gate de módulo "mentorias" (F4) só nesta rota: o resto de /me é da sessão.
+   *
+   *  `contractedHours` vem do CONTRATO vigente da empresa (Contract.organizationId
+   *  = user.tenantId, igual ao padrão de `diagnosticContext` acima) — KPI "Horas
+   *  contratadas" (Programas › Mentorias e Agenda). null quando o contrato não
+   *  informa (campo opcional, gravado pelo Super Admin em Contrato › Prazo e
+   *  limites); o portal mostra "—" / "não informado no contrato" nesse caso. */
   @Get('mentorias')
   @UseGuards(ModuleGuard)
   @RequireModule('mentorias')
   async myMentorias(
     @CurrentUser() user: SessionUser,
-  ): Promise<Array<{
-    id: string;
-    title: string;
-    format: string;
-    mentorName: string;
-    attendee: string;
-    scheduledAt: string;
-    durationMin: number;
-    meetingUrl: string | null;
-    location: string | null;
-    status: string;
-    notes: string | null;
-    recordingUrl: string | null;
-  }>> {
+  ): Promise<{
+    rows: Array<{
+      id: string;
+      title: string;
+      format: string;
+      mentorName: string;
+      attendee: string;
+      scheduledAt: string;
+      durationMin: number;
+      meetingUrl: string | null;
+      location: string | null;
+      status: string;
+      notes: string | null;
+      recordingUrl: string | null;
+    }>;
+    contractedHours: number | null;
+  }> {
     const isLeaderOnly = user.role === 'LIDER' || user.role === 'COLABORADOR';
-    const rows = await this.prisma.admin.mentoria.findMany({
-      where: {
-        tenantId: user.tenantId,
-        ...(isLeaderOnly ? { attendee: { contains: user.email, mode: 'insensitive' } } : {}),
-      },
-      orderBy: { scheduledAt: 'desc' },
-    });
-    return rows.map((m) => ({
-      id: m.id,
-      title: m.title,
-      format: m.format,
-      mentorName: m.mentorName,
-      attendee: m.attendee,
-      scheduledAt: m.scheduledAt.toISOString(),
-      durationMin: m.durationMin,
-      meetingUrl: m.meetingUrl,
-      location: m.location,
-      status: m.status,
-      notes: m.notes,
-      recordingUrl: m.recordingUrl,
-    }));
+    const [rows, contract] = await Promise.all([
+      this.prisma.admin.mentoria.findMany({
+        where: {
+          tenantId: user.tenantId,
+          ...(isLeaderOnly ? { attendee: { contains: user.email, mode: 'insensitive' } } : {}),
+        },
+        orderBy: { scheduledAt: 'desc' },
+      }),
+      this.prisma.admin.contract.findFirst({
+        where: { organizationId: user.tenantId },
+        orderBy: { createdAt: 'desc' },
+        select: { contractedHours: true },
+      }),
+    ]);
+    return {
+      rows: rows.map((m) => ({
+        id: m.id,
+        title: m.title,
+        format: m.format,
+        mentorName: m.mentorName,
+        attendee: m.attendee,
+        scheduledAt: m.scheduledAt.toISOString(),
+        durationMin: m.durationMin,
+        meetingUrl: m.meetingUrl,
+        location: m.location,
+        status: m.status,
+        notes: m.notes,
+        recordingUrl: m.recordingUrl,
+      })),
+      contractedHours: contract?.contractedHours ?? null,
+    };
   }
 
   /** Histórico de eventos de auditoria do tenant (últimos 100).

@@ -89,6 +89,7 @@ export function ContractModal({
                 rounds: c.rounds,
                 maxRespondents: c.maxRespondents,
                 maxLeaders: c.maxLeaders,
+                contractedHours: c.contractedHours ?? undefined,
                 optionalModules: c.optionalModules,
                 responsible: c.responsible ?? "",
                 notes: c.notes ?? "",
@@ -258,11 +259,23 @@ export function ContractModal({
                   <span>Máx. líderes (0 = ∞)</span>
                   <input type="number" min={0} value={form.maxLeaders ?? 0} onChange={(e) => set("maxLeaders", Number(e.target.value))} />
                 </label>
+                <label className="prod-field">
+                  <span>Horas de mentoria contratadas</span>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="não informado"
+                    value={form.contractedHours ?? ""}
+                    onChange={(e) => set("contractedHours", e.target.value ? Number(e.target.value) : null)}
+                  />
+                </label>
               </div>
               <p className="prod-note" style={{ marginTop: 8 }}>
                 O <strong>prazo</strong> (fim/dias) de um contrato <strong>ATIVO</strong> já vale no acesso:
                 expirado, o login da empresa é bloqueado. Os <strong>limites</strong> (respondentes/líderes)
-                seguem informativos — o bloqueio por teto entra na próxima fatia.
+                seguem informativos — o bloqueio por teto entra na próxima fatia. As <strong>horas de mentoria</strong>
+                alimentam o KPI "Horas contratadas" em Programas › Mentorias e Agenda no portal do cliente; em branco,
+                o portal mostra "não informado no contrato".
               </p>
             </fieldset>
 

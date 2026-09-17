@@ -280,6 +280,11 @@ export class UpsertContractDto {
   @IsOptional() @IsInt() @Min(0)
   maxLeaders?: number;
 
+  // Horas de mentoria contratadas no ciclo (Programas › Mentorias e Agenda,
+  // KPI "Horas contratadas"). Omitido/null = não informado no contrato.
+  @IsOptional() @IsInt() @Min(0)
+  contractedHours?: number;
+
   @IsOptional() @IsArray() @IsString({ each: true })
   optionalModules?: string[];
 
