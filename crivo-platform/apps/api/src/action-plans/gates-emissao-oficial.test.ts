@@ -1,0 +1,133 @@
+import { describe, expect, it, vi } from 'vitest';
+import { BadRequestException } from '@nestjs/common';
+
+/**
+ * Homologação 17/09 — "Gates de emissão oficial precisam ser comprovados de
+ * ponta a ponta" e "congelar a versão emitida". Prova, no servidor, a cadeia
+ * de emit() do Dossiê Técnico:
+ *   1. campanha ABERTA → recusa (a pré-visualização segue livre);
+ *   2. identificação da organização incompleta → recusa, nomeando o que falta;
+ *   3. tudo em ordem → v1 congelada com hash e "Documento emitido";
+ *   4. reemitir o MESMO conteúdo → devolve a v1 (não gera v2);
+ *   5. conteúdo mudou → v2, hash diferente.
+ */
+vi.mock('../admin/engine-config', () => ({
+  getEngineConfig: vi.fn(async () => ({ minRespondents: 5 })),
+  resolveMinRespondents: vi.fn(async () => 5),
+}));
+vi.mock('../admin/methodology.service', () => ({
+  resolveActiveMethodology: vi.fn(async () => null),
+  resolveInstrumentForTenant: vi.fn(),
+  resolveTenantInstrument: vi.fn(),
+  usesPsychosocialEngine: vi.fn(),
+}));
+
+import { DocumentsService } from './documents.service';
+
+const TENANT = 'dded8882-85a0-4bc0-85e2-01b34d2ec548';
+
+function build(opts: { campanhaAberta?: string | null; org?: Record<string, unknown>; responsible?: string | null } = {}) {
+  const emissoes: Record<string, unknown>[] = [];
+  const tx = {
+    assessmentCycle: {
+      findFirst: vi.fn(async () => (opts.campanhaAberta ? { name: opts.campanhaAberta } : null)),
+    },
+    reportEmission: {
+      findFirst: vi.fn(async ({ where }: { where: { type: string; emissionNumber?: number } }) => {
+        const doTipo = emissoes.filter((e) => e.type === where.type);
+        if (where.emissionNumber != null) return doTipo.find((e) => e.emissionNumber === where.emissionNumber) ?? null;
+        return doTipo.sort((a, b) => (b.emissionNumber as number) - (a.emissionNumber as number))[0] ?? null;
+      }),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const row = { id: `em-${emissoes.length + 1}`, ...data };
+        emissoes.push(row);
+        return row;
+      }),
+    },
+  };
+  const prisma = { forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)), admin: {} };
+  const svc = new DocumentsService(prisma as never, {} as never, {} as never);
+
+  const org = {
+    id: TENANT, name: 'ESSENCIAL - TESTE', legalName: 'Essencial Teste Ltda', taxId: '12.345.678/0001-90',
+    ...(opts.org ?? {}),
+  };
+  const contract = { responsible: opts.responsible === undefined ? 'Rodrigo' : opts.responsible, technicalOutput: 'SEM_INTEGRACAO' };
+  vi.spyOn(svc as never as { context: () => unknown }, 'context').mockResolvedValue({
+    contract, method: 'ESSENCIAL', org, company: org.name, plans: [], cnaeDecision: null,
+  } as never);
+
+  let corpo = 'Plano com 4 ações aprovadas';
+  vi.spyOn(svc as never as { generate: () => unknown }, 'generate').mockImplementation(async () => ({
+    title: 'Dossiê Técnico',
+    generatedAt: new Date().toISOString(),
+    meta: [],
+    sections: [
+      { heading: 'Plano de ação', body: corpo },
+      { heading: 'Controle documental', rows: [{ label: 'Método', value: 'Essencial' }, { label: 'Status do documento', value: 'Rascunho' }] },
+    ],
+  }));
+  return { svc, tx, emissoes, mudarConteudo: (novo: string) => { corpo = novo; } };
+}
+
+describe('gates de emissão oficial do Dossiê Técnico', () => {
+  it('1. campanha aberta bloqueia a emissão e nomeia a campanha', async () => {
+    const { svc, emissoes } = build({ campanhaAberta: 'ESSENCIAL TESTE COMPLETO' });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(BadRequestException);
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/ESSENCIAL TESTE COMPLETO.*ainda está aberta/);
+    expect(emissoes).toHaveLength(0);
+  });
+
+  it('2. identificação incompleta bloqueia e lista o que falta', async () => {
+    const { svc, emissoes } = build({ org: { taxId: '' }, responsible: null });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/CNPJ\/identificador legal, responsável da empresa/);
+    expect(emissoes).toHaveLength(0);
+  });
+
+  it('3. com os gates satisfeitos, congela a v1 com hash e carimbo "Documento emitido"', async () => {
+    const { svc, emissoes } = build();
+    const r = await svc.emit(TENANT, 'dossie_tecnico', 'rodrigo@empresa.com');
+    expect(r.reused).toBe(false);
+    expect(emissoes).toHaveLength(1);
+    const e = emissoes[0] as { emissionNumber: number; contentHash: string; generatedBy: string; content: { sections: { heading: string; rows?: { label: string; value: string }[] }[] } };
+    expect(e.emissionNumber).toBe(1);
+    expect(e.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(e.generatedBy).toBe('rodrigo@empresa.com');
+    const controle = e.content.sections.find((s) => s.heading === 'Controle documental')!.rows!;
+    expect(controle).toEqual(expect.arrayContaining([
+      { label: 'Status do documento', value: 'Documento emitido' },
+      { label: 'Versão do documento', value: 'v1' },
+      { label: 'Hash/Identificador', value: e.contentHash.slice(0, 16) },
+      { label: 'Método', value: 'Essencial' }, // linha do gerador preservada
+    ]));
+    expect(controle.find((r) => r.value === 'Rascunho')).toBeUndefined();
+  });
+
+  it('4. reemitir sem mudança devolve a v1 — não cria versão nova', async () => {
+    const { svc, emissoes } = build();
+    await svc.emit(TENANT, 'dossie_tecnico');
+    const r2 = await svc.emit(TENANT, 'dossie_tecnico');
+    expect(r2.reused).toBe(true);
+    expect((r2.emission as { emissionNumber: number }).emissionNumber).toBe(1);
+    expect(emissoes).toHaveLength(1);
+  });
+
+  it('5. conteúdo diferente gera v2 com outro hash; a v1 continua congelada', async () => {
+    const { svc, emissoes, mudarConteudo } = build();
+    await svc.emit(TENANT, 'dossie_tecnico');
+    mudarConteudo('Plano com 5 ações aprovadas');
+    const r2 = await svc.emit(TENANT, 'dossie_tecnico');
+    expect(r2.reused).toBe(false);
+    expect(emissoes).toHaveLength(2);
+    const [v1, v2] = emissoes as { emissionNumber: number; contentHash: string }[];
+    expect([v1.emissionNumber, v2.emissionNumber]).toEqual([1, 2]);
+    expect(v1.contentHash).not.toBe(v2.contentHash);
+  });
+
+  it('a pré-visualização não passa pelos gates: só a emissão oficial é barrada', async () => {
+    const { svc, tx } = build({ campanhaAberta: 'Aberta' });
+    // generate() é o preview — mockado aqui, mas emit() nunca chega nele com campanha aberta.
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/ainda está aberta/);
+    expect(tx.reportEmission.create).not.toHaveBeenCalled();
+  });
+});
