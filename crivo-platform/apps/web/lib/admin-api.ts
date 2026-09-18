@@ -719,6 +719,14 @@ export function updateProduct(id: string, dto: UpsertProductRequest): Promise<Pr
   });
 }
 
+/** Inativar / reativar uma solução (botão do card; não reenvia o cadastro). */
+export function setProductStatus(id: string, status: ProductSummary["status"]): Promise<ProductDetail> {
+  return adminFetch<ProductDetail>(`/admin/products/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
 export function deleteProduct(id: string): Promise<{ ok: true }> {
   return adminFetch<{ ok: true }>(`/admin/products/${id}`, { method: "DELETE" });
 }

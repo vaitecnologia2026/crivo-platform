@@ -18,6 +18,7 @@ import {
 import {
   createProduct,
   deleteProduct,
+  setProductStatus,
   getProduct,
   listProducts,
   updateProduct,
@@ -56,8 +57,18 @@ export function ProductsSection() {
   async function openEdit(id: string) {
     try { setEditing(await getProduct(id)); } catch { alert("Não foi possível abrir a solução."); }
   }
+  // Inativar tira da venda (conversão e contrato novo) sem apagar: quem já
+  // contratou continua; e dá para reativar. Excluir fica para o que nunca foi
+  // usado (decisão do cliente 18/09).
+  async function toggleStatus(p: ProductSummary) {
+    const inativar = p.status === "ACTIVE";
+    if (inativar && !confirm(`Inativar a solução "${p.name}"? Ela sai da venda; contratos existentes continuam. Dá para reativar depois.`)) return;
+    try { await setProductStatus(p.id, inativar ? "INACTIVE" : "ACTIVE"); await refresh(); } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao alterar o status");
+    }
+  }
   async function remove(p: ProductSummary) {
-    if (!confirm(`Excluir a solução "${p.name}"? Esta ação é definitiva.`)) return;
+    if (!confirm(`Excluir a solução "${p.name}"? Esta ação é definitiva. Se a solução já foi contratada, prefira Inativar.`)) return;
     try { await deleteProduct(p.id); await refresh(); } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao excluir");
     }
@@ -101,6 +112,11 @@ export function ProductsSection() {
                   <div className="sol-card__actions">
                     <span className={`sol-status sol-status--${p.status}`}>{PRODUCT_STATUS_LABEL[p.status]}</span>
                     <button type="button" onClick={() => openEdit(p.id)}>Editar</button>
+                    {!p.isLeadCapture && (
+                      <button type="button" onClick={() => toggleStatus(p)} title={p.status === "ACTIVE" ? "Sai da venda; contratos existentes continuam" : "Volta a aparecer na conversão e no contrato"}>
+                        {p.status === "ACTIVE" ? "Inativar" : "Ativar"}
+                      </button>
+                    )}
                     <button type="button" className="is-danger" onClick={() => remove(p)}>Excluir</button>
                   </div>
                 </div>

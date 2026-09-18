@@ -29,6 +29,12 @@ import {
 
 // ── Produtos ──
 
+/** Inativar/reativar uma solução sem reenviar o cadastro inteiro (botão do card). */
+export class SetProductStatusDto {
+  @IsEnum(ProductStatus)
+  status!: ProductStatus;
+}
+
 export class UpsertProductDto {
   @IsOptional() @IsString() @MaxLength(80)
   slug?: string;

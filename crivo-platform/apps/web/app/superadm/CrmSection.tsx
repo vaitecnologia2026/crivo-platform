@@ -1222,7 +1222,9 @@ function ConvertModal({
         // de entrada e não se contrata). Filtrar por status ACTIVE escondia
         // soluções recém-cadastradas — e Contratos já as listava, então o mesmo
         // produto aparecia lá e sumia aqui. Rascunho aparece sinalizado.
-        const active = all.filter((p) => !p.isLeadCapture);
+        // INATIVA não se vende (botão Inativar do catálogo); rascunho segue
+        // listado e sinalizado.
+        const active = all.filter((p) => !p.isLeadCapture && p.status !== "INACTIVE");
         setProducts(active);
         // Pré-seleciona a solução de interesse do lead (Tela 02 [4]→[3]), se listada.
         if (lead.interestProductId && active.some((p) => p.id === lead.interestProductId)) {

@@ -160,7 +160,8 @@ export function ContractModal({
                 <label className="prod-field prod-field--full">
                   <span>Soluções contratadas (uma ou várias)</span>
                   <div className="prod-modules">
-                    {products.map((p) => (
+                    {/* Solução INATIVA só aparece se este contrato já a tem — não se vende, mas não some do histórico. */}
+                    {products.filter((p) => p.status !== "INACTIVE" || (form.solutionIds ?? []).includes(p.id)).map((p) => (
                       <label key={p.id} className="prod-check">
                         <input
                           type="checkbox"

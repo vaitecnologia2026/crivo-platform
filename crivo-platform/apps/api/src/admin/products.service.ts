@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  ProductStatus,
   ProductDetail,
   ProductDiagnostic,
   ProductSummary,
@@ -126,6 +127,28 @@ export class ProductsService {
       },
     });
     await this.audit.record({ action: 'product.update', actor, target: id, meta: { name: dto.name } });
+    return this.get(id);
+  }
+
+  /**
+   * Inativar / reativar (decisão do cliente 18/09: "botão de inativar, caso
+   * queira ativar novamente"). INATIVO some da conversão e do contrato novo;
+   * quem já contratou continua com a solução — o contrato guarda o productId.
+   * Preferível a Excluir, que é definitivo e quebra o histórico.
+   */
+  async setStatus(id: string, status: ProductStatus, actor: Actor): Promise<ProductDetail> {
+    const existing = await this.prisma.admin.product.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Produto não encontrado');
+    if (existing.isLeadCapture && status !== 'ACTIVE') {
+      throw new BadRequestException('A solução de captura (MAPA Executivo) não pode ser inativada — é a porta de entrada da LP.');
+    }
+    await this.prisma.admin.product.update({ where: { id }, data: { status } });
+    await this.audit.record({
+      action: 'product.status',
+      actor,
+      target: id,
+      meta: { name: existing.name, from: existing.status, to: status },
+    });
     return this.get(id);
   }
 
