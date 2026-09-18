@@ -560,6 +560,9 @@ function ParticipantsPanel({
   recarga: number;
 }) {
   const [rows, setRows] = useState<CampaignParticipant[] | null>(null);
+  // Adesão em NÚMERO: quem respondeu não vem do servidor (participação
+  // nominal protegida) — a tela mostra "quantos", nunca "quem".
+  const [resumo, setResumo] = useState<{ cadastrados: number; convidados: number; responderam: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -568,6 +571,7 @@ function ParticipantsPanel({
     try {
       const r = await listCampaignParticipants(cycleId);
       setRows(r.participants);
+      setResumo(r.resumo);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao carregar participantes.");
     }
@@ -598,14 +602,15 @@ function ParticipantsPanel({
   if (!rows) return <p className="card__sub">Carregando participantes…</p>;
 
   const pendentes = rows.filter((r) => r.status === "pendente");
-  const responderam = rows.filter((r) => r.status === "respondeu").length;
+  const responderam = resumo?.responderam ?? 0;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         <strong style={{ fontSize: 14 }}>Participantes</strong>
         <span className="card__sub">
-          {rows.length} no cadastro · {rows.length - pendentes.length} convidado(s) · {responderam} respondeu(ram)
+          {rows.length} no cadastro · {rows.length - pendentes.length} convidado(s) · {responderam} resposta(s)
+          {" · "}a participação individual é confidencial
         </span>
         <button
           className="btn btn--gold btn--sm"
@@ -624,7 +629,7 @@ function ParticipantsPanel({
       ) : (
         <table className="data-table">
           <thead>
-            <tr><th>Nome</th><th>Setor</th><th>Contato</th><th>Status nesta campanha</th><th>Ação</th></tr>
+            <tr><th>Nome</th><th>Setor</th><th>Contato</th><th>Convite nesta campanha</th><th>Ação</th></tr>
           </thead>
           <tbody>
             {rows.map((p) => (
@@ -633,23 +638,19 @@ function ParticipantsPanel({
                 <td>{p.sector ?? <span className="card__sub">—</span>}</td>
                 <td className="card__sub">{p.email ?? p.phone ?? "sem contato"}</td>
                 <td>
-                  {p.status === "respondeu"
-                    ? <span className="pattern-tag">Respondeu</span>
-                    : p.status === "convidado"
-                      ? <span className="card__sub">Convite enviado</span>
-                      : <span className="card__sub">Pendente</span>}
+                  {p.status === "convidado"
+                    ? <span className="card__sub">Convite enviado</span>
+                    : <span className="card__sub">Sem convite</span>}
                 </td>
                 <td>
-                  {p.status !== "respondeu" && (
-                    <button
-                      className="lib-act"
-                      disabled={busy || !p.email}
-                      title={p.email ? "" : "Sem e-mail cadastrado"}
-                      onClick={() => convidar([p.id])}
-                    >
-                      {p.status === "convidado" ? "reenviar" : "convidar"}
-                    </button>
-                  )}
+                  <button
+                    className="lib-act"
+                    disabled={busy || !p.email}
+                    title={p.email ? (p.status === "convidado" ? "Reenvia o convite; quem já respondeu vê apenas o aviso de resposta registrada" : "") : "Sem e-mail cadastrado"}
+                    onClick={() => convidar([p.id])}
+                  >
+                    {p.status === "convidado" ? "reenviar" : "convidar"}
+                  </button>
                 </td>
               </tr>
             ))}

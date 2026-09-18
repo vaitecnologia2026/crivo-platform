@@ -94,12 +94,18 @@ export class CollaboratorsService {
     return (await resolveInstrumentForTenant(this.prisma, tenantId)) ?? 'PSYCHOSOCIAL';
   }
 
+  /**
+   * Visão do cadastro para o PORTAL — sem participação nominal.
+   *
+   * A resposta é anônima e o piso de anonimato protege o agregado; mas a tela
+   * dizia "Respondeu · 17/09" ao lado do nome de cada colaborador, e num GHE
+   * de 2 pessoas isso é a resposta com nome. A empresa vê quem foi CONVIDADO
+   * (é operação dela) e a adesão em NÚMERO (respondidos ÷ convidados, por
+   * campanha) — nunca quem respondeu. `respondedAt` continua no banco: é o
+   * que impede a segunda resposta, e só o servidor lê.
+   */
   private view(c: CollaboratorRow) {
-    const status = c.respondedAt
-      ? 'responded'
-      : c.inviteEmailAt || c.inviteWhatsappAt
-        ? 'invited'
-        : 'pending';
+    const status = c.inviteEmailAt || c.inviteWhatsappAt ? 'invited' : 'pending';
     return {
       id: c.id,
       name: c.name,
@@ -121,7 +127,6 @@ export class CollaboratorsService {
       status,
       inviteEmailAt: c.inviteEmailAt,
       inviteWhatsappAt: c.inviteWhatsappAt,
-      respondedAt: c.respondedAt,
       createdAt: c.createdAt,
     };
   }
@@ -386,6 +391,23 @@ export class CollaboratorsService {
    * chamado, quem respondeu e quem falta.
    */
   async participants(tenantId: string, cycleId: string) {
+    const { cycle, participants } = await this.participantsInternos(tenantId, cycleId);
+    // Participação NOMINAL fica no servidor (ver `view`): o portal recebe quem
+    // foi convidado e a adesão em número — nunca quem respondeu.
+    const convidados = participants.filter((p) => p.convidado).length;
+    const responderam = participants.filter((p) => p.respondeu).length;
+    return {
+      cycle,
+      resumo: { cadastrados: participants.length, convidados, responderam },
+      participants: participants.map(({ convidado, respondeu: _nominal, ...p }) => ({
+        ...p,
+        status: convidado ? ('convidado' as const) : ('pendente' as const),
+      })),
+    };
+  }
+
+  /** Uso INTERNO (lote de convites): sabe quem respondeu, para não convidar de novo. */
+  private async participantsInternos(tenantId: string, cycleId: string) {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const cycle = await tx.assessmentCycle.findUnique({ where: { id: cycleId } });
       if (!cycle || cycle.tenantId !== tenantId) throw new NotFoundException('Campanha não encontrada.');
@@ -404,11 +426,11 @@ export class CollaboratorsService {
             sector: c.sector,
             email: c.email,
             phone: c.phone,
-            // Status DESTA campanha — não a última atividade da pessoa.
-            status: inv?.respondedAt ? 'respondeu' : inv ? 'convidado' : 'pendente',
+            // Estado DESTA campanha — não a última atividade da pessoa.
+            convidado: !!inv,
+            respondeu: !!inv?.respondedAt,
             sentEmailAt: inv?.sentEmailAt ?? null,
             sentWhatsappAt: inv?.sentWhatsappAt ?? null,
-            respondedAt: inv?.respondedAt ?? null,
             link: inv ? linkFor(inv.token) : null,
           };
         }),
@@ -420,12 +442,14 @@ export class CollaboratorsService {
    * Convite em LOTE por e-mail. Sem `ids`, convida todo o cadastro que ainda não
    * foi convidado nesta campanha. Quem não tem e-mail entra em `erros` — o lote
    * não para por causa de um cadastro incompleto.
+   *
+   * Com `ids` (reenvio escolhido na tela), o convite vai mesmo para quem já
+   * respondeu: recusar revelaria, pelo resultado, quem foi. O link dessa pessoa
+   * só diz "você já respondeu".
    */
   async inviteMany(tenantId: string, cycleId: string, ids?: string[]) {
-    const { participants } = await this.participants(tenantId, cycleId);
-    const alvo = participants.filter(
-      (p) => (ids ? ids.includes(p.id) : p.status === 'pendente') && p.status !== 'respondeu',
-    );
+    const { participants } = await this.participantsInternos(tenantId, cycleId);
+    const alvo = participants.filter((p) => (ids ? ids.includes(p.id) : !p.convidado));
     let enviados = 0;
     const erros: { name: string; reason: string }[] = [];
     for (const p of alvo) {

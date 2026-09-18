@@ -57,21 +57,21 @@ function colunaDoCabecalho(celula: string): keyof CollaboratorInput | null {
   return null;
 }
 
+// Participação nominal PROTEGIDA (homologação 17/09): a tela mostra convite,
+// nunca "Respondeu" ao lado do nome — a resposta é anônima e a adesão sai em
+// número na campanha. O servidor não manda esse dado (collaborators.service).
 const STATUS_LABEL: Record<CollaboratorView["status"], string> = {
-  pending: "Pendente",
+  pending: "Sem convite",
   invited: "Convite enviado",
-  responded: "Respondeu",
 };
 /** O back fala em português no status por campanha; a tela usa o mesmo vocabulário. */
-const STATUS_DA_CAMPANHA: Record<"pendente" | "convidado" | "respondeu", CollaboratorView["status"]> = {
+const STATUS_DA_CAMPANHA: Record<"pendente" | "convidado", CollaboratorView["status"]> = {
   pendente: "pending",
   convidado: "invited",
-  respondeu: "responded",
 };
 const STATUS_CLASS: Record<CollaboratorView["status"], string> = {
   pending: "addx-status--AGUARDANDO_DADOS",
   invited: "addx-status--EM_REVISAO",
-  responded: "addx-status--ATIVO",
 };
 
 /** Gera e baixa um CSV client-side (BOM + ";" para o Excel pt-BR abrir certo). */
@@ -155,17 +155,13 @@ export function ColaboradoresScreen() {
   const [campanhas, setCampanhas] = useState<CampaignSummary[]>([]);
   const [campanhaId, setCampanhaId] = useState<string>("");
   /**
-   * Status POR CAMPANHA.
-   *
-   * A lista de colaboradores devolve a última atividade da pessoa — quem já
-   * respondeu qualquer diagnóstico aparece como "Respondeu" para sempre. Só que
-   * o bloqueio de responder duas vezes é por CONVITE, então numa campanha nova
-   * essa mesma pessoa PODE responder. A tela dizia o contrário do que a regra
-   * faz, e parecia dado velho de outra empresa.
+   * Convite POR CAMPANHA (a lista geral traz o último convite da pessoa em
+   * qualquer campanha; com uma campanha escolhida, vale o convite DAQUELA).
+   * Adesão da campanha em número, para a tela não perder a leitura de
+   * "quantos já responderam" ao deixar de mostrar quem.
    */
-  const [naCampanha, setNaCampanha] = useState<
-    Record<string, { status: CollaboratorView["status"]; respondedAt: string | null }>
-  >({});
+  const [naCampanha, setNaCampanha] = useState<Record<string, { status: CollaboratorView["status"] }>>({});
+  const [adesao, setAdesao] = useState<{ cadastrados: number; convidados: number; responderam: number } | null>(null);
 
   async function load() {
     setStatus("loading");
@@ -191,20 +187,22 @@ export function ColaboradoresScreen() {
   useEffect(() => {
     if (!campanhaId) {
       setNaCampanha({});
+      setAdesao(null);
       return;
     }
     let vivo = true;
     void listCampaignParticipants(campanhaId)
       .then((r) => {
         if (!vivo) return;
-        const mapa: Record<string, { status: CollaboratorView["status"]; respondedAt: string | null }> = {};
+        const mapa: Record<string, { status: CollaboratorView["status"] }> = {};
         for (const p of r.participants) {
-          mapa[p.id] = { status: STATUS_DA_CAMPANHA[p.status], respondedAt: p.respondedAt };
+          mapa[p.id] = { status: STATUS_DA_CAMPANHA[p.status] };
         }
         setNaCampanha(mapa);
+        setAdesao(r.resumo);
       })
       // Falha aqui degrada para o status geral — não vale derrubar a tela.
-      .catch(() => { if (vivo) setNaCampanha({}); });
+      .catch(() => { if (vivo) { setNaCampanha({}); setAdesao(null); } });
     return () => { vivo = false; };
   }, [campanhaId, rows]);
 
@@ -265,9 +263,8 @@ export function ColaboradoresScreen() {
   }
 
   async function remove(c: CollaboratorView) {
-    const warn = c.status === "responded"
-      ? `${c.name} já respondeu. A resposta (anônima) NÃO é apagada. Remover o cadastro mesmo assim?`
-      : `Remover ${c.name}?`;
+    // Não se sabe (nem se mostra) se a pessoa respondeu: o aviso vale para todos.
+    const warn = `Remover ${c.name}? Se já respondeu, a resposta (anônima) NÃO é apagada.`;
     if (!confirm(warn)) return;
     setBusyId(c.id);
     try {
@@ -437,6 +434,9 @@ export function ColaboradoresScreen() {
             </select>
             <span className="card__sub" style={{ margin: 0 }}>
               As respostas deste convite entram nesta campanha.
+              {adesao && (
+                <> Adesão: <strong>{adesao.responderam}</strong> resposta(s) de {adesao.convidados} convidado(s) — quem respondeu é confidencial.</>
+              )}
             </span>
           </label>
         )}
@@ -522,7 +522,7 @@ export function ColaboradoresScreen() {
               <th>Recortes</th>
               <th>Contato</th>
               <th>CPF</th>
-              <th>{campanhaId ? "Status nesta campanha" : "Status (última atividade)"}</th>
+              <th>{campanhaId ? "Convite nesta campanha" : "Convite (último)"}</th>
               <th aria-label="Ações" />
             </tr>
           </thead>
@@ -550,26 +550,7 @@ export function ColaboradoresScreen() {
                   {(() => {
                     const nesta = campanhaId ? naCampanha[c.id] : undefined;
                     const st = nesta?.status ?? c.status;
-                    const quando = nesta ? nesta.respondedAt : c.respondedAt;
-                    return (
-                      <>
-                        <span className={`addx-status ${STATUS_CLASS[st]}`}>
-                          {STATUS_LABEL[st]}
-                          {quando ? ` · ${new Date(quando).toLocaleDateString("pt-BR")}` : ""}
-                        </span>
-                        {/* Já respondeu antes, mas não NESTA campanha: dizer as
-                            duas coisas evita o "já respondeu" enganoso sem
-                            esconder o histórico. */}
-                        {nesta && nesta.status !== "responded" && c.respondedAt ? (
-                          <>
-                            <br />
-                            <span className="card__sub">
-                              respondeu em {new Date(c.respondedAt).toLocaleDateString("pt-BR")} (outra campanha)
-                            </span>
-                          </>
-                        ) : null}
-                      </>
-                    );
+                    return <span className={`addx-status ${STATUS_CLASS[st]}`}>{STATUS_LABEL[st]}</span>;
                   })()}
                 </td>
                 <td className="addx-actions" style={{ whiteSpace: "nowrap" }}>

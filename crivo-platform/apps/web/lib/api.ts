@@ -1086,10 +1086,10 @@ export interface CollaboratorView {
   ageBand: string | null;
   cpfMasked: string;
   link: string;
-  status: "pending" | "invited" | "responded";
+  /** Só convite — participação nominal (quem respondeu) fica no servidor. */
+  status: "pending" | "invited";
   inviteEmailAt: string | null;
   inviteWhatsappAt: string | null;
-  respondedAt: string | null;
   createdAt: string;
 }
 export interface CollaboratorInput {
@@ -1124,21 +1124,23 @@ export function deleteCollaborator(id: string): Promise<{ ok: boolean }> {
 export function importCollaborators(rows: CollaboratorInput[]): Promise<{ created: number; errors: { line: number; reason: string }[] }> {
   return apiFetch("/collaborators/import", { method: "POST", body: JSON.stringify({ rows }) });
 }
-/** Participantes de uma campanha: todo o cadastro + status DAQUELE ciclo. */
+/** Participantes de uma campanha: todo o cadastro + convite DAQUELE ciclo.
+ *  Quem respondeu NÃO vem (participação nominal protegida); a adesão vem em
+ *  número, em `resumo`. */
 export interface CampaignParticipant {
   id: string;
   name: string;
   sector: string | null;
   email: string | null;
   phone: string | null;
-  status: "pendente" | "convidado" | "respondeu";
+  status: "pendente" | "convidado";
   sentEmailAt: string | null;
   sentWhatsappAt: string | null;
-  respondedAt: string | null;
   link: string | null;
 }
 export function listCampaignParticipants(cycleId: string): Promise<{
   cycle: { id: string; name: string; sector: string | null; status: string };
+  resumo: { cadastrados: number; convidados: number; responderam: number };
   participants: CampaignParticipant[];
 }> {
   return apiFetch(`/collaborators/campaign/${encodeURIComponent(cycleId)}`);
