@@ -99,12 +99,15 @@ async function fromAI(
       `realidade de uma organização. ${PSY_JSON_FORMAT_GUARD}`;
   }
 
+  // Perfil da organização — lido UMA vez e repetido em todos os lotes.
+  const perfil = await perfilDaOrganizacao(deps, tenantId, instrumentSlug);
+
   // Lotes PEQUENOS e em paralelo: cada resposta cabe no teto, e a falha de um
   // lote nao leva os outros junto — antes, uma resposta cortada descartava o
   // conjunto inteiro.
   const grupos = emLotes(matrix, FATORES_POR_LOTE);
   const partes = await Promise.all(
-    grupos.map((g) => umLote(deps, tenantId, g, system, timeoutMs).catch(() => null)),
+    grupos.map((g) => umLote(deps, tenantId, g, system, perfil, timeoutMs).catch(() => null)),
   );
   const out: Record<string, PsychosocialActionLibraryEntry> = {};
   for (const p of partes) if (p) Object.assign(out, p);
@@ -121,37 +124,126 @@ async function fromAI(
   return out;
 }
 
+/**
+ * Perfil da organização para a IA — porte, modelo de trabalho, setor e o
+ * diagnóstico aplicado. Sem isto o prompt só dizia "uma organização", e as
+ * ações saíam genéricas ("treinamento", "reuniões") para qualquer empresa
+ * (homologação 17/09: "Refinar qualidade e contextualização"). Best-effort:
+ * qualquer falha devolve '' e a geração segue como antes.
+ */
+export async function perfilDaOrganizacao(
+  deps: ActionPlansDeps,
+  tenantId: string,
+  instrumentSlug: string,
+): Promise<string> {
+  try {
+    // rls-allow: organization/tenant/platform_lead/contract/product são control-plane; leitura self-scoped pela empresa.
+    const org = await deps.prisma.admin.organization.findUnique({
+      where: { id: tenantId },
+      select: { name: true, establishment: true, employeesCount: true, workModel: true },
+    });
+    if (!org) return '';
+    // rls-allow: tenant é control-plane; self-scoped por organizationId = tenantId.
+    const tenant = await deps.prisma.admin.tenant.findFirst({
+      where: { organizationId: tenantId },
+      select: { id: true },
+    });
+    // O lead convertido guarda o segmento (CNAE principal) informado no MAPA.
+    // rls-allow: platform_lead é control-plane (CRM); filtrado pelo tenant convertido.
+    const lead = tenant
+      ? await deps.prisma.admin.platformLead.findFirst({
+          where: { convertedTenantId: tenant.id },
+          orderBy: { updatedAt: 'desc' },
+          select: { segment: true, employeesCount: true },
+        })
+      : null;
+    // rls-allow: contract/product são control-plane; self-scoped por organizationId = tenantId.
+    const contract = await deps.prisma.admin.contract.findFirst({
+      where: { organizationId: tenantId, status: 'ATIVO' },
+      orderBy: { createdAt: 'desc' },
+      select: { productId: true },
+    });
+    const product = contract?.productId
+      ? await deps.prisma.admin.product.findUnique({
+          where: { id: contract.productId },
+          select: { name: true },
+        })
+      : null;
+    // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
+    const instrumento = await deps.prisma.admin.diagnosticInstrument.findUnique({
+      where: { slug: instrumentSlug },
+      select: { name: true },
+    });
+    const linhas = [
+      `- Organização: ${org.name}`,
+      lead?.segment ? `- Setor / atividade (CNAE): ${lead.segment}` : null,
+      org.employeesCount || lead?.employeesCount
+        ? `- Porte: ${org.employeesCount || lead?.employeesCount} colaborador(es)`
+        : null,
+      org.workModel ? `- Modelo de trabalho: ${org.workModel}` : null,
+      org.establishment ? `- Unidade/estabelecimento avaliado: ${org.establishment}` : null,
+      product?.name ? `- Solução contratada: ${product.name}` : null,
+      instrumento?.name ? `- Diagnóstico aplicado: ${instrumento.name}` : null,
+    ].filter((l): l is string => !!l);
+    return linhas.join('\n');
+  } catch {
+    return '';
+  }
+}
+
 /** Uma chamada de IA para UM lote de fatores. */
 async function umLote(
   deps: ActionPlansDeps,
   tenantId: string,
   matrix: PsychosocialRiskMatrixRow[],
   system: string,
+  perfil: string,
   timeoutMs: number,
 ): Promise<Record<string, PsychosocialActionLibraryEntry> | null> {
+  // Cada fator leva o que a Biblioteca de Riscos sabe dele (definição,
+  // fonte/circunstância, agravos) e a leitura das respostas — é o que permite
+  // à IA agir sobre a CAUSA daquele fator nesta empresa, e não sobre o rótulo.
   const dimensoes = matrix
-    .map(
-      (r) =>
+    .map((r) => {
+      const pctAlta = r.exposureCount > 0 ? Math.round((r.highExposureCount / r.exposureCount) * 100) : null;
+      const extras = [
+        r.dimensionLabel ? `dimensão: ${r.dimensionLabel}` : null,
+        r.definition ? `definição: ${r.definition}` : null,
+        r.sourceContext ? `fonte/circunstância: ${r.sourceContext}` : null,
+        r.consequences ? `possíveis agravos: ${r.consequences}` : null,
+        pctAlta != null ? `${pctAlta}% das respostas em exposição alta (${r.respondents} respondente(s))` : null,
+      ].filter((x): x is string => !!x);
+      return (
         `- ${r.label} (slug: ${r.slug}) — Classificação: ${r.riskClass}; ` +
         `Risco R = ${r.risk} (Probabilidade ${r.probability} × Severidade ${r.severity}); ` +
         `exposição média ${r.exposureAvg.toFixed(2)}; ` +
-        `plano de ação ${r.planRequired ? 'OBRIGATÓRIO' : 'não obrigatório'}`,
-    )
+        `plano de ação ${r.planRequired ? 'OBRIGATÓRIO' : 'não obrigatório'}` +
+        (extras.length ? `; ${extras.join('; ')}` : '')
+      );
+    })
     .join('\n');
   const slugs = matrix.map((r) => r.slug);
   const user =
-    'Dimensões psicossociais avaliadas nesta organização, com a classificação de risco derivada da ' +
-    `matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +
-    'Gere um plano de ação de controle para CADA dimensão listada, retornando um JSON EXATAMENTE neste ' +
+    (perfil ? `Perfil da organização avaliada:\n${perfil}\n\n` : '') +
+    'Fatores/dimensões psicossociais avaliados nesta organização, com a classificação de risco derivada ' +
+    `da matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +
+    'Gere um plano de ação de controle para CADA fator listado, retornando um JSON EXATAMENTE neste ' +
     'formato:\n' +
     '{"planos": { "<slug>": { "descricao": string, "objetivo": string, "acoes": [ ' +
     '{ "titulo": string, "prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
     '"objetivo": string, "etapas": string, "indicadores": string } ] } } }\n\n' +
-    'Regras: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para CADA slug ' +
-    `desta lista: ${slugs.join(', ')}. Cada dimensão deve ter de 3 a 4 ações. "descricao" resume o que a ` +
-    'dimensão avalia; "objetivo" indica o propósito do plano; cada ação traz "etapas" concretas e ' +
-    '"indicadores" mensuráveis de acompanhamento. Priorize ações mais estruturantes nas dimensões de ' +
-    'classificação de risco mais alta.';
+    'Regras de formato: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para ' +
+    `CADA slug desta lista: ${slugs.join(', ')}. Cada fator deve ter de 3 a 4 ações. "descricao" resume o ` +
+    'que o fator avalia NESTA organização; "objetivo" indica o propósito do plano.\n' +
+    'Regras de qualidade: (1) cada ação é ESPECÍFICA para o perfil informado (setor, porte, modelo de ' +
+    'trabalho) e para a fonte/circunstância do fator — nada de recomendação que sirva para qualquer ' +
+    'empresa; (2) siga a hierarquia de controle da NR-1: primeiro medidas na organização do trabalho ' +
+    '(processo, carga, papéis, gestão), depois medidas coletivas, por último ações individuais — ' +
+    '"treinamento" ou "palestra" não pode ser a única resposta de um fator; (3) "etapas" nomeiam QUEM ' +
+    'executa (função/área) e o que entrega em cada passo; (4) "indicadores" trazem meta e periodicidade ' +
+    '(ex.: "reduzir horas extras médias de 12h para 6h/mês em 90 dias"); (5) prazo coerente com a ' +
+    'classificação: risco Muito alto/Alto começa em Curto prazo; (6) não repita a mesma ação em fatores ' +
+    'diferentes; (7) títulos curtos (até 8 palavras), português do Brasil, sem jargão vazio.';
 
   const r = await deps.aiSettings.chat({
     useCase: 'dossie_action_plan',
