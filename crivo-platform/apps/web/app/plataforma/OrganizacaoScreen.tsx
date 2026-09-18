@@ -8,32 +8,45 @@ import {
   updateMyBranding,
   getUserSeats,
   getMyModules,
+  getDiagnosticContext,
 } from "@/lib/api";
-import type { OrganizationData, Plan, TenantBrandingData, UserSeats } from "@crivo/types";
-// Rótulos dos planos vêm do catálogo compartilhado: cópias locais desta tela
-// e do onboarding tinham "PRO"/"PROFESSIONAL", que não existem no sistema —
-// um cliente ADVISORY via "ADVISORY" em caixa alta.
-import { PLAN_LABELS } from "@crivo/types";
+import type { OrganizationData, TenantBrandingData, UserSeats } from "@crivo/types";
 import { IconCheck } from "./Icons";
 
 /**
  * Organização (autoatendimento do admin da empresa): dados cadastrais, identidade
- * visual (white-label) e visão do plano/uso. Gateado por branding:edit (nav).
+ * visual (white-label) e a SOLUÇÃO contratada. Gateado por branding:edit (nav).
+ *
+ * O card "Plano · Evolução" saiu (homologação 17/09: "retirar camada comercial
+ * 'Plano Evolução'"): o plano é o degrau comercial do control plane, confundia
+ * com o Plano de Evolução (plano de ação) e não é o que a empresa contratou —
+ * ela contratou uma SOLUÇÃO, e é isso que a tela mostra.
  */
 export function OrganizacaoScreen() {
   const [org, setOrg] = useState<OrganizationData | null>(null);
   const [branding, setBranding] = useState<TenantBrandingData | null>(null);
   const [seats, setSeats] = useState<UserSeats | null>(null);
   const [modules, setModules] = useState<number | null>(null);
+  // Soluções contratadas (nome do produto por método). null = sem contrato ativo.
+  const [solucoes, setSolucoes] = useState<string[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
 
   useEffect(() => {
-    Promise.all([getMyOrganization(), getMyBranding(), getUserSeats().catch(() => null), getMyModules().catch(() => [])])
-      .then(([o, b, s, m]) => {
+    Promise.all([
+      getMyOrganization(),
+      getMyBranding(),
+      getUserSeats().catch(() => null),
+      getMyModules().catch(() => []),
+      getDiagnosticContext().catch(() => null),
+    ])
+      .then(([o, b, s, m, d]) => {
         setOrg(o);
         setBranding(b);
         setSeats(s);
         setModules(Array.isArray(m) ? m.length : null);
+        const nomes = (d?.contracted?.length ? d.contracted.map((c) => c.productName) : d?.productName ? [d.productName] : [])
+          .filter((n): n is string => !!n);
+        setSolucoes(nomes.length ? Array.from(new Set(nomes)) : null);
         setStatus("ok");
       })
       .catch(() => setStatus("error"));
@@ -48,17 +61,18 @@ export function OrganizacaoScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Organização</h1>
-          <p className="page-sub">Dados da empresa, identidade visual e seu plano — autoatendimento.</p>
+          <p className="page-sub">Dados da empresa, identidade visual e solução ativa — autoatendimento.</p>
         </div>
       </div>
 
-      {/* Plano & uso */}
+      {/* Solução & uso */}
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="kpi">
-          <span className="kpi__label">Plano</span>
-          <strong className="kpi__value" style={{ fontSize: 26, color: "var(--gold-deep)" }}>
-            {PLAN_LABELS[org.plan as Plan] ?? org.plan}
+          <span className="kpi__label">Solução ativa</span>
+          <strong className="kpi__value" style={{ fontSize: solucoes && solucoes.length > 1 ? 16 : 20, color: "var(--gold-deep)" }}>
+            {solucoes ? solucoes.join(" · ") : "Sem contrato ativo"}
           </strong>
+          {!solucoes && <span className="kpi__delta">A solução é liberada pelo contrato, no Super Admin.</span>}
         </div>
         <div className="kpi">
           <span className="kpi__label">Usuários</span>
