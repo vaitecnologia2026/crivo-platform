@@ -5,24 +5,9 @@ import {
   getPublicPsychosocial,
   submitPublicPsychosocial,
 } from "@/lib/api";
-import {
-  DEFAULT_SCALE_LABELS,
-  PSYCHOSOCIAL_DIMENSION_LABEL,
-  PSYCHOSOCIAL_RISK_LABEL,
-  type PsychosocialQuestion,
-  type PsychosocialResult,
-  type PsychosocialDimension,
-  type PsychosocialRiskLevel,
-} from "@crivo/types";
+import { DEFAULT_SCALE_LABELS, type PsychosocialQuestion } from "@crivo/types";
 import s from "./public.module.css";
 import { ScaleHelpBox } from "@crivo/ui";
-
-const RISK_COLOR: Record<PsychosocialRiskLevel, string> = {
-  BAIXO: "#2f9e64",
-  MODERADO: "#c4894a",
-  ALTO: "#d98324",
-  CRITICO: "#c0392b",
-};
 
 function Brand() {
   return (
@@ -104,7 +89,7 @@ export function PublicPsychosocialForm({
   enviar?: (
     slug: string,
     body: { sector?: string; answers: { questionId: number; value: number }[] },
-  ) => Promise<{ result: PsychosocialResult }>;
+  ) => Promise<{ ok: true }>;
   setorFixo?: string | null;
   rotulo?: string;
   contexto?: string | null;
@@ -133,7 +118,6 @@ export function PublicPsychosocialForm({
   const [sector, setSector] = useState("");
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "error">("idle");
-  const [result, setResult] = useState<PsychosocialResult | null>(null);
   // Aviso (não bloqueio) de resposta repetida — ver MARCA_RESPONDIDO acima.
   const [avisoRepeticao, setAvisoRepeticao] = useState(false);
   /**
@@ -194,11 +178,10 @@ export function PublicPsychosocialForm({
     if (!allAnswered) return;
     setSubmitState("submitting");
     try {
-      const res = await enviar(slug, {
+      await enviar(slug, {
         sector: setorFixo ?? (sector.trim() || undefined),
         answers: questions.map((q) => ({ questionId: q.id, value: answers[q.id] })),
       });
-      setResult(res.result);
       setSubmitState("done");
       // Só marca depois de o servidor confirmar: falha de rede não pode fazer a
       // pessoa achar que respondeu.
@@ -228,44 +211,23 @@ export function PublicPsychosocialForm({
       </div>
     );
 
-  if (submitState === "done" && result)
+  // Fim SEM score individual (homologação 17/09): a resposta é anônima e só o
+  // agregado existe — a nota da pessoa não é informação da plataforma para ela.
+  if (submitState === "done")
     return (
       <div className={s.wrap}>
         <div className={s.card}>
           <Brand />
           <div className={s.result}>
             <span className={s.pill}>Resposta registrada · anônima</span>
-            <div className={s.bignum} style={{ color: RISK_COLOR[result.level] }}>
-              {result.score}
-              <small>/100</small>
-            </div>
+            <h2 style={{ margin: "14px 0 6px" }}>Obrigado por participar.</h2>
             <p className={s.sub} style={{ marginTop: 6 }}>
-              Proteção psicossocial percebida ·{" "}
-              <strong style={{ color: RISK_COLOR[result.level] }}>
-                {PSYCHOSOCIAL_RISK_LABEL[result.level]}
-              </strong>
+              Sua resposta foi registrada e é <strong>anônima</strong>: ela entra apenas no resultado
+              agregado da sua empresa, que só é divulgado a partir de um número mínimo de respostas.
+              Não há resultado individual — nenhuma nota é associada a você.
             </p>
-            <div className={s.dimBars}>
-              {(Object.entries(result.byDimension) as [PsychosocialDimension, number][]).map(
-                ([k, v]) => {
-                  const c = result.dimensionBands?.[k]?.color;
-                  return (
-                    <div className={s.dimRow} key={k}>
-                      <div className={s.dimHead}>
-                        <span>{PSYCHOSOCIAL_DIMENSION_LABEL[k]}</span>
-                        <strong>{v}</strong>
-                      </div>
-                      <div className={s.bar}>
-                        <i className={s.barFill} style={{ width: `${v}%`, ...(c ? { background: c } : {}) }} />
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-            <p className={s.sub} style={{ marginTop: 16, fontSize: 12.5 }}>
-              Obrigado por participar. Sua resposta é <strong>anônima</strong> — nenhum dado pessoal é
-              guardado e os resultados só aparecem de forma agregada (a partir de 5 respostas).
+            <p className={s.sub} style={{ marginTop: 12, fontSize: 12.5 }}>
+              Você já pode fechar esta página.
             </p>
           </div>
         </div>

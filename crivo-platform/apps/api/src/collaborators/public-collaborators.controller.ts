@@ -29,7 +29,11 @@ export class PublicCollaboratorsController {
   /** Grava a resposta anônima e impede refazer (CPF revalidado). */
   @Post(':token/submit')
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  submit(@Param('token') token: string, @Body() dto: SubmitByTokenDto) {
-    return this.svc.submit(token, dto);
+  async submit(@Param('token') token: string, @Body() dto: SubmitByTokenDto) {
+    // O colaborador termina SEM score individual (homologação 17/09): a
+    // resposta é anônima e só o agregado existe para a empresa — devolver a
+    // nota à pessoa contradiz isso e vira ranking informal no chão de fábrica.
+    const r = await this.svc.submit(token, dto);
+    return { ok: r.ok };
   }
 }

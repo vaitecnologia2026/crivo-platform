@@ -974,7 +974,8 @@ export async function submitPublicCampaign(
   // O CPF acompanha o envio: a campanha passou a ser nominal (uma resposta por
   // pessoa por ciclo), embora a resposta gravada siga anônima.
   dto: { cpf: string; sector?: string; answers: { questionId: number; value: number }[] },
-): Promise<{ ok: true; result: PsychosocialResult }> {
+  // Sem `result`: o colaborador termina sem score individual (homologação 17/09).
+): Promise<{ ok: true }> {
   const res = await fetch(`${apiBase()}/public/campaigns/${encodeURIComponent(slug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1018,7 +1019,7 @@ export async function getPublicDiagnostic(slug: string): Promise<PublicDiagnosti
 export async function submitPublicDiagnostic(
   slug: string,
   body: { sector?: string; answers: { questionId: number; value: number }[] },
-): Promise<{ ok: true; result: PublicDiagnosticResult }> {
+): Promise<{ ok: true }> {
   const res = await fetch(`${apiBase()}/public/diagnostics/${encodeURIComponent(slug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1052,7 +1053,7 @@ export async function getPublicPsychosocial(
 export async function submitPublicPsychosocial(
   slug: string,
   dto: { sector?: string; answers: { questionId: number; value: number }[] },
-): Promise<{ ok: true; result: PsychosocialResult }> {
+): Promise<{ ok: true }> {
   const res = await fetch(`${apiBase()}/public/psychosocial/${encodeURIComponent(slug)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1223,7 +1224,7 @@ export async function verifyCollab(
 export async function submitCollab(
   token: string,
   dto: { cpf: string; answers: { questionId: number; value: number }[] },
-): Promise<{ ok: true; result: PsychosocialResult }> {
+): Promise<{ ok: true }> {
   const res = await fetch(`${apiBase()}/public/collab/${encodeURIComponent(token)}/submit`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dto), signal: AbortSignal.timeout(15000),
   });

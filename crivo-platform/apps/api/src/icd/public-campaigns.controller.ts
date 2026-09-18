@@ -33,7 +33,9 @@ export class PublicCampaignsController {
 
   @Post(':slug')
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  submit(@Param('slug') slug: string, @Body() dto: SubmitCampaignDto) {
-    return this.icd.submitPublicByCampaignSlug(slug, dto);
+  async submit(@Param('slug') slug: string, @Body() dto: SubmitCampaignDto) {
+    // Sem score individual no link da campanha (ver public-collaborators.controller).
+    const r = await this.icd.submitPublicByCampaignSlug(slug, dto);
+    return { ok: r.ok };
   }
 }

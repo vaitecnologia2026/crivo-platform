@@ -5,7 +5,6 @@ import {
   getPublicDiagnostic,
   submitPublicDiagnostic,
   type PublicDiagnosticInfo,
-  type PublicDiagnosticResult,
 } from "@/lib/api";
 import s from "./public.module.css";
 import { ScaleHelpBox } from "@crivo/ui";
@@ -36,7 +35,6 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
   const [sector, setSector] = useState("");
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "error">("idle");
-  const [result, setResult] = useState<PublicDiagnosticResult | null>(null);
 
   useEffect(() => {
     getPublicDiagnostic(slug)
@@ -55,11 +53,10 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
     if (!allAnswered) return;
     setSubmitState("submitting");
     try {
-      const res = await submitPublicDiagnostic(slug, {
+      await submitPublicDiagnostic(slug, {
         sector: sector.trim() || undefined,
         answers: questions.map((q) => ({ questionId: q.id, value: answers[q.id] })),
       });
-      setResult(res.result);
       setSubmitState("done");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -86,42 +83,22 @@ export function PublicDiagnosticForm({ slug }: { slug: string }) {
       </div>
     );
 
-  if (submitState === "done" && result)
+  // Fim SEM score individual (homologação 17/09) — ver PublicPsychosocialForm.
+  if (submitState === "done")
     return (
       <div className={s.wrap}>
         <div className={s.card}>
           <Brand />
           <div className={s.result}>
             <span className={s.pill}>Resposta registrada · anônima</span>
-            <div className={s.bignum}>
-              {result.score}
-              <small>/100</small>
-            </div>
+            <h2 style={{ margin: "14px 0 6px" }}>Obrigado por participar.</h2>
             <p className={s.sub} style={{ marginTop: 6 }}>
-              {info?.instrumentName} ·{" "}
-              <strong style={result.levelColor ? { color: result.levelColor } : undefined}>
-                {result.levelLabel ?? result.level}
-              </strong>
+              {info?.instrumentName ? <>{info.instrumentName} · </> : null}
+              Sua resposta foi registrada e é <strong>anônima</strong>: ela entra apenas no resultado
+              agregado, divulgado a partir de um número mínimo de respostas. Não há resultado individual.
             </p>
-            <div className={s.dimBars}>
-              {Object.entries(result.byDimension).map(([k, v]) => {
-                const c = result.dimensionBands?.[k]?.color;
-                return (
-                  <div className={s.dimRow} key={k}>
-                    <div className={s.dimHead}>
-                      <span>{result.dimensionLabels[k] ?? k}</span>
-                      <strong>{v}</strong>
-                    </div>
-                    <div className={s.bar}>
-                      <i className={s.barFill} style={{ width: `${v}%`, ...(c ? { background: c } : {}) }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className={s.sub} style={{ marginTop: 16, fontSize: 12.5 }}>
-              Obrigado por participar. Sua resposta é <strong>anônima</strong> — nenhum dado pessoal é
-              guardado e os resultados só aparecem de forma agregada (a partir de 5 respostas).
+            <p className={s.sub} style={{ marginTop: 12, fontSize: 12.5 }}>
+              Você já pode fechar esta página.
             </p>
           </div>
         </div>

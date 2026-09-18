@@ -23,7 +23,9 @@ export class PublicPsychosocialController {
   /** Submissão anônima via slug. */
   @Post(':slug')
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
-  submit(@Param('slug') slug: string, @Body() dto: SubmitPsychosocialDto) {
-    return this.psychosocial.submitPublic(slug, dto);
+  async submit(@Param('slug') slug: string, @Body() dto: SubmitPsychosocialDto) {
+    // Sem score individual no link público (ver public-collaborators.controller).
+    const r = await this.psychosocial.submitPublic(slug, dto);
+    return { ok: r.ok };
   }
 }
