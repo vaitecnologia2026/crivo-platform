@@ -26,7 +26,12 @@ const EVENT_LABEL: Record<string, string> = {
   "lead.archive": "Jornada concluída / arquivado",
   "lead.convert": "Convertido em cliente",
   "lead.send-access": "Acesso enviado por e-mail",
-  "lead.user-password": "Senha do acesso alterada",
+  "lead.user.password": "Senha do acesso alterada",
+  "lead.next_action": "Próximo passo definido",
+  "lead.commercial": "Dados comerciais alterados",
+  "lead.notes": "Observações alteradas",
+  "lead.origin": "Origem alterada",
+  "lead.interest": "Solução de interesse alterada",
   "tenant.provision": "Empresa provisionada",
   "tenant.suspend": "Empresa suspensa",
   "tenant.activate": "Empresa reativada",
@@ -53,6 +58,22 @@ function eventDetail(e: LeadHistoryEvent): string {
       return [m.product ? `solução: ${m.product}` : null, m.tenant ? `empresa: ${m.tenant}` : null].filter(Boolean).join(" · ");
     case "lead.send-access":
       return m.sent === false ? `não enviado${m.reason ? ` (${m.reason})` : ""}` : m.to ? `para ${m.to}` : "";
+    case "lead.next_action":
+      return [
+        m.nextActionAt ? `para ${new Date(String(m.nextActionAt)).toLocaleDateString("pt-BR")}` : "sem data",
+        m.note ? String(m.note) : null,
+      ].filter(Boolean).join(" · ");
+    case "lead.commercial":
+      return [
+        m.commercialOwner !== undefined ? `responsável: ${m.commercialOwner || "—"}` : null,
+        m.proposedValueCents !== undefined && m.proposedValueCents != null
+          ? `valor: R$ ${(Number(m.proposedValueCents) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+          : null,
+        m.proposalSentAt ? `proposta enviada em ${new Date(String(m.proposalSentAt)).toLocaleDateString("pt-BR")}` : null,
+        Array.isArray(m.potentialAddons) && m.potentialAddons.length ? `adicionais: ${m.potentialAddons.join(", ")}` : null,
+      ].filter(Boolean).join(" · ");
+    case "lead.origin":
+      return m.origin ? String(m.origin) : "";
     case "tenant.module.enable":
     case "tenant.module.disable":
       return m.module ? String(m.module) : "";

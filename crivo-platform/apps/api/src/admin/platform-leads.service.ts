@@ -57,7 +57,44 @@ export class PlatformLeadsService {
 
   async list(): Promise<PlatformLeadSummary[]> {
     const rows = await this.prisma.admin.platformLead.findMany({ orderBy: { createdAt: 'desc' } });
-    return rows.map((l) => this.toSummary(l));
+    // "Diagnóstico concluído" = a empresa convertida ENCERROU uma campanha do
+    // diagnóstico contratado. É o que alimenta o KPI do CRM — o MAPA
+    // respondido na LP não conta como diagnóstico (homologação 17/09).
+    const concluidoPorOrg = await this.diagnosticosConcluidos(
+      rows.map((l) => l.convertedTenantId).filter((v): v is string => !!v),
+    );
+    return rows.map((l) => ({
+      ...this.toSummary(l),
+      diagnosticConcludedAt: l.convertedTenantId ? (concluidoPorOrg.get(l.convertedTenantId) ?? null) : null,
+    }));
+  }
+
+  /** tenant.id → data do encerramento da última campanha (ISO), só para quem já encerrou uma. */
+  private async diagnosticosConcluidos(tenantIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (!tenantIds.length) return out;
+    // rls-allow: tenant é control-plane; resolve tenant.id → organizationId.
+    const tenants = await this.prisma.admin.tenant.findMany({
+      where: { id: { in: tenantIds } },
+      select: { id: true, organizationId: true },
+    });
+    const orgIds = tenants.map((t) => t.organizationId);
+    if (!orgIds.length) return out;
+    // rls-allow: leitura agregada pelo super admin, filtrada pelas organizações dos leads convertidos.
+    const closed = await this.prisma.admin.assessmentCycle.findMany({
+      where: { tenantId: { in: orgIds }, status: 'CLOSED' },
+      select: { tenantId: true, closedAt: true, updatedAt: true },
+      orderBy: { closedAt: 'desc' },
+    });
+    const porOrg = new Map<string, string>();
+    for (const c of closed) {
+      if (!porOrg.has(c.tenantId)) porOrg.set(c.tenantId, (c.closedAt ?? c.updatedAt).toISOString());
+    }
+    for (const t of tenants) {
+      const at = porOrg.get(t.organizationId);
+      if (at) out.set(t.id, at);
+    }
+    return out;
   }
 
   /**
@@ -555,7 +592,14 @@ export class PlatformLeadsService {
       where: { id },
       data: { nextActionAt: at, nextActionNote: note },
     });
-    await this.audit.record({ action: 'lead.next_action', actor, target: id });
+    // Meta na trilha: o histórico consolidado do lead mostra QUAL foi o próximo
+    // passo e para quando — antes só dizia que mudou.
+    await this.audit.record({
+      action: 'lead.next_action',
+      actor,
+      target: id,
+      meta: { nextActionAt: at?.toISOString() ?? null, note },
+    });
     return this.toSummary(updated);
   }
 
@@ -598,7 +642,17 @@ export class PlatformLeadsService {
     }
 
     const updated = await this.prisma.admin.platformLead.update({ where: { id }, data });
-    await this.audit.record({ action: 'lead.commercial', actor, target: id });
+    await this.audit.record({
+      action: 'lead.commercial',
+      actor,
+      target: id,
+      meta: {
+        ...(data.commercialOwner !== undefined ? { commercialOwner: data.commercialOwner } : {}),
+        ...(data.proposedValueCents !== undefined ? { proposedValueCents: data.proposedValueCents } : {}),
+        ...(data.proposalSentAt !== undefined ? { proposalSentAt: data.proposalSentAt?.toISOString() ?? null } : {}),
+        ...(data.potentialAddons !== undefined ? { potentialAddons: data.potentialAddons } : {}),
+      },
+    });
     return this.toSummary(updated);
   }
 

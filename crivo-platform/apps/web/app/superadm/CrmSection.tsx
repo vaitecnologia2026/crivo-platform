@@ -672,7 +672,10 @@ export function CrmSection() {
   const abertos = (leads ?? []).filter((l) => l.stage !== "PERDIDO" && !l.archivedAt);
   const total = abertos.length;
   const reunioes = (byColumn.get("diagnostico") ?? []).length;
-  const preDiags = abertos.filter((l) => l.diagnosticScore != null).length;
+  // "Diagnóstico concluído" = empresa convertida com campanha do diagnóstico
+  // contratado ENCERRADA (vem da API). O MAPA respondido na LP não conta
+  // (homologação 17/09: "somente Diagnóstico concluído alimenta o KPI").
+  const diagsConcluidos = (leads ?? []).filter((l) => !!l.diagnosticConcludedAt).length;
   const semContato = abertos.filter((l) => !l.firstContactedAt && !l.convertedTenantId).length;
   const GANHO: PlatformLeadStage[] = ["FECHADO", "CONTRATO", "ONBOARDING", "IMPLANTACAO", "ENTREGA", "SUSTENTACAO", "RENOVACAO", "UPSELL"];
   const todosLeads = leads ?? [];
@@ -811,11 +814,9 @@ export function CrmSection() {
               <strong className="kpi__value">{reunioes}</strong>
             </div>
             <div className="kpi">
-              {/* Quem TEM nota do MAPA Executivo — diferente de estar NA etapa
-                  Reunião. Não é "diagnóstico feito": o diagnóstico é a solução
-                  contratada, aplicada depois da conversão. */}
-              <span className="kpi__label">Leads com MAPA respondido</span>
-              <strong className="kpi__value">{preDiags}</strong>
+              <span className="kpi__label">Diagnósticos concluídos</span>
+              <strong className="kpi__value">{diagsConcluidos}</strong>
+              <span className="kpi__sub">clientes com campanha encerrada</span>
             </div>
             <div className="kpi">
               <span className="kpi__label">Sem 1º contato</span>

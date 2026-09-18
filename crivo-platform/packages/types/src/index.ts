@@ -1670,6 +1670,9 @@ export interface PlatformLeadSummary {
   proposalSentAt: string | null; // ISO — quando a proposta foi enviada
   potentialAddons: string[]; // adicionais/módulos potenciais (pré-venda)
   convertedTenantId: string | null;
+  /** ISO do encerramento da última campanha do diagnóstico contratado pela
+   *  empresa convertida — "diagnóstico concluído" de verdade (o MAPA não conta). */
+  diagnosticConcludedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
