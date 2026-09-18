@@ -521,6 +521,18 @@ export function markFirstContact(id: string): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/first-contact`, { method: "PATCH" });
 }
 
+/** Linha do tempo do lead — eventos da trilha de auditoria, consolidados. */
+export interface LeadHistoryEvent {
+  id: string;
+  at: string;
+  action: string;
+  actorEmail: string | null;
+  meta: Record<string, unknown> | null;
+}
+export function getLeadHistory(id: string): Promise<LeadHistoryEvent[]> {
+  return adminFetch<LeadHistoryEvent[]>(`/admin/leads/${id}/history`);
+}
+
 /** [2] Registra a origem/canal do lead. */
 export function setLeadOrigin(id: string, origin: string): Promise<PlatformLeadSummary> {
   return adminFetch<PlatformLeadSummary>(`/admin/leads/${id}/origin`, {

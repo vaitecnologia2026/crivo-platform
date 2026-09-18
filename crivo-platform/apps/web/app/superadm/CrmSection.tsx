@@ -68,9 +68,13 @@ const COLUMNS: BoardCol[] = [
   { key: "novos", label: "Novos", criteria: "Chegou e ninguém falou ainda", stages: ["NOVO"],
     pill: { label: "Sem 1º contato", tone: "lav" },
     action: { label: "Marcar 1º contato", kind: "contato", next: "OPORTUNIDADE" } },
+  // O MAPA Executivo é o instrumento de ENTRADA (pré-venda), não o diagnóstico
+  // — diagnóstico é a solução contratada (Essencial/Organizacional). A coluna
+  // chamava-se "Diagnóstico" e o funil inteiro falava em "agendar diagnóstico"
+  // (homologação 17/09: "MAPA não conta como diagnóstico").
   { key: "contato", label: "Em contato", criteria: "Já conversamos, faz sentido", stages: ["OPORTUNIDADE"],
-    action: { label: "Agendar diagnóstico", next: "PRE_DIAGNOSTICO" } },
-  { key: "diagnostico", label: "Diagnóstico", criteria: "Reunião ou pré-diagnóstico em curso", stages: ["PRE_DIAGNOSTICO", "REUNIAO"],
+    action: { label: "Agendar reunião", next: "PRE_DIAGNOSTICO" } },
+  { key: "diagnostico", label: "Reunião", criteria: "Reunião de apresentação a partir do MAPA Executivo", stages: ["PRE_DIAGNOSTICO", "REUNIAO"],
     action: { label: "Enviar proposta", next: "PROPOSTA" } },
   { key: "proposta", label: "Proposta", criteria: "Proposta na mesa, em negociação", stages: ["PROPOSTA", "NEGOCIACAO"],
     action: { label: "Registrar fechamento", next: "FECHADO" },
@@ -802,14 +806,15 @@ export function CrmSection() {
               <strong className="kpi__value">{total}</strong>
             </div>
             <div className="kpi">
-              {/* Conta o tamanho da coluna Diagnóstico, não reuniões marcadas. */}
-              <span className="kpi__label">Em diagnóstico</span>
+              {/* Conta o tamanho da coluna Reunião, não reuniões marcadas. */}
+              <span className="kpi__label">Em reunião</span>
               <strong className="kpi__value">{reunioes}</strong>
             </div>
             <div className="kpi">
-              {/* Quem TEM nota de diagnóstico — diferente de estar NA etapa
-                  Diagnóstico. Os dois números conviviam com nomes parecidos. */}
-              <span className="kpi__label">Leads com diagnóstico feito</span>
+              {/* Quem TEM nota do MAPA Executivo — diferente de estar NA etapa
+                  Reunião. Não é "diagnóstico feito": o diagnóstico é a solução
+                  contratada, aplicada depois da conversão. */}
+              <span className="kpi__label">Leads com MAPA respondido</span>
               <strong className="kpi__value">{preDiags}</strong>
             </div>
             <div className="kpi">
@@ -1264,6 +1269,14 @@ function ConvertModal({
         </header>
 
         <div className="modal__body">
+          {!done && (
+            <p className="card__sub" style={{ margin: "0 0 12px" }}>
+              <strong>Regra de conversão:</strong> converter cria a empresa com a solução escolhida, o contrato nasce
+              ATIVO, o administrador recebe acesso com senha temporária e o lead vai para <strong>Cliente ativo</strong>.
+              Acontece uma vez por lead; o MAPA Executivo (produto de captura) não é contratável — o diagnóstico
+              é a solução escolhida aqui.
+            </p>
+          )}
           {done ? (
             <div className="convert-done">
               <p>

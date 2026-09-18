@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PlatformLeadSummary } from "@crivo/types";
-import { evaluateCnae, type CnaeDecisionResult, type CnaeRiskLevel } from "../../lib/admin-api";
+import { evaluateCnae, getLeadHistory, type CnaeDecisionResult, type CnaeRiskLevel, type LeadHistoryEvent } from "../../lib/admin-api";
 import "./cnae.css";
 
 const RISK_LABEL: Record<CnaeRiskLevel, string> = {
@@ -17,11 +17,67 @@ function methodLabel(m?: string | null) {
   return m === "ORGANIZACIONAL" ? "Diagnóstico Organizacional" : m === "ESSENCIAL" ? "Diagnóstico Essencial" : "—";
 }
 
-/** Mostra TODOS os dados capturados pelo CNPJ + a recomendação CNAE/NR-1 do lead. */
+/** Rótulos pt-BR dos eventos da trilha (o resto sai com o código cru). */
+const EVENT_LABEL: Record<string, string> = {
+  "lead.created": "Lead cadastrado",
+  "lead.intake": "Respondeu o MAPA Executivo",
+  "lead.first_contact": "1º contato registrado",
+  "lead.stage": "Etapa alterada",
+  "lead.archive": "Jornada concluída / arquivado",
+  "lead.convert": "Convertido em cliente",
+  "lead.send-access": "Acesso enviado por e-mail",
+  "lead.user-password": "Senha do acesso alterada",
+  "tenant.provision": "Empresa provisionada",
+  "tenant.suspend": "Empresa suspensa",
+  "tenant.activate": "Empresa reativada",
+  "tenant.module.enable": "Módulo liberado",
+  "tenant.module.disable": "Módulo desligado",
+  "contract.create": "Contrato criado (ATIVO)",
+  "contract.update": "Contrato alterado",
+};
+const STAGE_PT: Record<string, string> = {
+  NOVO: "Novo", OPORTUNIDADE: "Em contato", PRE_DIAGNOSTICO: "Reunião", REUNIAO: "Reunião",
+  PROPOSTA: "Proposta", NEGOCIACAO: "Negociação", FECHADO: "Fechado", CONTRATO: "Contrato",
+  ONBOARDING: "Cliente ativo", IMPLANTACAO: "Implantação", ENTREGA: "Entrega", SUSTENTACAO: "Sustentação",
+  RENOVACAO: "Renovação", UPSELL: "Upsell", PERDIDO: "Perdido",
+};
+function eventDetail(e: LeadHistoryEvent): string {
+  const m = e.meta ?? {};
+  switch (e.action) {
+    case "lead.intake":
+    case "lead.created":
+      return [m.score != null ? `MAPA ${m.score}/100` : null, m.origin ? `origem: ${m.origin}` : null].filter(Boolean).join(" · ");
+    case "lead.stage":
+      return `→ ${STAGE_PT[String(m.stage)] ?? String(m.stage ?? "")}${m.lostReason ? ` (${m.lostReason})` : ""}`;
+    case "lead.convert":
+      return [m.product ? `solução: ${m.product}` : null, m.tenant ? `empresa: ${m.tenant}` : null].filter(Boolean).join(" · ");
+    case "lead.send-access":
+      return m.sent === false ? `não enviado${m.reason ? ` (${m.reason})` : ""}` : m.to ? `para ${m.to}` : "";
+    case "tenant.module.enable":
+    case "tenant.module.disable":
+      return m.module ? String(m.module) : "";
+    case "contract.create":
+    case "contract.update":
+      return [m.model, m.output, m.status].filter(Boolean).join(" · ");
+    default:
+      return "";
+  }
+}
+
+/** Mostra TODOS os dados capturados pelo CNPJ + a recomendação CNAE/NR-1 do lead + o histórico consolidado. */
 export function LeadDataModal({ lead, onClose }: { lead: PlatformLeadSummary; onClose: () => void }) {
   const d = lead.cnpjData;
   const [rec, setRec] = useState<CnaeDecisionResult | null>(null);
   const [recErr, setRecErr] = useState<string | null>(null);
+  const [history, setHistory] = useState<LeadHistoryEvent[] | null | "erro">(null);
+
+  useEffect(() => {
+    let alive = true;
+    getLeadHistory(lead.id)
+      .then((h) => { if (alive) setHistory(h); })
+      .catch(() => { if (alive) setHistory("erro"); });
+    return () => { alive = false; };
+  }, [lead.id]);
 
   useEffect(() => {
     if (!lead.cnpj && !d?.cnaeCodigo) {
@@ -154,7 +210,7 @@ export function LeadDataModal({ lead, onClose }: { lead: PlatformLeadSummary; on
 
           {/* ── Dados do formulário ── */}
           <span className="cnae-fieldset__legend" style={{ marginTop: 16, display: "block" }}>
-            Dados do formulário (Diagnóstico Inicial)
+            Dados do formulário (MAPA Executivo CRIVO™)
           </span>
           <dl className="cnae-dl">
             <dt>Contato</dt>
@@ -165,8 +221,10 @@ export function LeadDataModal({ lead, onClose }: { lead: PlatformLeadSummary; on
             <dd>{lead.employeesCount ?? "—"}</dd>
             <dt>E-mail / Telefone</dt>
             <dd>{[lead.email, lead.phone].filter(Boolean).join(" · ") || "—"}</dd>
-            <dt>Pré-diagnóstico</dt>
-            <dd>{lead.diagnosticScore != null ? `${lead.diagnosticScore}/100` : "—"}</dd>
+            {/* O MAPA é a leitura de entrada, não um diagnóstico: o diagnóstico
+                é a solução contratada, aplicada depois da conversão. */}
+            <dt>MAPA Executivo</dt>
+            <dd>{lead.diagnosticScore != null ? `${lead.diagnosticScore}/100 (leitura preliminar — não é diagnóstico)` : "não respondido"}</dd>
             {lead.notes && (
               <>
                 <dt>Observações</dt>
@@ -174,6 +232,31 @@ export function LeadDataModal({ lead, onClose }: { lead: PlatformLeadSummary; on
               </>
             )}
           </dl>
+
+          {/* ── Histórico consolidado ── */}
+          <span className="cnae-fieldset__legend" style={{ marginTop: 16, display: "block" }}>
+            Histórico do lead
+          </span>
+          {history === null ? (
+            <p className="card__sub">Carregando histórico…</p>
+          ) : history === "erro" ? (
+            <p className="card__sub">Não foi possível carregar o histórico.</p>
+          ) : history.length === 0 ? (
+            <p className="card__sub">Nenhum evento registrado.</p>
+          ) : (
+            <dl className="cnae-dl">
+              {history.map((e) => (
+                <div key={e.id} style={{ display: "contents" }}>
+                  <dt>{new Date(e.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</dt>
+                  <dd>
+                    <strong>{EVENT_LABEL[e.action] ?? e.action}</strong>
+                    {eventDetail(e) ? ` — ${eventDetail(e)}` : ""}
+                    {e.actorEmail ? <span className="card__sub"> · {e.actorEmail}</span> : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
         <div className="modal__foot">
           <button className="btn btn--primary" onClick={onClose}>

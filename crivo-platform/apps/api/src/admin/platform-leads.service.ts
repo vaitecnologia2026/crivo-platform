@@ -34,6 +34,15 @@ type Actor = { id: string; email: string };
  * ao super admin — NÃO a uma empresa. Control plane (owner-only): acesso via
  * prisma.admin. Ao fechar a venda, o lead vira Tenant (FASE 3 — conversão).
  */
+/** Um evento da linha do tempo do lead (vem da trilha de auditoria). */
+export type LeadHistoryEvent = {
+  id: string;
+  at: string;
+  action: string;
+  actorEmail: string | null;
+  meta: Record<string, unknown> | null;
+};
+
 @Injectable()
 export class PlatformLeadsService {
   private readonly log = new Logger(PlatformLeadsService.name);
@@ -409,6 +418,61 @@ export class PlatformLeadsService {
       return { lead: this.toSummary(updated ?? lead), ...prov };
     }
     return { lead: this.toSummary(lead) };
+  }
+
+  /**
+   * Histórico CONSOLIDADO do lead (homologação 17/09: "consolidar histórico e
+   * regra de conversão"): tudo o que a trilha de auditoria sabe sobre ele,
+   * numa linha do tempo só — entrada pelo MAPA, 1º contato, mudanças de etapa,
+   * conversão, provisionamento da empresa, contrato, envio de acesso. Antes
+   * esses eventos existiam, mas espalhados na aba Auditoria, sem filtro por lead.
+   */
+  async history(id: string): Promise<LeadHistoryEvent[]> {
+    const lead = await this.prisma.admin.platformLead.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundException('Lead não encontrado');
+    // rls-allow: tenant é control-plane; resolvido pelo lead convertido.
+    const tenant = lead.convertedTenantId
+      ? await this.prisma.admin.tenant.findUnique({
+          where: { id: lead.convertedTenantId },
+          select: { slug: true, organizationId: true },
+        })
+      : null;
+    const rows = await this.prisma.admin.auditLog.findMany({
+      where: {
+        OR: [
+          { target: id },
+          ...(lead.email ? [{ action: 'lead.intake', target: lead.email }] : []),
+          ...(tenant
+            ? [
+                { action: { startsWith: 'tenant.' }, target: tenant.slug },
+                { action: { startsWith: 'contract.' }, target: tenant.organizationId },
+              ]
+            : []),
+        ],
+      },
+      orderBy: { at: 'asc' },
+      select: { id: true, action: true, actorEmail: true, target: true, meta: true, at: true },
+    });
+    const events: LeadHistoryEvent[] = rows.map((r) => ({
+      id: r.id,
+      at: r.at.toISOString(),
+      action: r.action,
+      actorEmail: r.actorEmail ?? null,
+      meta: (r.meta as Record<string, unknown> | null) ?? null,
+    }));
+    // A chegada do lead sempre abre a linha do tempo — mesmo quando a trilha
+    // não tem o `lead.intake` (lead criado por CNPJ, importado ou anterior à
+    // auditoria).
+    if (!events.some((e) => e.action === 'lead.intake')) {
+      events.unshift({
+        id: `created-${lead.id}`,
+        at: lead.createdAt.toISOString(),
+        action: 'lead.created',
+        actorEmail: null,
+        meta: { origin: lead.origin ?? null, score: lead.diagnosticScore ?? null },
+      });
+    }
+    return events;
   }
 
   async setStage(

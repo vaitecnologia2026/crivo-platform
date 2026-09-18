@@ -38,6 +38,12 @@ export class PlatformLeadsController {
     return this.leads.listLeadUsers();
   }
 
+  /** Histórico consolidado do lead (entrada, contato, etapas, conversão, contrato, acesso). */
+  @Get(':id/history')
+  history(@Param('id', ParseUUIDPipe) id: string) {
+    return this.leads.history(id);
+  }
+
   /** Move o lead no funil (Kanban). Em PERDIDO, aceita o motivo estruturado. */
   @Patch(':id/stage')
   setStage(
