@@ -10,7 +10,7 @@ import {
   getMyModules,
   getDiagnosticContext,
 } from "@/lib/api";
-import type { OrganizationData, TenantBrandingData, UserSeats } from "@crivo/types";
+import { MODULES, type OrganizationData, type TenantBrandingData, type UserSeats } from "@crivo/types";
 import { IconCheck } from "./Icons";
 
 /**
@@ -26,7 +26,8 @@ export function OrganizacaoScreen() {
   const [org, setOrg] = useState<OrganizationData | null>(null);
   const [branding, setBranding] = useState<TenantBrandingData | null>(null);
   const [seats, setSeats] = useState<UserSeats | null>(null);
-  const [modules, setModules] = useState<number | null>(null);
+  // Códigos dos módulos liberados (tenant_modules) — a tela lista os NOMES.
+  const [modules, setModules] = useState<string[] | null>(null);
   // Soluções contratadas (nome do produto por método). null = sem contrato ativo.
   const [solucoes, setSolucoes] = useState<string[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
@@ -43,7 +44,7 @@ export function OrganizacaoScreen() {
         setOrg(o);
         setBranding(b);
         setSeats(s);
-        setModules(Array.isArray(m) ? m.length : null);
+        setModules(Array.isArray(m) ? m : null);
         const nomes = (d?.contracted?.length ? d.contracted.map((c) => c.productName) : d?.productName ? [d.productName] : [])
           .filter((n): n is string => !!n);
         setSolucoes(nomes.length ? Array.from(new Set(nomes)) : null);
@@ -72,7 +73,10 @@ export function OrganizacaoScreen() {
           <strong className="kpi__value" style={{ fontSize: solucoes && solucoes.length > 1 ? 16 : 20, color: "var(--gold-deep)" }}>
             {solucoes ? solucoes.join(" · ") : "Sem contrato ativo"}
           </strong>
-          {!solucoes && <span className="kpi__delta">A solução é liberada pelo contrato, no Super Admin.</span>}
+          {/* Status vem do contrato: a solução só aparece aqui quando há contrato ativo. */}
+          <span className="kpi__delta">
+            {solucoes ? "Contrato ativo" : "A solução é liberada pelo contrato, no Super Admin."}
+          </span>
         </div>
         <div className="kpi">
           <span className="kpi__label">Usuários</span>
@@ -82,8 +86,17 @@ export function OrganizacaoScreen() {
           <span className="kpi__delta">ativos / limite</span>
         </div>
         <div className="kpi">
-          <span className="kpi__label">Módulos ativos</span>
-          <strong className="kpi__value" style={{ fontSize: 26 }}>{modules ?? "—"}</strong>
+          <span className="kpi__label">Recursos liberados</span>
+          <strong className="kpi__value" style={{ fontSize: 26 }}>{modules ? modules.length : "—"}</strong>
+          {/* Nomes, não códigos: "campanhas, relatórios…" é o que a empresa contratou. */}
+          {modules && modules.length > 0 && (
+            <span className="kpi__delta">
+              {modules
+                .map((code) => MODULES.find((m) => m.code === code)?.name ?? code)
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .join(" · ")}
+            </span>
+          )}
         </div>
       </div>
 

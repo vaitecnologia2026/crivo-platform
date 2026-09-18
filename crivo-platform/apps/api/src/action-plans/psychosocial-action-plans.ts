@@ -233,7 +233,8 @@ async function umLote(
     '{ "titulo": string, "prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
     '"objetivo": string, "etapas": string, "indicadores": string } ] } } }\n\n' +
     'Regras de formato: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para ' +
-    `CADA slug desta lista: ${slugs.join(', ')}. Cada fator deve ter de 3 a 4 ações. "descricao" resume o ` +
+    `CADA slug desta lista: ${slugs.join(', ')}. Cada fator deve ter de 2 a 3 ações — o conjunto MÍNIMO ` +
+    'suficiente para controlar o fator, não uma lista; prefira 2 ações fortes a 3 fracas. "descricao" resume o ' +
     'que o fator avalia NESTA organização; "objetivo" indica o propósito do plano.\n' +
     'Regras de qualidade: (1) cada ação é ESPECÍFICA para o perfil informado (setor, porte, modelo de ' +
     'trabalho) e para a fonte/circunstância do fator — nada de recomendação que sirva para qualquer ' +
