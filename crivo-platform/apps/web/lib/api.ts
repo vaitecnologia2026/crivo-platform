@@ -764,8 +764,12 @@ export type PsychosocialResults = {
         suppressed: false;
         score: number;
         level: PsychosocialRiskLevel;
+        /** Rótulo da faixa da metodologia ATIVA (a API já manda; o tipo não declarava). */
+        levelLabel?: string;
         levelColor?: string | null;
         byDimension: Record<PsychosocialDimension, number>;
+        /** slug → rótulo da dimensão da metodologia ativa (dim-1 → "Demandas"). */
+        dimensionLabels?: Record<string, string>;
         dimensionBands?: DimensionBandMap;
         topRisk: PsychosocialDimension;
         profile?: PsychosocialProfileRow[];

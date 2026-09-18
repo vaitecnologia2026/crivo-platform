@@ -47,6 +47,11 @@ function FatoresPsicossociaisCard({ diag, psy }: { diag: DashboardDiagnostic | n
   // lado do resultado do diagnostico que ela DE FATO contratou. Some so com
   // prova positiva — enquanto o contrato nao chega (null), o card segue como era.
   if (diag?.engine === "DIAGNOSTICS" && !hasData) return null;
+  // Motor de diagnósticos (Essencial etc.): /psychosocial/results devolve o
+  // MESMO resultado do diagnóstico contratado, mas com os códigos crus da
+  // metodologia — o card mostrava "EM_ESTRUTURACAO" e "dim-1" ao lado do
+  // card "Resultado do diagnóstico", que já traz tudo com rótulo. Some.
+  if (diag?.engine === "DIAGNOSTICS") return null;
 
   return (
     <div className="card">
@@ -66,11 +71,13 @@ function FatoresPsicossociaisCard({ diag, psy }: { diag: DashboardDiagnostic | n
           <div className="kpi">
             <span className="kpi__label">Nível geral</span>
             <strong className="kpi__value">
-              {overall ? (PSYCHOSOCIAL_RISK_LABEL[overall.level] ?? overall.level) : "Protegido"}
+              {/* Rótulo da FAIXA da metodologia ativa; o mapa fixo é só para a
+                  metodologia original (BAIXO/MODERADO/…). Nunca o código cru. */}
+              {overall ? (overall.levelLabel ?? PSYCHOSOCIAL_RISK_LABEL[overall.level] ?? overall.level) : "Protegido"}
             </strong>
             <span className="kpi__delta">
               {overall
-                ? `Maior atenção: ${PSYCHOSOCIAL_DIMENSION_LABEL[overall.topRisk] ?? overall.topRisk}`
+                ? `Maior atenção: ${overall.dimensionLabels?.[overall.topRisk] ?? PSYCHOSOCIAL_DIMENSION_LABEL[overall.topRisk] ?? overall.topRisk}`
                 : `Volume mínimo: ${psy!.minRespondents}+ respondentes por recorte`}
             </span>
           </div>
@@ -528,6 +535,9 @@ export function DashboardScreen() {
               lado do resultado por dimensão. Só faz sentido enquanto não há
               resultado — com resultado, a leitura por dimensão está no card
               "Resultado do diagnóstico" acima. */}
+          {/* Sem nada para mostrar (motor de diagnósticos com resultado), a
+              fileira some inteira — antes sobrava um bloco vazio com margem. */}
+          {(!temResultado || diag?.engine !== "DIAGNOSTICS") && (
           <div className="grid grid--2" style={{ marginTop: 16 }}>
             {!temResultado && (
               <div className="card">
@@ -546,6 +556,7 @@ export function DashboardScreen() {
 
             <FatoresPsicossociaisCard diag={diag} psy={psy} />
           </div>
+          )}
 
           {/* ─── GOVERNANÇA E PLANO DE AÇÃO ──────────────────────────────── */}
           <div className="card" style={{ marginTop: 16 }}>
