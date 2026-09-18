@@ -428,8 +428,19 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
   const ativas = plan.items.filter((i) => i.status !== "NAO_ADOTADA");
   const descartadas = plan.items.filter((i) => i.status === "NAO_ADOTADA");
 
+  // Sugestões ainda sem decisão. Validar o plano NÃO as aprova — só ação
+  // aprovada entra no Dossiê (o servidor recusa validar com pendência; aqui a
+  // tela mostra a conta antes do clique, para ninguém tomar "validar" por
+  // "aprovar" — foi o que aconteceu na homologação de 17/09).
+  const pendentes = plan.items.filter((i) => i.status === "SUGERIDA" || i.status === "EM_REVISAO").length;
+  const aprovadas = plan.items.filter((i) => i.status === "APROVADA" || i.status === "EM_ANDAMENTO" || i.status === "CONCLUIDA" || i.status === "REAVALIADA").length;
+
   async function validate() {
-    if (!confirm("Validar o plano? Após validar, ele passa a valer como documento final.")) return;
+    if (pendentes > 0) {
+      alert(`${pendentes} sugestão(ões) ainda pendente(s). Aprove ou descarte cada uma antes de validar o plano — só ação aprovada entra no Dossiê.`);
+      return;
+    }
+    if (!confirm(`Validar o plano com ${aprovadas} ação(ões) aprovada(s)? Após validar, ele passa a valer como documento final.`)) return;
     setBusy(true);
     try { await validateActionPlan(plan.id); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); } finally { setBusy(false); }
@@ -447,6 +458,9 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
                 ? `Origem: ${plan.source} · `
                 : ""}
             {validated ? `Validado por ${plan.validatedBy ?? "—"}` : "Minuta — aguardando validação"}
+            {" · "}
+            <strong>{aprovadas}</strong> aprovada(s) entram no Dossiê
+            {pendentes > 0 && <> · <strong>{pendentes}</strong> pendente(s) de decisão</>}
           </span>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -454,7 +468,12 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
             {validated ? <><IconCheck size={13} /> Documento final</> : "Minuta"}
           </span>
           {!validated && (
-            <button className="btn btn--outline-dark btn--sm" disabled={busy || plan.items.length === 0} onClick={validate}>
+            <button
+              className="btn btn--outline-dark btn--sm"
+              disabled={busy || plan.items.length === 0}
+              title={pendentes > 0 ? `${pendentes} sugestão(ões) ainda sem decisão — aprove ou descarte antes` : ""}
+              onClick={validate}
+            >
               Validar plano
             </button>
           )}
@@ -523,6 +542,9 @@ function RiskCell({ item }: { item: ActionPlanData["items"][number] }) {
 function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; onChanged: () => void }) {
   const [evOpen, setEvOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Detalhes abertos PARA APROVAR: o formulário salva os campos exigidos e
+  // aprova na mesma gravação.
+  const [aprovando, setAprovando] = useState(false);
   async function setStatus(s: ActionStatus) {
     try { await updateActionItem(item.id, { status: s }); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
@@ -530,12 +552,22 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   // Sugestão ainda não decidida: a organização Edita, Aprova ou Descarta
   // (Ajustes Finais de Homologação). Só depois de aprovada entra no Dossiê.
   const pendente = item.status === "SUGERIDA" || item.status === "EM_REVISAO";
+  // Responsável e evidência esperada são exigidos pelo servidor para aprovar.
+  // Antes, o clique falhava com um alerta e abria os detalhes; quem preenchia e
+  // salvava achava que tinha aprovado — e a ação seguia SUGERIDA, fora do
+  // Dossiê (homologação 17/09: 12 ações editadas, zero aprovadas). Agora, se
+  // falta algo, os detalhes abrem em modo "Salvar e aprovar": uma gravação só.
+  const prontaParaAprovar = !!item.responsible?.trim() && !!item.expectedEvidence?.trim();
   async function aprovar() {
+    if (!prontaParaAprovar) {
+      setAprovando(true);
+      setDetailsOpen(true);
+      return;
+    }
     try { await updateActionItem(item.id, { status: "APROVADA" }); onChanged(); }
     catch (e) {
-      // O servidor exige responsável e evidência esperada para aprovar: mostra
-      // o motivo e já abre os detalhes, onde os dois campos são preenchidos.
       alert(e instanceof Error ? e.message : "Falha ao aprovar");
+      setAprovando(true);
       setDetailsOpen(true);
     }
   }
@@ -601,7 +633,12 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
       {detailsOpen && (
         <tr>
           <td colSpan={7} style={{ background: "var(--line-soft)" }}>
-            <ItemDetailsForm item={item} onChanged={onChanged} onClose={() => setDetailsOpen(false)} />
+            <ItemDetailsForm
+              item={item}
+              aprovar={aprovando}
+              onChanged={onChanged}
+              onClose={() => { setDetailsOpen(false); setAprovando(false); }}
+            />
           </td>
         </tr>
       )}
@@ -639,7 +676,7 @@ function DescartadaRow({ item, onChanged }: { item: ActionPlanData["items"][numb
  * Editável em item EXISTENTE — inclusive os importados do catálogo/sugestões,
  * que nascem sem esses campos. Entram na matriz e no plano do Dossiê.
  */
-function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["items"][number]; onChanged: () => void; onClose: () => void }) {
+function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: ActionPlanData["items"][number]; aprovar?: boolean; onChanged: () => void; onClose: () => void }) {
   const initialMode = item.existingMeasure === "Nenhuma medida existente" ? "none" : item.existingMeasure ? "other" : "";
   const [f, setF] = useState({
     areaProcess: item.areaProcess ?? "",
@@ -654,10 +691,25 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
   });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
   const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   async function save() {
+    // Em modo aprovar, valida aqui o que o servidor vai exigir — a mensagem
+    // fica no formulário, ao lado do campo, em vez de num alerta que some.
+    if (aprovar) {
+      const faltam = [
+        !f.responsible.trim() ? "responsável" : null,
+        !f.expectedEvidence.trim() ? "evidência esperada" : null,
+      ].filter(Boolean);
+      if (faltam.length) {
+        setErro(`Para aprovar, preencha: ${faltam.join(" e ")}.`);
+        return;
+      }
+    }
+    setErro(null);
     setSaving(true);
     try {
       await updateActionItem(item.id, {
+        ...(aprovar ? { status: "APROVADA" as const } : {}),
         areaProcess: f.areaProcess || undefined,
         existingMeasure:
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
@@ -670,13 +722,19 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
       onChanged();
       onClose();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Falha ao salvar os detalhes.");
+      setErro(e instanceof Error ? e.message : aprovar ? "Falha ao aprovar a ação." : "Falha ao salvar os detalhes.");
     } finally {
       setSaving(false);
     }
   }
   return (
     <div style={{ padding: 12 }}>
+      {aprovar && (
+        <p className="card__sub" style={{ margin: "0 0 10px" }}>
+          <strong>Aprovar esta ação.</strong> Informe o responsável e a evidência esperada (obrigatórios) —
+          ao salvar, a ação fica <strong>Aprovada</strong> e passa a compor o Dossiê.
+        </p>
+      )}
       <div className="prod-form__grid">
         <label className="prod-field"><span>Responsável (obrigatório para aprovar)</span>
           <input value={f.responsible} onChange={(e) => setF((s) => ({ ...s, responsible: e.target.value }))} placeholder="Ex.: Gerente de Operações" />
@@ -718,10 +776,11 @@ function ItemDetailsForm({ item, onChanged, onClose }: { item: ActionPlanData["i
           </label>
         )}
       </div>
+      {erro && <p className="card__sub" role="alert" style={{ color: "var(--danger, #b4432f)", margin: "8px 0 0" }}>{erro}</p>}
       <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
         <button className="btn btn--outline-dark btn--sm" onClick={onClose} disabled={saving}>Fechar</button>
         <button className="btn btn--terra btn--sm" onClick={() => void save()} disabled={saving}>
-          {saving ? "Salvando…" : "Salvar detalhes"}
+          {saving ? (aprovar ? "Aprovando…" : "Salvando…") : aprovar ? "Salvar e aprovar" : "Salvar detalhes"}
         </button>
       </div>
     </div>

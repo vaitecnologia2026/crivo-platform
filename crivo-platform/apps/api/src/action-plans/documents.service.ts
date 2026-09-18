@@ -83,6 +83,23 @@ export function acaoEntraNoDocumento(status: string): boolean {
   );
 }
 
+/**
+ * Qual plano alimenta o documento. Validado vence; sem validado, o que TEM
+ * ação aprovada; só então o mais recente. As sugestões automáticas entram no
+ * plano mais ANTIGO da empresa (risk-suggestions.service) e o documento lia o
+ * mais NOVO — bastava a empresa criar um segundo plano para as ações aprovadas
+ * ficarem num plano e o Dossiê ler outro, vazio.
+ */
+export function planoDoDocumento<T extends { validatedAt: Date | null; items: { status: string }[] }>(
+  plans: T[],
+): T | undefined {
+  return (
+    plans.find((p) => p.validatedAt) ??
+    plans.find((p) => p.items.some((i) => acaoEntraNoDocumento(i.status))) ??
+    plans[0]
+  );
+}
+
 export type FactorItem = {
   point: string; origin: string | null; action: string; responsible: string | null;
   dueDate: Date | null; status: string; expectedEvidence: string | null;
@@ -776,7 +793,7 @@ export class DocumentsService {
 
     // Bloqueios de emissão do dossiê final (doc 09 §9), avaliados no servidor.
     // Como generate() revalida via available() (C2), isto também barra a rota direta.
-    const validated = plans.find((p) => p.validatedAt) ?? plans[0];
+    const validated = planoDoDocumento(plans);
     const blockers = validated ? dossierBlockers(validated.items as FactorItem[]) : [];
     // O plano deixou de ser pré-requisito: ele é GERADO na emissão, a partir da
     // matriz de risco (decisão de 2026-09-08). `hasValidated`/`blockers` ficam
@@ -966,7 +983,7 @@ export class DocumentsService {
       : null;
 
     const planOf = (): DocumentSection => {
-      const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+      const plan = planoDoDocumento(ctx.plans);
       const todas = plan?.items ?? [];
       // Só ação aprovada entra em documento. Imprimir TODAS com o status ao
       // lado fazia o cliente ler as sugestões da IA como se fossem o plano.
@@ -1421,7 +1438,7 @@ export class DocumentsService {
   async cycleSnapshot(tenantId: string, from: Date, to: Date) {
     const { method, plans } = await this.context(tenantId);
     const instrumento = await this.instrumentoDoTenant(tenantId, method);
-    const plan = plans.find((p) => p.validatedAt) ?? plans[0];
+    const plan = planoDoDocumento(plans);
     const items = (plan?.items ?? []) as (Omit<FactorItem, 'evidences'> & {
       evidences: { title: string; status: string }[];
     })[];
@@ -1811,7 +1828,7 @@ export class DocumentsService {
       semAutoAvaliacao: true,
     });
     const approvedTexts = await this.approvedTextsOf(tenantId, 'dossie_tecnico');
-    const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+    const plan = planoDoDocumento(ctx.plans);
     const items = (plan?.items ?? []) as (FactorItem & {
       evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[];
     })[];
@@ -2662,7 +2679,7 @@ export class DocumentsService {
       }[];
     },
   ): Promise<GeneratedDocument> {
-    const plan = ctx.plans.find((p) => p.validatedAt) ?? ctx.plans[0];
+    const plan = planoDoDocumento(ctx.plans);
     const items = plan?.items ?? [];
 
     // F2 — última alteração registrada de cada ação (action_item_history).
@@ -2833,7 +2850,7 @@ export class DocumentsService {
     const sections: DocumentSection[] = [];
 
     // Plano de ação (tabela) — núcleo dos dossiês.
-    const validatedPlan = plans.find((p) => p.validatedAt) ?? plans[0];
+    const validatedPlan = planoDoDocumento(plans);
 
     // Matriz de fatores de risco psicossociais (doc 09 §6 / doc 10). O risco é
     // DERIVADO de Severidade x Probabilidade — separado do índice do

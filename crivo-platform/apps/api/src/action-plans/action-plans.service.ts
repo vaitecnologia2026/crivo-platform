@@ -438,6 +438,20 @@ export class ActionPlansService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException('Plano não encontrado');
+      // Homologação 17/09: a empresa editou as 12 sugestões, VALIDOU o plano e
+      // o Dossiê saiu sem nenhuma ação — nenhuma tinha sido aprovada (validar o
+      // plano não aprova ação; só ação APROVADA entra em documento). Validar
+      // com sugestão ainda pendente é gravar "plano validado" sobre decisões
+      // que não foram tomadas; a decisão (aprovar/descartar) vem antes.
+      const pendentes = await tx.actionItem.count({
+        where: { planId, status: { in: ['SUGERIDA', 'EM_REVISAO'] } },
+      });
+      if (pendentes > 0) {
+        throw new BadRequestException(
+          `${pendentes} sugestão(ões) ainda pendente(s) de decisão. Aprove ou descarte cada uma ` +
+            'antes de validar o plano — só ação aprovada entra no Dossiê.',
+        );
+      }
       await tx.actionPlan.update({
         where: { id: planId },
         data: { validatedAt: new Date(), validatedBy: by },
