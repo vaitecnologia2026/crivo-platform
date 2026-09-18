@@ -93,6 +93,12 @@ export function PlanoAcaoScreen() {
  * com dois ciclos encerrados, o Relatório de Evolução (TPL-003) compara os dois
  * em Relatórios e Dossiês.
  */
+
+/** "Diagnóstico Essencial" já vem com a palavra — prefixar dava "Diagnóstico Diagnóstico Essencial". */
+function nomeDoDiagnostico(nome: string): string {
+  return /^diagn[óo]stico/i.test(nome.trim()) ? nome : `Diagnóstico ${nome}`;
+}
+
 function CyclesCard() {
   const [rows, setRows] = useState<DiagnosticCycleData[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -453,7 +459,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
           <h3>{plan.title}</h3>
           <span className="card__sub">
             {plan.sourceInstrumentName
-              ? `Origem: Diagnóstico ${plan.sourceInstrumentName} · `
+              ? `Origem: ${nomeDoDiagnostico(plan.sourceInstrumentName)} · `
               : plan.source
                 ? `Origem: ${plan.source} · `
                 : ""}
@@ -584,7 +590,7 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
           {(item.sourceInstrumentName || item.origin) && (
             <span className="card__sub">
               {" · "}
-              {item.sourceInstrumentName ? `Diagnóstico ${item.sourceInstrumentName}` : item.origin}
+              {item.sourceInstrumentName ? nomeDoDiagnostico(item.sourceInstrumentName) : item.origin}
             </span>
           )}
           {/* Origem do CÁLCULO: por que esta ação foi sugerida. Fica visível para

@@ -40,9 +40,10 @@ export function DocumentosScreen() {
         <div>
           <h1 className="page-title">Relatórios e Dossiês</h1>
           <p className="page-sub">
-            Documentos técnicos do seu contrato — prévias, plano aprovado, dossiês (AEP/GRO-PGR) e
-            relatórios de evolução. Pré-visualizações refletem o estado atual; a emissão oficial
-            congela a versão entregue, com numeração e hash de integridade.
+            Documentos técnicos do seu contrato — prévias, plano aprovado, dossiê técnico e
+            relatórios de evolução, conforme a solução e a saída técnica contratadas.
+            Pré-visualizações refletem o estado atual; a emissão oficial congela a versão
+            entregue, com numeração e hash de integridade.
           </p>
         </div>
       </div>
