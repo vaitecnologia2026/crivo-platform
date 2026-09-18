@@ -323,6 +323,22 @@ export class ActionPlansService {
         },
         include: { evidences: { orderBy: { createdAt: 'desc' } }, sourceInstrument: { select: { name: true } } },
       });
+      // Medida existente é atributo do FATOR, não da ação: ao gravar numa
+      // ação, replica nas irmãs do mesmo fator no mesmo plano — senão o Dossiê
+      // lia "Nenhuma medida existente" numa e a medida descrita na outra
+      // (homologação 17/09: "uma fonte de verdade por fator").
+      if (dto.existingMeasure !== undefined) {
+        await tx.actionItem.updateMany({
+          where: {
+            planId: existing.planId,
+            id: { not: itemId },
+            ...(existing.riskFactorSlug
+              ? { riskFactorSlug: existing.riskFactorSlug }
+              : { point: existing.point, riskFactorSlug: null }),
+          },
+          data: { existingMeasure: dto.existingMeasure },
+        });
+      }
       // F2 — trilha por ação: resumo legível dos campos que mudaram.
       const changed: string[] = [];
       const track = (label: string, before: unknown, after: unknown) => {

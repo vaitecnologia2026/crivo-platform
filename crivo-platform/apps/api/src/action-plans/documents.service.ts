@@ -119,6 +119,30 @@ export function identificacaoFaltante(
   return missing;
 }
 
+/**
+ * Medida existente por FATOR: agrupa as ações pelo fator (`point`) e escolhe
+ * a medida descrita; "Nenhuma medida existente" só sai quando é a única
+ * informação do fator. Exportada para teste.
+ */
+export function medidasPorFator(
+  items: { point: string; existingMeasure?: string | null }[],
+): [string, string][] {
+  const NENHUMA = 'Nenhuma medida existente';
+  const porFator = new Map<string, Set<string>>();
+  for (const i of items) {
+    const m = i.existingMeasure?.trim();
+    if (!m) continue;
+    if (!porFator.has(i.point)) porFator.set(i.point, new Set());
+    porFator.get(i.point)!.add(m);
+  }
+  const out: [string, string][] = [];
+  for (const [fator, medidas] of porFator) {
+    const descritas = [...medidas].filter((m) => m !== NENHUMA);
+    out.push([fator, descritas.length ? descritas.join('; ') : NENHUMA]);
+  }
+  return out;
+}
+
 export type FactorItem = {
   point: string; origin: string | null; action: string; responsible: string | null;
   dueDate: Date | null; status: string; expectedEvidence: string | null;
@@ -916,7 +940,21 @@ export class DocumentsService {
     // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
     // de Diagnósticos (cultura, NR-1, IA, governança…). Ficam disponíveis quando
     // a empresa aplicou aquele diagnóstico e o volume permite divulgar (supressão).
+    // Só os modelos do(s) diagnóstico(s) que a empresa contratou ou aplicou
+    // (homologação 17/09: "cliente vê apenas documentos do contrato/ciclo" —
+    // a empresa do Essencial via "Requer respostas do Diagnóstico
+    // Organizacional" e o modelo do MAPA). Fail-open só quando não dá para
+    // resolver nada: aí a lista fica como era.
+    const contratado = slugContratado; // já resolvido para o nome do Dossiê, acima
+    const aplicados = await this.prisma
+      .forTenant(tenantId, (tx) => tx.diagnosticLink.findMany({ select: { instrumentSlug: true } }))
+      .catch(() => [] as { instrumentSlug: string }[]);
+    const relevantes = new Set<string>([
+      ...(contratado ? [contratado] : []),
+      ...aplicados.map((l) => l.instrumentSlug),
+    ]);
     for (const t of await this.reportTemplates()) {
+      if (relevantes.size && !relevantes.has(t.instrumentSlug)) continue;
       const agg = await this.instrumentSummary(tenantId, t.instrumentSlug);
       const ok = !!agg && !agg.suppressed;
       docs.push({
@@ -1872,6 +1910,10 @@ export class DocumentsService {
       { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
       { label: 'Estabelecimento', value: ctx.org?.establishment ?? '—' },
       { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
+      // A saída técnica é do CONTRATO e o documento declara a dele — antes o
+      // Dossiê saía "NR-1 / GRO / PGR" para uma empresa sem integração
+      // contratada (homologação 17/09: "vincular título/saída ao contrato").
+      { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
       { label: 'Período avaliado', value: psy.period },
       { label: 'Data de emissão', value: fmt(new Date()) },
       { label: 'Versão metodológica', value: versaoMetodologica },
@@ -1913,13 +1955,24 @@ export class DocumentsService {
     const exibidos = adh.sectors.filter((x) => !x.suppressed);
 
     // ── Objetivo e escopo ─────────────────────────────────────────────────
+    // Finalidade declarada conforme a SAÍDA TÉCNICA contratada: só quem contratou
+    // AEP / AEP+PGR lê "apoiar a AEP" e "atualização do PGR"; sem integração, o
+    // documento é técnico e gerencial e diz isso (dossierScopeSection).
+    const escopo = dossierScopeSection(output);
+    const finalidade =
+      output === 'AEP_PGR'
+        ? 'apoiar a gestão preventiva da organização, a Avaliação Ergonômica Preliminar (AEP) e a ' +
+          'atualização do Inventário de Riscos e do Plano de Ação do GRO/PGR.'
+        : output === 'AEP'
+          ? 'apoiar a gestão preventiva da organização e subsidiar a Avaliação Ergonômica Preliminar (AEP).'
+          : 'apoiar a gestão preventiva da organização, em caráter técnico, gerencial e documental — ' +
+            'sem integração formal a AEP ou PGR, que não fazem parte do escopo contratado.';
     sections.push({
       heading: 'Objetivo e escopo',
       body:
         'Este dossiê consolida os fatores de riscos psicossociais relacionados ao trabalho ' +
-        'identificados no ciclo avaliado e organiza informações técnicas para apoiar a gestão ' +
-        'preventiva da organização, a Avaliação Ergonômica Preliminar e, quando aplicável, a ' +
-        'atualização do Inventário de Riscos e do Plano de Ação do PGR.\n\n' +
+        `identificados no ciclo avaliado e organiza informações técnicas para ${finalidade}\n\n` +
+        `${escopo.body}\n\n` +
         'O escopo é restrito às condições, à organização e à gestão do trabalho. O documento não ' +
         'realiza diagnóstico clínico individual, avaliação psicológica individual nem análise de ' +
         'aspectos pessoais desvinculados do trabalho.' +
@@ -2288,14 +2341,20 @@ export class DocumentsService {
 
     // Registros que a ORGANIZAÇÃO cadastrou. Não estão no modelo porque a massa
     // de homologação não os tem — mas quem preencheu não pode perdê-los.
-    const comMedida = items.filter((i) => i.existingMeasure?.trim());
+    // UMA linha por FATOR (homologação 17/09: "medida existente — informação
+    // contraditória; uma fonte de verdade por fator"). A medida é gravada por
+    // AÇÃO, e um fator com três ações saía três vezes — às vezes "Nenhuma
+    // medida existente" numa e uma medida descrita na outra. Aqui a medida
+    // descrita vence "Nenhuma"; o portal já replica a medida entre as ações do
+    // mesmo fator ao salvar (action-plans.service).
+    const comMedida = medidasPorFator(items);
     if (comMedida.length) {
       sections.push({
         heading: 'Medidas existentes',
-        body: 'Medidas informadas pela própria organização para os fatores identificados.',
+        body: 'Medidas informadas pela própria organização para os fatores identificados (uma por fator).',
         table: {
           columns: ['Fator', 'Medida existente'],
-          data: comMedida.map((i) => [i.point, i.existingMeasure ?? '—']),
+          data: comMedida.map(([fator, medida]) => [fator, medida]),
         },
       });
     }
@@ -2439,8 +2498,14 @@ export class DocumentsService {
       type: 'dossie_tecnico',
       title: DOCUMENT_TYPE_LABEL['dossie_tecnico'],
       // O código do template é controle interno da CRIVO; não é informação do
-      // documento que a empresa recebe e integra ao GRO/PGR.
-      subtitle: 'Documento técnico de apoio · NR-1 / GRO / PGR',
+      // documento que a empresa recebe. O subtítulo segue a SAÍDA TÉCNICA do
+      // contrato: "GRO / PGR" só para quem contratou a integração.
+      subtitle:
+        output === 'AEP_PGR'
+          ? 'Documento técnico de apoio · NR-1 / AEP / GRO / PGR'
+          : output === 'AEP'
+            ? 'Documento técnico de apoio · NR-1 / AEP'
+            : 'Documento técnico e gerencial · NR-1 (sem integração documental contratada)',
       company: ctx.company,
       generatedAt: new Date().toISOString(),
       meta,
