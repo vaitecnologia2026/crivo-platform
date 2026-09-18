@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyOnboardingStatus, type OnboardingStatus } from "@/lib/api";
+import { getMyModules, getMyOnboardingStatus, type OnboardingStatus } from "@/lib/api";
 import { IconCheck, IconCircle } from "./Icons";
 
 interface ChecklistItem {
@@ -10,6 +10,8 @@ interface ChecklistItem {
   hint: string;
   /** data-route a navegar (clica no item). null = sem ação inline. */
   route: string | null;
+  /** Módulo que precisa estar contratado para o marco existir (undefined = sempre). */
+  module?: string;
 }
 
 const ITEMS: ChecklistItem[] = [
@@ -24,12 +26,14 @@ const ITEMS: ChecklistItem[] = [
     label: "Registrar a primeira decisão",
     hint: "Anexo ICD §5 — base operacional do índice.",
     route: "lider",
+    module: "icd",
   },
   {
     key: "firstPocketCompleted",
     label: "Concluir uma sessão Pocket",
     hint: "10 perguntas reflexivas nas 5 dimensões CRIVO.",
     route: "pocket",
+    module: "pocket",
   },
   {
     key: "firstCampaignCreated",
@@ -53,16 +57,27 @@ const ITEMS: ChecklistItem[] = [
 export function OnboardingChecklist() {
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [hidden, setHidden] = useState(false);
+  // Marcos de ICD/Pocket só para quem contratou o módulo (homologação 17/09:
+  // a empresa do Essencial via "Registrar a primeira decisão · Anexo ICD").
+  // null = ainda não carregou → esconde os marcos condicionados.
+  const [modules, setModules] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     let alive = true;
     getMyOnboardingStatus()
       .then((s) => { if (alive) setStatus(s); })
       .catch(() => { if (alive) setStatus(null); }); // falha silenciosa
+    getMyModules()
+      .then((m) => { if (alive) setModules(new Set(m)); })
+      .catch(() => { if (alive) setModules(new Set()); });
     return () => { alive = false; };
   }, []);
 
-  if (!status || status.allDone || hidden) return null;
+  if (!status || hidden) return null;
+  const itens = ITEMS.filter((it) => !it.module || (modules?.has(it.module) ?? false));
+  // "Tudo feito" é sobre os marcos que EXISTEM para esta empresa — o allDone
+  // da API exige decisão ICD e sessão Pocket de quem não tem os módulos.
+  if (itens.every((it) => status[it.key])) return null;
 
   function navigate(route: string) {
     // Dispara click no nav item existente — reaproveita o roteador SPA.
@@ -70,7 +85,7 @@ export function OnboardingChecklist() {
     if (el) el.click();
   }
 
-  const completed = ITEMS.filter((i) => status[i.key]).length;
+  const completed = itens.filter((i) => status[i.key]).length;
 
   return (
     <div className="card onboarding" style={{ marginBottom: 16 }}>
@@ -78,7 +93,7 @@ export function OnboardingChecklist() {
         <div>
           <h3>Primeiros passos no CRIVO</h3>
           <span className="card__sub">
-            {completed} de {ITEMS.length} concluídos · marque os marcos do primeiro uso.
+            {completed} de {itens.length} concluídos · marque os marcos do primeiro uso.
           </span>
         </div>
         <button
@@ -91,7 +106,7 @@ export function OnboardingChecklist() {
       </div>
 
       <ul className="onboarding-list">
-        {ITEMS.map((it) => {
+        {itens.map((it) => {
           const done = status[it.key];
           return (
             <li key={it.key} className={`onboarding-item ${done ? "is-done" : ""}`}>

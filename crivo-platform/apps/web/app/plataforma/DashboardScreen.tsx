@@ -501,17 +501,25 @@ export function DashboardScreen() {
               <span className="kpi__label">Plano de Ação & Evidências</span>
               {planStats === null ? (
                 <span className="kpi__delta">Carregando…</span>
-              ) : (
-                <>
-                  <strong className="kpi__value">
-                    {planStats.open}
-                    <small> aberta{planStats.open === 1 ? "" : "s"}</small>
-                  </strong>
-                  <span className="kpi__delta">
-                    {planStats.done} concluída{planStats.done === 1 ? "" : "s"} · {planStats.total} no total
-                  </span>
-                </>
-              )}
+              ) : (() => {
+                // "Aberta" é ação DECIDIDA (aprovada/em andamento/reavaliada);
+                // sugestão pendente é outra coisa e sai separada — "12 abertas"
+                // com zero aprovadas lia como plano em execução.
+                const sugeridas = (planStats.byStatus.SUGERIDA ?? 0) + (planStats.byStatus.EM_REVISAO ?? 0);
+                const abertas = Math.max(0, planStats.open - sugeridas);
+                return (
+                  <>
+                    <strong className="kpi__value">
+                      {abertas}
+                      <small> aprovada{abertas === 1 ? "" : "s"} em aberto</small>
+                    </strong>
+                    <span className="kpi__delta">
+                      {planStats.done} concluída{planStats.done === 1 ? "" : "s"}
+                      {sugeridas > 0 ? ` · ${sugeridas} sugestão(ões) aguardando decisão` : ""}
+                    </span>
+                  </>
+                );
+              })()}
             </div>
 
             {icdContratado && (

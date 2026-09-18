@@ -4271,9 +4271,26 @@ export function computeOperationalAlerts(s: AlertsSnapshot, nowMs: number): Oper
     }
   }
 
+  // Sugestão ainda não decidida (aprovar/descartar) NÃO é ação operacional:
+  // não tem prazo/responsável/evidência por definição, e listar cada uma como
+  // "trava crítica" enchia a Visão Geral com 12 travas falsas (homologação
+  // 17/09). Vira um aviso só, com a contagem.
+  const pendentes = s.actionItems.filter(
+    (it) => it.status === 'SUGERIDA' || it.status === 'EM_REVISAO',
+  ).length;
+  if (pendentes > 0) {
+    alerts.push({
+      kind: 'sugestoes-pendentes',
+      severity: 'info',
+      message: `${pendentes} sugestão(ões) do Plano de Evolução aguardando decisão (aprovar ou descartar).`,
+    });
+  }
+
   for (const it of s.actionItems) {
     const done = it.status === 'CONCLUIDA';
     if (done) continue;
+    // Só ação decidida (aprovada/em andamento/reavaliada) gera trava.
+    if (it.status === 'SUGERIDA' || it.status === 'EM_REVISAO' || it.status === 'NAO_ADOTADA') continue;
     if (it.dueDateMs != null && it.dueDateMs < nowMs) {
       alerts.push({ kind: 'acao-atrasada', severity: 'high', message: `Ação "${it.title}" está atrasada.` });
     }
@@ -4292,7 +4309,9 @@ export function computeOperationalAlerts(s: AlertsSnapshot, nowMs: number): Oper
 
   for (const p of s.unvalidatedPlans) {
     if (p.itemCount > 0) {
-      locks.push({ kind: 'plano-nao-validado', message: `Plano "${p.title}" não validado — dossiê bloqueado até a validação.` });
+      // A validação deixou de ser pré-requisito do Dossiê (decisão de 08/09);
+      // a trava continua para lembrar que o plano ainda é minuta.
+      locks.push({ kind: 'plano-nao-validado', message: `Plano "${p.title}" ainda não validado (minuta).` });
     }
   }
 

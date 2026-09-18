@@ -824,3 +824,25 @@ describe("scoreWithMethodology — subdimensões aninhadas", () => {
     expect(r.levelCode).toBe("BAIXO");
   });
 });
+
+describe("computeOperationalAlerts — sugestão não é trava", () => {
+  it("SUGERIDA/EM_REVISAO viram um aviso com a contagem, sem travas por item", () => {
+    const now = 1_000_000;
+    const r = computeOperationalAlerts(
+      {
+        campaigns: [],
+        actionItems: [
+          { title: "S1", status: "SUGERIDA", dueDateMs: null, hasExpectedEvidence: false, hasResponsible: false },
+          { title: "S2", status: "EM_REVISAO", dueDateMs: null, hasExpectedEvidence: false, hasResponsible: false },
+          { title: "D", status: "NAO_ADOTADA", dueDateMs: null, hasExpectedEvidence: false, hasResponsible: false },
+        ],
+        unvalidatedPlans: [],
+      },
+      now,
+    );
+    expect(r.locks).toHaveLength(0);
+    expect(r.alerts).toEqual([
+      { kind: "sugestoes-pendentes", severity: "info", message: "2 sugestão(ões) do Plano de Evolução aguardando decisão (aprovar ou descartar)." },
+    ]);
+  });
+});
