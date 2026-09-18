@@ -131,3 +131,14 @@ describe('gates de emissão oficial do Dossiê Técnico', () => {
     expect(tx.reportEmission.create).not.toHaveBeenCalled();
   });
 });
+
+describe('identificacaoFaltante — mesma régua do cartão e do emit()', () => {
+  it('lista exatamente o que falta, na ordem do portão', async () => {
+    const { identificacaoFaltante } = await import('./documents.service');
+    expect(identificacaoFaltante({ legalName: 'X', taxId: '1' }, { responsible: 'R' }, 'ESSENCIAL')).toEqual([]);
+    expect(identificacaoFaltante({ legalName: '', taxId: null }, { responsible: ' ' }, null)).toEqual([
+      'razão social', 'CNPJ/identificador legal', 'método aplicado', 'responsável da empresa',
+    ]);
+    expect(identificacaoFaltante(null, null, 'ESSENCIAL')).toEqual(['razão social', 'CNPJ/identificador legal', 'responsável da empresa']);
+  });
+});

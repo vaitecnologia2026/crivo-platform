@@ -100,6 +100,25 @@ export function planoDoDocumento<T extends { validatedAt: Date | null; items: { 
   );
 }
 
+/**
+ * Identificação exigida para a emissão OFICIAL dos documentos técnicos
+ * (decisão do cliente 27/07). Lista o que falta — vazia = pode emitir. Usada
+ * por emit() (o portão) e por available() (o cartão avisa ANTES do clique;
+ * antes só a campanha aberta aparecia no cartão e o resto virava 400 na hora).
+ */
+export function identificacaoFaltante(
+  org: { legalName?: string | null; taxId?: string | null } | null | undefined,
+  contract: { responsible?: string | null } | null | undefined,
+  method: unknown,
+): string[] {
+  const missing: string[] = [];
+  if (!org?.legalName?.trim()) missing.push('razão social');
+  if (!org?.taxId?.trim()) missing.push('CNPJ/identificador legal');
+  if (!method) missing.push('método aplicado');
+  if (!contract?.responsible?.trim()) missing.push('responsável da empresa');
+  return missing;
+}
+
 export type FactorItem = {
   point: string; origin: string | null; action: string; responsible: string | null;
   dueDate: Date | null; status: string; expectedEvidence: string | null;
@@ -786,7 +805,7 @@ export class DocumentsService {
     tenantId: string,
     ctx?: Awaited<ReturnType<DocumentsService['context']>>,
   ): Promise<DocumentDescriptor[]> {
-    const { contract, method, plans } = ctx ?? (await this.context(tenantId));
+    const { contract, method, plans, org } = ctx ?? (await this.context(tenantId));
     const output = contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
@@ -805,9 +824,15 @@ export class DocumentsService {
     // documentos que leem as respostas do ciclo espera o encerramento. Nao e
     // validacao humana (que saiu em 2026-09-08) — e o estado da coleta.
     const cicloAberto = await this.cicloEmAndamento(tenantId);
+    // Mesmos portões de emit(), na mesma ordem: campanha aberta e depois a
+    // identificação da organização — o cartão diz o que vai barrar a emissão.
+    const faltam = identificacaoFaltante(org, contract, method);
+    const bloqueioIdentificacao = faltam.length
+      ? `Emissão oficial bloqueada — complete no cadastro/contrato: ${faltam.join(', ')}. A pré-visualização continua disponível.`
+      : undefined;
     const bloqueioDeEmissao = cicloAberto
       ? `Campanha "${cicloAberto}" ainda aberta — encerre a campanha para emitir a versão oficial. A pré-visualização continua disponível.`
-      : undefined;
+      : bloqueioIdentificacao;
     const docs: DocumentDescriptor[] = [];
     const add = (
       type: string,
@@ -883,6 +908,9 @@ export class DocumentsService {
       'relatorio_evolucao',
       comparable.ok,
       comparable.ok ? undefined : comparable.reason,
+      undefined,
+      // emit() exige a identificação da organização também aqui (não a campanha).
+      bloqueioIdentificacao,
     );
 
     // Relatórios cadastrados no Motor 4 e VINCULADOS a um diagnóstico do Motor
@@ -3069,11 +3097,7 @@ export class DocumentsService {
     }
 
     if (type === 'dossie_tecnico' || type === 'relatorio_evolucao') {
-      const missing: string[] = [];
-      if (!org?.legalName?.trim()) missing.push('razão social');
-      if (!org?.taxId?.trim()) missing.push('CNPJ/identificador legal');
-      if (!method) missing.push('método aplicado');
-      if (!contract?.responsible?.trim()) missing.push('responsável da empresa');
+      const missing = identificacaoFaltante(org, contract, method);
       if (missing.length) {
         throw new BadRequestException(
           `Emissão final bloqueada — complete no cadastro/contrato: ${missing.join(', ')}. ` +
