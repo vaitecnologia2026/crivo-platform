@@ -8,6 +8,7 @@ import {
 } from '../admin/ai-custom-prompts.service';
 import {
   PSYCHOSOCIAL_ACTION_LIBRARY,
+  type PsychosocialActionLibraryAction,
   type PsychosocialActionLibraryEntry,
 } from './psychosocial-action-library';
 
@@ -125,6 +126,151 @@ async function fromAI(
 }
 
 /**
+ * Referência técnica por família de fator — o que a IA deve usar como base
+ * em vez de inventar. Fontes: Guia de Informações sobre Fatores de Riscos
+ * Psicossociais do MTE (2025, NR-1 1.5.5.2.2 e exemplo prático de sobrecarga),
+ * HSE Management Standards (estados a alcançar por área), ISO 45003 (hierarquia
+ * de controle) e diretrizes OMS/OIT de saúde mental no trabalho (2022).
+ * `chaves` casa com rótulo/dimensão/definição do fator (pt-BR, sem acento).
+ */
+const REFERENCIA_POR_FATOR: { chaves: RegExp; area: string; estado: string; intervencoes: string[] }[] = [
+  {
+    chaves: /sobrecarga|demanda|ritmo|carga|interrup|prazo|horas extras|pressao/,
+    area: 'Demandas / sobrecarga',
+    estado: 'as demandas são adequadas e alcançáveis dentro da jornada acordada; habilidades compatíveis com o que se exige; preocupações sobre carga são respondidas.',
+    intervencoes: [
+      'Processo de priorização de tarefas por urgência/importância, com metas realistas definidas pela gestão e revisão semanal (MTE, exemplo prático).',
+      'Redistribuição/dimensionamento de efetivo nas frentes com maior volume — pode eliminar o perigo (MTE).',
+      'Pausas regulares garantidas, afastadas do posto de trabalho, e cumprimento efetivo do intervalo (MTE).',
+      'Autonomia para programar horários com critérios definidos e compensação em dias de menor demanda (MTE).',
+      'Qualificação continuada para distribuir o trabalho de forma uniforme entre quem está apto (MTE) — complemento, nunca a única medida.',
+    ],
+  },
+  {
+    chaves: /autonomia|controle|participa|decis|micro|liberdade/,
+    area: 'Controle / autonomia',
+    estado: 'as pessoas influenciam o ritmo e a forma de fazer o trabalho; são consultadas sobre padrões de horário; decidem suas pausas.',
+    intervencoes: [
+      'Delegar decisões operacionais (ordem, método, ritmo) às equipes, com limites escritos pela gestão (HSE Control).',
+      'Consulta estruturada às equipes sobre escalas, metas e mudanças de processo antes da decisão (HSE/ISO 45003).',
+      'Revisão de controles e aprovações desnecessárias que travam o trabalho (redesenho do processo, ISO 45003).',
+    ],
+  },
+  {
+    chaves: /suporte|apoio|lideran|gestor|chefia|feedback|orienta/,
+    area: 'Suporte / liderança',
+    estado: 'as pessoas recebem informação e apoio adequados de gestores e colegas; sabem que apoio existe e como acessá-lo; recebem feedback regular e construtivo.',
+    intervencoes: [
+      'Rotina fixa de conversa gestor–equipe (1:1 ou reunião curta) com pauta de carga, obstáculos e prioridades (HSE Support).',
+      'Capacitação de gestores para apoiar a saúde mental da equipe e agir sobre carga e conflito — recomendação forte OMS/OIT 2022 — combinada com uma medida organizacional.',
+      'Canal claro para pedir recursos/ajuda, com prazo de resposta definido (HSE Support).',
+    ],
+  },
+  {
+    chaves: /rela[cç]|respeito|assedio|assédio|violenc|conflito|seguranca psicol|psicol[oó]gica/,
+    area: 'Relações / assédio',
+    estado: 'as pessoas não são submetidas a comportamentos inaceitáveis; há política e canais para prevenir, relatar e resolver.',
+    intervencoes: [
+      'Política de prevenção a assédio e violência com canal de denúncia protegido e fluxo de apuração com prazos (OMS/OIT 2022; CIPA/NR-5).',
+      'Acordo de convivência da equipe (comportamentos esperados) e mediação de conflitos com responsável nomeado (HSE Relationships).',
+      'Gestores habilitados a intervir em comportamento inaceitável, com registro (HSE Relationships).',
+    ],
+  },
+  {
+    chaves: /clareza|papel|fun[cç][aã]o|responsab|conflito de papel|conteudo do trabalho|conteúdo/,
+    area: 'Clareza de papel',
+    estado: 'as pessoas entendem seu papel e responsabilidades; exigências são compatíveis entre si; há como levantar dúvidas ou conflitos de papel.',
+    intervencoes: [
+      'Descrição de função e responsabilidades revisada e combinada com cada pessoa, com o que NÃO é de sua alçada (HSE Role).',
+      'Matriz de responsabilidades por processo (quem decide, quem executa, quem é informado) nas áreas com conflito (HSE Role).',
+      'Espaço periódico para levantar e resolver conflitos de papel entre áreas (HSE Role).',
+    ],
+  },
+  {
+    chaves: /mudan|previsib|incert|reestrutura|transi/,
+    area: 'Mudanças / previsibilidade',
+    estado: 'as pessoas são informadas a tempo sobre mudanças, consultadas, sabem como serão afetadas, conhecem o cronograma e têm apoio na transição.',
+    intervencoes: [
+      'Plano de comunicação de mudanças: motivo, cronograma, impacto por função, comunicado antes da decisão final (HSE Change).',
+      'Consulta às equipes afetadas com registro do que foi incorporado (HSE Change; MTE: má gestão de mudanças).',
+      'Treinamento e apoio para a nova forma de trabalhar, previstos no cronograma da mudança (HSE Change).',
+    ],
+  },
+  {
+    chaves: /reconhec|recompens|justi[cç]a|equidade|valoriza|carreira|desenvolv/,
+    area: 'Reconhecimento / justiça organizacional',
+    estado: 'esforço e resultado são reconhecidos; critérios de avaliação, promoção e distribuição de trabalho são conhecidos e aplicados de forma consistente.',
+    intervencoes: [
+      'Critérios escritos e públicos para avaliação, promoção e distribuição de tarefas/escala (MTE: baixa justiça organizacional).',
+      'Rotina de reconhecimento pela liderança vinculada a entregas concretas (não a evento pontual).',
+      'Trilha de desenvolvimento com etapas e prazos para as funções com maior rotatividade.',
+    ],
+  },
+  {
+    chaves: /jornada|recupera|equil[ií]brio|descanso|turno|escala|remoto|isolad|desconex/,
+    area: 'Jornada / recuperação / trabalho remoto',
+    estado: 'a jornada permite recuperação; escalas e turnos são previsíveis; quem trabalha remoto ou isolado tem contato e apoio regulares.',
+    intervencoes: [
+      'Regras de desconexão (horários de contato, prazo de resposta) e limite de horas extras com monitoramento mensal (MTE; OMS/OIT: arranjos flexíveis).',
+      'Escalas publicadas com antecedência mínima definida e critério de troca (HSE Demands/Control).',
+      'Rotina de contato e check-in para trabalho remoto/isolado (ISO 45003: trabalho remoto e isolado).',
+    ],
+  },
+  {
+    chaves: /recurso|condi[cç][oõ]es|ferramenta|equipamento|informa[cç][aã]o|ambiente|execu/,
+    area: 'Recursos e condições de execução',
+    estado: 'as pessoas sabem como acessar os recursos necessários e os têm em tempo; o ambiente permite executar o trabalho como planejado.',
+    intervencoes: [
+      'Levantamento com as equipes dos recursos que faltam (sistema, equipamento, informação) e plano de suprimento com dono e prazo (HSE Support).',
+      'Correção da condição física/ambiental identificada (NR-17) antes de qualquer ação comportamental.',
+    ],
+  },
+  {
+    chaves: /v[ií]nculo|estabilidade|seguranca do emprego|segurança do emprego|precari|demiss/,
+    area: 'Estabilidade / segurança do vínculo',
+    estado: 'as pessoas conhecem a situação da empresa e os critérios que afetam a continuidade do seu trabalho; mudanças contratuais são comunicadas com antecedência.',
+    intervencoes: [
+      'Comunicação periódica da direção sobre a situação e os planos da empresa (ISO 45003: insegurança no emprego).',
+      'Critérios objetivos e conhecidos para renovação, efetivação e desligamento (justiça organizacional).',
+    ],
+  },
+];
+
+/** Bloco de referência só para os fatores do lote — o prompt não cresce à toa. */
+export function referenciasParaOsFatores(
+  fatores: { label: string; dimensionLabel?: string | null; definition?: string | null }[],
+): string {
+  const semAcento = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const usados = new Set<number>();
+  for (const f of fatores) {
+    const texto = semAcento([f.label, f.dimensionLabel ?? '', f.definition ?? ''].join(' | '));
+    REFERENCIA_POR_FATOR.forEach((r, i) => {
+      if (r.chaves.test(texto)) usados.add(i);
+    });
+  }
+  const escolhidas = [...usados].map((i) => REFERENCIA_POR_FATOR[i]);
+  if (!escolhidas.length) return '';
+  return escolhidas
+    .map(
+      (r) =>
+        `• ${r.area} — estado a alcançar: ${r.estado}\n` +
+        r.intervencoes.map((x) => `   - ${x}`).join('\n'),
+    )
+    .join('\n');
+}
+
+/** Exemplo do que NÃO fazer e do que fazer — tirado do exemplo prático do Guia do MTE. */
+const EXEMPLO_QUALIDADE =
+  'RUIM (genérico, comportamental, sem quem/quando/quanto): "Treinamento em Gestão do Tempo — 1. Selecionar ' +
+  'um facilitador; 2. Planejar sessões; 3. Avaliar a eficácia." ' +
+  'BOM (organizacional, específico, mensurável): título "Priorização semanal de tarefas com metas realistas"; ' +
+  'nivel "Organizacional"; etapas "Toda segunda, o gerente de cada equipe classifica com a equipe as tarefas da ' +
+  'semana por urgência/importância, define metas alcançáveis dentro da jornada e delega ou adia o que não é ' +
+  'urgente; na sexta, revisão de 20 min do que ficou pendente e do motivo"; indicadores "Horas extras médias ' +
+  'por pessoa: de 12h para no máximo 6h/mês em 90 dias; % de tarefas concluídas no prazo ≥ 85% (medição ' +
+  'mensal pelo RH)"; prazo "Curto prazo".';
+
+/**
  * Perfil da organização para a IA — porte, modelo de trabalho, setor e o
  * diagnóstico aplicado. Sem isto o prompt só dizia "uma organização", e as
  * ações saíam genéricas ("treinamento", "reuniões") para qualquer empresa
@@ -223,28 +369,42 @@ async function umLote(
     })
     .join('\n');
   const slugs = matrix.map((r) => r.slug);
+  const referencias = referenciasParaOsFatores(matrix);
   const user =
     (perfil ? `Perfil da organização avaliada:\n${perfil}\n\n` : '') +
     'Fatores/dimensões psicossociais avaliados nesta organização, com a classificação de risco derivada ' +
     `da matriz (R = Probabilidade × Severidade):\n${dimensoes}\n\n` +
+    (referencias
+      ? 'REFERÊNCIA TÉCNICA (Guia MTE/NR-1 2025, HSE Management Standards, ISO 45003, OMS/OIT 2022) — ' +
+        'parta destas intervenções e ADAPTE ao perfil da organização; não invente medidas fora deste ' +
+        `repertório sem necessidade:\n${referencias}\n\n`
+      : '') +
     'Gere um plano de ação de controle para CADA fator listado, retornando um JSON EXATAMENTE neste ' +
     'formato:\n' +
     '{"planos": { "<slug>": { "descricao": string, "objetivo": string, "acoes": [ ' +
-    '{ "titulo": string, "prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
+    '{ "titulo": string, "nivel": "Organizacional"|"Coletivo"|"Individual", ' +
+    '"prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
     '"objetivo": string, "etapas": string, "indicadores": string } ] } } }\n\n' +
     'Regras de formato: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para ' +
     `CADA slug desta lista: ${slugs.join(', ')}. Cada fator deve ter de 2 a 3 ações — o conjunto MÍNIMO ` +
     'suficiente para controlar o fator, não uma lista; prefira 2 ações fortes a 3 fracas. "descricao" resume o ' +
-    'que o fator avalia NESTA organização; "objetivo" indica o propósito do plano.\n' +
+    'que o fator avalia NESTA organização; "objetivo" do plano diz qual ESTADO A ALCANÇAR (use o da ' +
+    'referência quando houver).\n' +
     'Regras de qualidade: (1) cada ação é ESPECÍFICA para o perfil informado (setor, porte, modelo de ' +
-    'trabalho) e para a fonte/circunstância do fator — nada de recomendação que sirva para qualquer ' +
-    'empresa; (2) siga a hierarquia de controle da NR-1: primeiro medidas na organização do trabalho ' +
-    '(processo, carga, papéis, gestão), depois medidas coletivas, por último ações individuais — ' +
-    '"treinamento" ou "palestra" não pode ser a única resposta de um fator; (3) "etapas" nomeiam QUEM ' +
-    'executa (função/área) e o que entrega em cada passo; (4) "indicadores" trazem meta e periodicidade ' +
-    '(ex.: "reduzir horas extras médias de 12h para 6h/mês em 90 dias"); (5) prazo coerente com a ' +
-    'classificação: risco Muito alto/Alto começa em Curto prazo; (6) não repita a mesma ação em fatores ' +
-    'diferentes; (7) títulos curtos (até 8 palavras), português do Brasil, sem jargão vazio.';
+    'trabalho) e responde à fonte/circunstância e ao percentual de exposição alta do fator — nada de ' +
+    'recomendação que sirva para qualquer empresa; (2) hierarquia de controle da NR-1 (1.5.5.1.2) / ISO ' +
+    '45003: PELO MENOS UMA ação de nível "Organizacional" por fator (muda processo, carga, escala, papéis, ' +
+    'critérios, efetivo); "Individual" (treinamento, palestra, apoio psicológico) só como complemento de uma ' +
+    'organizacional, nunca sozinha; (3) "etapas" nomeiam QUEM executa (função/área), O QUE entrega e ' +
+    'QUANDO (frequência ou marco) em cada passo; (4) "indicadores" trazem linha de base atual (ou "a ' +
+    'medir na 1ª semana"), META numérica, prazo e QUEM mede/com que periodicidade — regra da NR-1 ' +
+    '1.5.5.2.2 (cronograma, responsáveis, formas de acompanhamento e aferição de resultados); (5) prazo ' +
+    'coerente com a classificação: Muito alto/Alto começa em Curto prazo; (6) não repita a mesma ação em ' +
+    'fatores diferentes nem repita o rótulo do fator como se fosse ação; (7) títulos curtos (até 8 ' +
+    'palavras), português do Brasil, sem jargão vazio ("sinergia", "conscientização", "engajamento" sem ' +
+    'objeto); (8) a ação deve poder ser conferida por um auditor: se não dá para provar que aconteceu, ' +
+    'reescreva.\n' +
+    `Exemplo de qualidade: ${EXEMPLO_QUALIDADE}`;
 
   const r = await deps.aiSettings.chat({
     useCase: 'dossie_action_plan',
@@ -298,13 +458,22 @@ async function umLote(
             isString(a.etapas) &&
             isString(a.indicadores),
         )
-        .map((a) => ({
-          titulo: a.titulo as string,
-          prazo: a.prazo as string,
-          objetivo: a.objetivo as string,
-          etapas: a.etapas as string,
-          indicadores: a.indicadores as string,
-        }));
+        .map((a) => {
+          const nivelRaw = typeof a.nivel === 'string' ? a.nivel.trim() : '';
+          const nivel: PsychosocialActionLibraryAction['nivel'] =
+            nivelRaw === 'Organizacional' || nivelRaw === 'Coletivo' || nivelRaw === 'Individual'
+              ? nivelRaw
+              : undefined;
+          const acao: PsychosocialActionLibraryAction = {
+            titulo: a.titulo as string,
+            prazo: a.prazo as string,
+            objetivo: a.objetivo as string,
+            etapas: a.etapas as string,
+            indicadores: a.indicadores as string,
+            ...(nivel ? { nivel } : {}),
+          };
+          return acao;
+        });
       if (acoes.length < 1) continue;
       out[row.slug] = { descricao, objetivo, acoes };
     }

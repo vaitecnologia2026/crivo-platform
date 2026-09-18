@@ -24,6 +24,9 @@ export interface PsychosocialActionLibraryAction {
   objetivo: string;
   etapas: string;
   indicadores: string;
+  /** Nível da hierarquia de controle (NR-1 1.5.5.1.2 / ISO 45003): a IA
+   *  informa; a biblioteca fixa não precisa. */
+  nivel?: 'Organizacional' | 'Coletivo' | 'Individual';
 }
 
 export interface PsychosocialActionLibraryEntry {
