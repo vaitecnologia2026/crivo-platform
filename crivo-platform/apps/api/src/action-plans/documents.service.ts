@@ -966,6 +966,8 @@ export class DocumentsService {
         // forma de saber qual era qual.
         subtitle: t.instrumentName,
         available: ok,
+        // Mesmos portões de emissão do Dossiê oficial (emit() faz valer).
+        emitBlockedReason: bloqueioDeEmissao,
         reason: ok
           ? undefined
           : !agg || agg.totalRespondents === 0
@@ -3151,7 +3153,11 @@ export class DocumentsService {
     // responsabilidade do empregador, então o vínculo precisa ser inequívoco.
     // O portao que vale e este, no servidor: a tela desabilita o botao, mas a
     // rota nao pode depender do front.
-    if (type === 'dossie_tecnico' || type === 'relatorio_tecnico') {
+    // Modelos importados (tpl:) passam pelos MESMOS portões: antes dava para
+    // emitir o modelo do Dossiê com a campanha aberta e sem identificação
+    // (decisão do cliente 18/09: "ajustar o modelo importado com os gates").
+    const modeloImportado = type.startsWith('tpl:');
+    if (type === 'dossie_tecnico' || type === 'relatorio_tecnico' || modeloImportado) {
       const aberto = await this.cicloEmAndamento(tenantId);
       if (aberto) {
         throw new BadRequestException(
@@ -3161,7 +3167,7 @@ export class DocumentsService {
       }
     }
 
-    if (type === 'dossie_tecnico' || type === 'relatorio_evolucao') {
+    if (type === 'dossie_tecnico' || type === 'relatorio_evolucao' || modeloImportado) {
       const missing = identificacaoFaltante(org, contract, method);
       if (missing.length) {
         throw new BadRequestException(

@@ -142,3 +142,24 @@ describe('identificacaoFaltante — mesma régua do cartão e do emit()', () => 
     expect(identificacaoFaltante(null, null, 'ESSENCIAL')).toEqual(['razão social', 'CNPJ/identificador legal', 'responsável da empresa']);
   });
 });
+
+describe('modelos importados (tpl:) passam pelos mesmos portões', () => {
+  it('campanha aberta bloqueia a emissão do modelo importado', async () => {
+    const { svc, emissoes } = build({ campanhaAberta: 'ESSENCIAL TESTE COMPLETO' });
+    await expect(svc.emit(TENANT, 'tpl:crivo-dossie-tecnico-modelo-oficial-final-v2-3-essencial')).rejects.toThrow(/ainda está aberta/);
+    expect(emissoes).toHaveLength(0);
+  });
+
+  it('identificação incompleta bloqueia o modelo importado', async () => {
+    const { svc, emissoes } = build({ responsible: null });
+    await expect(svc.emit(TENANT, 'tpl:qualquer')).rejects.toThrow(/responsável da empresa/);
+    expect(emissoes).toHaveLength(0);
+  });
+
+  it('com os portões satisfeitos, o modelo importado é emitido e congelado como o oficial', async () => {
+    const { svc, emissoes } = build();
+    const r = await svc.emit(TENANT, 'tpl:qualquer');
+    expect(r.reused).toBe(false);
+    expect((emissoes[0] as { type: string; emissionNumber: number }).type).toBe('tpl:qualquer');
+  });
+});
