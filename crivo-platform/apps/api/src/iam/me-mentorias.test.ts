@@ -52,6 +52,7 @@ function buildController(contractedHours: number | null) {
     {} as never, // PermissionService — não usado em myMentorias
     prismaFake as never,
     {} as never, // GroupsService — não usado em myMentorias
+    {} as never, // AuditService — não usado em myMentorias
   );
   return { controller, prismaFake };
 }
@@ -84,7 +85,7 @@ describe('MeController.myMentorias — KPI "Horas contratadas"', () => {
         contract: { findFirst: vi.fn(async () => null) },
       },
     };
-    const controller = new MeController({} as never, {} as never, prismaFake as never, {} as never);
+    const controller = new MeController({} as never, {} as never, prismaFake as never, {} as never, {} as never);
     const result = await controller.myMentorias(USER);
     expect(result.contractedHours).toBeNull();
   });

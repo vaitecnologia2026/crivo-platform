@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TERMS_VERSION } from "@crivo/types";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export default function Termos() {
   return (
     <LegalPage
       title="Termos de Uso — CRIVO"
-      meta="Última atualização: 22 de junho de 2026 · Operado por VAI Sistema · Contato: vaitecnologialp@gmail.com"
+      meta={`Versão ${TERMS_VERSION} · Última atualização: 22 de junho de 2026 · Operado por VAI Sistema · Contato: vaitecnologialp@gmail.com`}
     >
       <p>
         Estes Termos de Uso regem o acesso e a utilização do aplicativo e da plataforma <strong>CRIVO</strong>,
@@ -77,8 +78,9 @@ export default function Termos() {
 
       <h2 style={s.h2}>9. Alterações destes Termos</h2>
       <p>
-        Estes Termos podem ser atualizados. Alterações relevantes serão comunicadas pelos canais do serviço. O uso
-        continuado após a atualização implica concordância com a nova versão.
+        Estes Termos são versionados (versão vigente: {TERMS_VERSION}). Alterações relevantes geram uma nova
+        versão e a plataforma solicita um novo aceite no próximo acesso; o aceite fica registrado com data e
+        versão. Os mesmos Termos valem para todos os usuários, independentemente da solução contratada.
       </p>
 
       <h2 style={s.h2}>10. Lei aplicável e foro</h2>

@@ -10,6 +10,7 @@ import { PermissionService } from './permission.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveInstrumentForMethod } from '../admin/methodology.service';
 import { GroupsService } from '../admin/groups.service';
+import { AuditService } from '../admin/audit.service';
 import { UpdateBrandingDto, UpdateOrganizationDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
 import {
@@ -60,6 +61,7 @@ export class MeController {
     private readonly permissions: PermissionService,
     private readonly prisma: PrismaService,
     private readonly groups: GroupsService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Códigos dos módulos ativos da empresa do usuário (alimenta o menu). */
@@ -511,13 +513,29 @@ export class MeController {
     });
   }
 
-  /** Registra o aceite dos termos/LGPD na versão vigente. */
+  /**
+   * Registra o aceite dos termos/LGPD na versão vigente. Versionado: um bump
+   * de TERMS_VERSION faz `myTerms()` voltar a `accepted: false` e o portal
+   * pede o aceite de novo. Fica na trilha de auditoria (quem, quando, qual
+   * versão) — homologação 17/09: "Termos/Privacidade universais e versionados".
+   */
   @Post('terms/accept')
   acceptTerms(@CurrentUser() user: SessionUser): Promise<TermsStatus> {
     return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const before = await tx.user.findUnique({
+        where: { id: user.id },
+        select: { termsVersion: true },
+      });
       await tx.user.update({
         where: { id: user.id },
         data: { termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION },
+      });
+      await this.audit.record({
+        action: 'terms.accept',
+        actor: { id: user.id, email: user.email },
+        target: user.email,
+        tenantId: user.tenantId,
+        meta: { version: TERMS_VERSION, previousVersion: before?.termsVersion ?? null },
       });
       return { accepted: true, acceptedVersion: TERMS_VERSION, currentVersion: TERMS_VERSION };
     });

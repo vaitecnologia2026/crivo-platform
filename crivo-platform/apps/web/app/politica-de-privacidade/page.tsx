@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TERMS_VERSION } from "@crivo/types";
 import { LegalPage, legalStyles as s } from "../_legal/LegalPage";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export default function PoliticaDePrivacidade() {
   return (
     <LegalPage
       title="Política de Privacidade — CRIVO"
-      meta="Última atualização: 22 de junho de 2026 · Controlador: VAI Sistema · Contato: vaitecnologialp@gmail.com"
+      meta={`Versão ${TERMS_VERSION} · Última atualização: 22 de junho de 2026 · Controlador: VAI Sistema · Contato: vaitecnologialp@gmail.com`}
     >
       <p>
         Esta Política descreve como o aplicativo <strong>CRIVO</strong> (operado por VAI Sistema) coleta, usa,
