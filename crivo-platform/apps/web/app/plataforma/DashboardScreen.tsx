@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
 import {
   getDashboardDiagnostic,
+  getMyModules,
   getPsychosocialResults,
   listActionPlans,
   listDocuments,
@@ -36,13 +37,7 @@ import {
  * (mesmo endpoint do ExecutiveKpiRow) e mostra a leitura real quando há dado,
  * mantendo o texto de origem apenas como estado vazio/suprimido.
  */
-function FatoresPsicossociaisCard({ diag }: { diag: DashboardDiagnostic | null }) {
-  const [psy, setPsy] = useState<PsychosocialResults | null>(null);
-  useEffect(() => {
-    let alive = true;
-    getPsychosocialResults().then((r) => { if (alive) setPsy(r); }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
+function FatoresPsicossociaisCard({ diag, psy }: { diag: DashboardDiagnostic | null; psy: PsychosocialResults | null }) {
 
   const hasData = psy != null && psy.totalRespondents > 0;
   const overall = psy && !psy.overall.suppressed ? psy.overall : null;
@@ -220,14 +215,12 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
  * documentos liberados pelo contrato. Sem número inventado: célula sem dado
  * mostra "—" e explica a origem.
  */
-function ExecutiveKpiRow({ plans, diag }: { plans: ActionPlanData[] | null; diag: DashboardDiagnostic | null }) {
-  const [psy, setPsy] = useState<PsychosocialResults | null>(null);
+function ExecutiveKpiRow({ plans, diag, psy }: { plans: ActionPlanData[] | null; diag: DashboardDiagnostic | null; psy: PsychosocialResults | null }) {
   const [docsAvail, setDocsAvail] = useState<number | null>(null);
   const [docsTotal, setDocsTotal] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
-    getPsychosocialResults().then((r) => { if (alive) setPsy(r); }).catch(() => {});
     listDocuments()
       .then((d) => { if (alive) { setDocsAvail(d.filter((x) => x.available).length); setDocsTotal(d.length); } })
       .catch(() => {});
@@ -295,6 +288,26 @@ export function DashboardScreen() {
   // não podia sumir junto com os indicadores quando aquele endpoint falha.
   const [diag, setDiag] = useState<DashboardDiagnostic | null>(null);
   const [diagErro, setDiagErro] = useState(false);
+  // Módulos CONTRATADOS (tenant_modules). A Visão Geral mostrava a camada de
+  // Liderança/ICD — Índice via ICD, "Líderes elegíveis", Coerência Decisória,
+  // 4 Rs, frase §11 — para toda empresa, inclusive quem contratou só o
+  // Diagnóstico Essencial (homologação 17/09: "módulos/conceitos não
+  // contratados"). null = ainda não carregou → a camada fica escondida até a
+  // prova positiva; falha na chamada também esconde (não mostrar o que não foi
+  // contratado é o lado seguro).
+  const [modules, setModules] = useState<Set<string> | null>(null);
+  // Resultado do motor psicossocial (Organizacional) — buscado UMA vez aqui e
+  // passado aos cards (antes cada card fazia a própria chamada ao mesmo endpoint).
+  const [psy, setPsy] = useState<PsychosocialResults | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getMyModules()
+      .then((m) => { if (vivo) setModules(new Set(m)); })
+      .catch(() => { if (vivo) setModules(new Set()); });
+    getPsychosocialResults().then((r) => { if (vivo) setPsy(r); }).catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+  const icdContratado = modules?.has("icd") ?? false;
 
   const carregarDiag = useCallback(() => {
     let vivo = true;
@@ -318,14 +331,37 @@ export function DashboardScreen() {
 
   const planStats = plans ? computePlanStats(plans) : null;
 
-  // ICD agregado (camada complementar) — com supressão §11.
-  const icdScore = status === "ok" ? data?.icdMedio ?? null : null;
-  const leadersN = status === "ok" ? data?.totalLideres ?? 0 : 0;
+  // ICD agregado (camada complementar) — com supressão §11. Só existe para
+  // quem contratou o módulo; sem ele, nada de ICD entra em nenhum card.
+  const icdScore = icdContratado && status === "ok" ? data?.icdMedio ?? null : null;
+  const leadersN = icdContratado && status === "ok" ? data?.totalLideres ?? 0 : 0;
   const icdSuppressed = leadersN > 0 && leadersN < MIN_LEADERS_FOR_DISCLOSURE;
   const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
-  const orgAttention = attention(icdScore); // proxy temporário até termos Índice Geral CRIVO próprio
   // #17 — estado vazio profissional: sem ICD e sem plano = nenhum diagnóstico concluído ainda.
   const temResultado = !!diag?.aggregate && diag.aggregate.totalRespondents > 0;
+  // Índice Geral CRIVO = índice do diagnóstico CONTRATADO (motor de
+  // diagnósticos), não mais o ICD como "proxy temporário": a empresa do
+  // Essencial tinha score 69,6 no card de resultado e "Pendente: aplique o
+  // Diagnóstico CRIVO" no card de cima da mesma tela.
+  // Motor de diagnósticos (Essencial etc.): agregado do /dashboard/diagnostic.
+  // Motor psicossocial (Organizacional): score geral do /psychosocial/results.
+  // Sem nenhum dos dois, o ICD (se contratado) é o que resta.
+  const agg = diag?.engine === "DIAGNOSTICS" && temResultado && !diag!.aggregate!.suppressed ? diag!.aggregate! : null;
+  const psyGeral = diag?.engine === "PSYCHOSOCIAL" && psy && psy.totalRespondents > 0 && !psy.overall.suppressed ? psy.overall : null;
+  const indiceGeral: number | null =
+    agg?.score != null ? agg.score : psyGeral ? psyGeral.score : icdScore;
+  const indiceFaixa: string | null =
+    agg?.score != null
+      ? agg.levelLabel ?? null
+      : psyGeral
+        ? PSYCHOSOCIAL_RISK_LABEL[psyGeral.level] ?? psyGeral.level
+        : icdBand?.label ?? null;
+  const indiceRespondentes: number | null = agg ? agg.totalRespondents : psyGeral ? psy!.totalRespondents : null;
+  // Nível de atenção acompanha o índice: a faixa do Motor quando existe,
+  // senão a régua fixa (crítico < 50 ≤ em atenção < 75 ≤ equilíbrio).
+  const orgAttention = indiceFaixa && indiceGeral !== null
+    ? { label: indiceFaixa, tone: attention(indiceGeral).tone }
+    : attention(indiceGeral);
   // Sem isto a tela mostrava "Nenhum diagnostico concluido ainda" logo abaixo do
   // card com indice e respondentes.
   const isEmpty = icdScore === null && (!plans || plans.length === 0) && !temResultado;
@@ -338,7 +374,9 @@ export function DashboardScreen() {
         <div>
           <h1 className="page-title">Visão Geral Executiva</h1>
           <p className="page-sub">
-            Diagnóstico organizacional, plano de ação e camada complementar de coerência decisória.
+            {icdContratado
+              ? "Diagnóstico organizacional, plano de ação e camada complementar de coerência decisória."
+              : "Diagnóstico organizacional e plano de ação."}
           </p>
         </div>
         <div className="route__actions">
@@ -349,7 +387,7 @@ export function DashboardScreen() {
       </div>
 
       {/* Fileira executiva (mockup 22/07) — 6 KPIs reais no topo. */}
-      <ExecutiveKpiRow plans={plans} diag={diag} />
+      <ExecutiveKpiRow plans={plans} diag={diag} psy={psy} />
 
       {/* O resultado das respostas dos colaboradores. Só aparece no motor de
           diagnósticos: no psicossocial quem mostra é o card "Fatores
@@ -414,20 +452,27 @@ export function DashboardScreen() {
           <div className="kpi-grid">
             <div className="kpi">
               <span className="kpi__label">Índice Geral CRIVO</span>
-              {icdScore === null ? (
+              {indiceGeral === null ? (
                 <>
                   <strong className="kpi__value">—</strong>
                   <span className="kpi__delta">
-                    Pendente: aplique o Diagnóstico CRIVO para gerar o índice.
+                    {temResultado && diag?.aggregate?.suppressed
+                      ? "Protegido: abaixo do mínimo de respondentes."
+                      : "Pendente: aplique o diagnóstico contratado para gerar o índice."}
                   </span>
                 </>
               ) : (
                 <>
-                  <strong className="kpi__value">{icdScore}<small> /100</small></strong>
-                  {icdBand && <span className="pill pill--gold" style={{ marginTop: 4 }}>{icdBand.label}</span>}
+                  <strong className="kpi__value">{indiceGeral}<small> /100</small></strong>
+                  {indiceFaixa && <span className="pill pill--gold" style={{ marginTop: 4 }}>{indiceFaixa}</span>}
                   <div className="kpi__bar" style={{ marginTop: 6 }}>
-                    <div style={{ width: `${icdScore}%` }} />
+                    <div style={{ width: `${Math.max(0, Math.min(100, indiceGeral))}%` }} />
                   </div>
+                  {indiceRespondentes !== null && (
+                    <span className="kpi__delta">
+                      {indiceRespondentes} respondente(s){diag?.instrumentName ? ` · ${diag.instrumentName}` : ""}
+                    </span>
+                  )}
                 </>
               )}
             </div>
@@ -462,35 +507,44 @@ export function DashboardScreen() {
               )}
             </div>
 
-            <div className="kpi">
-              <span className="kpi__label">Líderes elegíveis</span>
-              <strong className="kpi__value">{leadersN}</strong>
-              <span className="kpi__delta">
-                {icdSuppressed
-                  ? `Volume mínimo: ${MIN_LEADERS_FOR_DISCLOSURE} (§11)`
-                  : leadersN === 0
-                    ? "Aguardando primeiras avaliações."
-                    : "Ciclo em andamento."}
-              </span>
-            </div>
+            {icdContratado && (
+              <div className="kpi">
+                <span className="kpi__label">Líderes elegíveis</span>
+                <strong className="kpi__value">{leadersN}</strong>
+                <span className="kpi__delta">
+                  {icdSuppressed
+                    ? `Volume mínimo: ${MIN_LEADERS_FOR_DISCLOSURE} (§11)`
+                    : leadersN === 0
+                      ? "Aguardando primeiras avaliações."
+                      : "Ciclo em andamento."}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* ─── PROPRIEDADES ORGANIZACIONAIS (sumário §7) ───────────────── */}
+          {/* "Sustentação Organizacional" era um placeholder fixo ("disponível
+              após a campanha") que continuava na tela DEPOIS da campanha, ao
+              lado do resultado por dimensão. Só faz sentido enquanto não há
+              resultado — com resultado, a leitura por dimensão está no card
+              "Resultado do diagnóstico" acima. */}
           <div className="grid grid--2" style={{ marginTop: 16 }}>
-            <div className="card">
-              <div className="card__head">
-                <div>
-                  <h3>Sustentação Organizacional</h3>
-                  <span className="card__sub">Clareza, demandas, autonomia, comunicação, previsibilidade e rotina.</span>
+            {!temResultado && (
+              <div className="card">
+                <div className="card__head">
+                  <div>
+                    <h3>Sustentação Organizacional</h3>
+                    <span className="card__sub">Clareza, demandas, autonomia, comunicação, previsibilidade e rotina.</span>
+                  </div>
                 </div>
+                <p className="dash-state" style={{ margin: 0 }}>
+                  Disponível após aplicação da <strong>Campanha de Diagnóstico</strong>.
+                  A leitura por dimensão fica vinculada ao ciclo e respeita o mínimo de respondentes por recorte.
+                </p>
               </div>
-              <p className="dash-state" style={{ margin: 0 }}>
-                Disponível após aplicação da <strong>Campanha de Diagnóstico</strong>.
-                A leitura por dimensão fica vinculada ao ciclo e respeita supressão {MIN_LEADERS_FOR_DISCLOSURE}+ por recorte.
-              </p>
-            </div>
+            )}
 
-            <FatoresPsicossociaisCard diag={diag} />
+            <FatoresPsicossociaisCard diag={diag} psy={psy} />
           </div>
 
           {/* ─── GOVERNANÇA E PLANO DE AÇÃO ──────────────────────────────── */}
@@ -545,6 +599,8 @@ export function DashboardScreen() {
           </div>
 
           {/* ─── CAMADA COMPLEMENTAR — Coerência Decisória (ICD) ─────────── */}
+          {/* Só para quem contratou o programa Liderança (módulo "icd"). */}
+          {icdContratado && (
           <div className="card" style={{ marginTop: 16, borderTop: "3px solid var(--gold-soft)" }}>
             <div className="card__head">
               <div>
@@ -609,11 +665,14 @@ export function DashboardScreen() {
               </>
             )}
           </div>
+          )}
 
           {/* ─── FRASE OBRIGATÓRIA DE GOVERNANÇA (Anexo ICD §11) ─────────── */}
-          <p className="dash-privacy" role="note">
-            <strong>Governança ICD · §11 — </strong>{PORTAL_S11}
-          </p>
+          {icdContratado && (
+            <p className="dash-privacy" role="note">
+              <strong>Governança ICD · §11 — </strong>{PORTAL_S11}
+            </p>
+          )}
         </>
       )}
     </>
