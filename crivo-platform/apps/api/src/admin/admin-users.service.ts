@@ -56,16 +56,34 @@ export class AdminUsersService {
     private readonly metering: MeteringService,
   ) {}
 
-  private async assertTenant(tenantId: string): Promise<void> {
+  /**
+   * Resolve o id que veio na rota para o `organizations.id` — que é onde o
+   * usuário vive (`users.tenantId` → organizations, data plane).
+   *
+   * O Super Admin lista empresas pelo registro `tenants` (control plane), cujo
+   * `id` é DIFERENTE do `organizationId`. A tela "Usuários" mandava o
+   * `tenant.id`, este service procurava uma organization com esse id, não
+   * achava e respondia 404 — e a empresa recém-provisionada aparecia sem
+   * nenhum usuário no painel. Aceita os dois ids, como os demais endpoints
+   * `/admin/tenants/:id/...` já fazem com o do control plane.
+   */
+  private async resolveOrgId(tenantIdOrOrgId: string): Promise<string> {
     const org = await this.prisma.admin.organization.findUnique({
-      where: { id: tenantId },
+      where: { id: tenantIdOrOrgId },
       select: { id: true },
     });
-    if (!org) throw new NotFoundException('Empresa não encontrada');
+    if (org) return org.id;
+    // rls-allow: tenant é control-plane; leitura self-scoped por id da rota.
+    const tenant = await this.prisma.admin.tenant.findUnique({
+      where: { id: tenantIdOrOrgId },
+      select: { organizationId: true },
+    });
+    if (!tenant) throw new NotFoundException('Empresa não encontrada');
+    return tenant.organizationId;
   }
 
-  async list(tenantId: string): Promise<UserSummary[]> {
-    await this.assertTenant(tenantId);
+  async list(tenantIdOrOrgId: string): Promise<UserSummary[]> {
+    const tenantId = await this.resolveOrgId(tenantIdOrOrgId);
     const rows = await this.prisma.admin.user.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'asc' },
@@ -74,11 +92,11 @@ export class AdminUsersService {
   }
 
   async create(
-    tenantId: string,
+    tenantIdOrOrgId: string,
     dto: CreateUserRequest,
     actor: AuditActor,
   ): Promise<CreateUserResult> {
-    await this.assertTenant(tenantId);
+    const tenantId = await this.resolveOrgId(tenantIdOrOrgId);
     // Limite de usuários do plano (mesma regra do app da empresa).
     await this.metering.assertUserQuotaAdmin(tenantId);
     const email = dto.email.toLowerCase().trim();
@@ -116,11 +134,12 @@ export class AdminUsersService {
   }
 
   async update(
-    tenantId: string,
+    tenantIdOrOrgId: string,
     id: string,
     dto: UpdateUserRequest,
     actor: AuditActor,
   ): Promise<UserSummary> {
+    const tenantId = await this.resolveOrgId(tenantIdOrOrgId);
     // Confirma que o usuário pertence à empresa informada (anti cross-empresa).
     const existing = await this.prisma.admin.user.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Usuário não encontrado nesta empresa');
@@ -152,8 +171,8 @@ export class AdminUsersService {
   }
 
   /** Uso de assentos da empresa: ativos atuais + limite do plano (null = ilimitado). */
-  async seats(tenantId: string): Promise<{ active: number; max: number | null }> {
-    await this.assertTenant(tenantId);
+  async seats(tenantIdOrOrgId: string): Promise<{ active: number; max: number | null }> {
+    const tenantId = await this.resolveOrgId(tenantIdOrOrgId);
     // rls-allow: contagem de assentos por tenantId explícito (super admin, control plane)
     const active = await this.prisma.admin.user.count({ where: { tenantId, active: true } });
     const max = await this.metering.userLimit(tenantId);
