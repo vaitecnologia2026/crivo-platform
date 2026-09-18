@@ -267,8 +267,10 @@ const EXEMPLO_QUALIDADE =
   'nivel "Organizacional"; etapas "Toda segunda, o gerente de cada equipe classifica com a equipe as tarefas da ' +
   'semana por urgência/importância, define metas alcançáveis dentro da jornada e delega ou adia o que não é ' +
   'urgente; na sexta, revisão de 20 min do que ficou pendente e do motivo"; indicadores "Horas extras médias ' +
-  'por pessoa: de 12h para no máximo 6h/mês em 90 dias; % de tarefas concluídas no prazo ≥ 85% (medição ' +
-  'mensal pelo RH)"; prazo "Curto prazo".';
+  'por pessoa — linha de base: a medir na 1ª semana; meta: reduzir pela metade em 90 dias; % de tarefas ' +
+  'concluídas no prazo ≥ 85% (medição mensal pelo RH)"; prazo "Curto prazo". O exemplo é de OUTRA empresa: ' +
+  'não copie títulos, etapas nem números dele — use os dados desta organização; quando não houver linha de ' +
+  'base conhecida, escreva "a medir na 1ª semana", nunca um número inventado.';
 
 /**
  * Perfil da organização para a IA — porte, modelo de trabalho, setor e o
@@ -394,8 +396,9 @@ async function umLote(
     'trabalho) e responde à fonte/circunstância e ao percentual de exposição alta do fator — nada de ' +
     'recomendação que sirva para qualquer empresa; (2) hierarquia de controle da NR-1 (1.5.5.1.2) / ISO ' +
     '45003: PELO MENOS UMA ação de nível "Organizacional" por fator (muda processo, carga, escala, papéis, ' +
-    'critérios, efetivo); "Individual" (treinamento, palestra, apoio psicológico) só como complemento de uma ' +
-    'organizacional, nunca sozinha; (3) "etapas" nomeiam QUEM executa (função/área), O QUE entrega e ' +
+    'critérios, efetivo); "Coletivo" muda a rotina de um grupo sem mudar o processo (reunião, acordo de ' +
+    'equipe); "Individual" (treinamento, palestra, workshop, apoio psicológico) só como complemento de uma ' +
+    'organizacional, nunca sozinha — e capacitação NUNCA é "Organizacional"; (3) "etapas" nomeiam QUEM executa (função/área), O QUE entrega e ' +
     'QUANDO (frequência ou marco) em cada passo; (4) "indicadores" trazem linha de base atual (ou "a ' +
     'medir na 1ª semana"), META numérica, prazo e QUEM mede/com que periodicidade — regra da NR-1 ' +
     '1.5.5.2.2 (cronograma, responsáveis, formas de acompanhamento e aferição de resultados); (5) prazo ' +
