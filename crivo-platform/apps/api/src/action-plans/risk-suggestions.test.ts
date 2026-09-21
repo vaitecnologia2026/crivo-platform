@@ -282,3 +282,25 @@ describe('RiskSuggestionsService — fator com todas as sugestões descartadas',
     for (const s of r.suggestions) expect(s.alreadyInPlan).toBe(s.key === suggestionKeyOf('demandas', 'Título antigo'));
   });
 });
+
+describe('RiskSuggestionsService — fator já coberto não recebe sugestão nova', () => {
+  // Produção 21/09: descartar as 3 sugestões de UM fator fez a IA rodar sobre
+  // os 4 obrigatórios e inserir uma sugestão nova em cada um — acúmulo nos
+  // fatores que já tinham a sua. Só o fator sem ação ativa entra.
+  it('sugere só para o fator sem ação ativa', async () => {
+    const itens = [{ riskFactorSlug: 'coberto', suggestionKey: suggestionKeyOf('demandas', 'Antiga'), status: 'SUGERIDA' }];
+    const findMany = vi.fn(async (args: { where?: { status?: { not?: string } } }) =>
+      itens.filter((i) => !args.where?.status?.not || i.status !== args.where.status.not),
+    );
+    const { svc, prisma } = build([
+      row({ slug: 'coberto', label: 'Coberto', sourceSlug: 'demandas', probability: 5, severity: 3 }),
+      row({ slug: 'livre', label: 'Livre', sourceSlug: 'controle', probability: 5, severity: 3 }),
+    ]);
+    prisma.forTenant.mockImplementation(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ actionItem: { findMany } }),
+    );
+    const r = await svc.list('t1');
+    expect(r.suggestions.length).toBeGreaterThan(0);
+    expect(new Set(r.suggestions.map((s) => s.factorSlug))).toEqual(new Set(['livre']));
+  });
+});

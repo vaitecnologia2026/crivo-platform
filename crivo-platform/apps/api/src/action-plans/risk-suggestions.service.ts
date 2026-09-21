@@ -177,7 +177,13 @@ export class RiskSuggestionsService {
     // de olhar o plano, entao toda abertura da tela pagava a chamada — mesmo com
     // todos os fatores ja cobertos, que e o caso normal depois da primeira vez.
     const fatoresCobertos = await this.fatoresComAcao(tenantId, planId);
-    if (required.every((r) => fatoresCobertos.has(r.slug))) {
+    // So os fatores SEM acao ativa recebem sugestao. Antes, bastava um fator
+    // descoberto para a IA rodar sobre TODOS os obrigatorios e cada titulo novo
+    // (a IA varia a cada chamada) virar mais uma sugestao nos fatores que ja
+    // tinham a sua — visto em producao 21/09: descartar 3 de um fator gerou 4
+    // novas, uma em cada fator.
+    const pendentes = required.filter((r) => !fatoresCobertos.has(r.slug));
+    if (!pendentes.length) {
       return {
         origin: 'biblioteca',
         suggestions: [],
@@ -190,7 +196,7 @@ export class RiskSuggestionsService {
     const { plans, origin } = await resolveActionPlans(
       { prisma: this.prisma, aiSettings: this.aiSettings },
       tenantId,
-      required,
+      pendentes,
       // Mesmo instrumento que produziu a matriz (psychosocial.results resolve
       // pelo CONTRATO do tenant) — é por ele que o prompt personalizado da IA da
       // Plataforma e a rede de segurança `factor_action_plans` são resolvidos.
@@ -210,7 +216,7 @@ export class RiskSuggestionsService {
     // repetiriam as mesmas ações três vezes.
     const vistas = new Set<string>();
     const suggestions: RiskActionSuggestion[] = [];
-    for (const r of required) {
+    for (const r of pendentes) {
       const entry = planEntryFor(plans, r);
       if (!entry) continue;
       const dimensionSlug = r.sourceSlug ?? r.slug;
