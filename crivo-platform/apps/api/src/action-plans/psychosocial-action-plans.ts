@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { PsychosocialRiskMatrixRow } from '@crivo/types';
+import { PSYCHOSOCIAL_RISK_CLASS_LABEL, type PsychosocialRiskMatrixRow } from '@crivo/types';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AiSettingsService } from '../admin/ai-settings.service';
 import {
@@ -24,7 +24,11 @@ const log = new Logger('ActionPlansAI');
  * exatamente o teto, nas duas chamadas bem-sucedidas.
  */
 const FATORES_POR_LOTE = 4;
-/** Teto de saida por fator, com folga para 4 acoes de cinco campos. */
+/**
+ * Teto de saida por fator. Dimensionado para 4 acoes de cinco campos; hoje o
+ * prompt limita a 2 acoes de seis campos, e a folga fica — resposta cortada e
+ * descartada inteira, e sobra nao custa nada.
+ */
 const TOKENS_POR_FATOR = 800;
 /** Piso, para um lote de 1 fator nao ficar sem espaco. */
 const TOKENS_MINIMO = 1200;
@@ -362,7 +366,7 @@ async function umLote(
         pctAlta != null ? `${pctAlta}% das respostas em exposição alta (${r.respondents} respondente(s))` : null,
       ].filter((x): x is string => !!x);
       return (
-        `- ${r.label} (slug: ${r.slug}) — Classificação: ${r.riskClass}; ` +
+        `- ${r.label} (slug: ${r.slug}) — Classificação: ${PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass] ?? r.riskClass}; ` +
         `Risco R = ${r.risk} (Probabilidade ${r.probability} × Severidade ${r.severity}); ` +
         `exposição média ${r.exposureAvg.toFixed(2)}; ` +
         `plano de ação ${r.planRequired ? 'OBRIGATÓRIO' : 'não obrigatório'}` +
@@ -388,10 +392,17 @@ async function umLote(
     '"prazo": "Curto prazo"|"Curto → Médio prazo"|"Médio prazo"|"Longo prazo", ' +
     '"objetivo": string, "etapas": string, "indicadores": string } ] } } }\n\n' +
     'Regras de formato: use como chave de cada plano EXATAMENTE o slug informado; gere uma entrada para ' +
-    `CADA slug desta lista: ${slugs.join(', ')}. Cada fator deve ter de 2 a 3 ações — o conjunto MÍNIMO ` +
-    'suficiente para controlar o fator, não uma lista; prefira 2 ações fortes a 3 fracas. "descricao" resume o ' +
-    'que o fator avalia NESTA organização; "objetivo" do plano diz qual ESTADO A ALCANÇAR (use o da ' +
-    'referência quando houver).\n' +
+    `CADA slug desta lista: ${slugs.join(', ')}. "descricao" resume o que o fator avalia NESTA organização; ` +
+    '"objetivo" do plano diz qual ESTADO A ALCANÇAR (use o da referência quando houver).\n' +
+    // Era "de 2 a 3 ações": um PISO — a IA enchia os 3 em todo fator e o plano
+    // nascia com 12 sugestões (homologação 21/09: "avaliar a necessidade real de
+    // gerar 12 ações ou consolidar em menos"). Agora é TETO pela classificação,
+    // e o julgamento fica com a IA dentro dele.
+    'Quantidade de ações por fator é um TETO pela classificação, não uma meta — gere o MENOR conjunto ' +
+    'suficiente e avalie a necessidade real de cada ação: "Muito alto" ou "Crítico" → no máximo 2 (uma ' +
+    'contenção imediata + uma estruturante, e só se as duas forem necessárias); "Alto" → 1 ação ' +
+    'estruturante, uma 2ª apenas se o "objetivo" dela explicar por que a 1ª não basta. Nunca 3. Uma ação ' +
+    'forte vale mais que duas médias; quando houver uma só, ela é "Organizacional".\n' +
     'Regras de qualidade: (1) cada ação é ESPECÍFICA para o perfil informado (setor, porte, modelo de ' +
     'trabalho) e responde à fonte/circunstância e ao percentual de exposição alta do fator — nada de ' +
     'recomendação que sirva para qualquer empresa; (2) hierarquia de controle da NR-1 (1.5.5.1.2) / ISO ' +
