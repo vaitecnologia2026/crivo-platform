@@ -253,3 +253,32 @@ describe('ActionPlansService.acceptRiskSuggestions', () => {
     await expect(svc.acceptRiskSuggestions('t1', 'p1', [], 'RH')).rejects.toThrow(/ao menos uma/);
   });
 });
+
+describe('RiskSuggestionsService — fator com todas as sugestões descartadas', () => {
+  // Homologação 21/09: o cliente descarta as sugestões ruins para receber
+  // outras. "Descartar" marca NAO_ADOTADA e o item fica; se isso contasse como
+  // cobertura, o fator obrigatório ficava sem ação e sem nova sugestão.
+  function buildComDescartada() {
+    const itens = [
+      { riskFactorSlug: 'fator', suggestionKey: suggestionKeyOf('demandas', 'Título antigo'), status: 'NAO_ADOTADA' },
+    ];
+    const findMany = vi.fn(async (args: { where?: { status?: { not?: string } } }) =>
+      itens.filter((i) => !args.where?.status?.not || i.status !== args.where.status.not),
+    );
+    const { svc, prisma } = build([row({ probability: 5, severity: 3 })]);
+    prisma.forTenant.mockImplementation(async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ actionItem: { findMany } }),
+    );
+    return { svc, findMany };
+  }
+
+  it('volta a sugerir para o fator (a descartada não conta como cobertura)', async () => {
+    const { svc, findMany } = buildComDescartada();
+    const r = await svc.list('t1');
+    expect(findMany).toHaveBeenCalled();
+    expect(r.reason ?? '').not.toContain('já têm ação');
+    expect(r.suggestions.length).toBeGreaterThan(0);
+    // A chave já descartada é reconhecida como "no plano" e não volta.
+    for (const s of r.suggestions) expect(s.alreadyInPlan).toBe(s.key === suggestionKeyOf('demandas', 'Título antigo'));
+  });
+});

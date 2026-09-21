@@ -254,7 +254,16 @@ export class RiskSuggestionsService {
   private async fatoresComAcao(tenantId: string, planId?: string): Promise<Set<string>> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.actionItem.findMany({
-        where: { riskFactorSlug: { not: null }, ...(planId ? { planId } : {}) },
+        // Descartada (NAO_ADOTADA) nao conta como cobertura: se a empresa
+        // descartou TODAS as sugestoes de um fator obrigatorio, ele fica sem
+        // acao e sem saida — a IA nunca mais era consultada para ele
+        // (homologacao 21/09). As chaves ja descartadas nao voltam
+        // (`acceptedKeys` -> alreadyInPlan), so entram sugestoes NOVAS.
+        where: {
+          riskFactorSlug: { not: null },
+          status: { not: 'NAO_ADOTADA' },
+          ...(planId ? { planId } : {}),
+        },
         select: { riskFactorSlug: true },
       });
       return new Set(rows.map((r) => r.riskFactorSlug).filter((k): k is string => !!k));
