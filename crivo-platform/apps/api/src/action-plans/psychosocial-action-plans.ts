@@ -264,17 +264,20 @@ export function referenciasParaOsFatores(
 }
 
 /** Exemplo do que NÃO fazer e do que fazer — tirado do exemplo prático do Guia do MTE. */
+// Era um exemplo COMPLETO de outra empresa ("Priorização semanal de tarefas…",
+// com etapas e indicadores prontos). Mesmo com "não copie", o gpt-4o-mini
+// devolvia o exemplo inteiro como ação de um fator (amostra 21/09). Agora é um
+// MOLDE com placeholders: mostra a forma sem ter frase copiável.
 const EXEMPLO_QUALIDADE =
   'RUIM (genérico, comportamental, sem quem/quando/quanto): "Treinamento em Gestão do Tempo — 1. Selecionar ' +
   'um facilitador; 2. Planejar sessões; 3. Avaliar a eficácia." ' +
-  'BOM (organizacional, específico, mensurável): título "Priorização semanal de tarefas com metas realistas"; ' +
-  'nivel "Organizacional"; etapas "Toda segunda, o gerente de cada equipe classifica com a equipe as tarefas da ' +
-  'semana por urgência/importância, define metas alcançáveis dentro da jornada e delega ou adia o que não é ' +
-  'urgente; na sexta, revisão de 20 min do que ficou pendente e do motivo"; indicadores "Horas extras médias ' +
-  'por pessoa — linha de base: a medir na 1ª semana; meta: reduzir pela metade em 90 dias; % de tarefas ' +
-  'concluídas no prazo ≥ 85% (medição mensal pelo RH)"; prazo "Curto prazo". O exemplo é de OUTRA empresa: ' +
-  'não copie títulos, etapas nem números dele — use os dados desta organização; quando não houver linha de ' +
-  'base conhecida, escreva "a medir na 1ª semana", nunca um número inventado.';
+  'BOM tem esta FORMA (preencha com os dados DESTA organização — nada abaixo é texto para copiar): ' +
+  'título = verbo + objeto concreto do processo que muda; nivel = "Organizacional"; ' +
+  'etapas = "<função/área responsável> faz <entrega concreta> em <dia, frequência ou marco>; … ; ' +
+  '<quem revisa> revisa <o quê> a cada <período>"; ' +
+  'indicadores = "<métrica ligada à fonte do fator> — linha de base: <valor conhecido ou "a medir na 1ª ' +
+  'semana">; meta: <número> em <prazo>; <quem mede>, <periodicidade>"; prazo coerente com a classificação. ' +
+  'Quando não houver linha de base conhecida, escreva "a medir na 1ª semana", nunca um número inventado.';
 
 /**
  * Perfil da organização para a IA — porte, modelo de trabalho, setor e o
