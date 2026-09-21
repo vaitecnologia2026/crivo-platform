@@ -136,7 +136,9 @@ function computePlanStats(plans: ActionPlanData[]): PlanStats {
   for (const it of items) {
     byStatus[it.status] = (byStatus[it.status] ?? 0) + 1;
     if (it.status === "CONCLUIDA") done += 1;
-    else if (it.status !== "REAVALIADA") open += 1;
+    // Descartada (NAO_ADOTADA) não é aberta: apareceu como "12 aprovadas em
+    // aberto" na Visão Geral no primeiro descarte em massa (21/09).
+    else if (it.status !== "REAVALIADA" && it.status !== "NAO_ADOTADA") open += 1;
   }
   return {
     total: items.length,
