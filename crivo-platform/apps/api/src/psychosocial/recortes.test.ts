@@ -56,8 +56,8 @@ describe('Dossiê — grupo elegível: GHE cadastrado > Área/Setor', () => {
   const cincoRH = (score: number, ghe: string | null) =>
     Array.from({ length: 5 }, () => resposta(score, 'Recursos Humanos', { sector: 'Recursos Humanos', ghe }));
   const resumo = (svc: DocumentsService) =>
-    (svc as unknown as { psychosocialSummary: (t: string, r: undefined, i: unknown, o: unknown) => Promise<Resumo> })
-      .psychosocialSummary('t1', undefined, { slug: 'diagnostico-essencial', motorPsicossocial: false }, { semAutoAvaliacao: true });
+    (svc as unknown as { psychosocialSummary: (t: string, r: undefined, i: unknown) => Promise<Resumo> })
+      .psychosocialSummary('t1', undefined, { slug: 'diagnostico-essencial', motorPsicossocial: false });
 
   it('sem GHE em nenhuma resposta, agrupa por setor (referência Área/Setor)', async () => {
     const svc = new DocumentsService(

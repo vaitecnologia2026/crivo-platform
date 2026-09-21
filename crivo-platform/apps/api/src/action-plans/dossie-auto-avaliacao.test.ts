@@ -110,11 +110,13 @@ describe('psychosocialSummary — auto-avaliação fora do agregado sem quebrar 
     expect(r.score).toBe(60); // média das 7 de campanha, sem o 100 do gestor
   });
 
-  it('sem a opção (MAPA e demais documentos) o agregado segue como sempre foi: tudo conta', async () => {
+  // Homologação 21/09: a auto-avaliação fica SEMPRE fora — antes era opcional
+  // (só o Dossiê pedia) e o Relatório de Evolução somava o gestor ao agregado.
+  it('sem pedir nada (Relatório de Evolução e demais) a auto-avaliação também fica fora', async () => {
     const r = await resumo({ slug: 'diagnostico-essencial', motorPsicossocial: false });
-    expect(diagFindMany.mock.calls[0][0].where).toEqual({ instrumentSlug: 'diagnostico-essencial' });
-    expect(r.totalRespondents).toBe(8);
-    expect(r.score).toBe(65);
+    expect(diagFindMany.mock.calls[0][0].where.OR).toBeDefined();
+    expect(r.totalRespondents).toBe(7);
+    expect(r.score).toBe(60);
   });
 
   it('devolve o score PRÓPRIO de cada setor, suprimindo os abaixo do mínimo', async () => {

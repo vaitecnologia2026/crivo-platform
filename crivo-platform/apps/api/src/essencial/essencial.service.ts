@@ -203,6 +203,8 @@ export class EssencialService {
       // (`listLinks`): só o VOLUME de respostas, nenhuma resposta individual.
       const counts = await tx.diagnosticResponse.groupBy({
         by: ['instrumentSlug'],
+        // Só respostas dos colaboradores: a autoavaliação não chega por link.
+        where: { OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
         _count: { _all: true },
       });
       const byInstrument = new Map(counts.map((c) => [c.instrumentSlug, c._count._all]));

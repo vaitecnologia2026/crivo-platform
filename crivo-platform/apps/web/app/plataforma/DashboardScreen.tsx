@@ -416,7 +416,7 @@ export function DashboardScreen() {
             <>
               Respostas anônimas e agregadas
               {diag.instrumentName ? <> do <strong>{diag.instrumentName}</strong></> : null}.
-              Inclui a autoavaliação do gestor, quando houver.
+              A autoavaliação do gestor não entra: fica à parte, na página do diagnóstico.
             </>
           }
         />

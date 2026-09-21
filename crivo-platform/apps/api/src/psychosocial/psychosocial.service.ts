@@ -423,7 +423,9 @@ export class PsychosocialService {
           })
         : (
             await tx.diagnosticResponse.findMany({
-              where: { instrumentSlug: instrumento },
+              // Matriz dos COLABORADORES: a autoavaliação do gestor fica fora,
+              // como no Dossiê e nos recortes (homologação 21/09).
+              where: { instrumentSlug: instrumento, OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
               select: { sector: true, score: true, byDimension: true, answers: true, methodologyVersionId: true },
             })
           ).map((r) => ({ ...r, byFactor: null }));

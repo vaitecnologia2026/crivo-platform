@@ -1165,7 +1165,7 @@ export function inviteCampaignParticipants(
 export interface DiagnosticAggregate {
   minRespondents: number;
   totalRespondents: number;
-  /** Quantas das respostas são a autoavaliação do gestor (espelhada no agregado). */
+  /** Autoavaliações do gestor existentes À PARTE — não entram em totalRespondents nem no score. */
   selfAssessments?: number;
   suppressed: boolean;
   score?: number;

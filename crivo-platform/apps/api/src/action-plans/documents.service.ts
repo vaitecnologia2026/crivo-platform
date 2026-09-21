@@ -1254,7 +1254,8 @@ export class DocumentsService {
       const rows: { sector: string | null }[] = motorPsicossocial
         ? await tx.psychosocialResponse.findMany({ select: { sector: true } })
         : await tx.diagnosticResponse.findMany({
-            where: { instrumentSlug: slug },
+            // Adesão dos colaboradores: a autoavaliação não é "setor".
+            where: { instrumentSlug: slug, OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }] },
             select: { sector: true },
           });
       const bySector = new Map<string, number>();
@@ -1305,7 +1306,14 @@ export class DocumentsService {
             select: { score: true, byDimension: true, sector: true, submittedAt: true },
           })
         : await tx.diagnosticResponse.findMany({
-            where: { instrumentSlug },
+            // No MAPA (PRE_DIAGNOSTIC) a resposta do gestor É o diagnóstico; nos
+            // demais instrumentos a autoavaliação fica fora do agregado.
+            where: {
+              instrumentSlug,
+              ...(instrumentSlug === 'PRE_DIAGNOSTIC'
+                ? {}
+                : { OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }] }),
+            },
             select: { score: true, byDimension: true, sector: true, submittedAt: true },
           });
       const total = rows.length;
@@ -1352,7 +1360,6 @@ export class DocumentsService {
     tenantId: string,
     range?: { from: Date; to: Date },
     instrumento?: TenantInstrument,
-    opcoes: { semAutoAvaliacao?: boolean } = {},
   ) {
     const minRespondents = await resolveMinRespondents(this.prisma, tenantId);
     const { slug, motorPsicossocial } = instrumento ?? (await this.instrumentoDoTenant(tenantId));
@@ -1371,16 +1378,15 @@ export class DocumentsService {
       // F4: com `range`, só as respostas DA JANELA DO CICLO entram no
       // snapshot congelado — a aplicação formal é o período aberto/encerrado.
       const janela = range ? { submittedAt: { gte: range.from, lte: range.to } } : {};
-      // Auto-avaliação do gestor (origin = SELF_ASSESSMENT) fica FORA do agregado
-      // quando pedido — Ajustes Finais de Homologação. A resposta de campanha
-      // grava origin NULO, então o filtro é "não é auto-avaliação", nunca
-      // igualdade com um valor: comparar com o slug do instrumento (1505f4d)
-      // zerava as respostas válidas do Essencial. E `psychosocial_responses` não
-      // tem a coluna — filtrar ali derrubava o Dossiê do Organizacional com
-      // "Unknown argument `origin`"; lá a auto-avaliação simplesmente não existe.
-      const semAuto = opcoes.semAutoAvaliacao
-        ? { OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }] }
-        : {};
+      // Auto-avaliação do gestor (origin = SELF_ASSESSMENT) fica SEMPRE fora do
+      // agregado — era opcional (só o Dossiê pedia) e o Relatório de Evolução
+      // somava; homologação 21/09: "separada do agregado dos colaboradores". A
+      // resposta de campanha grava origin NULO, então o filtro é "não é
+      // auto-avaliação", nunca igualdade com um valor: comparar com o slug do
+      // instrumento (1505f4d) zerava as respostas válidas do Essencial. E
+      // `psychosocial_responses` não tem a coluna — filtrar ali derrubava o
+      // Dossiê do Organizacional; lá a auto-avaliação simplesmente não existe.
+      const semAuto = { OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }] };
       const rows: {
         sector: string | null;
         score: number;
@@ -1892,9 +1898,7 @@ export class DocumentsService {
     const output = ctx.contract?.technicalOutput ?? 'SEM_INTEGRACAO';
     const instrumento = await this.instrumentoDoTenant(tenantId, ctx.method);
     // Agregado SEM a auto-avaliação do gestor (ela sai em tabela própria).
-    const psy = await this.psychosocialSummary(tenantId, undefined, instrumento, {
-      semAutoAvaliacao: true,
-    });
+    const psy = await this.psychosocialSummary(tenantId, undefined, instrumento);
     const approvedTexts = await this.approvedTextsOf(tenantId, 'dossie_tecnico');
     const plan = planoDoDocumento(ctx.plans);
     const items = (plan?.items ?? []) as (FactorItem & {

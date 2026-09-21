@@ -107,7 +107,8 @@ export class DiagnosticsService {
     // rls-allow: agregado do super admin, sem dado individual.
     const counts = await this.prisma.admin.diagnosticResponse.groupBy({
       by: ['tenantId'],
-      where: { instrumentSlug },
+      // Volume de respostas dos COLABORADORES (a autoavaliação não vem por link).
+      where: { instrumentSlug, OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
       _count: { _all: true },
     });
     const byTenant = new Map(counts.map((c) => [c.tenantId, c._count._all]));
@@ -225,10 +226,18 @@ export class DiagnosticsService {
     const dims = active ? active.config.dimensions.map((d) => ({ slug: d.slug, label: d.label })) : [];
     const bands = active?.config.bands ?? [];
     return this.prisma.forTenant(tenantId, async (tx) => {
-      const rows = await tx.diagnosticResponse.findMany({
-        where: { instrumentSlug },
-        select: { sector: true, score: true, byDimension: true, methodologyVersionId: true, origin: true },
-      });
+      // Agregado dos COLABORADORES: a autoavaliação do gestor (origin =
+      // SELF_ASSESSMENT) fica fora — homologação 21/09 ("separada do agregado
+      // dos colaboradores"). Ela tem leitura própria na página do diagnóstico e
+      // tabela própria no Dossiê. A resposta de campanha grava origin NULO, por
+      // isso o filtro é "não é autoavaliação", nunca igualdade.
+      const [rows, selfAssessments] = await Promise.all([
+        tx.diagnosticResponse.findMany({
+          where: { instrumentSlug, OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
+          select: { sector: true, score: true, byDimension: true, methodologyVersionId: true },
+        }),
+        tx.diagnosticResponse.count({ where: { instrumentSlug, origin: 'SELF_ASSESSMENT' } }),
+      ]);
       const total = rows.length;
       if (total < minRespondents) {
         return { minRespondents, totalRespondents: total, suppressed: true as const };
@@ -250,10 +259,8 @@ export class DiagnosticsService {
       return {
         minRespondents,
         totalRespondents: total,
-        // A autoavaliação do gestor é espelhada aqui de propósito (conta no
-        // resultado oficial, o que importa em empresa pequena). Devolver o
-        // número deixa a composição explícita para quem lê o agregado.
-        selfAssessments: rows.filter((r) => r.origin === 'SELF_ASSESSMENT').length,
+        // Informativo: quantas autoavaliações existem À PARTE do agregado.
+        selfAssessments,
         suppressed: false as const,
         score,
         level: band?.code ?? '',

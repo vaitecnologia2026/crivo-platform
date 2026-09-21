@@ -62,7 +62,7 @@ export function ResultadoDiagnosticoCard({
               <span className="card__sub">
                 respostas válidas
                 {data.selfAssessments
-                  ? ` · ${data.totalRespondents - data.selfAssessments} por link + ${data.selfAssessments} autoavaliação`
+                  ? ` · só colaboradores; a autoavaliação do gestor fica à parte`
                   : ""}
               </span>
             </div>
