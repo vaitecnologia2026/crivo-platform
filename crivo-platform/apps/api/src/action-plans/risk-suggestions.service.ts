@@ -26,7 +26,7 @@ import { resolveTenantInstrument } from '../admin/methodology.service';
  *
  * NÃO persiste nada. A organização é quem aceita — e é o aceite que cria a ação
  * no Plano de Evolução, com status SUGERIDA. Enquanto a empresa não aprovar,
- * `dossierBlockers` continua barrando a emissão do dossiê final: é a regra
+ * `bloqueiosDoPlano` continua barrando a emissão do dossiê final: é a regra
  * "somente ações aceitas, editadas ou inseridas pela organização são
  * incorporadas ao Plano de Evolução".
  */
@@ -51,7 +51,7 @@ export class RiskSuggestionsService {
    * O que muda em relação a antes é o GATILHO, não a regra: as ações passam a
    * existir sozinhas no Plano de Evolução, onde a organização valida, ajusta,
    * acrescenta ou substitui. O que trava a emissão do dossiê é que deixou de
-   * existir (ver `dossierBlockers`).
+   * existir (ver `bloqueiosDoPlano`).
    *
    * Idempotente por `@@unique([planId, suggestionKey])`: pré-visualizar o
    * dossiê várias vezes não duplica ação nenhuma.

@@ -197,7 +197,7 @@ export class ActionPlansService {
   /**
    * ACEITE das sugestões da matriz de risco: a organização escolhe quais ações
    * entram no plano. Cria com status SUGERIDA (default do schema) — a ação passa
-   * a existir e a ser editável, mas `dossierBlockers` continua barrando a emissão
+   * a existir e a ser editável, mas `bloqueiosDoPlano` continua barrando a emissão
    * do dossiê final até a empresa APROVAR. É a regra da Orientação NR-1: somente
    * ações aceitas, editadas ou inseridas pela organização entram no plano.
    */

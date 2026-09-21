@@ -210,24 +210,109 @@ export function dossierScopeSection(output: string): { heading: string; body: st
   };
 }
 
-/**
- * Bloqueios de emissão do dossiê final (doc 09 §9). Regra de compliance,
- * validada no SERVIDOR: fator Alto exige responsável, prazo e evidência
- * esperada; e nenhuma ação pode estar sugerida ou em revisão.
- */
-export function dossierBlockers(_items: FactorItem[]): string[] {
-  // Decisão do cliente em 2026-09-08: relatórios, dossiê e plano saem
-  // automaticamente, gerados pela IA, sem validação humana. Isto contraria a
-  // Orientação Funcional §9 ("a IA sugere; não aprova plano, não valida
-  // evidência e não libera dossiê") e o critério de aceite §12 — registrado
-  // aqui porque a decisão é do cliente, mas a regra que ela substitui era
-  // deliberada, não um esquecimento.
-  //
-  // Os três bloqueios que existiam (ação sugerida/em revisão, fator Alto sem
-  // responsável/prazo/evidência esperada, fator Alto sem evidência aprovada)
-  // dependiam todos de ação humana e travavam a emissão.
-  return [];
+/** O que os gates de plano precisam ler do Plano de Evolução. */
+export type PlanoParaGates = {
+  validatedAt: Date | null;
+  items: {
+    status: string;
+    point: string;
+    riskFactorSlug?: string | null;
+    responsible: string | null;
+    dueDate: Date | null;
+    expectedEvidence: string | null;
+  }[];
+};
 
+/** Fator que a matriz marcou como plano OBRIGATÓRIO (R ≥ 10). */
+export type FatorObrigatorio = { slug: string; label: string };
+
+/**
+ * Gates de PLANO da emissão OFICIAL do Dossiê — "gates mínimos" da matriz de
+ * aceite V1 (21/09), itens 1, 2, 3 e 7. Todos dependem só do CLIENTE, no
+ * Plano de Evolução; a pré-visualização segue livre.
+ *
+ * Histórico: os três bloqueios originais (doc 09 §9) foram desligados em
+ * 2026-09-08 junto com o gate de aprovação editorial da equipe CRIVO, que
+ * travava tudo porque o texto só existia no Super Admin. Esse gate editorial
+ * NÃO volta; estes voltam porque a homologação pediu por escrito.
+ *
+ * Lista vazia = pode emitir. `obrigatorios` vem da matriz de risco atual;
+ * sem matriz (diagnóstico suprimido) o gate 2 não tem como avaliar e fica de
+ * fora — os outros três continuam.
+ */
+export function bloqueiosDoPlano(
+  plano: PlanoParaGates | undefined,
+  obrigatorios: FatorObrigatorio[],
+): string[] {
+  const out: string[] = [];
+  const itens = plano?.items ?? [];
+  const norm = (s: string) => s.trim().toLowerCase();
+  // Ação manual ("+ Nova ação") não tem riskFactorSlug: casa pelo nome do fator.
+  const cobre = (f: FatorObrigatorio, i: PlanoParaGates['items'][number]) =>
+    i.riskFactorSlug === f.slug || norm(i.point) === norm(f.label);
+
+  // 1. Toda sugestão decidida (aprovada ou descartada).
+  const pendentes = itens.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
+  if (pendentes) {
+    out.push(
+      `${pendentes} sugestão(ões) aguardando decisão — aprove ou descarte no Plano de Evolução.`,
+    );
+  }
+
+  // 2. Fator com plano obrigatório tem ação aprovada (o que entra no Dossiê).
+  const semAcao = obrigatorios.filter(
+    (f) => !itens.some((i) => acaoEntraNoDocumento(i.status) && cobre(f, i)),
+  );
+  if (semAcao.length) {
+    out.push(
+      `Fator(es) com plano obrigatório sem ação aprovada: ${semAcao.map((f) => f.label).join(', ')}.`,
+    );
+  }
+
+  // 3. Ação aprovada de fator obrigatório completa: responsável, prazo,
+  //    evidência esperada (NR-1 1.5.5.2.2 — cronograma, responsáveis, aferição).
+  //    Aprovar já exige responsável + evidência; o prazo só é cobrado aqui.
+  const incompletas = itens.filter(
+    (i) =>
+      acaoEntraNoDocumento(i.status) &&
+      obrigatorios.some((f) => cobre(f, i)) &&
+      (!i.responsible?.trim() || !i.dueDate || !i.expectedEvidence?.trim()),
+  );
+  if (incompletas.length) {
+    const nomes = [...new Set(incompletas.map((i) => i.point))].join(', ');
+    out.push(
+      `${incompletas.length} ação(ões) aprovada(s) sem responsável, prazo ou evidência esperada (${nomes}).`,
+    );
+  }
+
+  // 7. Validação da empresa registrada — só faz sentido quando há o que validar.
+  if ((itens.length || obrigatorios.length) && !plano?.validatedAt) {
+    out.push('Plano de Evolução ainda não validado — valide no Plano de Evolução.');
+  }
+  return out;
+}
+
+/**
+ * Fatores obrigatórios da matriz ATUAL para os gates. Nunca lança: sem matriz
+ * (indisponível, suprimida, erro) o gate 2 simplesmente não avalia.
+ */
+async function fatoresObrigatoriosDe(
+  psychosocial: Pick<PsychosocialService, 'results'>,
+  tenantId: string,
+): Promise<FatorObrigatorio[]> {
+  try {
+    return fatoresObrigatorios(await psychosocial.results(tenantId));
+  } catch {
+    return [];
+  }
+}
+
+/** Fatores com plano obrigatório na matriz ATUAL (vazio se suprimida/indisponível). */
+function fatoresObrigatorios(
+  psy: Awaited<ReturnType<PsychosocialService['results']>> | null,
+): FatorObrigatorio[] {
+  if (!psy || psy.overall.suppressed || !('riskMatrix' in psy.overall)) return [];
+  return psy.overall.riskMatrix.filter((r) => r.planRequired).map((r) => ({ slug: r.slug, label: r.label }));
 }
 
 /** Seção "Base Técnica da Recomendação" — classificação CNAE/NR-1 que embasou o método. */
@@ -834,16 +919,12 @@ export class DocumentsService {
     const hasPlan = plans.length > 0;
     const hasValidated = plans.some((p) => p.validatedAt);
 
-    // Bloqueios de emissão do dossiê final (doc 09 §9), avaliados no servidor.
-    // Como generate() revalida via available() (C2), isto também barra a rota direta.
-    const validated = planoDoDocumento(plans);
-    const blockers = validated ? dossierBlockers(validated.items as FactorItem[]) : [];
-    // O plano deixou de ser pré-requisito: ele é GERADO na emissão, a partir da
-    // matriz de risco (decisão de 2026-09-08). `hasValidated`/`blockers` ficam
-    // apenas informativos.
+    // A PRÉ-VISUALIZAÇÃO não depende do plano: ele é gerado na emissão a partir
+    // da matriz (decisão de 2026-09-08). Os gates de plano valem só para a
+    // versão OFICIAL — ver `bloqueioDossie` abaixo.
     void hasValidated;
-    const dossieOk = blockers.length === 0;
-    const dossieReason = blockers.length ? blockers.join(' ') : undefined;
+    const dossieOk = true;
+    const dossieReason: string | undefined = undefined;
     // Campanha ainda aberta: a previa continua livre, mas a versao OFICIAL dos
     // documentos que leem as respostas do ciclo espera o encerramento. Nao e
     // validacao humana (que saiu em 2026-09-08) — e o estado da coleta.
@@ -857,6 +938,17 @@ export class DocumentsService {
     const bloqueioDeEmissao = cicloAberto
       ? `Campanha "${cicloAberto}" ainda aberta — encerre a campanha para emitir a versão oficial. A pré-visualização continua disponível.`
       : bloqueioIdentificacao;
+    // Gates de PLANO (matriz de aceite 21/09) — só o Dossiê e os modelos
+    // importados; o cartão diz o primeiro motivo, emit() cobra todos.
+    const bloqueiosPlano = bloqueiosDoPlano(
+      planoDoDocumento(plans),
+      await fatoresObrigatoriosDe(this.psychosocial, tenantId),
+    );
+    const bloqueioDossie =
+      bloqueioDeEmissao ??
+      (bloqueiosPlano.length
+        ? `Emissão oficial bloqueada — ${bloqueiosPlano.join(' ')} A pré-visualização continua disponível.`
+        : undefined);
     const docs: DocumentDescriptor[] = [];
     const add = (
       type: string,
@@ -910,14 +1002,14 @@ export class DocumentsService {
     const dossieDiag = instrumentoDoDossie?.name ?? 'Diagnóstico Organizacional (NR-1)';
     if (output === 'AEP' || output === 'AEP_PGR') {
       const ok = dossieOk || diagOk;
-      add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag, bloqueioDeEmissao);
+      add('dossie_tecnico', ok, ok ? undefined : dossieReason, dossieDiag, bloqueioDossie);
     } else if (method === 'ORGANIZACIONAL' || diagOk) {
       add(
         'dossie_tecnico',
         diagOk,
         diagOk ? undefined : 'Requer o Diagnóstico Organizacional respondido (respondentes suficientes)',
         dossieDiag,
-        bloqueioDeEmissao,
+        bloqueioDossie,
       );
     }
     if (method === 'ORGANIZACIONAL') {
@@ -967,7 +1059,7 @@ export class DocumentsService {
         subtitle: t.instrumentName,
         available: ok,
         // Mesmos portões de emissão do Dossiê oficial (emit() faz valer).
-        emitBlockedReason: bloqueioDeEmissao,
+        emitBlockedReason: bloqueioDossie,
         reason: ok
           ? undefined
           : !agg || agg.totalRespondents === 0
@@ -3177,6 +3269,22 @@ export class DocumentsService {
         throw new BadRequestException(
           `Emissão final bloqueada — complete no cadastro/contrato: ${missing.join(', ')}. ` +
             'A pré-visualização (rascunho) continua disponível.',
+        );
+      }
+    }
+
+    // Gates de PLANO (matriz de aceite V1, 21/09): sugestões decididas, fator
+    // obrigatório com ação aprovada e completa, plano validado. Todos na mão
+    // do cliente, no Plano de Evolução. Religados a pedido da homologação —
+    // ver `bloqueiosDoPlano`.
+    if (type === 'dossie_tecnico' || modeloImportado) {
+      const bloqueios = bloqueiosDoPlano(
+        planoDoDocumento(plans),
+        await fatoresObrigatoriosDe(this.psychosocial, tenantId),
+      );
+      if (bloqueios.length) {
+        throw new BadRequestException(
+          `Emissão final bloqueada — ${bloqueios.join(' ')} A pré-visualização (rascunho) continua disponível.`,
         );
       }
     }

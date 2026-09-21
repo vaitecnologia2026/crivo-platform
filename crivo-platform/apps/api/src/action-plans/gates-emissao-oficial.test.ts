@@ -26,7 +26,16 @@ import { DocumentsService } from './documents.service';
 
 const TENANT = 'dded8882-85a0-4bc0-85e2-01b34d2ec548';
 
-function build(opts: { campanhaAberta?: string | null; org?: Record<string, unknown>; responsible?: string | null } = {}) {
+type Plano = { validatedAt: Date | null; items: Record<string, unknown>[] };
+function build(
+  opts: {
+    campanhaAberta?: string | null;
+    org?: Record<string, unknown>;
+    responsible?: string | null;
+    plans?: Plano[];
+    obrigatorios?: { slug: string; label: string }[];
+  } = {},
+) {
   const emissoes: Record<string, unknown>[] = [];
   const tx = {
     assessmentCycle: {
@@ -46,7 +55,21 @@ function build(opts: { campanhaAberta?: string | null; org?: Record<string, unkn
     },
   };
   const prisma = { forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)), admin: {} };
-  const svc = new DocumentsService(prisma as never, {} as never, {} as never);
+  const psychosocial = {
+    results: vi.fn(async () =>
+      opts.obrigatorios
+        ? {
+            totalRespondents: 7,
+            minRespondents: 5,
+            overall: {
+              suppressed: false,
+              riskMatrix: opts.obrigatorios.map((f) => ({ ...f, planRequired: true })),
+            },
+          }
+        : null,
+    ),
+  };
+  const svc = new DocumentsService(prisma as never, psychosocial as never, {} as never);
 
   const org = {
     id: TENANT, name: 'ESSENCIAL - TESTE', legalName: 'Essencial Teste Ltda', taxId: '12.345.678/0001-90',
@@ -54,7 +77,7 @@ function build(opts: { campanhaAberta?: string | null; org?: Record<string, unkn
   };
   const contract = { responsible: opts.responsible === undefined ? 'Rodrigo' : opts.responsible, technicalOutput: 'SEM_INTEGRACAO' };
   vi.spyOn(svc as never as { context: () => unknown }, 'context').mockResolvedValue({
-    contract, method: 'ESSENCIAL', org, company: org.name, plans: [], cnaeDecision: null,
+    contract, method: 'ESSENCIAL', org, company: org.name, plans: opts.plans ?? [], cnaeDecision: null,
   } as never);
 
   let corpo = 'Plano com 4 ações aprovadas';
@@ -161,5 +184,42 @@ describe('modelos importados (tpl:) passam pelos mesmos portões', () => {
     const r = await svc.emit(TENANT, 'tpl:qualquer');
     expect(r.reused).toBe(false);
     expect((emissoes[0] as { type: string; emissionNumber: number }).type).toBe('tpl:qualquer');
+  });
+});
+
+describe('gates de PLANO na emissão oficial (matriz de aceite 21/09)', () => {
+  const sobrecarga = { slug: 'fator-1', label: 'Sobrecarga de trabalho' };
+  const aprovada = {
+    status: 'APROVADA', point: 'Sobrecarga de trabalho', riskFactorSlug: 'fator-1',
+    responsible: 'RH', dueDate: new Date('2026-10-21'), expectedEvidence: 'Ata',
+  };
+  const validado = (items: Record<string, unknown>[]): Plano => ({ validatedAt: new Date('2026-09-21'), items });
+
+  it('1. sugestão pendente bloqueia', async () => {
+    const { svc } = build({ plans: [validado([aprovada, { ...aprovada, status: 'SUGERIDA' }])], obrigatorios: [sobrecarga] });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/1 sugestão\(ões\) aguardando decisão/);
+  });
+
+  it('2. fator obrigatório sem ação aprovada bloqueia — mesmo com o plano validado', async () => {
+    const { svc } = build({ plans: [validado([{ ...aprovada, status: 'NAO_ADOTADA' }])], obrigatorios: [sobrecarga] });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem ação aprovada: Sobrecarga de trabalho/);
+  });
+
+  it('3. aprovada sem prazo bloqueia', async () => {
+    const { svc } = build({ plans: [validado([{ ...aprovada, dueDate: null }])], obrigatorios: [sobrecarga] });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável, prazo ou evidência esperada/);
+  });
+
+  it('7. plano não validado bloqueia', async () => {
+    const { svc } = build({ plans: [{ validatedAt: null, items: [aprovada] }], obrigatorios: [sobrecarga] });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/ainda não validado/);
+  });
+
+  it('com os 4 gates satisfeitos, emite; o modelo importado passa pelos mesmos gates', async () => {
+    const { svc, emissoes } = build({ plans: [validado([aprovada])], obrigatorios: [sobrecarga] });
+    await svc.emit(TENANT, 'dossie_tecnico', 'rodrigo@empresa.com');
+    expect(emissoes).toHaveLength(1);
+    const { svc: svc2 } = build({ plans: [validado([{ ...aprovada, status: 'SUGERIDA' }])], obrigatorios: [sobrecarga] });
+    await expect(svc2.emit(TENANT, 'tpl:dossie-v2-3-essencial')).rejects.toThrow(/aguardando decisão/);
   });
 });
