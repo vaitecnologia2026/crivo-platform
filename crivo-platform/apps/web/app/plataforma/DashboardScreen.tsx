@@ -6,7 +6,9 @@ import {
   getDashboardDiagnostic,
   getMyModules,
   getPsychosocialResults,
+  getIcdHistory,
   listActionPlans,
+  listCampaigns,
   listDocuments,
   listReportEmissions,
   type DashboardDiagnostic,
@@ -18,14 +20,30 @@ import { IconDownload, IconFileText, IconRefresh } from "./Icons";
 import {
   montarAcoesPrioritarias,
   montarAlertas,
+  montarCobertura,
   montarDistribuicao,
+  montarDistribuicaoPorFator,
+  montarEvolucaoCobertura,
+  montarEvolucaoIcd,
   montarFatores,
+  montarRadarIcd,
   type AcaoPrioritaria,
   type Alerta,
   type BlocoDistribuicao,
+  type BlocoEvolucao,
   type BlocoFatores,
-  type Fatia,
+  type BlocoPorFator,
 } from "@/lib/visao-geral-blocos";
+import {
+  ChartCard,
+  COR_SERIE,
+  Donut,
+  GraficoBarrasEmpilhadas,
+  GraficoBarrasH,
+  GraficoLinha,
+  GraficoRadar,
+  Legenda,
+} from "./Charts";
 import { ResultadoDiagnosticoCard } from "./ResultadoDiagnosticoCard";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OperationalAlerts } from "./OperationalAlerts";
@@ -44,7 +62,9 @@ import {
   type ActionItemData,
   type ActionPlanData,
   type ActionStatus,
+  type CampaignSummary,
   type DocumentDescriptor,
+  type IcdCycleHistoryEntry,
 } from "@crivo/types";
 
 /**
@@ -106,284 +126,6 @@ function FatoresPsicossociaisCard({ diag, psy }: { diag: DashboardDiagnostic | n
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Blocos portados do protótipo (lovable/Portal do Cliente/src/routes/dashboard.tsx)
-//
-// O protótipo desenha com recharts + shadcn; o portal não tem nenhum dos dois.
-// A casa desenha gráfico em SVG na mão (ver AnalyticsScreen) e usa as classes
-// do design system — é o que está feito aqui. O que muda de verdade é a FONTE:
-// lá são constantes de demonstração, aqui é o que a API devolve.
-// ═══════════════════════════════════════════════════════════════════════════
-
-type Aba = "panorama" | "diagnosticos" | "execucao";
-const ABAS: [Aba, string][] = [
-  ["panorama", "Panorama"],
-  ["diagnosticos", "Diagnósticos"],
-  ["execucao", "Execução"],
-];
-
-/** Card com cabeçalho e rodapé de PROCEDÊNCIA. O rodapé "Fonte" é do protótipo
- *  e não é enfeite: num produto de conformidade, número sem origem declarada
- *  não se sustenta em auditoria. */
-function ChartCard({
-  title, description, source, actions, children,
-}: { title: string; description?: string; source?: string; actions?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="card">
-      <div className="card__head">
-        <div>
-          <h3>{title}</h3>
-          {description && <span className="card__sub">{description}</span>}
-        </div>
-        {actions}
-      </div>
-      {children}
-      {source && (
-        <p
-          className="card__sub"
-          style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--line-soft)", fontSize: 10.5, lineHeight: 1.45 }}
-        >
-          <span className="pill pill--sm pill--outline" style={{ marginRight: 6 }}>Fonte</span>
-          {source}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Bloco do protótipo que NÃO tem fonte de dado no portal. Diz o que falta em
- *  vez de desenhar uma curva inventada — decisão de escopo de 23/09. */
-function SemFonteCard({ title, description, motivo }: { title: string; description: string; motivo: string }) {
-  return (
-    <div className="card">
-      <div className="card__head">
-        <div>
-          <h3>{title}</h3>
-          <span className="card__sub">{description}</span>
-        </div>
-      </div>
-      <p className="dash-state" style={{ margin: 0 }}>{motivo}</p>
-    </div>
-  );
-}
-
-function FatoresPrioritariosCard({ bloco, acoes }: { bloco: BlocoFatores | null; acoes?: React.ReactNode }) {
-  if (!bloco) {
-    return (
-      <ChartCard title="Fatores prioritários" description="Ordenação dos fatores pelo risco do ciclo atual.">
-        <p className="dash-state" style={{ margin: 0 }}>
-          Disponível quando o diagnóstico tiver respostas suficientes para liberar o resultado.
-        </p>
-      </ChartCard>
-    );
-  }
-  return (
-    <ChartCard title={bloco.titulo} description={bloco.descricao} source={bloco.fonte} actions={acoes}>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 10 }}>
-        {bloco.linhas.map((l) => (
-          <li key={l.chave}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, marginBottom: 3 }}>
-              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.rotulo}</span>
-              <strong style={{ fontVariantNumeric: "tabular-nums" }}>{l.valor}</strong>
-            </div>
-            <div className="bar" aria-hidden="true">
-              <div
-                className="bar__fill"
-                style={{ width: `${Math.max(2, Math.min(100, (l.valor / l.max) * 100))}%`, height: "100%", background: l.cor, borderRadius: 999 }}
-              />
-            </div>
-            {l.nota && <span className="card__sub" style={{ fontSize: 10.5 }}>{l.nota}</span>}
-          </li>
-        ))}
-      </ul>
-    </ChartCard>
-  );
-}
-
-/** Donut de distribuição — o PieChart do protótipo, em SVG puro. */
-function Donut({ fatias, centro, legenda }: { fatias: Fatia[]; centro: number; legenda: string }) {
-  const total = fatias.reduce((n, f) => n + f.valor, 0);
-  if (total <= 0) return null;
-  const R = 54;
-  const C = 2 * Math.PI * R;
-  // Offset de cada arco = soma das fatias anteriores. Derivado (n ≤ 5), nunca
-  // acumulado por reatribuição: mutar variável durante o render quebra o lint.
-  const offset = (i: number) => fatias.slice(0, i).reduce((n, x) => n + x.valor, 0) / total;
-  return (
-    <svg viewBox="0 0 140 140" role="img" aria-label={`${centro} ${legenda}`} style={{ width: "100%", maxWidth: 190, height: "auto", display: "block", margin: "0 auto" }}>
-      <g transform="translate(70,70) rotate(-90)">
-        {fatias.map((f, i) => (
-          <circle
-            key={f.rotulo}
-            r={R}
-            fill="none"
-            stroke={f.cor}
-            strokeWidth={17}
-            strokeDasharray={`${(C * (f.valor / total)).toFixed(2)} ${C.toFixed(2)}`}
-            strokeDashoffset={(-C * offset(i)).toFixed(2)}
-          />
-        ))}
-      </g>
-      <text x="70" y="68" textAnchor="middle" style={{ fontSize: 22, fontWeight: 600, fill: "var(--text)" }}>{centro}</text>
-      <text x="70" y="84" textAnchor="middle" style={{ fontSize: 9, fill: "var(--text-sec)" }}>{legenda}</text>
-    </svg>
-  );
-}
-
-function DistribuicaoRiscoCard({ bloco }: { bloco: BlocoDistribuicao | null }) {
-  if (!bloco) {
-    return (
-      <ChartCard title="Distribuição de risco" description="Quantos fatores caem em cada faixa.">
-        <p className="dash-state" style={{ margin: 0 }}>
-          Disponível quando o resultado do diagnóstico for liberado.
-        </p>
-      </ChartCard>
-    );
-  }
-  return (
-    <ChartCard title="Distribuição de risco" description="Quantos fatores caem em cada faixa de classificação." source={bloco.fonte}>
-      <Donut fatias={bloco.fatias} centro={bloco.total} legenda={bloco.legenda} />
-      <div className="legend" style={{ marginTop: 12, flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
-        {bloco.fatias.map((f) => (
-          <span className="legend__item" key={f.rotulo} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: f.cor, display: "inline-block" }} />
-            {f.rotulo}: <strong>{f.valor}</strong>
-          </span>
-        ))}
-      </div>
-    </ChartCard>
-  );
-}
-
-function AlertasPrioritariosCard({ alertas, carregando, irParaPlano }: { alertas: Alerta[]; carregando: boolean; irParaPlano: () => void }) {
-  return (
-    <div className="card">
-      <div className="card__head">
-        <div>
-          <h3>Alertas prioritários</h3>
-          <span className="card__sub">Ações vencidas e ações aprovadas sem responsável, prazo ou evidência.</span>
-        </div>
-        <button className="btn btn--outline-dark btn--sm" onClick={irParaPlano}>Plano de Evolução</button>
-      </div>
-      {carregando ? (
-        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
-      ) : alertas.length === 0 ? (
-        <p className="dash-state" style={{ margin: 0 }}>
-          Nenhum alerta: nenhuma ação aprovada está vencida ou incompleta.
-        </p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-          {alertas.map((a) => (
-            <li
-              key={a.id}
-              style={{
-                display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start",
-                border: "1px solid var(--line)", borderLeft: `3px solid ${a.atraso === null ? "var(--gold)" : "var(--danger)"}`,
-                borderRadius: 8, padding: "9px 11px",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</div>
-                <div className="card__sub" style={{ fontSize: 10.5 }}>{a.detalhe}</div>
-              </div>
-              <span className={`pill pill--sm ${a.atraso === null ? "pill--gold" : "pill--danger"}`} style={{ flexShrink: 0 }}>
-                {a.atraso === null ? "incompleta" : `${a.atraso}d atraso`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function AcoesPrioritariasCard({ acoes, plans, irParaPlano }: { acoes: AcaoPrioritaria[]; plans: ActionPlanData[] | null; irParaPlano: () => void }) {
-  return (
-    <div className="card">
-      <div className="card__head">
-        <div>
-          <h3>Ações prioritárias</h3>
-          <span className="card__sub">As 5 ações aprovadas com o prazo mais próximo.</span>
-        </div>
-        <button className="btn btn--outline-dark btn--sm" onClick={irParaPlano}>Ver todas</button>
-      </div>
-      {plans === null ? (
-        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
-      ) : acoes.length === 0 ? (
-        <p className="dash-state" style={{ margin: 0 }}>
-          Nenhuma ação aprovada em aberto. As sugestões entram aqui depois de aprovadas no Plano de Evolução.
-        </p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-          {acoes.map((a) => (
-            <li
-              key={a.id}
-              style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", border: "1px solid var(--line)", borderRadius: 8, padding: "9px 11px" }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</div>
-                <div className="card__sub" style={{ fontSize: 10.5 }}>{a.detalhe}</div>
-              </div>
-              <span className="pill pill--sm" style={{ flexShrink: 0 }}>{ACTION_STATUS_LABEL[a.status] ?? a.status}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/** "Relatórios recentes · repositório versionado" do protótipo. Aqui são as
- *  EMISSÕES OFICIAIS (número sequencial + hash), não as prévias: é o que tem
- *  versão de verdade. */
-function RelatoriosRecentesCard({ emissoes, irParaDocumentos }: { emissoes: ReportEmissionMeta[] | null; irParaDocumentos: () => void }) {
-  return (
-    <div className="card">
-      <div className="card__head">
-        <div>
-          <h3>Relatórios recentes</h3>
-          <span className="card__sub">Emissões oficiais — cada uma com número sequencial e hash do conteúdo.</span>
-        </div>
-        <button className="btn btn--outline-dark btn--sm" onClick={irParaDocumentos}>Ver todos</button>
-      </div>
-      {emissoes === null ? (
-        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
-      ) : emissoes.length === 0 ? (
-        <p className="dash-state" style={{ margin: 0 }}>
-          Nenhum relatório emitido ainda. A emissão libera quando a campanha é encerrada e o Plano de Evolução é validado.
-        </p>
-      ) : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
-          {emissoes.slice(0, 5).map((e) => (
-            <li
-              key={e.id}
-              style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", border: "1px solid var(--line)", borderRadius: 8, padding: "9px 11px" }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
-                <div className="card__sub" style={{ fontSize: 10.5 }}>
-                  {new Date(e.createdAt).toLocaleDateString("pt-BR")} · {e.status.toLowerCase()} · hash {e.contentHash.slice(0, 8)}
-                </div>
-              </div>
-              <span className="pill pill--sm pill--outline" style={{ flexShrink: 0 }}>v{e.emissionNumber}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/**
- * Dashboard Executivo — Análise Preliminar Portal §7.
- *
- * § HIERARQUIA: o dashboard principal representa o DIAGNÓSTICO CRIVO + PLANO
- *   DE AÇÃO; o ICD entra apenas como CAMADA COMPLEMENTAR (com supressão <5).
- *   Removido: ICD como primeiro card (§7 explícito).
- * § PRIVACIDADE: agregados; sem ranking ou identificação nominal de líderes (§11).
- * § FRASE OBRIGATÓRIA de governança visível ao final.
- */
 
 const PORTAL_S11 =
   "O ICD do Líder é ferramenta de desenvolvimento e sustentação da liderança. Não deve ser utilizado para ranking individual, punição, promoção, avaliação de performance ou comparação nominal entre líderes.";
@@ -501,6 +243,226 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
 }
 
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Blocos portados do protótipo (lovable/Portal do Cliente/src/routes/dashboard.tsx)
+//
+// O protótipo desenha com recharts + shadcn; o portal não tem nenhum dos dois,
+// então os gráficos vêm de ./Charts (SVG na mão, com eixo, grade e legenda).
+// O que muda de verdade é a FONTE: lá são constantes de demonstração, aqui é o
+// que a API devolve — e quando não há fonte, o card DIZ que não há.
+// ═══════════════════════════════════════════════════════════════════════════
+
+type Aba = "panorama" | "diagnosticos" | "execucao";
+const ABAS: [Aba, string][] = [
+  ["panorama", "Panorama"],
+  ["diagnosticos", "Diagnósticos"],
+  ["execucao", "Execução"],
+];
+
+/** Bloco do protótipo que NÃO tem fonte de dado no portal. Diz o que falta em
+ *  vez de desenhar uma curva inventada. */
+function SemFonteCard({ title, description, motivo }: { title: string; description: string; motivo: string }) {
+  return (
+    <ChartCard title={title} description={description}>
+      <p className="dash-state" style={{ margin: 0 }}>{motivo}</p>
+    </ChartCard>
+  );
+}
+
+function FatoresPrioritariosCard({ bloco, acoes }: { bloco: BlocoFatores | null; acoes?: React.ReactNode }) {
+  if (!bloco) {
+    return (
+      <SemFonteCard
+        title="Fatores prioritários"
+        description="Ordenação dos fatores pelo risco do ciclo atual."
+        motivo="Disponível quando o diagnóstico tiver respostas suficientes para liberar o resultado."
+      />
+    );
+  }
+  return (
+    <ChartCard title={bloco.titulo} description={bloco.descricao} source={bloco.fonte} actions={acoes}>
+      <GraficoBarrasH
+        linhas={bloco.linhas.map((l) => ({ chave: l.chave, rotulo: l.rotulo, valor: l.valor, cor: l.cor, nota: l.nota }))}
+        max={bloco.linhas[0]?.max ?? 100}
+      />
+    </ChartCard>
+  );
+}
+
+function DistribuicaoRiscoCard({ bloco }: { bloco: BlocoDistribuicao | null }) {
+  if (!bloco) {
+    return (
+      <SemFonteCard
+        title="Distribuição de risco"
+        description="Quantos fatores caem em cada faixa."
+        motivo="Disponível quando o resultado do diagnóstico for liberado."
+      />
+    );
+  }
+  return (
+    <ChartCard title="Distribuição de risco" description="Quantos fatores caem em cada faixa de classificação." source={bloco.fonte}>
+      <Donut fatias={bloco.fatias} centro={bloco.total} legenda={bloco.legenda} />
+      <Legenda itens={bloco.fatias.map((f) => ({ rotulo: `${f.rotulo}: ${f.valor}`, cor: f.cor }))} />
+    </ChartCard>
+  );
+}
+
+/** "Distribuição por fator" do protótipo — % de PESSOAS em cada faixa, por
+ *  dimensão. Duas dimensões com a mesma média podem ter distribuições bem
+ *  diferentes, e é a concentração na faixa crítica que move a matriz. */
+function DistribuicaoPorFatorCard({ bloco }: { bloco: BlocoPorFator | null }) {
+  if (!bloco) {
+    return (
+      <SemFonteCard
+        title="Distribuição por fator"
+        description="Percentual de respondentes em cada faixa, dimensão a dimensão."
+        motivo="Depende das faixas da metodologia ativa e de resultado liberado. Aparece assim que a coleta atingir o mínimo de respondentes."
+      />
+    );
+  }
+  return (
+    <ChartCard
+      title="Distribuição por fator"
+      description="Percentual de respondentes em cada faixa, dimensão a dimensão."
+      source={bloco.fonte}
+    >
+      <GraficoBarrasEmpilhadas linhas={bloco.linhas} />
+      <Legenda itens={bloco.faixas} />
+    </ChartCard>
+  );
+}
+
+/** "Evolução por ciclo" / "Evolução do índice". Só desenha com 2+ pontos: uma
+ *  linha de um ponto só não é tendência, é um ponto. */
+function EvolucaoCard({
+  title, description, bloco, nomeSerie, cor, motivoSemDado,
+}: { title: string; description: string; bloco: BlocoEvolucao | null; nomeSerie: string; cor: string; motivoSemDado: string }) {
+  if (!bloco || bloco.rotulos.length < 2) {
+    return <SemFonteCard title={title} description={description} motivo={motivoSemDado} />;
+  }
+  return (
+    <ChartCard title={title} description={description} source={bloco.fonte}>
+      <GraficoLinha rotulos={bloco.rotulos} series={[{ nome: nomeSerie, cor, pontos: bloco.valores }]} max={100} />
+    </ChartCard>
+  );
+}
+
+function AlertasPrioritariosCard({ alertas, carregando, irParaPlano }: { alertas: Alerta[]; carregando: boolean; irParaPlano: () => void }) {
+  return (
+    <div className="card">
+      <div className="card__head">
+        <div>
+          <h3>Alertas prioritários</h3>
+          <span className="card__sub">Ações vencidas e ações aprovadas sem responsável, prazo ou evidência.</span>
+        </div>
+        <button className="btn btn--outline-dark btn--sm" onClick={irParaPlano}>Plano de Evolução</button>
+      </div>
+      {carregando ? (
+        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
+      ) : alertas.length === 0 ? (
+        <p className="dash-state" style={{ margin: 0 }}>
+          Nenhum alerta: nenhuma ação aprovada está vencida ou incompleta.
+        </p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+          {alertas.map((a) => (
+            <li
+              key={a.id}
+              style={{
+                display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start",
+                border: "1px solid var(--line)", borderLeft: `3px solid ${a.atraso === null ? "var(--gold)" : "var(--danger)"}`,
+                borderRadius: 8, padding: "9px 11px",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</div>
+                <div className="card__sub" style={{ fontSize: 10.5 }}>{a.detalhe}</div>
+              </div>
+              <span className={`pill pill--sm ${a.atraso === null ? "pill--gold" : "pill--danger"}`} style={{ flexShrink: 0 }}>
+                {a.atraso === null ? "incompleta" : `${a.atraso}d atraso`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AcoesPrioritariasCard({ acoes, plans, irParaPlano }: { acoes: AcaoPrioritaria[]; plans: ActionPlanData[] | null; irParaPlano: () => void }) {
+  return (
+    <div className="card">
+      <div className="card__head">
+        <div>
+          <h3>Ações prioritárias</h3>
+          <span className="card__sub">As 5 ações aprovadas com o prazo mais próximo.</span>
+        </div>
+        <button className="btn btn--outline-dark btn--sm" onClick={irParaPlano}>Ver todas</button>
+      </div>
+      {plans === null ? (
+        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
+      ) : acoes.length === 0 ? (
+        <p className="dash-state" style={{ margin: 0 }}>
+          Nenhuma ação aprovada em aberto. As sugestões entram aqui depois de aprovadas no Plano de Evolução.
+        </p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+          {acoes.map((a) => (
+            <li
+              key={a.id}
+              style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", border: "1px solid var(--line)", borderRadius: 8, padding: "9px 11px" }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.titulo}</div>
+                <div className="card__sub" style={{ fontSize: 10.5 }}>{a.detalhe}</div>
+              </div>
+              <span className="pill pill--sm" style={{ flexShrink: 0 }}>{ACTION_STATUS_LABEL[a.status] ?? a.status}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RelatoriosRecentesCard({ emissoes, irParaDocumentos }: { emissoes: ReportEmissionMeta[] | null; irParaDocumentos: () => void }) {
+  return (
+    <div className="card">
+      <div className="card__head">
+        <div>
+          <h3>Relatórios recentes</h3>
+          <span className="card__sub">Emissões oficiais — cada uma com número sequencial e hash do conteúdo.</span>
+        </div>
+        <button className="btn btn--outline-dark btn--sm" onClick={irParaDocumentos}>Ver todos</button>
+      </div>
+      {emissoes === null ? (
+        <p className="dash-state" style={{ margin: 0 }}>Carregando…</p>
+      ) : emissoes.length === 0 ? (
+        <p className="dash-state" style={{ margin: 0 }}>
+          Nenhum relatório emitido ainda. A emissão libera quando a campanha é encerrada e o Plano de Evolução é validado.
+        </p>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 8 }}>
+          {emissoes.slice(0, 5).map((e) => (
+            <li
+              key={e.id}
+              style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", border: "1px solid var(--line)", borderRadius: 8, padding: "9px 11px" }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                <div className="card__sub" style={{ fontSize: 10.5 }}>
+                  {new Date(e.createdAt).toLocaleDateString("pt-BR")} · {e.status.toLowerCase()} · hash {e.contentHash.slice(0, 8)}
+                </div>
+              </div>
+              <span className="pill pill--sm pill--outline" style={{ flexShrink: 0 }}>v{e.emissionNumber}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * Fileira executiva do mockup do Portal (22/07): 6 KPIs com DADOS REAIS —
  * participação do diagnóstico organizacional, riscos altos derivados da matriz
@@ -508,7 +470,7 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
  * documentos liberados pelo contrato. Sem número inventado: célula sem dado
  * mostra "—" e explica a origem.
  */
-function ExecutiveKpiRow({ plans, diag, psy, docs }: { plans: ActionPlanData[] | null; diag: DashboardDiagnostic | null; psy: PsychosocialResults | null; docs: DocumentDescriptor[] | null }) {
+function ExecutiveKpiRow({ plans, diag, psy, docs, cobertura }: { plans: ActionPlanData[] | null; diag: DashboardDiagnostic | null; psy: PsychosocialResults | null; docs: DocumentDescriptor[] | null; cobertura: { percent: number; convidados: number; respondidos: number } | null }) {
   const docsAvail = docs ? docs.filter((x) => x.available).length : null;
   const docsTotal = docs ? docs.length : null;
 
@@ -535,19 +497,23 @@ function ExecutiveKpiRow({ plans, diag, psy, docs }: { plans: ActionPlanData[] |
     : "diagnóstico organizacional";
 
   const cells: { label: string; value: string; sub: string; hint: string }[] = [
+    // Cobertura ≠ Participação: participação é quanta gente respondeu;
+    // cobertura é quanta gente respondeu DENTRE OS CONVIDADOS. É a cobertura
+    // que a fiscalização olha — coleta de 19 pessoas num universo de 200 não
+    // cobre a organização.
+    {
+      label: "Cobertura",
+      value: cobertura === null ? "—" : `${cobertura.percent}%`,
+      sub: cobertura === null ? "nenhum convite emitido ainda" : `${cobertura.respondidos} de ${cobertura.convidados} convidado(s)`,
+      hint: "Respondidos ÷ convidados no ciclo mais recente. Sem convites emitidos não há cobertura a medir.",
+    },
     {
       label: "Participação",
       value: respondentes === null ? "—" : String(respondentes),
-      sub: `respondentes · ${nomeDoDiagnostico}`,
+      // Recorte por setor so existe no motor psicossocial; nos demais o numero
+      // nao aparece em vez de virar um zero que parece resultado.
+      sub: setores === null ? `respondentes · ${nomeDoDiagnostico}` : `respondentes · ${setores} setor(es) avaliado(s)`,
       hint: "Respostas válidas de colaboradores no diagnóstico contratado. A autoavaliação do gestor fica à parte.",
-    },
-    // Recorte por setor so existe no motor psicossocial: para os demais o campo
-    // fica "—" em vez de um zero que parece resultado.
-    {
-      label: "Setores avaliados",
-      value: setores === null ? "—" : String(setores),
-      sub: "recortes com supressão de anonimato",
-      hint: "Setores com resultado liberado. Recorte abaixo do mínimo de respondentes fica suprimido para preservar o anonimato.",
     },
     {
       label: "Riscos altos",
@@ -616,12 +582,19 @@ export function DashboardScreen() {
   // KPI, card de relatórios e exportação precisam do MESMO número.
   const [docs, setDocs] = useState<DocumentDescriptor[] | null>(null);
   const [emissoes, setEmissoes] = useState<ReportEmissionMeta[] | null>(null);
+  // Campanhas dão a COBERTURA (respondidos ÷ convidados) e a única série
+  // temporal que existe do lado do diagnóstico; o histórico de ICD dá a outra.
+  const [campanhas, setCampanhas] = useState<CampaignSummary[] | null>(null);
+  const [icdHist, setIcdHist] = useState<IcdCycleHistoryEntry[] | null>(null);
   const [hojeMs, setHojeMs] = useState(0);
   useEffect(() => {
     let vivo = true;
     setHojeMs(Date.now());
     listDocuments().then((d) => { if (vivo) setDocs(d); }).catch(() => { if (vivo) setDocs([]); });
     listReportEmissions().then((e) => { if (vivo) setEmissoes(e); }).catch(() => { if (vivo) setEmissoes([]); });
+    listCampaigns().then((c) => { if (vivo) setCampanhas(c); }).catch(() => { if (vivo) setCampanhas([]); });
+    // 403 aqui é módulo Liderança não contratado — ausência, não falha.
+    getIcdHistory().then((h) => { if (vivo) setIcdHist(h); }).catch(() => { if (vivo) setIcdHist([]); });
     return () => { vivo = false; };
   }, []);
   useEffect(() => {
@@ -633,6 +606,7 @@ export function DashboardScreen() {
     return () => { vivo = false; };
   }, []);
   const icdContratado = modules?.has("icd") ?? false;
+  const govIaContratado = modules?.has("govia") ?? false;
 
   const carregarDiag = useCallback(() => {
     let vivo = true;
@@ -695,6 +669,11 @@ export function DashboardScreen() {
 
   // ── Blocos portados do protótipo ──
   const fatores = useMemo(() => montarFatores(psy, diag), [psy, diag]);
+  const porFator = useMemo(() => montarDistribuicaoPorFator(psy), [psy]);
+  const cobertura = useMemo(() => montarCobertura(campanhas), [campanhas]);
+  const evolCobertura = useMemo(() => montarEvolucaoCobertura(campanhas), [campanhas]);
+  const evolIcd = useMemo(() => montarEvolucaoIcd(icdHist), [icdHist]);
+  const radarIcd = useMemo(() => montarRadarIcd(axesData?.company?.axesAverage), [axesData]);
   const distribuicao = useMemo(() => montarDistribuicao(psy, diag), [psy, diag]);
   const alertas = useMemo(() => (hojeMs ? montarAlertas(plans, hojeMs) : []), [plans, hojeMs]);
   const acoesPrioritarias = useMemo(() => montarAcoesPrioritarias(plans), [plans]);
@@ -803,7 +782,7 @@ export function DashboardScreen() {
 
       {/* Fileira executiva (mockup 22/07) — 6 KPIs reais no topo, acima das abas:
           é o resumo que vale para as três. */}
-      <ExecutiveKpiRow plans={plans} diag={diag} psy={psy} docs={docs} />
+      <ExecutiveKpiRow plans={plans} diag={diag} psy={psy} docs={docs} cobertura={cobertura} />
 
       {diagErro && (
         <p className="dash-state">
@@ -841,6 +820,42 @@ export function DashboardScreen() {
           {/* ══════════════════ PANORAMA ══════════════════ */}
           {aba === "panorama" && (
             <>
+              {/* Duas fileiras de 3 cards, na ordem do protótipo. Ficam ANTES do
+                  checklist e dos KPIs do portal porque é o que o cliente olha
+                  primeiro — e é o que ele comparou com o protótipo. */}
+              <div className="grid grid--3">
+                <EvolucaoCard
+                  title="Evolução por ciclo"
+                  description="Cobertura de cada ciclo de diagnóstico encerrado."
+                  bloco={evolCobertura}
+                  nomeSerie="Cobertura (%)"
+                  cor={COR_SERIE.azul}
+                  motivoSemDado="A curva compara ciclos ENCERRADOS. Com um ciclo só ainda não há tendência — ela aparece quando o segundo for fechado. O risco agregado por ciclo, que o protótipo também traça, depende de um retrato do índice que a plataforma ainda não guarda."
+                />
+                <FatoresPrioritariosCard
+                  bloco={fatores}
+                  acoes={
+                    <button
+                      className="btn btn--outline-dark btn--sm"
+                      onClick={() => goToRoute(diag?.engine === "DIAGNOSTICS" ? "essencial" : "psicossocial")}
+                    >
+                      Detalhes
+                    </button>
+                  }
+                />
+                <DistribuicaoPorFatorCard bloco={porFator} />
+              </div>
+
+              <div className="grid grid--3" style={{ marginTop: 16 }}>
+                <DistribuicaoRiscoCard bloco={distribuicao} />
+                <SemFonteCard
+                  title="Inteligência CRIVO · destaques"
+                  description="Leituras derivadas do diagnóstico, marcadas como fato, inferência ou hipótese."
+                  motivo="Ainda não habilitado neste contrato. Enquanto isso, a leitura interpretada do ciclo sai no Parecer CRIVO e no Dossiê."
+                />
+                <AlertasPrioritariosCard alertas={alertas} carregando={plans === null || hojeMs === 0} irParaPlano={() => goToRoute("relatorios")} />
+              </div>
+
               {/* #65 — Checklist de onboarding (some quando tudo está done). */}
               <OnboardingChecklist />
 
@@ -947,44 +962,51 @@ export function DashboardScreen() {
                 )}
               </div>
 
-              {/* Trio do Panorama do protótipo: fatores prioritários, distribuição
-                  de risco e alertas — agora com o dado real da empresa. */}
-              <div className="grid grid--3" style={{ marginTop: 16 }}>
-                <FatoresPrioritariosCard
-                  bloco={fatores}
-                  acoes={
-                    <button
-                      className="btn btn--outline-dark btn--sm"
-                      onClick={() => goToRoute(diag?.engine === "DIAGNOSTICS" ? "essencial" : "psicossocial")}
-                    >
-                      Detalhes
-                    </button>
-                  }
-                />
-                <DistribuicaoRiscoCard bloco={distribuicao} />
-                <AlertasPrioritariosCard alertas={alertas} carregando={plans === null || hojeMs === 0} irParaPlano={() => goToRoute("relatorios")} />
-              </div>
-
-              {/* Os dois blocos do protótipo que ainda não têm fonte no portal.
-                  Estado honesto, nunca curva inventada (decisão de 23/09). */}
-              <div className="grid grid--2" style={{ marginTop: 16 }}>
-                <SemFonteCard
-                  title="Evolução por ciclo"
-                  description="Cobertura, risco agregado e ações concluídas ao longo dos ciclos."
-                  motivo="A curva compara ciclos fechados. Esta empresa está no primeiro ciclo — a comparação aparece quando o segundo for encerrado."
-                />
-                <SemFonteCard
-                  title="Inteligência CRIVO · destaques"
-                  description="Leituras derivadas do diagnóstico, marcadas como fato, inferência ou hipótese."
-                  motivo="Ainda não habilitado neste contrato. Enquanto isso, a leitura interpretada do ciclo sai no Parecer CRIVO e no Dossiê."
-                />
-              </div>
             </>
           )}
 
           {/* ══════════════════ DIAGNÓSTICOS ══════════════════ */}
           {aba === "diagnosticos" && (
             <>
+              {/* Fileira do protótipo. "Prontidão para IA" e o radar do ICD só
+                  aparecem como programa CONTRATADO: mostrar módulo que a empresa
+                  não comprou foi apontado na homologação de 17/09. */}
+              <div className="grid grid--3" style={{ marginBottom: 16 }}>
+                <EvolucaoCard
+                  title="Evolução do índice"
+                  description="Tendência do índice consolidado entre ciclos fechados."
+                  bloco={evolIcd}
+                  nomeSerie="ICD da empresa"
+                  cor={COR_SERIE.gold}
+                  motivoSemDado="A plataforma não guarda retrato do índice do diagnóstico por ciclo — a curva exige criar esse histórico na API. Hoje a única série fechada é a do ICD trimestral, e ela precisa de dois ciclos encerrados."
+                />
+                <SemFonteCard
+                  title="Prontidão para IA"
+                  description="Índice por dimensão de maturidade (0–100)."
+                  motivo={govIaContratado
+                    ? "O módulo Governança de IA registra casos de uso, riscos, decisões e incidentes — ainda não há um questionário de maturidade que produza índice por dimensão."
+                    : "Programa Governança de IA não contratado. O índice aparece aqui quando o módulo for liberado no contrato."}
+                />
+                {icdContratado && radarIcd ? (
+                  <ChartCard
+                    title="Liderança · ICD agregado"
+                    description="Agregado, sem individualização. Escala 0–100."
+                    source={`4 Eixos do ciclo aberto · ${axesData?.company?.eligibleLeaders ?? 0} líder(es) elegível(is) · supressão §11`}
+                    actions={<button className="btn btn--outline-dark btn--sm" onClick={() => goToRoute("icd")}>Detalhes</button>}
+                  >
+                    <GraficoRadar eixos={radarIcd} max={100} />
+                  </ChartCard>
+                ) : (
+                  <SemFonteCard
+                    title="Liderança · ICD agregado"
+                    description="Agregado dos 4 Eixos, sem individualização (§11)."
+                    motivo={icdContratado
+                      ? "Nenhum ciclo trimestral com decisões avaliadas ainda, ou volume abaixo do mínimo de líderes para liberar o agregado (§11)."
+                      : "Programa Liderança (ICD) não contratado. Os eixos aparecem aqui quando o módulo for liberado no contrato."}
+                  />
+                )}
+              </div>
+
               {/* O resultado das respostas dos colaboradores. Só aparece no motor de
                   diagnósticos: no psicossocial quem mostra é o card "Fatores
                   Psicossociais", logo abaixo — o mesmo número duas vezes na tela
@@ -1098,14 +1120,6 @@ export function DashboardScreen() {
                   )}
                 </div>
               )}
-
-              <div style={{ marginTop: 16 }}>
-                <SemFonteCard
-                  title="Evolução do índice"
-                  description="Tendência do índice consolidado do diagnóstico entre ciclos."
-                  motivo="A tendência precisa de pelo menos dois ciclos encerrados. Ela aparece aqui a partir do segundo ciclo desta empresa."
-                />
-              </div>
 
               {/* ─── FRASE OBRIGATÓRIA DE GOVERNANÇA (Anexo ICD §11) ─────────── */}
               {icdContratado && (

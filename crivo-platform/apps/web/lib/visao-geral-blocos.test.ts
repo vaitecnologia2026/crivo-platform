@@ -269,3 +269,111 @@ describe("Convenção de prazo (meio-dia local)", () => {
     expect(amanha[0].atraso).toBe(1);
   });
 });
+
+// ── 2ª rodada (23/09): blocos que o cliente apontou faltando ao comparar com
+// o protótipo, e que TÊM fonte real. ──
+
+import {
+  corDaFaixa,
+  montarCobertura,
+  montarDistribuicaoPorFator,
+  montarEvolucaoCobertura,
+  montarEvolucaoIcd,
+  montarRadarIcd,
+} from "./visao-geral-blocos";
+import type { CampaignSummary, IcdCycleHistoryEntry } from "@crivo/types";
+
+function comPerfil(perfil: unknown[]): PsychosocialResults {
+  return {
+    minRespondents: 5,
+    totalRespondents: 12,
+    overall: { suppressed: false, score: 58, level: "MODERADO", byDimension: {}, topRisk: "dim-1", profile: perfil },
+    sectors: [],
+  } as unknown as PsychosocialResults;
+}
+
+function campanha(over: Partial<CampaignSummary>): CampaignSummary {
+  return {
+    id: "c1", name: "Ciclo", description: null, sector: null, publicSlug: null,
+    startsAt: null, endsAt: null, reminderAt: null, reminderSentAt: null,
+    closedAt: null, status: "OPEN", createdAt: "2026-01-10T12:00:00.000Z",
+    respondentes: 0, convidados: 0, respondidos: 0, adesao: 0,
+    ...over,
+  } as unknown as CampaignSummary;
+}
+
+describe("Distribuição por fator (empilhado 100%)", () => {
+  it("vira uma linha por dimensão, com os percentuais que a API mandou", () => {
+    const bloco = montarDistribuicaoPorFator(comPerfil([
+      { slug: "dim-1", label: "Demandas", respondents: 12, byBand: [
+        { code: "CRIT", label: "Crítico", count: 3, percent: 25 },
+        { code: "MED", label: "Atenção", count: 3, percent: 25 },
+        { code: "BOM", label: "Adequado", count: 6, percent: 50 },
+      ] },
+    ]));
+    expect(bloco).not.toBeNull();
+    expect(bloco!.linhas).toHaveLength(1);
+    expect(bloco!.linhas[0].segmentos.map((x) => x.percent)).toEqual([25, 25, 50]);
+    // As faixas fecham 100% — se não fechassem, a barra empilhada mentiria.
+    expect(bloco!.linhas[0].segmentos.reduce((n, x) => n + x.percent, 0)).toBe(100);
+    expect(bloco!.faixas.map((f) => f.rotulo)).toEqual(["Crítico", "Atenção", "Adequado"]);
+  });
+
+  it("a PRIMEIRA faixa é a crítica e sai em vermelho; a última, em azul", () => {
+    expect(corDaFaixa(0, 3)).toBe("var(--danger)");
+    expect(corDaFaixa(2, 3)).toBe("var(--azul-cobalto)");
+  });
+
+  it("sem faixas na metodologia não há perfil — devolve null em vez de barra vazia", () => {
+    expect(montarDistribuicaoPorFator(comPerfil([]))).toBeNull();
+    expect(montarDistribuicaoPorFator(null)).toBeNull();
+  });
+});
+
+describe("Cobertura e evolução (campanhas)", () => {
+  it("cobertura é respondidos ÷ convidados do ciclo mais recente", () => {
+    const c = montarCobertura([
+      campanha({ id: "velha", closedAt: "2026-02-01T12:00:00.000Z", convidados: 10, respondidos: 5, adesao: 50 }),
+      campanha({ id: "nova", closedAt: "2026-08-01T12:00:00.000Z", convidados: 20, respondidos: 17, adesao: 85 }),
+    ]);
+    expect(c).toEqual({ percent: 85, convidados: 20, respondidos: 17 });
+  });
+
+  it("sem convite emitido não há cobertura a medir (null, não 0%)", () => {
+    expect(montarCobertura([campanha({ convidados: 0 })])).toBeNull();
+    expect(montarCobertura([])).toBeNull();
+  });
+
+  it("evolução usa só ciclos ENCERRADOS, na ordem em que fecharam", () => {
+    const e = montarEvolucaoCobertura([
+      campanha({ id: "b", closedAt: "2026-08-01T12:00:00.000Z", adesao: 85 }),
+      campanha({ id: "aberta", closedAt: null, adesao: 10 }),
+      campanha({ id: "a", closedAt: "2026-02-01T12:00:00.000Z", adesao: 50 }),
+    ]);
+    expect(e!.valores).toEqual([50, 85]);
+  });
+});
+
+describe("Evolução do ICD e radar dos 4 Eixos", () => {
+  const ciclo = (ano: number, tri: number, score: number | null, suppressed = false): IcdCycleHistoryEntry => ({
+    cycle: { id: `${ano}-${tri}`, name: "", quarter: tri, year: ano, startsAt: "", endsAt: "", status: "CLOSED", closedAt: null },
+    company: { score, suppressed, eligibleLeaders: 6, axesAverage: null, band: null, computedAt: "" },
+  } as unknown as IcdCycleHistoryEntry);
+
+  it("ordena por ano/trimestre e descarta ciclo suprimido ou sem score", () => {
+    const e = montarEvolucaoIcd([ciclo(2026, 2, 71), ciclo(2026, 1, 64), ciclo(2025, 4, 80, true), ciclo(2026, 3, null)]);
+    expect(e!.rotulos).toEqual(["1T/26", "2T/26"]);
+    expect(e!.valores).toEqual([64, 71]);
+  });
+
+  it("radar traz os 4 eixos na ordem oficial, com rótulo curto", () => {
+    const r = montarRadarIcd({ CLAREZA: 72.4, CRITERIO: 65, ALINHAMENTO: 58, SUSTENTACAO: 80 });
+    expect(r!.map((e) => e.rotulo)).toEqual(["Clareza", "Critério", "Alinhamento", "Sustentação"]);
+    expect(r![0].valor).toBe(72);
+  });
+
+  it("ciclo sem nenhuma decisão avaliada (tudo zero) não vira radar vazio", () => {
+    expect(montarRadarIcd({ CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 })).toBeNull();
+    expect(montarRadarIcd(null)).toBeNull();
+  });
+});

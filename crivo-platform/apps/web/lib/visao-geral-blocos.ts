@@ -9,10 +9,14 @@
 // Mesmo arranjo de `workforce-aggregates.ts`.
 
 import {
+  ICD_AXES,
+  ICD_AXIS_LABEL,
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
   type ActionItemData,
   type ActionPlanData,
   type ActionStatus,
+  type CampaignSummary,
+  type IcdCycleHistoryEntry,
 } from "@crivo/types";
 import type { DashboardDiagnostic, PsychosocialResults } from "./api";
 
@@ -219,4 +223,118 @@ export function montarAcoesPrioritarias(plans: ActionPlanData[] | null): AcaoPri
       detalhe: `${it.responsible ?? "sem responsável"} · ${it.dueDate ? `prazo ${new Date(it.dueDate).toLocaleDateString("pt-BR")}` : "sem prazo"}`,
       status: it.status,
     }));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Blocos da 2ª rodada (23/09): o cliente comparou com o protótipo e apontou o
+// que faltava. Estes três TÊM fonte real e eu não os tinha construído.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type SegmentoFaixa = { rotulo: string; percent: number; cor: string };
+export type LinhaDistribuicao = { chave: string; rotulo: string; segmentos: SegmentoFaixa[] };
+export type BlocoPorFator = { linhas: LinhaDistribuicao[]; faixas: { rotulo: string; cor: string }[]; fonte: string };
+
+/**
+ * Cor da faixa pela POSIÇÃO. A API devolve as faixas em ordem crescente de
+ * pontuação e a PRIMEIRA é a crítica (menor pontuação = maior risco). O `byBand`
+ * traz código e rótulo, mas não cor — então a escala é daqui: pior em vermelho,
+ * melhor em azul, como no protótipo.
+ */
+export function corDaFaixa(indice: number, total: number): string {
+  if (total <= 1) return "var(--gold)";
+  if (indice === 0) return "var(--danger)";
+  if (indice === total - 1) return "var(--azul-cobalto)";
+  return indice < total / 2 ? "var(--gold-deep)" : "var(--gold)";
+}
+
+/**
+ * "Distribuição por fator" do protótipo: das pessoas que responderam, quantas
+ * (%) caíram em cada faixa, dimensão a dimensão. Vem de `overall.profile`, o
+ * mesmo dado que a tela do Psicossocial já mostra como tabela ("Perfil de
+ * grupo") — a média sozinha esconde concentração na faixa crítica.
+ */
+export function montarDistribuicaoPorFator(psy: PsychosocialResults | null): BlocoPorFator | null {
+  const geral = psy && !psy.overall.suppressed ? psy.overall : null;
+  const perfil = geral?.profile;
+  if (!perfil || perfil.length === 0 || !perfil[0].byBand?.length) return null;
+  const faixas = perfil[0].byBand.map((b, i) => ({
+    rotulo: b.label,
+    cor: corDaFaixa(i, perfil[0].byBand.length),
+  }));
+  const linhas = perfil.slice(0, 8).map((r) => ({
+    chave: r.slug,
+    rotulo: r.label,
+    segmentos: r.byBand.map((b, i) => ({
+      rotulo: b.label,
+      percent: b.percent,
+      cor: corDaFaixa(i, r.byBand.length),
+    })),
+  }));
+  return {
+    linhas,
+    faixas,
+    fonte: `Perfil de grupo · ${psy!.totalRespondents} respondente(s) · % de pessoas em cada faixa da metodologia ativa`,
+  };
+}
+
+export type BlocoEvolucao = { rotulos: string[]; valores: (number | null)[]; fonte: string };
+
+/**
+ * "Evolução por ciclo" — cobertura (adesão) de cada campanha ENCERRADA, na
+ * ordem em que fecharam. É a única série temporal que existe hoje do lado do
+ * diagnóstico: a plataforma não guarda retrato do índice por ciclo, então
+ * "risco agregado por ciclo" do protótipo continua sem fonte.
+ */
+export function montarEvolucaoCobertura(campanhas: CampaignSummary[] | null): BlocoEvolucao | null {
+  if (!campanhas) return null;
+  const fechadas = campanhas
+    .filter((c) => c.closedAt)
+    .sort((a, b) => new Date(a.closedAt!).getTime() - new Date(b.closedAt!).getTime());
+  if (fechadas.length === 0) return null;
+  return {
+    rotulos: fechadas.map((c) => new Date(c.closedAt!).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })),
+    valores: fechadas.map((c) => c.adesao),
+    fonte: `Campanhas encerradas · adesão = respondidos ÷ convidados · ${fechadas.length} ciclo(s)`,
+  };
+}
+
+/** "Evolução do índice" com o que EXISTE: o ICD da empresa por ciclo fechado. */
+export function montarEvolucaoIcd(historico: IcdCycleHistoryEntry[] | null): BlocoEvolucao | null {
+  if (!historico) return null;
+  const comResultado = historico
+    .filter((h) => h.company && !h.company.suppressed && h.company.score != null)
+    .sort((a, b) => a.cycle.year - b.cycle.year || a.cycle.quarter - b.cycle.quarter);
+  if (comResultado.length === 0) return null;
+  return {
+    rotulos: comResultado.map((h) => `${h.cycle.quarter}T/${String(h.cycle.year).slice(2)}`),
+    valores: comResultado.map((h) => h.company!.score),
+    fonte: `Ciclos trimestrais de ICD fechados · escala 0–100 · supressão §11 aplicada`,
+  };
+}
+
+export type EixoIcd = { rotulo: string; valor: number };
+
+/** Os 4 Eixos do ICD como radar — o formato do protótipo. */
+export function montarRadarIcd(axesAverage: Record<string, number> | null | undefined): EixoIcd[] | null {
+  if (!axesAverage) return null;
+  const eixos = ICD_AXES.map((ax) => ({
+    rotulo: ICD_AXIS_LABEL[ax].replace(" Decisória", "").replace(" Decisório", ""),
+    valor: Math.round(axesAverage[ax] ?? 0),
+  }));
+  return eixos.some((e) => e.valor > 0) ? eixos : null;
+}
+
+/**
+ * KPI "Cobertura" do protótipo: adesão do ciclo mais recente (encerrado ou, na
+ * falta, o aberto). Não é a mesma coisa que "Participação" — participação é
+ * quantos responderam, cobertura é quantos dos CONVIDADOS responderam.
+ */
+export function montarCobertura(campanhas: CampaignSummary[] | null): { percent: number; convidados: number; respondidos: number } | null {
+  if (!campanhas || campanhas.length === 0) return null;
+  const ordenadas = [...campanhas].sort(
+    (a, b) => new Date(b.closedAt ?? b.createdAt).getTime() - new Date(a.closedAt ?? a.createdAt).getTime(),
+  );
+  const alvo = ordenadas.find((c) => c.convidados > 0);
+  if (!alvo) return null;
+  return { percent: alvo.adesao, convidados: alvo.convidados, respondidos: alvo.respondidos };
 }
