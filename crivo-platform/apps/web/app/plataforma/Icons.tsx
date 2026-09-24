@@ -96,3 +96,14 @@ export const IconBuilding = (p: IconProps) => (
 export const IconMapPin = (p: IconProps) => (
   <Svg {...p}><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></Svg>
 );
+
+// Barra superior (protótipo: Search e Bell do lucide) — busca global e sino.
+export const IconSearch = (p: IconProps) => (
+  <Svg {...p}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.8-3.8" /></Svg>
+);
+export const IconBell = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+    <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+  </Svg>
+);

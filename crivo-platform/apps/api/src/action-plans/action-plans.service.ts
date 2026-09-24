@@ -41,13 +41,18 @@ export class ActionPlansService {
     private readonly riskSuggestions: RiskSuggestionsService,
   ) {}
 
-  async list(tenantId: string): Promise<ActionPlanData[]> {
+  /**
+   * `gerar: false` só LÊ. O sino, a central de Notificações e a busca do portal
+   * consultam o plano a cada login, volta de foco e Ctrl+K — a geração
+   * automática (IA + gravação) não pode rodar a reboque disso.
+   */
+  async list(tenantId: string, opts: { gerar?: boolean } = {}): Promise<ActionPlanData[]> {
     // A ação NASCE aqui. A IA recomenda a partir do risco/fator já classificado
     // e a recomendação entra direto no Plano de Evolução como SUGERIDA, com o
     // vínculo do fator e do cálculo que a originou. Não é criada no Diagnóstico
     // nem no Dossiê e copiada para cá: existe uma ação só, num plano só.
     // Idempotente por `@@unique([planId, suggestionKey])`.
-    await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
+    if (opts.gerar !== false) await this.riskSuggestions.gerarPlanoAutomatico(tenantId).catch(() => 0);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plans = await tx.actionPlan.findMany({
         orderBy: { createdAt: 'desc' },

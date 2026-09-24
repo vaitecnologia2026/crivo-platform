@@ -94,19 +94,12 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
           <span class="bc__current" id="bcCurrent">Visão Executiva</span>
         </div>
         <div class="topbar__actions">
-          <div class="search">
-            <span>⌕</span>
-            <input type="text" placeholder="Buscar líder, área, indicador..." />
-          </div>
-          <!-- Sineta: navega ao Dashboard via id notifBtn (wiring do Plataforma.tsx,
-               lado do push/FCM); ícone SVG de traço (sem emoji de sistema no produto). -->
-          <button class="icon-btn" id="notifBtn" type="button" title="Notificações" aria-label="Notificações">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-              <path d="M6 9.5a6 6 0 1 1 12 0c0 3.8 1.3 5.3 1.9 5.9H4.1c.6-.6 1.9-2.1 1.9-5.9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-              <path d="M10.2 18.4a2 2 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-            <span class="badge-dot"></span>
-          </button>
+          <!-- Barra do protótipo Lovable (app-header): busca global Ctrl/⌘K e sino
+               com o nº de avisos reais não lidos. Ilhas React (GlobalSearch,
+               NotificationBell) montadas pelo Plataforma.tsx. O campo de busca
+               que ficava aqui era decorativo — não buscava nada. -->
+          <div id="search-root" class="search-host"></div>
+          <div id="bell-root" class="bell-host"></div>
           <div class="user-chip">
             <div class="user-chip__avatar">RM</div>
             <div>
@@ -126,6 +119,9 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
           <button class="icon-btn" id="logoutBtn" title="Sair">↶</button>
         </div>
       </header>
+      <!-- Faixa de contexto (protótipo: EMPRESA · PERFIL · CONTRATAÇÃO) — ilha
+           TopbarContext; vazia até a sessão carregar (e aí some pelo :empty). -->
+      <div id="context-root" class="topbar-context-host"></div>
 
       <!-- ============ DASHBOARD ============ -->
       <section class="route is-active" data-route="dashboard">
@@ -239,6 +235,9 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
       </section>
       <section class="route" data-route="contratacao">
         <div id="contratacao-root"></div>
+      </section>
+      <section class="route" data-route="notificacoes">
+        <div id="notificacoes-root"></div>
       </section>
       <section class="route" data-route="suporte">
         <div id="suporte-root"></div>

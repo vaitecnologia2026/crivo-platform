@@ -506,6 +506,11 @@ export function removeLibraryItem(id: string): Promise<{ ok: true }> {
 export function listActionPlans(): Promise<ActionPlanData[]> {
   return apiFetch<ActionPlanData[]>('/action-plans');
 }
+/** Só leitura (?gerar=0): para o sino, a central e a busca da barra superior,
+ *  que leem o plano a cada login/foco — sem disparar a geração automática. */
+export function listActionPlansReadOnly(): Promise<ActionPlanData[]> {
+  return apiFetch<ActionPlanData[]>('/action-plans?gerar=0');
+}
 /** Escopos possíveis de uma ação além da Organização: os GHEs ELEGÍVEIS do
  *  ciclo (Dossiê Organizacional). Lista vazia fora do Organizacional. */
 export function listGhesDoPlano(): Promise<{ ghes: { value: string; label: string }[] }> {

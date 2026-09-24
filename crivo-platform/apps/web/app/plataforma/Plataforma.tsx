@@ -115,7 +115,19 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
-import { DEFAULT_ROUTE, homeForRole, routeAccess, routeMeta, routeMethods, routeOwnerMethods } from "./nav.config";
+import { DEFAULT_ROUTE, NAV, homeForRole, routeAccess, routeMeta, routeMethods, routeOwnerMethods } from "./nav.config";
+import { GlobalSearch } from "./GlobalSearch";
+import { NotificationBell } from "./NotificationBell";
+import { TopbarContext } from "./TopbarContext";
+import { NotificacoesScreen } from "./NotificacoesScreen";
+import {
+  endPortalSession,
+  refreshPortalData,
+  sessionKeyFromToken,
+  setPortalNavigator,
+  startPortalSession,
+} from "@/lib/portal-shell";
+import type { SearchRoute } from "@/lib/portal-search";
 
 // Porte fiel do protótipo CRIVO-PLATAFORMA: o markup original é renderizado e a
 // interatividade do app.js (login, router SPA, likert, quiz, chat, animações de
@@ -301,11 +313,21 @@ export function Plataforma() {
       return null;
     }
 
+    // Rótulo estático de cada rota (nav.config) — volta a valer quando a
+    // empresa da sessão NOVA não tem solução para o item. Sem isso, sair de uma
+    // empresa e entrar em outra na mesma aba mantinha no menu (e na busca) o
+    // nome da solução da empresa anterior.
+    const staticLabel = new Map(
+      NAV.flatMap((g) => g.items)
+        .filter((i) => i.route)
+        .map((i) => [i.route!, i.label] as const),
+    );
+
     function applyContractedDiagnosticLabel() {
       navItems.forEach((n) => {
         const r = n.dataset.route;
         if (!r) return;
-        const label = contractedLabelFor(r);
+        const label = contractedLabelFor(r) ?? staticLabel.get(r);
         if (!label) return;
         // O rótulo é o nó de TEXTO ao lado do <span class="ni__ic"> (ver
         // renderNavHtml): trocar só ele preserva ícone, classes e data-route.
@@ -345,6 +367,11 @@ export function Plataforma() {
       if (name === "evidencias") mountIsland("evidencias-root", <EvidenciasScreen />);
       if (name === "documentos") mountIsland("documentos-root", <DocumentosScreen />);
       if (name === "contratacao") mountIsland("contratacao-root", <ContratacaoScreen />);
+      if (name === "notificacoes") {
+        mountIsland("notificacoes-root", <NotificacoesScreen />);
+        // A ilha monta uma vez só: quem atualiza a cada ENTRADA na tela é aqui.
+        void refreshPortalData(30 * 1000);
+      }
       if (name === "suporte") mountIsland("suporte-root", <SuporteScreen />);
       // Programas Plus ainda não implantados: tela honesta de status (nada de mock
       // se passando por funcionalidade — DoD v3.1). Ativados via contratação.
@@ -384,6 +411,40 @@ export function Plataforma() {
       }
     });
 
+    // ---------- BARRA SUPERIOR (protótipo Lovable › app-header) ----------
+    // Busca Ctrl/⌘K, sino e faixa Empresa · Perfil · Contratação. Leem o store
+    // compartilhado (lib/portal-shell), que o enterApp alimenta e o logout zera;
+    // pedem tela ao shell pelo navegador abaixo (setRoute já degrada para o
+    // painel se a rota não estiver liberada).
+    setPortalNavigator((route) => {
+      // A paleta de busca vive fora do .main e da nav (portal no body): sem
+      // isto, navegar por ela deixava a gaveta do menu aberta no celular.
+      document.querySelector(".sidebar")?.classList.remove("is-open");
+      setRoute(route);
+    });
+    cleanups.push(() => setPortalNavigator(null));
+    // Montagem adiada um tique: no StrictMode (dev) o efeito roda 2×, e o
+    // cleanup só desmonta as ilhas num setTimeout — montar de forma síncrona
+    // pegaria o container ainda preso à raiz anterior.
+    const topbarTimer = setTimeout(() => {
+      mountIsland("search-root", <GlobalSearch />);
+      mountIsland("bell-root", <NotificationBell />);
+      mountIsland("context-root", <TopbarContext />);
+    }, 0);
+    cleanups.push(() => clearTimeout(topbarTimer));
+
+    /** Telas que o menu mostra agora, com o rótulo exibido (o nome da solução
+     *  contratada no item do diagnóstico) — é o "Tela" da busca e o que decide
+     *  quais fontes o sino pode pedir. Vem da config + regra de acesso, não do
+     *  texto do DOM. */
+    function visibleMenu(): SearchRoute[] {
+      return NAV.flatMap((g) =>
+        g.items
+          .filter((i) => i.route && !i.hidden && routeVisible(i.route))
+          .map((i) => ({ route: i.route!, label: contractedLabelFor(i.route!) ?? i.label, group: g.title })),
+      );
+    }
+
     // ---------- ENTRADA NA PLATAFORMA (login novo OU restauração de sessão) ----------
     // Reutilizado pelo submit do login e pela restauração no F5. Carrega o acesso
     // (módulos/permissões/branding) ANTES de decidir a HOME — assim a home-por-papel
@@ -396,6 +457,12 @@ export function Plataforma() {
       resetIdentityChrome();
       carregadoEm = Date.now();
       let accessLoaded = false;
+      // Faixa de contexto da barra superior (Empresa · Perfil · Contratação).
+      let ctxOrg: string | null = null;
+      let ctxRole: string | null = role;
+      // null = não deu para saber (falha), [] = respondeu sem contrato ativo.
+      let ctxContracted: string[] | null = null;
+      let ctxGroup = false;
       try {
         // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
         // o Promise.all inteiro e pular o applyUserChip / a visibilidade.
@@ -436,11 +503,31 @@ export function Plataforma() {
         removeBranding?.();
         removeBranding = applyBranding(branding);
         accessLoaded = true;
+        ctxOrg = org?.name ?? null;
+        ctxRole = me?.role ?? role;
+        ctxContracted = diag
+          ? Array.from(
+              new Set(contractedList.length ? contractedList.map((c) => c.productName) : diag.productName ? [diag.productName] : []),
+            )
+          : null;
+        ctxGroup = mods.includes("grupo");
         routerLog.info(`módulos: ${mods.join(", ") || "—"} · permissões: ${perms.join(", ") || "—"}`);
       } catch (err) {
         // 401 (sessão expirada) já é tratado pelo apiFetch (limpa token + volta ao login).
         routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
       }
+      // Alimenta a barra superior (sino, busca, faixa de contexto). Sem acesso
+      // carregado o menu vai null: a busca oferece todas as telas e a API gateia.
+      startPortalSession(
+        {
+          userKey: sessionKeyFromToken(),
+          orgName: ctxOrg,
+          roleLabel: ctxRole ? (ROLE_LABELS[ctxRole as Role] ?? ctxRole) : null,
+          contracted: ctxContracted,
+          hasGroup: ctxGroup,
+        },
+        accessLoaded ? visibleMenu() : null,
+      );
       login.classList.remove("is-active");
       app.classList.add("is-active");
       // Registra push (FCM) do dispositivo — no-op no navegador, só age no app nativo.
@@ -518,6 +605,7 @@ export function Plataforma() {
       clearToken();
       clearCachedRole();
       resetIdentityChrome();
+      endPortalSession(); // sino, busca e faixa de contexto não sobrevivem ao logout
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
@@ -622,11 +710,11 @@ export function Plataforma() {
     // depois que /me/role responde.
     exigirTrocaDeSenha = () => openChangePassword(true);
 
-    // Sineta de notificações → Dashboard (card "Notificações & travas
-    // operacionais"). setRoute já degrada pro DEFAULT_ROUTE se o papel não
-    // tiver acesso — sem isso o botão era um ícone morto (Apple 2.1a).
-    const notifBtn = document.getElementById("notifBtn");
-    if (notifBtn) on(notifBtn, "click", () => setRoute(DEFAULT_ROUTE));
+    // Sino: agora é a ilha NotificationBell (abre a central de Notificações).
+    // Aba de volta ao foco: recarrega os avisos se têm mais de 2 min.
+    on(document, "visibilitychange", () => {
+      if (document.visibilityState === "visible") void refreshPortalData(2 * 60 * 1000);
+    });
 
     // #66 — Mobile drawer da sidebar. Toggle pelo botão hambúrguer; fecha
     // automaticamente ao clicar num item da nav ou no overlay/main.

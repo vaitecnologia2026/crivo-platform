@@ -104,8 +104,10 @@ export class ActionPlansController {
 
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Get()
-  list(@CurrentUser() user: SessionUser) {
-    return this.plans.list(user.tenantId);
+  list(@CurrentUser() user: SessionUser, @Query('gerar') gerar?: string) {
+    // ?gerar=0 = só leitura (sino/busca do portal): mesmos guards, sem a
+    // geração automática do plano.
+    return this.plans.list(user.tenantId, { gerar: gerar !== '0' });
   }
 
   /** §8 — Ações sugeridas automaticamente a partir do diagnóstico (tensão dominante). */

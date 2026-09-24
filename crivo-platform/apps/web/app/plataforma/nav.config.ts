@@ -321,6 +321,15 @@ export const NAV: NavGroup[] = [
         breadcrumb: { path: 'Administração', current: 'Minha Contratação' },
       },
       {
+        // Central de Notificações (protótipo Lovable › Administração). Sem
+        // módulo nem permissão: cada aviso vem de uma fonte que já é gateada
+        // pela API, e quem não lê nenhuma vê a central vazia.
+        route: 'notificacoes',
+        label: 'Notificações',
+        icon: 'bell',
+        breadcrumb: { path: 'Administração', current: 'Notificações' },
+      },
+      {
         route: 'historico',
         label: 'Histórico & Auditoria',
         icon: 'history',
