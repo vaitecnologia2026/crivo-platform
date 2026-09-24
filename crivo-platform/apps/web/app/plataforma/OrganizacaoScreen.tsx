@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   getMyOrganization,
   updateMyOrganization,
@@ -9,28 +9,44 @@ import {
   getUserSeats,
   getMyModules,
   getDiagnosticContext,
+  getOrganizationOverview,
 } from "@/lib/api";
-import { MODULES, type OrganizationData, type TenantBrandingData, type UserSeats } from "@crivo/types";
-import { IconCheck } from "./Icons";
+import {
+  MODULES,
+  type OrganizationData,
+  type OrganizationOverview,
+  type TenantBrandingData,
+  type UserSeats,
+} from "@crivo/types";
+import { ChartCard } from "./Charts";
+import { IconBuilding, IconCheck, IconMapPin, IconUsers } from "./Icons";
 
 /**
- * Organização (autoatendimento do admin da empresa): dados cadastrais, identidade
- * visual (white-label) e a SOLUÇÃO contratada. Gateado por branding:edit (nav).
+ * Minha Organização — desenho do protótipo (lovable/Portal do Cliente,
+ * src/routes/organizacao.tsx): 4 KPIs, perfil da empresa, distribuição
+ * populacional e panorama por unidade. Lá são constantes de demonstração; aqui
+ * é o cadastro da empresa e o de colaboradores (`/me/organization/overview`).
+ * O que o portal não guarda (data de admissão → tempo de casa) aparece como
+ * "—" dizendo o que falta, no padrão da Visão Geral.
+ *
+ * A edição (dados cadastrais e identidade visual) continua aqui, atrás de
+ * "Editar cadastro"; abre sozinha quando falta razão social ou CNPJ, que
+ * bloqueiam a emissão oficial do Dossiê. Gateado por branding:edit (nav).
  *
  * O card "Plano · Evolução" saiu (homologação 17/09: "retirar camada comercial
- * 'Plano Evolução'"): o plano é o degrau comercial do control plane, confundia
- * com o Plano de Evolução (plano de ação) e não é o que a empresa contratou —
- * ela contratou uma SOLUÇÃO, e é isso que a tela mostra.
+ * 'Plano Evolução'"): a empresa contratou uma SOLUÇÃO, e é isso que a tela mostra.
  */
 export function OrganizacaoScreen() {
   const [org, setOrg] = useState<OrganizationData | null>(null);
   const [branding, setBranding] = useState<TenantBrandingData | null>(null);
   const [seats, setSeats] = useState<UserSeats | null>(null);
+  const [painel, setPainel] = useState<OrganizationOverview | null>(null);
   // Códigos dos módulos liberados (tenant_modules) — a tela lista os NOMES.
   const [modules, setModules] = useState<string[] | null>(null);
   // Soluções contratadas (nome do produto por método). null = sem contrato ativo.
   const [solucoes, setSolucoes] = useState<string[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
+  const [editando, setEditando] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -39,15 +55,18 @@ export function OrganizacaoScreen() {
       getUserSeats().catch(() => null),
       getMyModules().catch(() => []),
       getDiagnosticContext().catch(() => null),
+      getOrganizationOverview().catch(() => null),
     ])
-      .then(([o, b, s, m, d]) => {
+      .then(([o, b, s, m, d, p]) => {
         setOrg(o);
         setBranding(b);
         setSeats(s);
         setModules(Array.isArray(m) ? m : null);
+        setPainel(p);
         const nomes = (d?.contracted?.length ? d.contracted.map((c) => c.productName) : d?.productName ? [d.productName] : [])
           .filter((n): n is string => !!n);
         setSolucoes(nomes.length ? Array.from(new Set(nomes)) : null);
+        setEditando(!o.legalName || !o.taxId);
         setStatus("ok");
       })
       .catch(() => setStatus("error"));
@@ -57,55 +76,172 @@ export function OrganizacaoScreen() {
   if (status === "error" || !org || !branding)
     return <div className="dash-state dash-state--error">Não foi possível carregar a organização.</div>;
 
+  const recursos = (modules ?? [])
+    .map((code) => MODULES.find((m) => m.code === code)?.name ?? code)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const semCadastro = !painel || painel.collaborators === 0;
+  const unidadesCards = painel
+    ? [
+        ...painel.units,
+        ...(painel.units.length > 0 && painel.withoutUnit > 0
+          ? [{ name: "Unidade não informada", people: painel.withoutUnit, areas: null, manager: null, managers: 0 }]
+          : []),
+      ]
+    : [];
+
   return (
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Organização</h1>
-          <p className="page-sub">Dados da empresa, identidade visual e solução ativa — autoatendimento.</p>
+          <h1 className="page-title">Minha Organização</h1>
+          <p className="page-sub">Perfil corporativo, estrutura e dados demográficos.</p>
+        </div>
+        <div className="route__actions">
+          <button className="btn btn--outline-dark btn--sm" onClick={() => setEditando((v) => !v)} aria-expanded={editando}>
+            {editando ? "Fechar edição" : "Editar cadastro"}
+          </button>
         </div>
       </div>
 
-      {/* Solução & uso */}
-      <div className="kpi-grid" style={{ marginBottom: 20 }}>
-        <div className="kpi">
-          <span className="kpi__label">Solução ativa</span>
-          <strong className="kpi__value" style={{ fontSize: solucoes && solucoes.length > 1 ? 16 : 20, color: "var(--gold-deep)" }}>
-            {solucoes ? solucoes.join(" · ") : "Sem contrato ativo"}
-          </strong>
-          {/* Status vem do contrato: a solução só aparece aqui quando há contrato ativo. */}
-          <span className="kpi__delta">
-            {solucoes ? "Contrato ativo" : "A solução é liberada pelo contrato, no Super Admin."}
-          </span>
+      <div className="kpi-grid">
+        <Kpi
+          label="Colaboradores"
+          value={painel ? painel.collaborators.toLocaleString("pt-BR") : "—"}
+          sub={
+            semCadastro
+              ? "Nenhum colaborador cadastrado"
+              : org.employeesCount
+                ? `cadastrados · ${org.employeesCount} declarados`
+                : "cadastrados"
+          }
+        />
+        <Kpi
+          label="Unidades"
+          value={painel && painel.units.length > 0 ? painel.units.length : "—"}
+          sub={painel && painel.units.length > 0 ? undefined : "Não informadas no cadastro"}
+        />
+        <Kpi
+          label="Áreas mapeadas"
+          value={painel && painel.areas > 0 ? painel.areas : "—"}
+          sub={painel && painel.areas > 0 ? undefined : "Não informadas no cadastro"}
+        />
+        <Kpi label="Tempo médio de casa" value="—" sub="O cadastro não tem data de admissão" />
+      </div>
+
+      <div className="grid grid--org">
+        <div className="card">
+          <div className="org-card__title">
+            <IconBuilding size={16} style={{ color: "var(--gold)" }} />
+            <h3>{org.name || "Empresa"}</h3>
+          </div>
+          <p className="org-card__text">
+            {solucoes ? `Programa CRIVO ativo com ${listaPtBr(solucoes)}.` : "Sem solução CRIVO contratada no momento."}
+            {recursos.length > 0 && ` Recursos liberados: ${recursos.join(" · ")}.`}
+          </p>
+          <div className="org-info">
+            <Info label="CNPJ" value={org.taxId} />
+            <Info label="Razão social" value={org.legalName} />
+            <Info label="Estabelecimento avaliado" value={org.establishment} />
+            <Info label="Modelo de trabalho" value={org.workModel} />
+            <Info label="Usuários" value={seats ? `${seats.active} ativos / ${seats.max == null ? "sem limite" : seats.max}` : null} />
+            <Info label="Ciclo CRIVO ativo" value={painel?.activeCycle ?? "Nenhuma campanha aberta"} />
+          </div>
         </div>
-        <div className="kpi">
-          <span className="kpi__label">Usuários</span>
-          <strong className="kpi__value" style={{ fontSize: 26 }}>
-            {seats ? `${seats.active} / ${seats.max == null ? "∞" : seats.max}` : "—"}
-          </strong>
-          <span className="kpi__delta">ativos / limite</span>
-        </div>
-        <div className="kpi">
-          <span className="kpi__label">Recursos liberados</span>
-          <strong className="kpi__value" style={{ fontSize: 26 }}>{modules ? modules.length : "—"}</strong>
-          {/* Nomes, não códigos: "campanhas, relatórios…" é o que a empresa contratou. */}
-          {modules && modules.length > 0 && (
-            <span className="kpi__delta">
-              {modules
-                .map((code) => MODULES.find((m) => m.code === code)?.name ?? code)
-                .sort((a, b) => a.localeCompare(b, "pt-BR"))
-                .join(" · ")}
-            </span>
+
+        <div className="card">
+          <div className="org-card__title">
+            <IconUsers size={16} style={{ color: "var(--gold)" }} />
+            <h3>Distribuição populacional</h3>
+          </div>
+          {semCadastro || !painel ? (
+            <p className="dash-state" style={{ margin: 0 }}>
+              Cadastre os colaboradores com a área para ver a distribuição.
+            </p>
+          ) : (
+            <ul className="org-dist">
+              {painel.distribution.map((d) => (
+                <li key={d.area} title={`${d.people} pessoa(s)`}>
+                  <span>{d.area}</span>
+                  <strong>{d.percent}%</strong>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
 
-      <div className="grid grid--2">
-        <DadosCard org={org} onSaved={setOrg} />
-        <BrandingCard branding={branding} onSaved={setBranding} />
-      </div>
+      <ChartCard title="Unidades" description="Panorama por unidade organizacional." source="Cadastro de colaboradores">
+        {unidadesCards.length === 0 ? (
+          <p className="dash-state" style={{ margin: 0 }}>
+            Nenhuma unidade informada no cadastro de colaboradores. Preencha a coluna “Unidade” na importação para ver o panorama.
+          </p>
+        ) : (
+          <div className="org-units">
+            {unidadesCards.map((u) => (
+              <div key={u.name} className="org-unit">
+                <div className="org-unit__name">
+                  <IconMapPin size={15} style={{ color: "var(--gold)" }} />
+                  <span>{u.name}</span>
+                </div>
+                <div className="org-unit__sub">
+                  {u.manager
+                    ? `Gestor local: ${u.manager}`
+                    : u.managers > 1
+                      ? `${u.managers} gestores`
+                      : "Gestor local não informado"}
+                </div>
+                <div className="org-unit__pills">
+                  <span className="pill pill--sm pill--outline">{u.people} {u.people === 1 ? "pessoa" : "pessoas"}</span>
+                  {u.areas !== null && (
+                    <span className="pill pill--sm pill--outline">{u.areas} {u.areas === 1 ? "área" : "áreas"}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ChartCard>
+
+      {editando && (
+        <>
+          {(!org.legalName || !org.taxId) && (
+            <p className="prod-note" style={{ margin: "24px 0 12px" }}>
+              Falta razão social ou CNPJ: sem eles a emissão oficial do Dossiê Técnico fica bloqueada.
+            </p>
+          )}
+          <div className="grid grid--2" style={{ marginTop: 24 }}>
+            <DadosCard org={org} onSaved={setOrg} />
+            <BrandingCard branding={branding} onSaved={setBranding} />
+          </div>
+        </>
+      )}
     </>
   );
+}
+
+function Kpi({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+  return (
+    <div className="kpi">
+      <span className="kpi__label">{label}</span>
+      <strong className="kpi__value" style={{ fontSize: 30 }}>{value}</strong>
+      {sub && <span className="kpi__delta kpi__delta--neutral">{sub}</span>}
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <div className="org-info__label">{label}</div>
+      <div className="org-info__value">{value || "—"}</div>
+    </div>
+  );
+}
+
+/** "A", "A e B", "A, B e C". */
+function listaPtBr(itens: string[]): string {
+  if (itens.length <= 1) return itens.join("");
+  return `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`;
 }
 
 // ───────────────────────── Dados cadastrais ─────────────────────────

@@ -90,3 +90,9 @@ export const IconRefresh = (p: IconProps) => (<Svg {...p}><path d="M20 12a8 8 0 
 export const IconUsers = (p: IconProps) => (
   <Svg {...p}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0113 0" /><path d="M16 4.5a3.5 3.5 0 010 7" /><path d="M17 13.5a6.5 6.5 0 014.5 6.5" /></Svg>
 );
+export const IconBuilding = (p: IconProps) => (
+  <Svg {...p}><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2" /><path d="M10.5 21v-3h3v3" /></Svg>
+);
+export const IconMapPin = (p: IconProps) => (
+  <Svg {...p}><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></Svg>
+);

@@ -19,7 +19,9 @@ import {
   type TenantBrandingData,
   type TermsStatus,
   type OrganizationData,
+  type OrganizationOverview,
 } from '@crivo/types';
+import { resumoDaOrganizacao } from './organization-overview';
 
 /**
  * Diagnóstico built-in de cada MÉTODO do contrato. O mapa NÃO é convenção nova:
@@ -588,6 +590,31 @@ export class MeController {
         employeesCount: o?.employeesCount ?? null,
         workModel: o?.workModel ?? null,
       };
+    });
+  }
+
+  /**
+   * Painel da tela "Minha Organização": população, unidades e áreas agregadas
+   * do cadastro de colaboradores + a campanha aberta. Gateado por
+   * `branding:edit`, o mesmo da tela (sai nome de gestor de unidade).
+   */
+  @Get('organization/overview')
+  @UseGuards(AuthGuard, PermissionGuard)
+  @RequirePermission('branding:edit')
+  organizationOverview(@CurrentUser() user: SessionUser): Promise<OrganizationOverview> {
+    return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const [colaboradores, ciclo] = await Promise.all([
+        tx.collaborator.findMany({
+          where: { tenantId: user.tenantId },
+          select: { area: true, sector: true, unit: true, manager: true },
+        }),
+        tx.assessmentCycle.findFirst({
+          where: { tenantId: user.tenantId, status: 'OPEN' },
+          orderBy: { createdAt: 'desc' },
+          select: { name: true },
+        }),
+      ]);
+      return resumoDaOrganizacao(colaboradores, ciclo?.name ?? null);
     });
   }
 

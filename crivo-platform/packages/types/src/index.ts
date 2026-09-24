@@ -148,6 +148,33 @@ export interface UpdateOrganizationRequest {
   workModel?: string | null;
 }
 
+/**
+ * Painel da tela "Minha Organização" (protótipo lovable/Portal do Cliente,
+ * organizacao.tsx). Tudo sai do CADASTRO DE COLABORADORES — não das respostas,
+ * que são anônimas. Área = `area` do cadastro (ou `sector`, quando só ele veio).
+ */
+export interface OrganizationOverview {
+  /** Colaboradores cadastrados. */
+  collaborators: number;
+  /** Áreas distintas informadas. */
+  areas: number;
+  /** % por área; soma 100. "Área não informada" entra por último, se houver. */
+  distribution: { area: string; people: number; percent: number }[];
+  /** Unidades informadas no cadastro, da maior para a menor. */
+  units: {
+    name: string;
+    people: number;
+    areas: number;
+    /** Gestor, quando a unidade tem UM só; senão null (ver `managers`). */
+    manager: string | null;
+    managers: number;
+  }[];
+  /** Colaboradores sem unidade informada. */
+  withoutUnit: number;
+  /** Nome da campanha aberta mais recente (ciclo ativo), ou null. */
+  activeCycle: string | null;
+}
+
 export interface CreateUserResult {
   user: UserSummary;
   /** Senha temporária — só quando gerada pelo sistema. */

@@ -40,6 +40,7 @@ import type {
   CreateUserResult,
   UserSeats,
   OrganizationData,
+  OrganizationOverview,
   UpdateOrganizationRequest,
   SelfAssessmentData,
   SelfAssessmentInstrument,
@@ -470,6 +471,10 @@ export function getMyOrganization(): Promise<OrganizationData> {
 }
 export function updateMyOrganization(dto: UpdateOrganizationRequest): Promise<OrganizationData> {
   return apiFetch<OrganizationData>('/me/organization', { method: 'PUT', body: JSON.stringify(dto) });
+}
+/** Painel da "Minha Organização" (agregado do cadastro de colaboradores). */
+export function getOrganizationOverview(): Promise<OrganizationOverview> {
+  return apiFetch<OrganizationOverview>('/me/organization/overview');
 }
 
 // ── Aceite de termos/LGPD ──
