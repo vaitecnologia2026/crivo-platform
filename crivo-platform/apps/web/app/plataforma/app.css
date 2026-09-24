@@ -534,6 +534,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .ni__ic svg { width: 17px; height: 17px; }
 .nav-item.is-active .ni__ic { opacity: 1; }
 .nav-item:not(.is-active) .ni__ic { opacity: 0.4; }
+/* Menu do portal com os ícones de traço do protótipo (lib/nav-icons): o ícone
+   tem a cor do texto do item, como no Lovable, e não o âmbar a 40% dos glifos.
+   O Super Admin segue com os glifos (.ni__ic sem o modificador). */
+.nav-item .ni__ic.ni__ic--svg,
+.nav-item:not(.is-active) .ni__ic.ni__ic--svg { color: inherit; opacity: 1; }
+.ni__ic--svg svg { width: 16px; height: 16px; }
 
 .sidebar__footer {
   padding: 16px 12px;

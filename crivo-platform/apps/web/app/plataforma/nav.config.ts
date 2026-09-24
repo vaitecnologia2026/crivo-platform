@@ -4,11 +4,16 @@
 // ainda é injetado, mas a nav é GERADA daqui (renderNavHtml). A próxima fatia
 // renderiza a sidebar em React a partir desta mesma estrutura.
 
+// Relativo (não '@/lib'): a nav.config é importada pelo teste do vitest, que
+// não resolve o alias do Next.
+import { navIconSvg, type NavIconName } from '../../lib/nav-icons';
+
 export interface NavItem {
   /** Rota do roteador SPA (data-route). Ausente = item mudo (placeholder). */
   route?: string;
   label: string;
-  icon: string;
+  /** Ícone de traço do protótipo (lib/nav-icons) — nome do ícone no lucide. */
+  icon: NavIconName;
   /** Código do módulo (F4) — esconde no menu se a empresa não tem no plano. */
   module?: string;
   /** Permissão de "ver" (F3) — esconde se o papel não pode. */
@@ -92,14 +97,14 @@ export const NAV: NavGroup[] = [
       {
         route: 'dashboard',
         label: 'Visão Geral',
-        icon: '▣',
+        icon: 'layout-dashboard',
         module: 'dashboard',
         breadcrumb: { path: 'Portal', current: 'Visão Geral Executiva' },
       },
       {
         route: 'organizacao',
         label: 'Minha Organização',
-        icon: '⚙',
+        icon: 'building-2',
         perm: 'branding:edit',
         breadcrumb: { path: 'Portal', current: 'Minha Organização' },
       },
@@ -109,7 +114,7 @@ export const NAV: NavGroup[] = [
         // PRE_DIAGNOSTIC, que é esta tela.
         route: 'essencial',
         label: 'Diagnósticos',
-        icon: '✦',
+        icon: 'clipboard-list',
         module: 'campanhas',
         methods: ['INICIAL', 'ESSENCIAL'],
         ownerMethods: ['INICIAL', 'ESSENCIAL'],
@@ -122,7 +127,7 @@ export const NAV: NavGroup[] = [
         // Diagnóstico Organizacional.
         route: 'psicossocial',
         label: 'NR-1 · Riscos Psicossociais',
-        icon: '◮',
+        icon: 'heart-pulse',
         module: 'campanhas',
         // Só ORGANIZACIONAL. O item ficou visível para o ESSENCIAL enquanto ele
         // não tinha tela de resultado própria — mas esta lê a tabela do
@@ -140,21 +145,21 @@ export const NAV: NavGroup[] = [
         // (mesmo dos diagnósticos); SEM methods (serve qualquer diagnóstico).
         route: 'colaboradores',
         label: 'Colaboradores',
-        icon: '❖',
+        icon: 'users',
         module: 'campanhas',
         breadcrumb: { path: 'Portal', current: 'Colaboradores' },
       },
       {
         route: 'campanhas',
         label: 'Campanhas de Diagnóstico',
-        icon: '◭',
+        icon: 'megaphone',
         module: 'campanhas',
         breadcrumb: { path: 'Portal', current: 'Campanhas de Diagnóstico' },
       },
       {
         route: 'parecer',
         label: 'Parecer CRIVO',
-        icon: '❖',
+        icon: 'scale',
         module: 'parecer',
         perm: 'parecer:view',
         breadcrumb: { path: 'Portal', current: 'Parecer Consultivo CRIVO' },
@@ -162,28 +167,28 @@ export const NAV: NavGroup[] = [
       {
         route: 'relatorios',
         label: 'Plano de Evolução',
-        icon: '▤',
+        icon: 'trending-up',
         module: 'relatorios',
         breadcrumb: { path: 'Portal', current: 'Plano de Evolução' },
       },
       {
         route: 'evidencias',
         label: 'Evidências',
-        icon: '▧',
+        icon: 'file-check-corner',
         module: 'relatorios',
         breadcrumb: { path: 'Portal', current: 'Evidências' },
       },
       {
         route: 'documentos',
         label: 'Relatórios e Dossiês',
-        icon: '▦',
+        icon: 'file-text',
         module: 'relatorios',
         breadcrumb: { path: 'Portal', current: 'Relatórios e Dossiês' },
       },
       {
         route: 'grupo',
         label: 'Grupo Empresarial',
-        icon: '◧',
+        icon: 'network',
         module: 'grupo',
         breadcrumb: { path: 'Portal', current: 'Consolidado do Grupo' },
       },
@@ -200,7 +205,7 @@ export const NAV: NavGroup[] = [
       {
         route: 'icd',
         label: 'Liderança',
-        icon: '◈',
+        icon: 'compass',
         module: 'icd',
         perm: 'icd:view',
         breadcrumb: { path: 'Programas', current: 'Liderança' },
@@ -208,49 +213,49 @@ export const NAV: NavGroup[] = [
       {
         route: 'govia',
         label: 'Governança de IA',
-        icon: '◎',
+        icon: 'shield-check',
         module: 'govia',
         breadcrumb: { path: 'Programas', current: 'Governança de IA' },
       },
       {
         route: 'workforce',
         label: 'Workforce Intelligence',
-        icon: '⌬',
+        icon: 'cpu',
         module: 'workforce',
         breadcrumb: { path: 'Programas', current: 'Workforce Intelligence' },
       },
       {
         route: 'analytics',
         label: 'People Analytics',
-        icon: '⌭',
+        icon: 'chart-line',
         module: 'analytics',
         breadcrumb: { path: 'Programas', current: 'People Analytics' },
       },
       {
         route: 'custo',
         label: 'Radar de Custos Invisíveis',
-        icon: '◇',
+        icon: 'coins',
         module: 'custo',
         breadcrumb: { path: 'Programas', current: 'Radar de Custos Invisíveis' },
       },
       {
         route: 'contexto',
         label: 'Contexto e Diretrizes',
-        icon: '❈',
+        icon: 'book-open',
         module: 'contexto',
         breadcrumb: { path: 'Programas', current: 'Contexto e Diretrizes' },
       },
       {
         route: 'biblioteca',
         label: 'Academia e Recursos',
-        icon: '▥',
+        icon: 'graduation-cap',
         module: 'biblioteca',
         breadcrumb: { path: 'Programas', current: 'Academia e Recursos' },
       },
       {
         route: 'mentorias',
         label: 'Mentorias e Agenda',
-        icon: '☉',
+        icon: 'calendar-clock',
         module: 'mentorias',
         breadcrumb: { path: 'Programas', current: 'Mentorias e Agenda' },
       },
@@ -264,14 +269,14 @@ export const NAV: NavGroup[] = [
       {
         route: 'lider',
         label: 'Área do Líder',
-        icon: '★',
+        icon: 'user-star',
         module: 'lider',
         breadcrumb: { path: 'Área do Líder', current: 'Área do Líder' },
       },
       {
         route: 'questionario',
         label: 'Aplicação do ICD (líderes)',
-        icon: '✎',
+        icon: 'clipboard-pen',
         module: 'icd',
         perm: 'icd:submit',
         breadcrumb: { path: 'Área do Líder', current: 'Aplicação do ICD (líderes)' },
@@ -279,14 +284,14 @@ export const NAV: NavGroup[] = [
       {
         route: 'decisoes',
         label: 'Registro de Decisões',
-        icon: '◬',
+        icon: 'notebook-pen',
         module: 'icd',
         breadcrumb: { path: 'Área do Líder', current: 'Registro de Decisões' },
       },
       {
         route: 'pocket',
         label: 'Pocket CRIVO',
-        icon: '◐',
+        icon: 'smartphone',
         module: 'pocket',
         breadcrumb: { path: 'Área do Líder', current: 'Pocket CRIVO' },
       },
@@ -298,34 +303,34 @@ export const NAV: NavGroup[] = [
       {
         route: 'usuarios',
         label: 'Usuários e Acessos',
-        icon: '◌',
+        icon: 'user-cog',
         perm: 'users:view',
         breadcrumb: { path: 'Administração', current: 'Usuários e Acessos' },
       },
       {
         route: 'papeis',
         label: 'Papéis & Permissões',
-        icon: '▥',
+        icon: 'key-round',
         perm: 'users:view',
         breadcrumb: { path: 'Administração', current: 'Papéis & Permissões' },
       },
       {
         route: 'contratacao',
         label: 'Minha Contratação',
-        icon: '▦',
+        icon: 'file-pen-line',
         breadcrumb: { path: 'Administração', current: 'Minha Contratação' },
       },
       {
         route: 'historico',
         label: 'Histórico & Auditoria',
-        icon: '⊞',
+        icon: 'history',
         module: 'historico',
         breadcrumb: { path: 'Administração', current: 'Histórico & Auditoria' },
       },
       {
         route: 'suporte',
         label: 'Suporte',
-        icon: '✆',
+        icon: 'life-buoy',
         breadcrumb: { path: 'Administração', current: 'Suporte' },
       },
     ],
@@ -393,7 +398,7 @@ export function renderNavHtml(): string {
     const items = group.items
       .filter((item) => !item.hidden)
       .map((item) => {
-        const ic = `<span class="ni__ic">${item.icon}</span>`;
+        const ic = `<span class="ni__ic ni__ic--svg">${navIconSvg(item.icon)}</span>`;
         if (!item.route) {
           return `        <a href="#" class="nav-item nav-item--muted">\n          ${ic}${item.label}\n        </a>`;
         }
