@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   ACTION_STATUSES,
   ACTION_STATUS_LABEL,
@@ -16,6 +16,7 @@ import {
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
   type RiskActionSuggestions,
   psychosocialRiskClass,
+  rotuloDoGhe,
 } from "@crivo/types";
 import {
   addActionItem,
@@ -39,24 +40,72 @@ import {
   getDiagnosticContext,
   listRiskActionSuggestions,
   acceptRiskActionSuggestions,
+  listGhesDoPlano,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
 const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link"];
+
+/** GHEs ELEGÍVEIS do ciclo — os escopos que uma ação pode ter além da
+ *  Organização (Dossiê Organizacional). Vazio fora do Organizacional: aí o
+ *  escopo nem aparece na tela. */
+type GheOpcao = { value: string; label: string };
+const GhesContext = createContext<GheOpcao[]>([]);
+
+/** Escopo da ação na linha do plano. Só aparece quando a empresa tem GHE
+ *  elegível (ou a ação já tem escopo): no Essencial seria ruído. */
+function EscopoPill({ scopeGhe }: { scopeGhe: string | null }) {
+  const ghes = useContext(GhesContext);
+  if (!scopeGhe && !ghes.length) return null;
+  return (
+    <span
+      className={`pill pill--sm${scopeGhe ? " pill--gold" : " pill--outline"}`}
+      style={{ marginLeft: 6 }}
+      title={scopeGhe ? "Ação específica deste GHE — sai no anexo do grupo no Dossiê" : "Ação geral — vale para a organização e para os GHEs em que o fator exige ação"}
+    >
+      {scopeGhe ? rotuloDoGhe(scopeGhe) : "Organização"}
+    </span>
+  );
+}
+
+/** Seletor de escopo: Organização (ação geral) ou um GHE elegível. Ação geral
+ *  NÃO se repete por GHE — ela já vale para os grupos em que o fator exige ação. */
+function EscopoSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ghes = useContext(GhesContext);
+  if (!ghes.length && !value) return null;
+  const foraDaLista = value && !ghes.some((g) => g.value === value);
+  return (
+    <label className="prod-field"><span>Escopo da ação</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Organização (Resultado Geral)</option>
+        {ghes.map((g) => (<option key={g.value} value={g.value}>{g.label}</option>))}
+        {foraDaLista && <option value={value}>{rotuloDoGhe(value)} (fora dos GHEs elegíveis)</option>}
+      </select>
+    </label>
+  );
+}
 
 /** Plano de Ação + Evidências do tenant (Briefing §8/§9). */
 export function PlanoAcaoScreen() {
   const [plans, setPlans] = useState<ActionPlanData[] | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "ok">("loading");
   const [creating, setCreating] = useState(false);
+  const [ghes, setGhes] = useState<GheOpcao[]>([]);
 
   async function refresh() {
     try { setPlans(await listActionPlans()); setStatus("ok"); } catch { setStatus("error"); }
   }
   useEffect(() => { void refresh(); }, []);
+  // Escopos (GHEs elegíveis): falha aqui não derruba a tela — sem a lista, a
+  // ação continua sendo da Organização, que é o padrão.
+  useEffect(() => {
+    let vivo = true;
+    listGhesDoPlano().then((r) => { if (vivo) setGhes(r.ghes); }).catch(() => { if (vivo) setGhes([]); });
+    return () => { vivo = false; };
+  }, []);
 
   return (
-    <>
+    <GhesContext.Provider value={ghes}>
       <div className="route__head">
         <div>
           <h1 className="page-title">Plano de Evolução</h1>
@@ -83,7 +132,7 @@ export function PlanoAcaoScreen() {
 
       {status === "ok" && <CyclesCard />}
       {status === "ok" && <DevolutivaCard />}
-    </>
+    </GhesContext.Provider>
   );
 }
 
@@ -587,6 +636,7 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
       <tr>
         <td>
           <strong>{item.point}</strong>
+          <EscopoPill scopeGhe={item.scopeGhe} />
           {(item.sourceInstrumentName || item.origin) && (
             <span className="card__sub">
               {" · "}
@@ -694,6 +744,10 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     responsible: item.responsible ?? "",
     expectedEvidence: item.expectedEvidence ?? "",
     dueDate: item.dueDate ? item.dueDate.slice(0, 10) : "",
+    scopeGhe: item.scopeGhe ?? "",
+    // O texto da MEDIDA é o que o Dossiê imprime no card PA-00N. A sugestão da
+    // IA nasce como "título — etapas"; a empresa ajusta antes de aprovar.
+    action: item.action,
   });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
   const [saving, setSaving] = useState(false);
@@ -724,6 +778,10 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
         responsible: f.responsible || undefined,
         expectedEvidence: f.expectedEvidence || undefined,
         dueDate: f.dueDate ? new Date(`${f.dueDate}T12:00:00`).toISOString() : undefined,
+        // Escopo só vai quando MUDOU: uma ação cujo GHE deixou de ser elegível
+        // não pode travar o salvamento dos outros campos.
+        ...(f.scopeGhe !== (item.scopeGhe ?? "") ? { scopeGhe: f.scopeGhe || null } : {}),
+        ...(f.action.trim() && f.action.trim() !== item.action ? { action: f.action.trim() } : {}),
       });
       onChanged();
       onClose();
@@ -742,6 +800,10 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
         </p>
       )}
       <div className="prod-form__grid">
+        <label className="prod-field prod-field--full"><span>Medida (texto que sai no Dossiê)</span>
+          <textarea rows={2} maxLength={1000} value={f.action} onChange={(e) => setF((s) => ({ ...s, action: e.target.value }))} />
+        </label>
+        <EscopoSelect value={f.scopeGhe} onChange={(v) => setF((s) => ({ ...s, scopeGhe: v }))} />
         <label className="prod-field"><span>Responsável (obrigatório para aprovar)</span>
           <input value={f.responsible} onChange={(e) => setF((s) => ({ ...s, responsible: e.target.value }))} placeholder="Ex.: Gerente de Operações" />
         </label>
@@ -875,7 +937,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "", objective: "" });
+  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "", objective: "", scopeGhe: "" });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">("");
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -950,6 +1012,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
         indicator: f.indicator || undefined,
         objective: f.objective || undefined,
+        scopeGhe: f.scopeGhe || undefined,
       });
       onAdded();
     } catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
@@ -1050,6 +1113,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
                       <div className="card__sub" style={{ fontSize: 11, marginTop: 2 }}>
                         {x.factorLabel} · P{x.probability} × S{x.severity} = <strong>{x.risk}</strong> ·{" "}
                         {PSYCHOSOCIAL_RISK_CLASS_LABEL[x.riskClass]} · prazo {x.prazo}
+                        {x.scopeGhe && <> · <strong>{rotuloDoGhe(x.scopeGhe)}</strong> (fator só deste GHE)</>}
                         {x.alreadyInPlan && " · já no plano"}
                       </div>
                       <div className="card__sub" style={{ fontSize: 11, marginTop: 4 }}>{x.objetivo}</div>
@@ -1114,6 +1178,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
         <label className="prod-field prod-field--full"><span>Ação proposta</span>
           <input value={f.action} onChange={(e) => set("action")(e.target.value)} required />
         </label>
+        <EscopoSelect value={f.scopeGhe} onChange={set("scopeGhe")} />
         <label className="prod-field"><span>Responsável</span>
           <input value={f.responsible} onChange={(e) => set("responsible")(e.target.value)} />
         </label>

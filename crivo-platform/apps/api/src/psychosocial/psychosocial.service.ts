@@ -355,6 +355,14 @@ export class PsychosocialService {
     };
     const rotuloDaDimensao = (slug?: string | null) =>
       slug ? (dims.find((x) => x.slug === slug)?.label ?? null) : null;
+    // A versão MEDE fatores por pergunta vinculada (NR-1 §9). Nela, fator sem
+    // pergunta própria não é medido pelo instrumento — é CONTEXTUAL (ex.: RPS-C01,
+    // violência grave/evento traumático) e só entra com uma entrada contextual
+    // própria. Herdar a exposição da dimensão inteira o fazia nascer "Alto" (P2 ×
+    // S5 = 10) sem nenhuma resposta sobre ele; o modelo oficial de 23/09 exige que
+    // ele não apareça na Massa Ouro. Versão SEM vínculo nenhum (legado) segue no
+    // fallback por dimensão, como sempre.
+    const versaoMedePorPergunta = activeQuestions.some((q) => (q.factorSlugs?.length ?? 0) > 0);
     const matrixRows: MatrixSource[] = factors.length
       ? factors
           .map((f): MatrixSource | null => {
@@ -379,6 +387,7 @@ export class PsychosocialService {
                 sourceContext: f.sourceContext ?? null,
               };
             }
+            if (versaoMedePorPergunta) return null; // contextual: fora sem entrada própria
             if (dimForPlan) {
               return {
                 slug: f.slug,
@@ -417,16 +426,18 @@ export class PsychosocialService {
       // As duas tabelas têm as mesmas colunas que a matriz usa. `byFactor` só
       // existe na psicossocial e não entra no cálculo: a exposição é
       // recalculada das respostas CRUAS, nunca dos agregados normalizados.
+      // `cohort` entra para o recorte por GHE (o grupo vem do retrato do
+      // colaborador na resposta — nunca inferido de Área/Setor).
       const rows = motorPsicossocial
         ? await tx.psychosocialResponse.findMany({
-            select: { sector: true, score: true, byDimension: true, byFactor: true, answers: true, methodologyVersionId: true },
+            select: { sector: true, cohort: true, score: true, byDimension: true, byFactor: true, answers: true, methodologyVersionId: true },
           })
         : (
             await tx.diagnosticResponse.findMany({
               // Matriz dos COLABORADORES: a autoavaliação do gestor fica fora,
               // como no Dossiê e nos recortes (homologação 21/09).
               where: { instrumentSlug: instrumento, OR: [{ origin: null }, { origin: { not: 'SELF_ASSESSMENT' } }] },
-              select: { sector: true, score: true, byDimension: true, answers: true, methodologyVersionId: true },
+              select: { sector: true, cohort: true, score: true, byDimension: true, answers: true, methodologyVersionId: true },
             })
           ).map((r) => ({ ...r, byFactor: null }));
 
@@ -476,6 +487,31 @@ export class PsychosocialService {
         })
         .sort((a, b) => b.respondents - a.respondents);
 
+      // Recorte por GHE (Dossiê Organizacional, modelo oficial de 23/09): cada
+      // GHE elegível é calculado de forma INDEPENDENTE, só com as respostas do
+      // próprio grupo — score, dimensões e a matriz P/S/R inteira pela MESMA
+      // função do Resultado Geral. Abaixo do mínimo, só o n (suprimido).
+      // Ordem do modelo: mais respondentes primeiro; empate pelo nome.
+      // Só no motor psicossocial (Organizacional): é o único que tem Dossiê
+      // por GHE. Uso INTERNO (Dossiê, gates, sugestões) — a rota HTTP remove.
+      const byGheMap = new Map<string, typeof rows>();
+      for (const r of motorPsicossocial ? rows : []) {
+        const g = gheDaResposta(r.cohort);
+        if (!g) continue;
+        byGheMap.set(g, [...(byGheMap.get(g) ?? []), r]);
+      }
+      const ghes = Array.from(byGheMap.entries())
+        .map(([ghe, list]) => {
+          const suppressed = list.length < minRespondents;
+          return {
+            ghe,
+            respondents: list.length,
+            suppressed,
+            ...(suppressed ? {} : aggregate(list, dims, bands, matrixRows, cfg?.rounding ?? 0)),
+          };
+        })
+        .sort((a, b) => b.respondents - a.respondents || a.ghe.localeCompare(b.ghe, 'pt-BR'));
+
       return {
         minRespondents,
         totalRespondents: rows.length,
@@ -487,6 +523,7 @@ export class PsychosocialService {
           ? { suppressed: true as const }
           : { suppressed: false as const, ...overall },
         sectors,
+        ghes,
       };
     });
   }
@@ -547,6 +584,13 @@ export class PsychosocialService {
       return { minRespondents, totalRespondents: rows.length, dimensions };
     });
   }
+}
+
+/** GHE do retrato da resposta, aparado; null quando a empresa não informou.
+ *  Mesma leitura do Dossiê (documents.service `gheDe`). Nunca inferido. */
+export function gheDaResposta(cohort: unknown): string | null {
+  const g = (cohort as { ghe?: unknown } | null | undefined)?.ghe;
+  return typeof g === 'string' && g.trim() ? g.trim() : null;
 }
 
 type Exposures = { byFactor: Record<string, number[]>; byDimension: Record<string, number[]> };
@@ -632,7 +676,10 @@ function aggregate(
   // risco, na régua de proteção). Sem faixas configuradas não há como dizer o que
   // é crítico — então nem perfil nem matriz são produzidos, em vez de chutar.
   const ordered = bands ? [...bands].sort((a, b) => a.min - b.min) : [];
-  const inBand = (v: number, b: AggBand) => v >= b.min && v <= b.max;
+  // Pela MESMA régua do score (findBandForScore): um valor no vão entre faixas
+  // inteiras (79,6) conta na faixa em que é classificado, em vez de não contar
+  // em nenhuma — a distribuição por fator somava menos de 100%.
+  const inBand = (v: number, b: AggBand) => findBandForScore(ordered, v)?.code === b.code;
 
   // Perfil de grupo: quantas PESSOAS caem em cada faixa, dimensão a dimensão.
   const profile: PsychosocialProfileRow[] = ordered.length

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   PSYCHOSOCIAL_RISK_CLASS_LABEL,
   actionTermDays,
+  rotuloDoGhe,
   type PsychosocialRiskMatrixRow,
   type RiskActionSuggestion,
   type RiskActionSuggestions,
@@ -110,6 +111,7 @@ export class RiskSuggestionsService {
             riskFactorSlug: x.factorSlug,
             riskProbability: x.probability,
             riskSeverity: x.severity,
+            scopeGhe: x.scopeGhe,
             suggestionKey: x.key,
             cycleId: cicloAberto?.id ?? null,
           },
@@ -166,7 +168,22 @@ export class RiskSuggestionsService {
 
     // Régua da NR-1 §8.4: plano obrigatório a partir de risco 10 (Alto para cima).
     const required = matrix.filter((r) => r.planRequired);
-    if (!required.length) {
+    // Organizacional (modelo oficial de 23/09): fator que exige ação SÓ na
+    // matriz de um GHE elegível ganha sugestão ESPECÍFICA daquele GHE. O que já
+    // exige ação no Resultado Geral fica com a ação geral, que vale para todos
+    // os grupos — sugerir de novo por GHE seria a duplicação que o modelo proíbe.
+    const { slug: instrumentSlug, motorPsicossocial } = await resolveTenantInstrument(this.prisma, tenantId);
+    const obrigatoriosGerais = new Set(required.map((r) => r.slug));
+    const soNoGhe: { ghe: string; row: PsychosocialRiskMatrixRow }[] = [];
+    if (motorPsicossocial) {
+      for (const g of res.ghes ?? []) {
+        if (g.suppressed || !('riskMatrix' in g) || !g.riskMatrix) continue;
+        for (const r of g.riskMatrix) {
+          if (r.planRequired && !obrigatoriosGerais.has(r.slug)) soNoGhe.push({ ghe: g.ghe, row: r });
+        }
+      }
+    }
+    if (!required.length && !soNoGhe.length) {
       return vazio(
         'Nenhum fator atingiu risco 10 ou mais — pela régua da NR-1, nenhum plano de ação é ' +
           'obrigatório neste ciclo. Os fatores de risco menor seguem em monitoramento.',
@@ -176,14 +193,18 @@ export class RiskSuggestionsService {
     // A IA so e consultada se houver o que sugerir. Antes ela era chamada ANTES
     // de olhar o plano, entao toda abertura da tela pagava a chamada — mesmo com
     // todos os fatores ja cobertos, que e o caso normal depois da primeira vez.
-    const fatoresCobertos = await this.fatoresComAcao(tenantId, planId);
+    const cobertura = await this.coberturaDoPlano(tenantId, planId);
     // So os fatores SEM acao ativa recebem sugestao. Antes, bastava um fator
     // descoberto para a IA rodar sobre TODOS os obrigatorios e cada titulo novo
     // (a IA varia a cada chamada) virar mais uma sugestao nos fatores que ja
     // tinham a sua — visto em producao 21/09: descartar 3 de um fator gerou 4
-    // novas, uma em cada fator.
-    const pendentes = required.filter((r) => !fatoresCobertos.has(r.slug));
-    if (!pendentes.length) {
+    // novas, uma em cada fator. Fator do Resultado Geral: só ação GERAL cobre.
+    // Fator só do GHE: cobre a geral do fator ou a específica do grupo.
+    const pendentes = required.filter((r) => !cobertura.gerais.has(r.slug));
+    const pendentesGhe = soNoGhe.filter(
+      (x) => !cobertura.gerais.has(x.row.slug) && !cobertura.porGhe.has(`${x.ghe}|${x.row.slug}`),
+    );
+    if (!pendentes.length && !pendentesGhe.length) {
       return {
         origin: 'biblioteca',
         suggestions: [],
@@ -193,15 +214,22 @@ export class RiskSuggestionsService {
       };
     }
 
+    // Um pedido só à IA, sem repetir fator: o texto do plano é por FATOR, e um
+    // fator que exige ação em dois GHEs não precisa ser escrito duas vezes.
+    const paraIa = new Map<string, PsychosocialRiskMatrixRow>();
+    for (const r of [...pendentes, ...pendentesGhe.map((x) => x.row)]) {
+      const atual = paraIa.get(r.slug);
+      if (!atual || r.risk > atual.risk) paraIa.set(r.slug, r);
+    }
     const { plans, origin } = await resolveActionPlans(
       { prisma: this.prisma, aiSettings: this.aiSettings },
       tenantId,
-      pendentes,
+      [...paraIa.values()],
       // Mesmo instrumento que produziu a matriz (psychosocial.results resolve
       // pelo CONTRATO do tenant) — é por ele que o prompt personalizado da IA da
       // Plataforma e a rede de segurança `factor_action_plans` são resolvidos.
       // Fixo no Organizacional, o Essencial recebia o prompt de outro diagnóstico.
-      (await resolveTenantInstrument(this.prisma, tenantId)).slug,
+      instrumentSlug,
       // Esta lista é pedida ao ABRIR o Plano de Evolução, e o portal desiste em
       // 15s. Com o orçamento antigo (22s) a tela morria em "Não foi possível
       // carregar" toda vez que a IA demorava — e o fallback da biblioteca, que
@@ -213,15 +241,16 @@ export class RiskSuggestionsService {
 
     // A matriz vem ordenada por risco desc, então o fator de MAIOR risco de cada
     // dimensão reivindica as ações dela: sem isto, três fatores da mesma dimensão
-    // repetiriam as mesmas ações três vezes.
+    // repetiriam as mesmas ações três vezes. A quantidade por fator é o TETO da
+    // classificação (planEntryFor), qualquer que seja a origem do texto.
     const vistas = new Set<string>();
     const suggestions: RiskActionSuggestion[] = [];
-    for (const r of pendentes) {
+    const sugerir = (r: PsychosocialRiskMatrixRow, scopeGhe: string | null) => {
       const entry = planEntryFor(plans, r);
-      if (!entry) continue;
+      if (!entry) return;
       const dimensionSlug = r.sourceSlug ?? r.slug;
       for (const a of entry.acoes) {
-        const key = suggestionKeyOf(dimensionSlug, a.titulo);
+        const key = suggestionKeyOf(dimensionSlug, a.titulo, scopeGhe);
         if (vistas.has(key)) continue;
         vistas.add(key);
         suggestions.push({
@@ -239,9 +268,12 @@ export class RiskSuggestionsService {
           etapas: a.etapas,
           indicadores: a.indicadores,
           alreadyInPlan: jaNoPlano.has(key),
+          scopeGhe,
         });
       }
-    }
+    };
+    for (const r of pendentes) sugerir(r, null);
+    for (const x of pendentesGhe) sugerir(x.row, x.ghe);
 
     if (!suggestions.length) {
       return vazio(
@@ -252,12 +284,36 @@ export class RiskSuggestionsService {
     return { origin, suggestions };
   }
 
-  /** Chaves já aceitas — evita oferecer de novo o que já está no plano. */
   /**
-   * Fatores que JA tem acao no plano. Checagem barata (uma consulta) que evita a
-   * chamada de IA quando nao ha nada novo a sugerir.
+   * GHEs ELEGÍVEIS do ciclo (n >= mínimo), na ordem do Dossiê — são os escopos
+   * que uma ação pode ter além da Organização. Só no Organizacional (motor
+   * psicossocial); abaixo do mínimo o grupo não tem resultado próprio e não
+   * vira escopo. O valor é o nome como está no retrato das respostas.
    */
-  private async fatoresComAcao(tenantId: string, planId?: string): Promise<Set<string>> {
+  async ghesElegiveis(tenantId: string): Promise<{ value: string; label: string }[]> {
+    const { motorPsicossocial } = await resolveTenantInstrument(this.prisma, tenantId);
+    if (!motorPsicossocial) return [];
+    let res: Awaited<ReturnType<PsychosocialService['results']>> | null = null;
+    try {
+      res = await this.psychosocial.results(tenantId);
+    } catch {
+      return [];
+    }
+    if (!res || res.totalRespondents < res.minRespondents) return [];
+    return (res.ghes ?? [])
+      .filter((g) => !g.suppressed)
+      .map((g) => ({ value: g.ghe, label: rotuloDoGhe(g.ghe) }));
+  }
+
+  /**
+   * Fatores que JA tem acao no plano, por escopo. Checagem barata (uma
+   * consulta) que evita a chamada de IA quando nao ha nada novo a sugerir.
+   * `gerais` = acao de escopo Organizacao; `porGhe` = "<ghe>|<fator>".
+   */
+  private async coberturaDoPlano(
+    tenantId: string,
+    planId?: string,
+  ): Promise<{ gerais: Set<string>; porGhe: Set<string> }> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.actionItem.findMany({
         // Descartada (NAO_ADOTADA) nao conta como cobertura: se a empresa
@@ -270,12 +326,20 @@ export class RiskSuggestionsService {
           status: { not: 'NAO_ADOTADA' },
           ...(planId ? { planId } : {}),
         },
-        select: { riskFactorSlug: true },
+        select: { riskFactorSlug: true, scopeGhe: true },
       });
-      return new Set(rows.map((r) => r.riskFactorSlug).filter((k): k is string => !!k));
+      const gerais = new Set<string>();
+      const porGhe = new Set<string>();
+      for (const r of rows) {
+        if (!r.riskFactorSlug) continue;
+        if (r.scopeGhe) porGhe.add(`${r.scopeGhe}|${r.riskFactorSlug}`);
+        else gerais.add(r.riskFactorSlug);
+      }
+      return { gerais, porGhe };
     });
   }
 
+  /** Chaves já aceitas — evita oferecer de novo o que já está no plano. */
   private async acceptedKeys(tenantId: string, planId?: string): Promise<Set<string>> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const rows = await tx.actionItem.findMany({
@@ -287,15 +351,19 @@ export class RiskSuggestionsService {
   }
 }
 
-/** `<dimensão>|<título>` — a mesma chave grava em `action_items.suggestion_key`. */
-export function suggestionKeyOf(dimensionSlug: string, titulo: string): string {
-  return `${dimensionSlug}|${titulo}`.slice(0, 240);
+/** `<dimensão>|<título>` — a mesma chave grava em `action_items.suggestion_key`.
+ *  Sugestão de GHE leva o grupo na frente (`ghe:<GHE>|…`): a mesma medida para
+ *  dois grupos são duas ações, e a chave única do plano não pode colidir. A
+ *  chave das gerais não muda — as sugestões já gravadas seguem reconhecidas. */
+export function suggestionKeyOf(dimensionSlug: string, titulo: string, scopeGhe?: string | null): string {
+  return `${scopeGhe ? `ghe:${scopeGhe}|` : ''}${dimensionSlug}|${titulo}`.slice(0, 240);
 }
 
 /** Texto da origem do cálculo, para a trilha e para a tela. */
 export function riskOriginLabel(s: RiskActionSuggestion): string {
   return (
     `${s.factorLabel} · P${s.probability} × S${s.severity} = ${s.risk} · ` +
-    PSYCHOSOCIAL_RISK_CLASS_LABEL[s.riskClass]
+    PSYCHOSOCIAL_RISK_CLASS_LABEL[s.riskClass] +
+    (s.scopeGhe ? ` · ${rotuloDoGhe(s.scopeGhe)}` : '')
   );
 }

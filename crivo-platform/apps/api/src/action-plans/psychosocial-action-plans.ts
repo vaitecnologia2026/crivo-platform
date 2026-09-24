@@ -404,8 +404,8 @@ async function umLote(
     'Quantidade de ações por fator é um TETO pela classificação, não uma meta — gere o MENOR conjunto ' +
     'suficiente e avalie a necessidade real de cada ação: "Muito alto" ou "Crítico" → no máximo 2 (uma ' +
     'contenção imediata + uma estruturante, e só se as duas forem necessárias); "Alto" → 1 ação ' +
-    'estruturante, uma 2ª apenas se o "objetivo" dela explicar por que a 1ª não basta. Nunca 3. Uma ação ' +
-    'forte vale mais que duas médias; quando houver uma só, ela é "Organizacional".\n' +
+    'estruturante. Nunca 3. Uma ação forte vale mais que duas médias; quando houver uma só, ela é ' +
+    '"Organizacional".\n' +
     'Regras de qualidade: (1) cada ação é ESPECÍFICA para o perfil informado (setor, porte, modelo de ' +
     'trabalho) e responde à fonte/circunstância e ao percentual de exposição alta do fator — nada de ' +
     'recomendação que sirva para qualquer empresa; (2) hierarquia de controle da NR-1 (1.5.5.1.2) / ISO ' +
@@ -635,5 +635,19 @@ export function planEntryFor(
   plans: Record<string, PsychosocialActionLibraryEntry>,
   row: PsychosocialRiskMatrixRow,
 ): PsychosocialActionLibraryEntry | undefined {
-  return plans[row.slug] ?? (row.sourceSlug ? plans[row.sourceSlug] : undefined);
+  const entry = plans[row.slug] ?? (row.sourceSlug ? plans[row.sourceSlug] : undefined);
+  if (!entry) return undefined;
+  // O teto vale para QUALQUER origem, não só para o que a IA escreve agora. A
+  // rede de segurança (`factor_action_plans`) e a biblioteca guardam planos de
+  // antes do teto, com 3 ações por fator — e era deles que a lista vinha
+  // quando a IA passava dos 12s da tela: a Massa Ouro de 23/09 nasceu com 14
+  // sugestões (3 por fator). Modelo oficial: "menor conjunto suficiente".
+  const teto = tetoDeAcoesPorFator(row.riskClass);
+  return entry.acoes.length > teto ? { ...entry, acoes: entry.acoes.slice(0, teto) } : entry;
+}
+
+/** Máximo de ações sugeridas por fator, pela classificação — o MESMO teto do
+ *  prompt: Muito alto/Crítico até 2 (contenção + estruturante), o resto 1. */
+export function tetoDeAcoesPorFator(riskClass: PsychosocialRiskMatrixRow['riskClass']): number {
+  return riskClass === 'MUITO_ALTO' || riskClass === 'CRITICO' ? 2 : 1;
 }

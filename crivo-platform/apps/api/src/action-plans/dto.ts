@@ -60,6 +60,12 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   objective?: string;
+
+  /** Escopo da ação: ausente/null = Organização (Resultado Geral); valor = um
+   *  GHE elegível do ciclo, como está no retrato das respostas. O serviço
+   *  confere contra os GHEs elegíveis — texto livre aqui viraria escopo fantasma. */
+  @IsOptional() @IsString() @MaxLength(200)
+  scopeGhe?: string | null;
 }
 
 export class UpdateActionItemDto {
@@ -114,6 +120,12 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   objective?: string;
+
+  /** Escopo da ação: ausente/null = Organização (Resultado Geral); valor = um
+   *  GHE elegível do ciclo, como está no retrato das respostas. O serviço
+   *  confere contra os GHEs elegíveis — texto livre aqui viraria escopo fantasma. */
+  @IsOptional() @IsString() @MaxLength(200)
+  scopeGhe?: string | null;
 }
 
 /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */

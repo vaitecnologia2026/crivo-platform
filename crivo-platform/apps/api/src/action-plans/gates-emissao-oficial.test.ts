@@ -15,10 +15,15 @@ vi.mock('../admin/engine-config', () => ({
   getEngineConfig: vi.fn(async () => ({ minRespondents: 5 })),
   resolveMinRespondents: vi.fn(async () => 5),
 }));
+// Motor do instrumento: psicossocial = Organizacional (gates também por GHE).
+const motor = vi.hoisted(() => ({ psicossocial: false }));
 vi.mock('../admin/methodology.service', () => ({
   resolveActiveMethodology: vi.fn(async () => null),
   resolveInstrumentForTenant: vi.fn(),
-  resolveTenantInstrument: vi.fn(),
+  resolveTenantInstrument: vi.fn(async () => ({
+    slug: motor.psicossocial ? 'diagnostico-organizacional' : 'diagnostico-essencial',
+    motorPsicossocial: motor.psicossocial,
+  })),
   usesPsychosocialEngine: vi.fn(),
 }));
 
@@ -34,8 +39,11 @@ function build(
     responsible?: string | null;
     plans?: Plano[];
     obrigatorios?: { slug: string; label: string }[];
+    /** Organizacional: matriz de cada GHE elegível (fatores com plano obrigatório). */
+    ghes?: { ghe: string; obrigatorios: { slug: string; label: string }[] }[];
   } = {},
 ) {
+  motor.psicossocial = !!opts.ghes;
   const emissoes: Record<string, unknown>[] = [];
   const tx = {
     assessmentCycle: {
@@ -65,6 +73,12 @@ function build(
               suppressed: false,
               riskMatrix: opts.obrigatorios.map((f) => ({ ...f, planRequired: true })),
             },
+            ghes: (opts.ghes ?? []).map((g) => ({
+              ghe: g.ghe,
+              respondents: 6,
+              suppressed: false,
+              riskMatrix: g.obrigatorios.map((f) => ({ ...f, planRequired: true })),
+            })),
           }
         : null,
     ),
@@ -84,7 +98,7 @@ function build(
   vi.spyOn(svc as never as { generate: () => unknown }, 'generate').mockImplementation(async () => ({
     title: 'Dossiê Técnico',
     generatedAt: new Date().toISOString(),
-    meta: [],
+    meta: [{ label: 'Status', value: 'Rascunho (pré-visualização)' }],
     sections: [
       { heading: 'Plano de ação', body: corpo },
       { heading: 'Controle documental', rows: [{ label: 'Método', value: 'Essencial' }, { label: 'Status do documento', value: 'Rascunho' }] },
@@ -107,23 +121,27 @@ describe('gates de emissão oficial do Dossiê Técnico', () => {
     expect(emissoes).toHaveLength(0);
   });
 
-  it('3. com os gates satisfeitos, congela a v1 com hash e carimbo "Documento emitido"', async () => {
+  it('3. com os gates satisfeitos, congela a v1 com hash e o carimbo do modelo (Final · 1.0)', async () => {
     const { svc, emissoes } = build();
     const r = await svc.emit(TENANT, 'dossie_tecnico', 'rodrigo@empresa.com');
     expect(r.reused).toBe(false);
     expect(emissoes).toHaveLength(1);
-    const e = emissoes[0] as { emissionNumber: number; contentHash: string; generatedBy: string; content: { sections: { heading: string; rows?: { label: string; value: string }[] }[] } };
+    const e = emissoes[0] as { emissionNumber: number; contentHash: string; generatedBy: string; content: { meta: { label: string; value: string }[]; sections: { heading: string; rows?: { label: string; value: string }[] }[] } };
     expect(e.emissionNumber).toBe(1);
     expect(e.contentHash).toMatch(/^[0-9a-f]{64}$/);
     expect(e.generatedBy).toBe('rodrigo@empresa.com');
     const controle = e.content.sections.find((s) => s.heading === 'Controle documental')!.rows!;
+    // Modelo oficial de 23/09: "Final", versão "1.0", validação pela organização.
     expect(controle).toEqual(expect.arrayContaining([
-      { label: 'Status do documento', value: 'Documento emitido' },
-      { label: 'Versão do documento', value: 'v1' },
+      { label: 'Status do documento', value: 'Final' },
+      { label: 'Versão do documento', value: '1.0' },
+      { label: 'Validação', value: 'Organização / responsável autorizado' },
       { label: 'Hash/Identificador', value: e.contentHash.slice(0, 16) },
       { label: 'Método', value: 'Essencial' }, // linha do gerador preservada
     ]));
     expect(controle.find((r) => r.value === 'Rascunho')).toBeUndefined();
+    // O Status do cabeçalho também vira "Final" na versão congelada.
+    expect(e.content.meta).toEqual([{ label: 'Status', value: 'Final' }]);
   });
 
   it('4. reemitir sem mudança devolve a v1 — não cria versão nova', async () => {
@@ -184,6 +202,13 @@ describe('modelos importados (tpl:) passam pelos mesmos portões', () => {
     const r = await svc.emit(TENANT, 'tpl:qualquer');
     expect(r.reused).toBe(false);
     expect((emissoes[0] as { type: string; emissionNumber: number }).type).toBe('tpl:qualquer');
+    // O carimbo do modelo do Dossiê é só do Dossiê: o importado segue o dele.
+    const e = emissoes[0] as { content: { sections: { heading: string; rows?: { label: string; value: string }[] }[] } };
+    const controle = e.content.sections.find((s) => s.heading === 'Controle documental')!.rows!;
+    expect(controle).toEqual(expect.arrayContaining([
+      { label: 'Status do documento', value: 'Documento emitido' },
+      { label: 'Versão do documento', value: 'v1' },
+    ]));
   });
 });
 
@@ -221,5 +246,85 @@ describe('gates de PLANO na emissão oficial (matriz de aceite 21/09)', () => {
     expect(emissoes).toHaveLength(1);
     const { svc: svc2 } = build({ plans: [validado([{ ...aprovada, status: 'SUGERIDA' }])], obrigatorios: [sobrecarga] });
     await expect(svc2.emit(TENANT, 'tpl:dossie-v2-3-essencial')).rejects.toThrow(/aguardando decisão/);
+  });
+});
+
+describe('gates por GHE no Dossiê Organizacional (modelo oficial de 23/09)', () => {
+  const sobrecarga = { slug: 'rps-001', label: 'Sobrecarga de trabalho' };
+  const autonomia = { slug: 'rps-005', label: 'Baixa autonomia' };
+  const acao = (over: Record<string, unknown>) => ({
+    status: 'APROVADA', responsible: 'RH', dueDate: new Date('2026-10-23'), expectedEvidence: 'Ata', ...over,
+  });
+  const validado = (items: Record<string, unknown>[]): Plano => ({ validatedAt: new Date('2026-09-23'), items });
+  const geralSobrecarga = acao({ point: 'Sobrecarga de trabalho', riskFactorSlug: 'rps-001' });
+
+  it('fator que exige ação SÓ num GHE, sem ação aplicável, bloqueia e nomeia o GHE', async () => {
+    const { svc } = build({
+      plans: [validado([geralSobrecarga])],
+      obrigatorios: [sobrecarga],
+      ghes: [{ ghe: 'GHE-Operações', obrigatorios: [sobrecarga, autonomia] }],
+    });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(
+      /no GHE sem ação aprovada aplicável: GHE - Operações: Baixa autonomia/,
+    );
+  });
+
+  it('a ação GERAL do fator vale para o GHE — sem duplicar por grupo', async () => {
+    const { svc, emissoes } = build({
+      plans: [validado([geralSobrecarga, acao({ point: 'Baixa autonomia', riskFactorSlug: 'rps-005' })])],
+      obrigatorios: [sobrecarga],
+      ghes: [{ ghe: 'GHE-Operações', obrigatorios: [sobrecarga, autonomia] }],
+    });
+    await svc.emit(TENANT, 'dossie_tecnico');
+    expect(emissoes).toHaveLength(1);
+  });
+
+  it('a ação ESPECÍFICA do próprio GHE cobre; a de outro GHE não', async () => {
+    const doGhe = (ghe: string) =>
+      acao({ point: 'Baixa autonomia', riskFactorSlug: 'rps-005', scopeGhe: ghe });
+    const base = {
+      obrigatorios: [sobrecarga],
+      ghes: [{ ghe: 'GHE-Operações', obrigatorios: [autonomia] }],
+    };
+    const ok = build({ ...base, plans: [validado([geralSobrecarga, doGhe('GHE-Operações')])] });
+    await ok.svc.emit(TENANT, 'dossie_tecnico');
+    expect(ok.emissoes).toHaveLength(1);
+
+    const outro = build({ ...base, plans: [validado([geralSobrecarga, doGhe('GHE-Financeiro')])] });
+    await expect(outro.svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/GHE - Operações: Baixa autonomia/);
+  });
+
+  it('fator do Resultado Geral não é coberto só por ação específica de um GHE', async () => {
+    const { svc } = build({
+      plans: [validado([acao({ point: 'Sobrecarga de trabalho', riskFactorSlug: 'rps-001', scopeGhe: 'GHE-Operações' })])],
+      obrigatorios: [sobrecarga],
+      ghes: [{ ghe: 'GHE-Operações', obrigatorios: [sobrecarga] }],
+    });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem ação aprovada: Sobrecarga de trabalho/);
+  });
+
+  it('fora do Organizacional (motor de diagnóstico), o GHE não cria exigência', async () => {
+    const { svc, emissoes } = build({ plans: [validado([geralSobrecarga])], obrigatorios: [sobrecarga] });
+    await svc.emit(TENANT, 'dossie_tecnico');
+    expect(emissoes).toHaveLength(1);
+  });
+});
+
+describe('completude cobra a ação específica de GHE (revisão 24/09)', () => {
+  it('PA-005 aprovada sem prazo bloqueia, mesmo sendo de escopo GHE', async () => {
+    const sobrecarga = { slug: 'rps-001', label: 'Sobrecarga de trabalho' };
+    const base = { status: 'APROVADA', point: 'Sobrecarga de trabalho', riskFactorSlug: 'rps-001', responsible: 'RH', expectedEvidence: 'Ata' };
+    const { svc } = build({
+      plans: [{
+        validatedAt: new Date('2026-09-23'),
+        items: [
+          { ...base, dueDate: new Date('2026-11-22') },
+          { ...base, scopeGhe: 'GHE-Operações', responsible: 'Gerente de Operações', dueDate: null },
+        ],
+      }],
+      obrigatorios: [sobrecarga],
+      ghes: [{ ghe: 'GHE-Operações', obrigatorios: [sobrecarga] }],
+    });
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável, prazo ou evidência esperada/);
   });
 });

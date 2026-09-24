@@ -39,8 +39,14 @@ export class PsychosocialController {
   @Get('results')
   @RequireScreen('psicossocial', 'dashboard')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
-  results(@CurrentUser() user: SessionUser) {
-    return this.psychosocial.results(user.tenantId);
+  async results(@CurrentUser() user: SessionUser) {
+    // `ghes` (agregado completo por GHE) é de uso INTERNO do Dossiê. Publicado
+    // ao lado de `sectors`, duas partições cruzadas permitiam isolar um
+    // respondente por diferença (setor de 6 menos GHE de 5 dentro dele). O
+    // portal não usa; o Dossiê mostra o que o modelo oficial pede.
+    const { ghes: _interno, ...publico } = await this.psychosocial.results(user.tenantId);
+    void _interno;
+    return publico;
   }
 
   /** Recortes gerenciais (GHE, unidade, área, cargo, turno…) com supressão. */

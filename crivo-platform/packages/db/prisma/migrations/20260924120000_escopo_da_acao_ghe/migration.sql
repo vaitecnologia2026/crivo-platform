@@ -1,0 +1,12 @@
+-- ESCOPO da ação no Plano de Evolução: Organização ou GHE específico.
+--
+-- ADITIVA e NULLABLE: nenhuma linha existente muda. NULL = ação geral, do
+-- Resultado Geral da Organização — que é o que toda ação já existente é.
+--
+-- Por que existe: o modelo oficial do Dossiê Técnico Organizacional (23/09)
+-- mantém UM único Plano de Evolução, mas separa as ações por escopo: as gerais
+-- (PA-001 - Resultado Geral da Organização - ...) e as específicas de um GHE
+-- (PA-005 - GHE - Operações - ...), que só aparecem no anexo do próprio grupo.
+-- O valor é o nome do GHE exatamente como está no retrato das respostas
+-- (cohort.ghe), que é como o cálculo por GHE agrupa.
+ALTER TABLE "action_items" ADD COLUMN "scope_ghe" TEXT;

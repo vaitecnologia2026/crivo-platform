@@ -501,6 +501,11 @@ export function removeLibraryItem(id: string): Promise<{ ok: true }> {
 export function listActionPlans(): Promise<ActionPlanData[]> {
   return apiFetch<ActionPlanData[]>('/action-plans');
 }
+/** Escopos possíveis de uma ação além da Organização: os GHEs ELEGÍVEIS do
+ *  ciclo (Dossiê Organizacional). Lista vazia fora do Organizacional. */
+export function listGhesDoPlano(): Promise<{ ghes: { value: string; label: string }[] }> {
+  return apiFetch<{ ghes: { value: string; label: string }[] }>('/action-plans/ghes');
+}
 export function createActionPlan(dto: CreateActionPlanRequest): Promise<ActionPlanData> {
   return apiFetch<ActionPlanData>('/action-plans', { method: 'POST', body: JSON.stringify(dto) });
 }

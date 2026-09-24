@@ -70,6 +70,42 @@ export class ActionPlansService {
    * do portal (/me/diagnostic-context). Sem isso, qualquer empresa carimbaria
    * como origem um diagnóstico que nunca aplicou.
    */
+  /**
+   * Escopo informado pela tela: undefined = não mexer; null/'' = Organização;
+   * valor = tem de ser um GHE ELEGÍVEL do ciclo (n >= mínimo). Grupo abaixo do
+   * mínimo não tem resultado próprio no Dossiê, e texto livre criaria um escopo
+   * que nenhum anexo mostra.
+   */
+  private async exigirPlano(tenantId: string, planId: string): Promise<void> {
+    const p = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.actionPlan.findUnique({ where: { id: planId }, select: { id: true } }),
+    );
+    if (!p) throw new NotFoundException('Plano não encontrado');
+  }
+
+  private async exigirItem(tenantId: string, itemId: string): Promise<void> {
+    const i = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.actionItem.findUnique({ where: { id: itemId }, select: { id: true } }),
+    );
+    if (!i) throw new NotFoundException('Ação não encontrada');
+  }
+
+  private async escopoValido(
+    tenantId: string,
+    raw: string | null | undefined,
+  ): Promise<string | null | undefined> {
+    if (raw === undefined) return undefined;
+    const v = raw?.trim() || null;
+    if (!v) return null;
+    const ghes = await this.riskSuggestions.ghesElegiveis(tenantId);
+    if (!ghes.some((g) => g.value === v)) {
+      throw new BadRequestException(
+        'Escopo inválido: escolha a Organização ou um GHE elegível do ciclo (com o mínimo de respostas).',
+      );
+    }
+    return v;
+  }
+
   private async assertInstrumentSlug(slug: string, tenantId: string): Promise<void> {
     // rls-allow: diagnostic_instruments é catálogo GLOBAL (control-plane).
     const inst = await this.prisma.admin.diagnosticInstrument.findUnique({ where: { slug } });
@@ -113,6 +149,11 @@ export class ActionPlansService {
   ): Promise<ActionItemData> {
     const itemSlug = dto.sourceInstrumentSlug?.trim() || null;
     if (itemSlug) await this.assertInstrumentSlug(itemSlug, tenantId);
+    // Escopo conferido DEPOIS de saber que o plano existe: com a ordem inversa,
+    // "400 escopo inválido" x "404" revelava quais GHEs são elegíveis a quem
+    // tentasse nomes com um id qualquer.
+    if (dto.scopeGhe) await this.exigirPlano(tenantId, planId);
+    const scopeGhe = await this.escopoValido(tenantId, dto.scopeGhe);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException('Plano não encontrado');
@@ -135,6 +176,7 @@ export class ActionPlansService {
           existingMeasure: dto.existingMeasure ?? null,
           indicator: dto.indicator ?? null,
           objective: dto.objective ?? null,
+          scopeGhe: scopeGhe ?? null,
         },
         include: { evidences: true, sourceInstrument: { select: { name: true } } },
       });
@@ -252,6 +294,7 @@ export class ActionPlansService {
             riskFactorSlug: x.factorSlug,
             riskProbability: x.probability,
             riskSeverity: x.severity,
+            scopeGhe: x.scopeGhe,
             suggestionKey: x.key,
           },
           include: { evidences: true, sourceInstrument: { select: { name: true } } },
@@ -280,6 +323,10 @@ export class ActionPlansService {
     const updSlug =
       dto.sourceInstrumentSlug === undefined ? undefined : dto.sourceInstrumentSlug?.trim() || null;
     if (updSlug) await this.assertInstrumentSlug(updSlug, tenantId);
+    // undefined preserva; null/'' volta para Organização; valor = GHE elegível.
+    // Conferido depois de saber que a ação existe (ver addItem).
+    if (dto.scopeGhe) await this.exigirItem(tenantId, itemId);
+    const updEscopo = await this.escopoValido(tenantId, dto.scopeGhe);
     return this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!existing) throw new NotFoundException('Ação não encontrada');
@@ -320,6 +367,7 @@ export class ActionPlansService {
             dto.existingMeasure === undefined ? existing.existingMeasure : dto.existingMeasure,
           indicator: dto.indicator === undefined ? existing.indicator : dto.indicator,
           objective: dto.objective === undefined ? existing.objective : dto.objective,
+          scopeGhe: updEscopo === undefined ? existing.scopeGhe : updEscopo,
         },
         include: { evidences: { orderBy: { createdAt: 'desc' } }, sourceInstrument: { select: { name: true } } },
       });
@@ -366,6 +414,7 @@ export class ActionPlansService {
       track('indicador', existing.indicator, dto.indicator);
       track('objetivo', existing.objective, dto.objective);
       track('diagnóstico de origem', existing.sourceInstrumentSlug, updSlug);
+      track('escopo', existing.scopeGhe, updEscopo);
       if (changed.length) {
         await tx.actionItemHistory.create({
           data: {
@@ -626,6 +675,7 @@ export class ActionPlansService {
     objective?: string | null;
     sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
     riskFactorSlug?: string | null; riskProbability?: number | null; riskSeverity?: number | null;
+    scopeGhe?: string | null;
     createdAt: Date; evidences?: Parameters<ActionPlansService['toEvidence']>[0][];
   }): ActionItemData {
     return {
@@ -652,6 +702,7 @@ export class ActionPlansService {
       riskFactorSlug: i.riskFactorSlug ?? null,
       riskProbability: i.riskProbability ?? null,
       riskSeverity: i.riskSeverity ?? null,
+      scopeGhe: i.scopeGhe ?? null,
       createdAt: i.createdAt.toISOString(),
       evidences: (i.evidences ?? []).map((e) => this.toEvidence(e)),
     };
@@ -680,6 +731,9 @@ export class ActionPlansService {
 
 function parseDate(v: string | null | undefined): Date | null {
   if (!v) return null;
-  const d = new Date(v);
+  // "AAAA-MM-DD" (input date do portal) é um DIA: grava ao meio-dia de
+  // Brasília, como o formulário de detalhes já fazia. `new Date('2026-10-23')`
+  // é meia-noite UTC — no fuso do Brasil, 22/10 — e o prazo saía um dia antes.
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T12:00:00-03:00` : v);
   return Number.isNaN(d.getTime()) ? null : d;
 }

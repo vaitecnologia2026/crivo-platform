@@ -776,14 +776,52 @@ export interface MethodologyConfigBand {
 }
 
 /** Faixa em que uma pontuação (0–100) cai — MESMA regra do scoreWithMethodology
- *  (linha do `band` abaixo): a 1ª faixa cujo [min,max] contém o score; se nenhuma,
- *  a última (teto superior). Reusado no back (band por dimensão) e no front (LP). */
+ *  (linha do `band` abaixo): a 1ª faixa cujo [min,max] contém o score.
+ *
+ *  Fora de toda faixa, vale a faixa MAIS PRÓXIMA, e o empate sobe. É a regra de
+ *  arredondamento homologada: as faixas são inteiras (…65–79 · 80–100) e o score
+ *  tem 1 casa, então 79,6 cai no vão e é lido como 80 — Estruturado, com a cor
+ *  de Estruturado (modelo oficial do Dossiê, 23/09). Antes o vão devolvia a
+ *  ÚLTIMA faixa do array: 79,6 acertava por coincidência, mas 64,5 também
+ *  saía "Estruturado". Abaixo do mínimo/acima do máximo, a ponta mais próxima.
+ *  Reusado no back (band por dimensão) e no front (LP). */
 export function findBandForScore(
   bands: MethodologyConfigBand[] | undefined,
   score: number,
 ): MethodologyConfigBand | undefined {
   if (!bands || bands.length === 0) return undefined;
-  return bands.find((b) => score >= b.min && score <= b.max) ?? bands[bands.length - 1];
+  const exata = bands.find((b) => score >= b.min && score <= b.max);
+  if (exata) return exata;
+  let melhor = bands[0];
+  let melhorDist = Infinity;
+  for (const b of bands) {
+    const dist = score < b.min ? b.min - score : score - b.max;
+    // Empate (79,5 entre 79 e 80) sobe para a faixa de cima: meio arredonda
+    // para cima, como no Math.round.
+    if (dist < melhorDist - 1e-9 || (Math.abs(dist - melhorDist) <= 1e-9 && b.min > melhor.min)) {
+      melhor = b;
+      melhorDist = dist;
+    }
+  }
+  return melhor;
+}
+
+/**
+ * Nome do GHE como a empresa cadastrou, sem o prefixo "GHE" que muitas digitam
+ * junto ("GHE-Recursos Humanos", "GHE - Operações"). O Dossiê imprime o nome
+ * limpo nas tabelas e "GHE - <nome>" nos títulos — sem isto saía "GHE: GHE-…".
+ * Nunca inventa nome: sem prefixo, devolve o texto como veio (aparado).
+ */
+export function nomeDoGhe(raw: string): string {
+  const t = raw.trim();
+  // Prefixo só com separador ou espaço depois: "Ghelfi" não perde o "Ghe".
+  const semPrefixo = t.replace(/^GHE(?:\s*[-–—:.]\s*|\s+)/i, '').trim();
+  return semPrefixo || t;
+}
+
+/** "GHE - <nome>" — como o modelo oficial rotula o grupo (títulos e escopo). */
+export function rotuloDoGhe(raw: string): string {
+  return `GHE - ${nomeDoGhe(raw)}`;
 }
 /** Modos de agregação do motor (call 14/07): a estrutura da fórmula passa a ser
  *  escolhida por instrumento. Default = MEDIA_PONDERADA (comportamento atual). */
@@ -1400,6 +1438,11 @@ export interface RiskActionSuggestion {
   indicadores: string;
   /** Já aceita antes: a tela mostra como "no plano" em vez de oferecer de novo. */
   alreadyInPlan: boolean;
+  /** Escopo da ação sugerida: null = Resultado Geral da Organização; valor = GHE
+   *  (como gravado no retrato das respostas). Sugestão de GHE só existe para
+   *  fator que exige ação NO GHE e não no Resultado Geral — o que o geral já
+   *  cobre não vira ação repetida por grupo. */
+  scopeGhe: string | null;
 }
 
 export interface RiskActionSuggestions {
@@ -2029,6 +2072,11 @@ export interface ActionItemData {
   riskFactorSlug: string | null;
   riskProbability: number | null;
   riskSeverity: number | null;
+  /** ESCOPO da ação no Plano de Evolução único: null = Resultado Geral da
+   *  Organização (ação geral); valor = GHE específico, exatamente como está no
+   *  retrato das respostas ("GHE-Operações"). É o que separa, no Dossiê, as
+   *  ações gerais das específicas de cada GHE. */
+  scopeGhe: string | null;
   createdAt: string;
   evidences: EvidenceData[];
 }
@@ -2067,6 +2115,8 @@ export interface CreateActionItemRequest {
   existingMeasure?: string;
   indicator?: string;
   objective?: string;
+  /** Escopo: ausente/null = Organização; valor = GHE elegível do ciclo. */
+  scopeGhe?: string | null;
 }
 export interface UpdateActionItemRequest {
   point?: string;
@@ -2086,6 +2136,8 @@ export interface UpdateActionItemRequest {
   existingMeasure?: string;
   indicator?: string;
   objective?: string;
+  /** Escopo: undefined preserva; null volta para Organização; valor = GHE. */
+  scopeGhe?: string | null;
 }
 
 /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
@@ -2347,12 +2399,17 @@ export interface DocumentSection {
   /** Tabela com cabeçalho + linhas (ex.: plano de ação). */
   table?: { columns: string[]; data: string[][] };
   /**
-   * Bloco HTML JÁ SANITIZADO (modelo importado do Word, com tabelas/listas/
-   * negrito do arquivo original). O renderizador injeta como está — nunca
-   * atribua aqui HTML que não tenha passado por `sanitizeReportHtml`.
+   * Bloco HTML pronto. O renderizador injeta como está, então só entra aqui
+   * HTML (a) de modelo importado do Word, já passado por `sanitizeReportHtml`,
+   * ou (b) montado pelo próprio gerador do documento com TODO texto variável
+   * escapado (matriz 5×5, barras, cards de ação do Dossiê). Nunca texto cru.
    * Quando presente, `heading` vazio omite o título da seção.
    */
   html?: string;
+  /** Abre página nova na impressão (quebra antes da seção). Títulos de bloco e
+   *  anexos já quebram sozinhos; isto é para seção com conteúdo que o modelo
+   *  oficial põe no topo da página ("Controle documental"). */
+  novaPagina?: boolean;
 }
 
 export interface GeneratedDocument {

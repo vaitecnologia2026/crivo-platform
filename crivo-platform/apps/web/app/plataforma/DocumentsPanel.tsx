@@ -143,8 +143,11 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       if (s.rows) inner += `<table class="kv">${s.rows.map((r) => `<tr><th>${esc(r.label)}</th><td>${esc(r.value)}</td></tr>`).join("")}</table>`;
       if (s.table) {
         const head = s.table.columns.map((c) => `<th>${esc(c)}</th>`).join("");
+        // Código curto (PA-001, RPS-018) não quebra no hífen: em coluna estreita
+        // saía "PA-" numa linha e "001" na outra.
+        const codigo = /^[A-Z]{1,4}-[A-Z]?\d{2,4}$/;
         const rows = s.table.data
-          .map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+          .map((row) => `<tr>${row.map((c) => `<td${codigo.test(c) ? ' style="white-space:nowrap"' : ""}>${esc(c)}</td>`).join("")}</tr>`)
           .join("");
         inner += `<table class="grid"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
       }
@@ -155,8 +158,13 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       // Sem titulo quando o proprio corpo do modelo ja traz a titulacao dele.
       const title = s.heading ? `<h2>${esc(s.heading)}</h2>` : "";
       // Título de bloco (seção só com heading) e anexos abrem página nova na
-      // impressão — é a paginação do modelo oficial do Dossiê Técnico.
-      const cls = s.heading && !inner ? "bloco" : /^Anexo t[eé]cnico/i.test(s.heading ?? "") ? "anexo" : "";
+      // impressão — é a paginação do modelo oficial do Dossiê Técnico. Seção
+      // com conteúdo que o modelo põe no topo da página ("Controle documental")
+      // pede a quebra com `novaPagina`.
+      const cls = [
+        s.heading && !inner ? "bloco" : /^Anexo t[eé]cnico/i.test(s.heading ?? "") ? "anexo" : "",
+        s.novaPagina ? "quebra" : "",
+      ].filter(Boolean).join(" ");
       return `<section${cls ? ` class="${cls}"` : ""}>${title}${inner}</section>`;
     })
     .join("");
@@ -208,15 +216,83 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) th,
   section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) td { border: 0; padding: 4px 10px 4px 0; text-align: left; vertical-align: top; }
   .note { margin-top: 30px; padding: 14px 16px; background: #f6f4f0; border-left: 3px solid #a8693d; font-size: 11.5px; color: #3a4858; font-style: italic; }
+  /* Dossiê Técnico (Essencial e Organizacional): a régua tipográfica do modelo
+     oficial de 23/09, medida no PDF — Times, corpo 9pt, tabelas 7,4pt,
+     subtítulos 10,2pt, títulos de bloco 14pt, título 17,5pt, grade fina
+     #D8D1C5 com cabeçalho #F1EEE8. Na escala anterior (Georgia 12pt) o mesmo
+     conteúdo saía em 19 páginas, contra 13 do modelo. Os demais documentos
+     seguem com o desenho deles. */
+  body.modelo-dossie { font-family: 'Times New Roman', Times, serif; color: #16233A; font-size: 9pt; line-height: 1.25; }
+  body.modelo-dossie .brandbar b { color: #14253F; }
+  body.modelo-dossie .rule { border-top: 1.2pt solid #0F2746; margin: 0 0 14pt; }
+  /* 85%: o título quebra depois de "Psicossociais", como no modelo. */
+  body.modelo-dossie h1 { font-size: 17.5pt; font-weight: 700; color: #14253F; line-height: 1.12; margin: 0 0 3pt; max-width: 85%; }
+  body.modelo-dossie .sub { font-size: 8.4pt; color: #627083; margin-bottom: 8pt; }
+  body.modelo-dossie p { margin: 0 0 6pt; }
+  body.modelo-dossie h2 { font-size: 10.2pt; color: #14253F; border-bottom: 0.6pt solid #0F2746; padding-bottom: 3pt; margin: 14pt 0 7pt; }
+  body.modelo-dossie section.bloco > h2 { font-size: 14pt; border-bottom: 0; padding-bottom: 0; margin: 18pt 0 2pt; }
+  body.modelo-dossie section.bloco + section > h2 { margin-top: 4pt; }
+  /* Seção que abre página com conteúdo ("Controle documental"): título do
+     tamanho de bloco, com o filete embaixo, como no modelo. */
+  body.modelo-dossie section.quebra > h2 { font-size: 14pt; margin-top: 18pt; }
+  body.modelo-dossie table { font-size: 7.4pt; margin: 5pt 0 10pt; }
+  body.modelo-dossie table.ident { margin-top: 8pt; border: 0.28pt solid #D8D1C5; }
+  body.modelo-dossie table.ident th, body.modelo-dossie table.ident td { padding: 5pt 7pt; border: 0.28pt solid #D8D1C5; }
+  body.modelo-dossie table.ident th { background: #F1EEE8; color: #16233A; font-size: 7.4pt; }
+  body.modelo-dossie table.ident td { color: #16233A; }
+  body.modelo-dossie table.kv { border: 0.28pt solid #D8D1C5; }
+  body.modelo-dossie table.kv th, body.modelo-dossie table.kv td { padding: 4pt 6pt; border: 0.28pt solid #D8D1C5; vertical-align: top; }
+  body.modelo-dossie table.kv th { width: 25%; color: #16233A; font-weight: 400; }
+  body.modelo-dossie table.grid th, body.modelo-dossie table.grid td { border: 0.28pt solid #D8D1C5; padding: 3.5pt 5pt; }
+  body.modelo-dossie table.grid th { background: #F1EEE8; color: #16233A; font-size: 7.4pt; }
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
   /* Margem zero na PAGINA tira o cabecalho/rodape que o navegador imprime
      por conta propria (data, titulo, URL blob: e numero de pagina). O
      respiro volta como padding do proprio documento, no padrao CRIVO. */
   @page { size: A4; margin: 0; }
+  /* DOSSIÊ (página nomeada, só ele): rodapé do modelo oficial em TODA página —
+     "CRIVO™ · Decision Intelligence" à esquerda e "Página N" à direita, com o
+     filete acima (caixas de margem, Chrome/Edge 131+). As SEIS caixas de cima
+     e de baixo são declaradas, as vazias também: caixa declarada pelo
+     documento substitui a do navegador, e é isso que tira o cabeçalho/rodapé
+     dele mesmo com margem. Os outros documentos seguem na página sem margem
+     acima, que vale em qualquer navegador. */
+  body.modelo-dossie { page: dossie; }
+  @page dossie {
+    size: A4;
+    /* Margens medidas no modelo do Dossiê: 18mm à esquerda, 16mm à direita. */
+    margin: 16mm 16mm 18mm 18mm;
+    @top-left { content: ""; }
+    @top-center { content: ""; }
+    @top-right { content: ""; }
+    @bottom-center { content: ""; width: 0; }
+    @bottom-left {
+      content: "CRIVO™ · Decision Intelligence";
+      width: 70%;
+      vertical-align: top;
+      padding-top: 3mm;
+      border-top: 0.5pt solid #D5D9DC;
+      font: 6pt 'Times New Roman', Times, serif;
+      color: #627083;
+    }
+    @bottom-right {
+      content: "Página " counter(page);
+      width: 30%;
+      text-align: right;
+      vertical-align: top;
+      padding-top: 3mm;
+      border-top: 0.5pt solid #D5D9DC;
+      font: 6pt 'Times New Roman', Times, serif;
+      color: #627083;
+    }
+  }
   @media print {
     /* Respiro inferior menor: com 18mm embaixo, um anexo que enchia a última
        página empurrava só o padding para uma página em branco no fim. */
     body { margin: 0; max-width: none; padding: 18mm 16mm 6mm; }
+    /* No Dossiê o respiro é a margem da página nomeada (onde mora o rodapé). */
+    body.modelo-dossie { padding: 0; }
+    section.quebra { break-before: page; }
     button { display: none; }
     /* A assinatura de rodapé é da tela; impresso, ela sobrava sozinha numa
        última página em branco quando o anexo enchia a anterior. */
@@ -228,7 +304,7 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
     table { break-inside: auto; }
     tr { break-inside: avoid; }
   }
-</style></head><body>
+</style></head><body${doc.type === "dossie_tecnico" ? ' class="modelo-dossie"' : ""}>
   <div class="brandbar">
     <svg viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <line x1="5" y1="37" x2="24" y2="6" stroke="#0d1f3c" stroke-width="2.2" stroke-linecap="round"/>

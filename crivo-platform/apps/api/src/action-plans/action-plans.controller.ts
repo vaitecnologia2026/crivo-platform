@@ -123,6 +123,14 @@ export class ActionPlansController {
     return this.riskSvc.list(user.tenantId, planId);
   }
 
+  /** Escopos possíveis de uma ação além da Organização: os GHEs ELEGÍVEIS do
+   *  ciclo (Dossiê Organizacional). Vazio fora do Organizacional. */
+  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
+  @Get('ghes')
+  async ghes(@CurrentUser() user: SessionUser) {
+    return { ghes: await this.riskSvc.ghesElegiveis(user.tenantId) };
+  }
+
   @Post()
   createPlan(@CurrentUser() user: SessionUser, @Body() dto: CreateActionPlanDto) {
     return this.plans.createPlan(user.tenantId, dto);

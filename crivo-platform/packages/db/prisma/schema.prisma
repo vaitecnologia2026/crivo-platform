@@ -1663,6 +1663,12 @@ model ActionItem {
   riskFactorSlug       String?               @map("risk_factor_slug")
   riskProbability      Int?                  @map("risk_probability")
   riskSeverity         Int?                  @map("risk_severity")
+  /// ESCOPO da ação no Plano de Evolução único (modelo oficial do Dossiê
+  /// Organizacional, 23/09): null = Resultado Geral da Organização (ação geral);
+  /// valor = GHE específico, exatamente como está no retrato das respostas
+  /// (cohort.ghe). Ação geral não se duplica por GHE — é referenciada no anexo
+  /// de cada grupo em que o fator exige ação.
+  scopeGhe             String?               @map("scope_ghe")
   /// Idempotência da sugestão (<dimensão>|<título da ação>): gerar duas vezes
   /// não duplica a ação no mesmo plano.
   suggestionKey        String?               @map("suggestion_key")

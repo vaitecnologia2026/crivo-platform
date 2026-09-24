@@ -19,6 +19,8 @@ import {
   PSYCHOSOCIAL_SEVERITY_SHORT,
   findBandForScore,
   fillReportPlaceholders,
+  nomeDoGhe,
+  rotuloDoGhe,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -40,6 +42,23 @@ import {
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { AiSettingsService } from '../admin/ai-settings.service';
 import { planEntryFor, resolveActionPlans } from './psychosocial-action-plans';
+import {
+  COR_CLASSE_RISCO,
+  acoesEspecificasDoGhe,
+  acoesGeraisDoGhe,
+  cardAcaoHtml,
+  dataPtBr,
+  decimalPtBr,
+  emPartes,
+  fatoresQueRequeremAcao,
+  leituraDoGhe,
+  maiorRisco,
+  numerarAcoes,
+  sinteseExecutivaHtml,
+  tabelaFatoresDoGheHtml,
+  tabelaPanorama,
+  type GrupoCalculado,
+} from './dossie-organizacional';
 
 type DiagnosticMethodLike = string | null;
 type ReportTemplateSectionRow = { heading?: string; body?: string };
@@ -156,6 +175,10 @@ export type FactorItem = {
   sourceInstrumentSlug?: string | null;
   // A3 — evidências anexadas (status decide o bloqueio de dossiê p/ fator Alto).
   evidences?: { status: string }[];
+  /** Fator da matriz que originou a ação (sugestão) — casa a ação com o fator. */
+  riskFactorSlug?: string | null;
+  /** Escopo: null = Resultado Geral da Organização; valor = GHE específico. */
+  scopeGhe?: string | null;
 };
 
 /**
@@ -217,6 +240,8 @@ export type PlanoParaGates = {
     status: string;
     point: string;
     riskFactorSlug?: string | null;
+    /** Escopo da ação: null = Organização; valor = GHE específico. */
+    scopeGhe?: string | null;
     responsible: string | null;
     dueDate: Date | null;
     expectedEvidence: string | null;
@@ -225,6 +250,11 @@ export type PlanoParaGates = {
 
 /** Fator que a matriz marcou como plano OBRIGATÓRIO (R ≥ 10). */
 export type FatorObrigatorio = { slug: string; label: string };
+
+/** Fator obrigatório SÓ na matriz de um GHE (no Resultado Geral fica abaixo de
+ *  10): precisa de ação aprovada que valha para o grupo — geral do mesmo fator
+ *  ou específica daquele GHE. */
+export type FatorObrigatorioGhe = FatorObrigatorio & { ghe: string };
 
 /**
  * Gates de PLANO da emissão OFICIAL do Dossiê — "gates mínimos" da matriz de
@@ -243,13 +273,21 @@ export type FatorObrigatorio = { slug: string; label: string };
 export function bloqueiosDoPlano(
   plano: PlanoParaGates | undefined,
   obrigatorios: FatorObrigatorio[],
+  obrigatoriosGhe: FatorObrigatorioGhe[] = [],
 ): string[] {
   const out: string[] = [];
   const itens = plano?.items ?? [];
   const norm = (s: string) => s.trim().toLowerCase();
   // Ação manual ("+ Nova ação") não tem riskFactorSlug: casa pelo nome do fator.
-  const cobre = (f: FatorObrigatorio, i: PlanoParaGates['items'][number]) =>
+  const doFator = (f: FatorObrigatorio, i: PlanoParaGates['items'][number]) =>
     i.riskFactorSlug === f.slug || norm(i.point) === norm(f.label);
+  // Fator do Resultado Geral só é coberto por ação GERAL (escopo Organização):
+  // uma ação específica de um GHE não trata o fator na organização inteira.
+  const cobre = (f: FatorObrigatorio, i: PlanoParaGates['items'][number]) =>
+    doFator(f, i) && !i.scopeGhe;
+  // Fator obrigatório só no GHE: vale a geral do fator OU a específica do grupo.
+  const cobreGhe = (f: FatorObrigatorioGhe, i: PlanoParaGates['items'][number]) =>
+    doFator(f, i) && (!i.scopeGhe || i.scopeGhe === f.ghe);
 
   // 1. Toda sugestão decidida (aprovada ou descartada).
   const pendentes = itens.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
@@ -268,14 +306,26 @@ export function bloqueiosDoPlano(
       `Fator(es) com plano obrigatório sem ação aprovada: ${semAcao.map((f) => f.label).join(', ')}.`,
     );
   }
+  // 2b. Fator obrigatório só na matriz de um GHE (Dossiê Organizacional).
+  const semAcaoGhe = obrigatoriosGhe.filter(
+    (f) => !itens.some((i) => acaoEntraNoDocumento(i.status) && cobreGhe(f, i)),
+  );
+  if (semAcaoGhe.length) {
+    out.push(
+      'Fator(es) com plano obrigatório no GHE sem ação aprovada aplicável: ' +
+        `${semAcaoGhe.map((f) => `${rotuloDoGhe(f.ghe)}: ${f.label}`).join('; ')}.`,
+    );
+  }
 
   // 3. Ação aprovada de fator obrigatório completa: responsável, prazo,
   //    evidência esperada (NR-1 1.5.5.2.2 — cronograma, responsáveis, aferição).
   //    Aprovar já exige responsável + evidência; o prazo só é cobrado aqui.
+  // Qualquer ESCOPO: a específica de um GHE (PA-005 do modelo) também sai
+  // no documento e precisa de prazo — `cobre` (só geral) é regra do gate 2.
   const incompletas = itens.filter(
     (i) =>
       acaoEntraNoDocumento(i.status) &&
-      obrigatorios.some((f) => cobre(f, i)) &&
+      (obrigatorios.some((f) => doFator(f, i)) || obrigatoriosGhe.some((f) => cobreGhe(f, i))) &&
       (!i.responsible?.trim() || !i.dueDate || !i.expectedEvidence?.trim()),
   );
   if (incompletas.length) {
@@ -286,7 +336,7 @@ export function bloqueiosDoPlano(
   }
 
   // 7. Validação da empresa registrada — só faz sentido quando há o que validar.
-  if ((itens.length || obrigatorios.length) && !plano?.validatedAt) {
+  if ((itens.length || obrigatorios.length || obrigatoriosGhe.length) && !plano?.validatedAt) {
     out.push('Plano de Evolução ainda não validado — valide no Plano de Evolução.');
   }
   return out;
@@ -295,16 +345,41 @@ export function bloqueiosDoPlano(
 /**
  * Fatores obrigatórios da matriz ATUAL para os gates. Nunca lança: sem matriz
  * (indisponível, suprimida, erro) o gate 2 simplesmente não avalia.
+ * `porGhe`: Dossiê Organizacional — cada GHE elegível também cobra os fatores
+ * que exigem ação NA MATRIZ DELE.
  */
 async function fatoresObrigatoriosDe(
   psychosocial: Pick<PsychosocialService, 'results'>,
   tenantId: string,
-): Promise<FatorObrigatorio[]> {
+  porGhe = false,
+): Promise<{ geral: FatorObrigatorio[]; ghe: FatorObrigatorioGhe[] }> {
   try {
-    return fatoresObrigatorios(await psychosocial.results(tenantId));
+    const psy = await psychosocial.results(tenantId);
+    return { geral: fatoresObrigatorios(psy), ghe: porGhe ? fatoresObrigatoriosPorGhe(psy) : [] };
   } catch {
-    return [];
+    return { geral: [], ghe: [] };
   }
+}
+
+/**
+ * Fatores que exigem ação SÓ em algum GHE elegível. O que já é obrigatório no
+ * Resultado Geral fica fora: a ação geral dele já vale para todos os grupos
+ * (modelo 23/09 — "ações gerais não devem ser duplicadas como novas ações de
+ * cada GHE").
+ */
+export function fatoresObrigatoriosPorGhe(
+  psy: Awaited<ReturnType<PsychosocialService['results']>> | null,
+): FatorObrigatorioGhe[] {
+  if (!psy || psy.totalRespondents < psy.minRespondents) return [];
+  const gerais = new Set(fatoresObrigatorios(psy).map((f) => f.slug));
+  const out: FatorObrigatorioGhe[] = [];
+  for (const g of psy.ghes ?? []) {
+    if (g.suppressed || !('riskMatrix' in g) || !g.riskMatrix) continue;
+    for (const r of g.riskMatrix) {
+      if (r.planRequired && !gerais.has(r.slug)) out.push({ ghe: g.ghe, slug: r.slug, label: r.label });
+    }
+  }
+  return out;
 }
 
 /** Fatores com plano obrigatório na matriz ATUAL (vazio se suprimida/indisponível). */
@@ -329,16 +404,10 @@ type CnaeDecisionRow = {
  *  amarelo → laranja → vermelho → vermelho escuro), com o risco em texto escuro
  *  por cima. Só o documento usa esta paleta: as etiquetas do portal seguem em
  *  tons escuros porque lá a cor é do TEXTO, e amarelo não se lê sobre branco. */
-const COR_MATRIZ: Record<PsychosocialRiskClass, string> = {
-  BAIXO: '#5BB25B',
-  MODERADO: '#F2C230',
-  ALTO: '#F08A3C',
-  MUITO_ALTO: '#E14D3D',
-  CRITICO: '#C0392B',
-};
+const COR_MATRIZ: Record<PsychosocialRiskClass, string> = COR_CLASSE_RISCO;
 /** Caixas dos eixos (P à esquerda, S no topo): azul-marinho com rótulo branco. */
 const EIXO_MATRIZ =
-  'background:#0d1f3c;color:#fff;text-align:center;font-weight:700;border:2px solid #fff;';
+  'background:#14253F;color:#fff;text-align:center;font-weight:700;border:1.5pt solid #14253F;';
 
 /** Origem gravada pela auto-avaliação do gestor em `diagnostic_responses`
  *  (`essencial.service.ts`). Resposta de campanha grava origin NULO. */
@@ -367,15 +436,17 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
     const titulo = fatores.length ? ` title="${escapaHtml(fatores.join(' · '))}"` : '';
     // Como no modelo: TODA célula pintada com a cor da classe — a grade é a
     // régua P × S inteira, não um mapa de calor só do que tem fator —, risco
-    // em negrito no canto superior esquerdo e, só onde há fator, "N fator(es)".
+    // em negrito no centro e, só onde há fator, "1 fator"/"N fatores" embaixo.
     // Célula vazia apagada (versão anterior) fazia o cliente ler a matriz como
-    // incompleta.
+    // incompleta. Medidas do modelo de 23/09 (em pt).
     return (
-      `<td${titulo} style="background:${COR_MATRIZ[psychosocialRiskClass(risco)]};color:#1c2430;` +
-      `text-align:left;vertical-align:top;padding:7px 8px;border:2px solid #fff;` +
-      `width:74px;height:54px;font-size:9.5px;line-height:1.25;white-space:nowrap">` +
-      `<div style="font-weight:700;font-size:14px">${risco}</div>` +
-      (fatores.length ? `<div>${fatores.length} fator(es)</div>` : '') +
+      `<td${titulo} style="background:${COR_MATRIZ[psychosocialRiskClass(risco)]};color:#16233A;` +
+      `text-align:center;vertical-align:middle;padding:3pt 4pt;border:1.5pt solid #000;` +
+      `width:40pt;height:30pt;font-size:5.3pt;line-height:1.2;white-space:nowrap">` +
+      `<div style="font-weight:700;font-size:7.5pt">${risco}</div>` +
+      (fatores.length
+        ? `<div>${fatores.length} ${fatores.length === 1 ? 'fator' : 'fatores'}</div>`
+        : '') +
       `</td>`
     );
   };
@@ -386,22 +457,22 @@ function grade5x5Html(rows: PsychosocialRiskMatrixRow[]): string {
   for (let p = 5; p >= 1; p--) {
     const tds = [1, 2, 3, 4, 5].map((sev) => celula(p, sev)).join('');
     linhas.push(
-      `<tr><th style="${EIXO_MATRIZ}padding:4px 10px;font-size:12px">${p}</th>${tds}</tr>`,
+      `<tr><th style="${EIXO_MATRIZ}padding:3pt 8pt;font-size:7.5pt">${p}</th>${tds}</tr>`,
     );
   }
   const cabecalho = [1, 2, 3, 4, 5]
     .map(
       (sev) =>
-        `<th style="${EIXO_MATRIZ}padding:6px 4px;font-size:12px">${sev}</th>`,
+        `<th style="${EIXO_MATRIZ}padding:4pt 3pt;font-size:7.5pt">${sev}</th>`,
     )
     .join('');
   // Só a grade, como no modelo: sem legenda de cores, sem seta "Severidade" e
   // sem rodapé explicativo — o cabeçalho "P / S" já diz o que é linha e coluna.
   // Eixos em caixas azul-marinho, como no modelo.
   return (
-    `<div style="margin:12px 0 6px">` +
-    `<table style="width:auto;border-collapse:separate;border-spacing:0;margin:0 auto">` +
-    `<tr><th style="${EIXO_MATRIZ}font-size:10px;padding:4px 8px;width:44px">P \\ S</th>` +
+    `<div style="margin:8pt 0 6pt">` +
+    `<table style="width:auto;border-collapse:collapse;border-spacing:0;margin:0 auto">` +
+    `<tr><th style="${EIXO_MATRIZ}font-size:7pt;padding:3pt 6pt;width:34pt">P \\ S</th>` +
     `${cabecalho}</tr>${linhas.join('')}</table></div>`
   );
 }
@@ -420,15 +491,23 @@ function barrasDimensoesHtml(
     /** Como imprimir o score da linha. Padrão: `numeroPtBr` (MAPA). */
     formato?: (v: number) => string;
     legenda?: { label: string; min: number; max: number; cor?: string | null }[];
+    /** Desenho do modelo do Dossiê (23/09): grade fina, score sem negrito e a
+     *  faixa sem o marcador colorido. O MAPA segue com o desenho dele. */
+    estiloDossie?: boolean;
   } = {},
 ): string {
+  const dossie = !!opcoes.estiloDossie;
+  const borda = dossie ? 'border:0.28pt solid #D8D1C5;' : '';
+  // Medidas: o modelo do Dossiê imprime tudo em 7,4pt com barra de 6pt.
+  const fonte = dossie ? '7.4pt' : '11.5px';
+  const altura = dossie ? '6pt' : '9px';
   const cab = opcoes.cabecalho
     ? '<tr>' +
       ['Dimensão', opcoes.rotuloEscala ?? 'Escala', 'Score', 'Faixa']
         .map(
           (c, i) =>
-            `<th style="text-align:left;padding:6px 10px 6px ${i === 0 ? '0' : '10px'};` +
-            `background:#f7f5f1;font-size:10px;font-weight:700;color:#0d1f3c">${escapaHtml(c)}</th>`,
+            `<th style="text-align:left;padding:6px 10px 6px ${i === 0 && !dossie ? '0' : '10px'};${borda}` +
+            `background:${dossie ? '#F1EEE8' : '#f7f5f1'};font-size:${dossie ? '7.4pt' : '10px'};font-weight:700;color:${dossie ? '#16233A' : '#0d1f3c'}">${escapaHtml(c)}</th>`,
         )
         .join('') +
       '</tr>'
@@ -450,13 +529,13 @@ function barrasDimensoesHtml(
       const cor = d.cor ?? '#A8693D';
       const largura = Math.max(2, Math.min(100, d.value));
       return (
-        `<tr><td style="padding:4px 10px 4px 0;font-size:11.5px;color:#0d1f3c;width:38%">${escapaHtml(d.label)}</td>` +
-        `<td style="padding:4px 0"><div style="background:#e6e3dc;border-radius:6px;height:9px;width:100%">` +
-        `<div style="background:${cor};height:9px;border-radius:6px;width:${largura}%"></div></div></td>` +
-        `<td style="padding:4px 0 4px 10px;font-size:11.5px;font-weight:700;color:#0d1f3c;white-space:nowrap">${(opcoes.formato ?? numeroPtBr)(d.value)}</td>` +
-        `<td style="padding:4px 0 4px 10px;font-size:10.5px;white-space:nowrap;` +
+        `<tr><td style="padding:${dossie ? '2.5pt 5pt' : '4px 10px 4px 0'};${borda}font-size:${fonte};color:${dossie ? '#16233A' : '#0d1f3c'};width:38%">${escapaHtml(d.label)}</td>` +
+        `<td style="padding:${dossie ? '2.5pt 5pt' : '4px 0'};${borda}"><div style="background:#e6e3dc;border-radius:6px;height:${altura};width:100%">` +
+        `<div style="background:${cor};height:${altura};border-radius:6px;width:${largura}%"></div></div></td>` +
+        `<td style="padding:${dossie ? '2.5pt 5pt' : '4px 10px'};${borda}font-size:${fonte};font-weight:${dossie ? 400 : 700};color:${dossie ? '#16233A' : '#0d1f3c'};white-space:nowrap">${(opcoes.formato ?? numeroPtBr)(d.value)}</td>` +
+        `<td style="padding:${dossie ? '2.5pt 5pt' : '4px 10px'};${borda}font-size:${dossie ? fonte : '10.5px'};white-space:nowrap;` +
         `color:${opcoes.cabecalho ? '#2f343b' : cor}">` +
-        (opcoes.cabecalho
+        (opcoes.cabecalho && !dossie
           ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;` +
             `background:${cor};margin-right:5px"></span>`
           : '') +
@@ -465,7 +544,7 @@ function barrasDimensoesHtml(
     })
     .join('');
   return (
-    `<table style="width:100%;border-collapse:collapse;margin:8px 0">${cab}${linhas}</table>` +
+    `<table style="width:100%;border-collapse:collapse;margin:${dossie ? '5pt 0 8pt' : '8px 0'}">${cab}${linhas}</table>` +
     rodape
   );
 }
@@ -561,11 +640,11 @@ function numeroPtBr(value: number): string {
   return Number.isInteger(value) ? String(value) : String(value).replace('.', ',');
 }
 
-/** Score do Dossiê Técnico: casas FIXAS da metodologia e ponto decimal —
- *  "69.64", "75.00" — como no PDF-gabarito da homologação, que também imprime a
- *  exposição média com ponto ("3.57"). O MAPA Executivo segue com `numeroPtBr`. */
+/** Score do Dossiê Técnico: casas FIXAS da metodologia e VÍRGULA decimal —
+ *  "72,3", "76,0" — como no modelo oficial de 23/09 (o gabarito anterior, de
+ *  09/09, imprimia ponto; o definitivo usa vírgula também na exposição). */
 function scoreDossie(value: number, casas: number): string {
-  return value.toFixed(casas);
+  return decimalPtBr(value, casas);
 }
 
 function bandLabelOf(value: number, bands: BandLike[]): string {
@@ -732,14 +811,24 @@ function signatureSection(conclusionBody: string): DocumentSection {
  * na emissão oficial, emit() substitui esta seção por status "Documento
  * emitido" + versão + data + hash reais (após calcular o hash de integridade).
  */
-function docControlSection(extras: { label: string; value: string }[] = []): DocumentSection {
+/** Status da PRÉ-VISUALIZAÇÃO (cabeçalho e controle documental). */
+const STATUS_RASCUNHO = 'Rascunho (pré-visualização)';
+/** Validação do Dossiê no modelo oficial de 23/09. */
+const VALIDACAO_DOSSIE = 'Organização / responsável autorizado';
+/** Validação dos demais documentos técnicos (assinatura em branco no PDF). */
+const VALIDACAO_PADRAO = 'Assinatura fora do sistema (empresa e responsável técnico)';
+
+function docControlSection(
+  extras: { label: string; value: string }[] = [],
+  validacao: string = VALIDACAO_PADRAO,
+): DocumentSection {
   return {
     heading: 'Controle documental',
     rows: [
-      { label: 'Status do documento', value: 'Rascunho (pré-visualização)' },
+      { label: 'Status do documento', value: STATUS_RASCUNHO },
       { label: 'Versão do documento', value: 'Atribuída na emissão oficial' },
       { label: 'Data de emissão', value: '—' },
-      { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
+      { label: 'Validação', value: validacao },
       { label: 'Hash/Identificador', value: 'Atribuído na emissão oficial' },
       // Método e Organização: linhas do modelo oficial do Dossiê. Ficam FORA do
       // conjunto carimbado por emit(), que preserva o que não é dele.
@@ -940,10 +1029,14 @@ export class DocumentsService {
       : bloqueioIdentificacao;
     // Gates de PLANO (matriz de aceite 21/09) — só o Dossiê e os modelos
     // importados; o cartão diz o primeiro motivo, emit() cobra todos.
-    const bloqueiosPlano = bloqueiosDoPlano(
-      planoDoDocumento(plans),
-      await fatoresObrigatoriosDe(this.psychosocial, tenantId),
+    // Organizacional (motor psicossocial): cada GHE elegível também cobra os
+    // fatores que exigem ação na matriz dele.
+    const obrigatorios = await fatoresObrigatoriosDe(
+      this.psychosocial,
+      tenantId,
+      (await this.instrumentoDoTenant(tenantId, method)).motorPsicossocial,
     );
+    const bloqueiosPlano = bloqueiosDoPlano(planoDoDocumento(plans), obrigatorios.geral, obrigatorios.ghe);
     const bloqueioDossie =
       bloqueioDeEmissao ??
       (bloqueiosPlano.length
@@ -1421,7 +1514,7 @@ export class DocumentsService {
           value: Math.round((vals.reduce((s, x) => s + x, 0) / vals.length) * 10) / 10,
         };
       });
-      const band = bands.find((b) => score >= b.min && score <= b.max);
+      const band = findBandForScore(bands, score);
       const sectors = new Set(rows.map((r) => r.sector).filter(Boolean));
       const last = rows.reduce<Date | null>(
         (acc, r) => (!acc || r.submittedAt > acc ? r.submittedAt : acc),
@@ -1964,7 +2057,12 @@ export class DocumentsService {
     return { sections, matrix: consolidada.length ? consolidada : planMatrix };
   }
 
-  // ── TPL-002 · Dossiê Técnico (template ÚNICO, 14 seções na ordem oficial) ──
+  // ── TPL-002 · Dossiê Técnico (template ÚNICO, modelo oficial de 23/09) ────
+  //
+  // Essencial e Organizacional seguem a MESMA régua (decisão do cliente 23/09:
+  // "não queremos redesenho nem outro padrão documental"); o que muda é a
+  // profundidade. Com recorte por GHE (Organizacional), entram o panorama dos
+  // GHEs, a leitura por grupo e um anexo por GHE; o resto é idêntico.
   private async generateDossieTecnico(
     tenantId: string,
     ctx: {
@@ -1996,43 +2094,30 @@ export class DocumentsService {
     const items = (plan?.items ?? []) as (FactorItem & {
       evidences: { title: string; kind: string; url: string | null; status: string; reviewedAt: Date | null }[];
     })[];
-
-    // ── Identificação · página 1 do modelo ────────────────────────────────
-    // Campos e ordem do modelo oficial. Saíram "Público elegível",
-    // "Respostas válidas/adesão" e "Responsável CRIVO": o modelo não os tem, e a
-    // instrução de homologação é explícita — nº de respondentes não é nº de
-    // expostos, e dado contextual só aparece quando a organização o cadastrou.
-    const versaoMetodologica = await this.activeVersionLabel(instrumento.slug);
-    const meta: GeneratedDocument['meta'] = [
-      { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
-      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
-      { label: 'Estabelecimento', value: ctx.org?.establishment ?? '—' },
-      { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
-      // A saída técnica é do CONTRATO e o documento declara a dele — antes o
-      // Dossiê saía "NR-1 / GRO / PGR" para uma empresa sem integração
-      // contratada (homologação 17/09: "vincular título/saída ao contrato").
-      { label: 'Saída técnica', value: OUTPUT_LABEL[output] ?? output },
-      { label: 'Período avaliado', value: psy.period },
-      { label: 'Data de emissão', value: fmt(new Date()) },
-      { label: 'Versão metodológica', value: versaoMetodologica },
-      { label: 'Respostas válidas', value: String(psy.totalRespondents) },
-    ];
+    // Só ação APROVADA entra no documento (Ajustes Finais de Homologação).
+    const aprovadas = items.filter((i) => acaoEntraNoDocumento(i.status));
 
     const sections: DocumentSection[] = [];
     // `psy` é união (suprimido | agregado). Um alias estreitado evita repetir a
     // checagem em cada uso de bands/byDimension/score.
     const agregado = psy.suppressed ? null : psy;
+    const casas = agregado?.decimals ?? 1;
 
-    // Matriz calculada UMA vez: alimenta síntese, inventário e anexo.
-    //
-    // `psyMatriz.sections` fica de fora DE PROPÓSITO. Ali vivem a leitura da
-    // matriz, as tabelas por grupo e o bloco de TRATAMENTO SUGERIDO — proposta
-    // que ninguém aprovou. O modelo oficial é a saída limpa do cliente, e a
-    // instrução de homologação manda a orientação sobre validação do Plano de
-    // Evolução ficar no documento de instrução separado. A sugestão continua
-    // viva onde ela decide algo: a tela do Plano de Evolução.
-    const psyMatriz = await this.psychosocialMatrixSections(tenantId);
-    const matriz = psyMatriz.matrix;
+    // ── Matriz calculada UMA vez: síntese, inventário, anexo e GHEs ─────────
+    // Direto do motor (psychosocial.results), SEM o bloco de tratamento
+    // sugerido: aquilo é proposta que ninguém aprovou e chamava a IA a cada
+    // pré-visualização e emissão — o modelo oficial é a saída limpa do cliente.
+    // A sugestão vive onde decide algo: a tela do Plano de Evolução.
+    let res: Awaited<ReturnType<PsychosocialService['results']>> | null = null;
+    try {
+      res = await this.psychosocial.results(tenantId);
+    } catch {
+      res = null;
+    }
+    const liberado = !!res && res.totalRespondents >= res.minRespondents;
+    const geral =
+      liberado && res && !res.overall.suppressed && 'riskMatrix' in res.overall ? res.overall : null;
+    const matriz: PsychosocialRiskMatrixRow[] = geral?.riskMatrix ?? [];
     // ANEXO sai na ordem do catálogo (RPS-001, RPS-002…); a matriz chega
     // ordenada por risco desc, que é a ordem das PRIORIDADES.
     const porCodigo = [...matriz].sort((a, b) =>
@@ -2047,48 +2132,93 @@ export class DocumentsService {
         || `FP-${String(n + 1).padStart(3, '0')}`;
       idPorSlug.set(r.slug, code);
     });
-    const idDe = (r: PsychosocialRiskMatrixRow) => idPorSlug.get(r.slug) ?? '—';
+    const codigoDe = (slug: string) =>
+      idPorSlug.get(slug) ?? (slug.startsWith('rps-') ? slug.toUpperCase() : '—');
+    const idDe = (r: PsychosocialRiskMatrixRow) => codigoDe(r.slug);
     const prioritarios = matriz.filter((r) => r.planRequired);
     const adh = await this.sectorAdhesion(tenantId, instrumento);
     const exibidos = adh.sectors.filter((x) => !x.suppressed);
 
+    // ── Profundidade do Organizacional: cada GHE elegível, calculado só com as
+    // respostas do grupo (psychosocial.results → ghes). Só no motor
+    // psicossocial (método Organizacional) e só com GHE cadastrado — Área/Setor
+    // nunca vira GHE (Instrução de Homologação: "nenhum recorte deve ser inferido").
+    const porGhe = instrumento.motorPsicossocial && liberado && !!res && res.ghes.length > 0;
+    const grupos: GrupoCalculado[] =
+      porGhe && res
+        ? res.ghes.flatMap((g) =>
+            !g.suppressed && 'riskMatrix' in g && g.riskMatrix && typeof g.score === 'number'
+              ? [
+                  {
+                    ghe: g.ghe,
+                    n: g.respondents,
+                    score: g.score,
+                    faixa: g.levelLabel ?? findBandForScore(agregado?.bands ?? [], g.score)?.label ?? '—',
+                    matriz: g.riskMatrix,
+                  },
+                ]
+              : [],
+          )
+        : [];
+    const matrizDoGhe = (ghe: string) => grupos.find((x) => x.ghe === ghe)?.matriz ?? [];
+    // UM Plano de Evolução, ações numeradas no formato do modelo (PA-001…):
+    // gerais pelas prioridades do Resultado Geral, depois as de cada GHE.
+    const numeradas = numerarAcoes(aprovadas, matriz, grupos.map((g) => g.ghe), matrizDoGhe, codigoDe);
+    const geraisNum = numeradas.filter((a) => !a.ghe);
+    // Ação de GHE sem bloco onde aparecer (grupo abaixo do mínimo, ou documento
+    // sem recorte por GHE): aprovada tem de sair — sai no Plano, com o escopo.
+    const semAnexo = numeradas.filter((a) => a.ghe && !grupos.some((g) => g.ghe === a.ghe));
+
+    // ── Identificação · página 1 do modelo ────────────────────────────────
+    // Os 8 campos do modelo, na ordem dos pares. "Estabelecimento" é dado
+    // contextual: só aparece quando a organização cadastrou (o renderizador
+    // omite "—"), e vai por último para não deslocar os pares do modelo.
+    const versaoMetodologica = await this.activeVersionLabel(instrumento.slug);
+    const meta: GeneratedDocument['meta'] = [
+      { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
+      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
+      { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
+      { label: 'Respostas válidas', value: String(psy.totalRespondents) },
+      { label: 'Período avaliado', value: psy.period },
+      { label: 'Data de emissão', value: dataPtBr(new Date()) },
+      { label: 'Versão metodológica', value: versaoMetodologica },
+      // emit() carimba "Final" na versão oficial.
+      { label: 'Status', value: STATUS_RASCUNHO },
+      { label: 'Estabelecimento', value: ctx.org?.establishment ?? '—' },
+    ];
+
     // ── Objetivo e escopo ─────────────────────────────────────────────────
-    // Finalidade declarada conforme a SAÍDA TÉCNICA contratada: só quem contratou
-    // AEP / AEP+PGR lê "apoiar a AEP" e "atualização do PGR"; sem integração, o
-    // documento é técnico e gerencial e diz isso (dossierScopeSection).
-    const escopo = dossierScopeSection(output);
-    const finalidade =
-      output === 'AEP_PGR'
-        ? 'apoiar a gestão preventiva da organização, a Avaliação Ergonômica Preliminar (AEP) e a ' +
-          'atualização do Inventário de Riscos e do Plano de Ação do GRO/PGR.'
-        : output === 'AEP'
-          ? 'apoiar a gestão preventiva da organização e subsidiar a Avaliação Ergonômica Preliminar (AEP).'
-          : 'apoiar a gestão preventiva da organização, em caráter técnico, gerencial e documental — ' +
-            'sem integração formal a AEP ou PGR, que não fazem parte do escopo contratado.';
+    // Redação do modelo oficial de 23/09, igual para qualquer saída técnica
+    // contratada: "subsidiar… quando aplicável" + "não substitui a AEP, o PGR".
+    // As seções que SÓ quem contratou integração recebe continuam condicionais
+    // (Indicação de integração documental, anexo para o inventário do PGR).
     sections.push({
       heading: 'Objetivo e escopo',
       body:
         'Este dossiê consolida os fatores de riscos psicossociais relacionados ao trabalho ' +
-        `identificados no ciclo avaliado e organiza informações técnicas para ${finalidade}\n\n` +
-        `${escopo.body}\n\n` +
-        'O escopo é restrito às condições, à organização e à gestão do trabalho. O documento não ' +
-        'realiza diagnóstico clínico individual, avaliação psicológica individual nem análise de ' +
-        'aspectos pessoais desvinculados do trabalho.' +
+        'identificados no ciclo e organiza os resultados, as prioridades técnicas e as medidas ' +
+        'aprovadas para apoiar a prevenção e o acompanhamento pela organização.\n\n' +
+        'Os resultados podem subsidiar a Avaliação Ergonômica Preliminar (AEP) e a atualização dos ' +
+        'documentos de Segurança e Saúde no Trabalho da organização, quando aplicável. Este documento ' +
+        'não substitui a AEP, o PGR, a validação técnica ou as responsabilidades legais da empresa.\n\n' +
+        'O escopo é restrito às condições, à organização e à gestão do trabalho. Não realiza ' +
+        'diagnóstico clínico individual, avaliação psicológica individual nem análise de aspectos ' +
+        'pessoais desvinculados do trabalho.' +
         (approvedTexts['finalidade_limites'] ? `\n\n${approvedTexts['finalidade_limites']}` : ''),
     });
 
-    // RESSALVA de rascunho sem ações aprovadas. Não existe no modelo porque o
-    // modelo é o estado normal (plano aprovado); aparece só quando a
-    // organização ainda não decidiu nada, e sem ela o leitor recebe um
-    // documento cuja tabela de plano sai vazia sem explicação.
-    if (!items.length) {
+    // RESSALVA de rascunho sem ação aprovada. Não existe no modelo porque o
+    // modelo é o estado normal (plano aprovado); aparece só enquanto a
+    // organização não aprovou nada — a emissão oficial está bloqueada nesse
+    // estado, então ela nunca chega a um documento emitido.
+    if (!aprovadas.length) {
       sections.push({
-        heading: 'Ressalva — documento ainda sem plano de ação aprovado',
+        heading: 'Ressalva - documento ainda sem plano de ação aprovado',
         body:
           'A avaliação técnica dos fatores e a matriz de risco estão completas e valem como ' +
           'leitura. O que falta é a decisão da organização: nenhuma ação foi aprovada no Plano de ' +
-          'Evolução, então a tabela do plano sai sem conteúdo. Nada aqui atesta conformidade nem ' +
-          'ausência de risco. A emissão oficial ocorre depois que a organização aprovar as ações.',
+          'Evolução, então o plano sai sem conteúdo. Nada aqui atesta conformidade nem ausência de ' +
+          'risco. A emissão oficial ocorre depois que a organização aprovar as ações.',
       });
     }
 
@@ -2104,25 +2234,34 @@ export class DocumentsService {
         {
           label: 'Organização',
           value:
-            'Valida as informações de contexto, define e implementa medidas de prevenção, mantém ' +
-            'seus documentos de SST atualizados e realiza as integrações documentais aplicáveis.',
+            'Valida as informações de contexto, aprova e implementa as ações, define os ' +
+            'responsáveis internos e mantém atualizados os documentos de SST sob sua ' +
+            'responsabilidade.',
         },
       ],
     });
 
+    // Só os recortes EXIBIDOS são nomeados: nomear o omitido devolveria, por
+    // via indireta, a informação que a supressão existe para proteger.
+    const gruposPorGhe = porGhe || agregado?.groupBy === 'ghe';
+    const recortesExibidos = porGhe
+      ? grupos.map((g) => rotuloDoGhe(g.ghe))
+      : agregado
+        ? agregado.sectors
+            .filter((x) => !x.suppressed && !(agregado.groupBy === 'ghe' && x.sector === 'Não informado'))
+            .map((x) => (agregado.groupBy === 'ghe' ? rotuloDoGhe(x.sector) : x.sector))
+        : exibidos.map((x) => x.sector);
     sections.push({
       heading: 'Escopo da avaliação',
       rows: [
         { label: 'Respostas válidas', value: String(psy.totalRespondents) },
-        { label: 'Estrutura considerada', value: 'Empresa e áreas cadastradas no ciclo' },
-        // Só os recortes EXIBIDOS são nomeados: nomear o omitido devolveria, por
-        // via indireta, a informação que a supressão existe para proteger.
         {
-          label: 'Recortes exibidos',
-          value: agregado
-            ? agregado.sectors.filter((x) => !x.suppressed).map((x) => x.sector).join(', ') || '—'
-            : exibidos.map((x) => x.sector).join(', ') || '—',
+          label: 'Estrutura considerada',
+          value: gruposPorGhe
+            ? 'Organização e GHEs cadastrados no ciclo'
+            : 'Organização e áreas cadastradas no ciclo',
         },
+        { label: 'Recortes exibidos', value: recortesExibidos.join('; ') || '—' },
         {
           label: 'Confidencialidade',
           value:
@@ -2132,12 +2271,7 @@ export class DocumentsService {
         // Adesão só quando a empresa informou o público elegível — dado
         // contextual, nunca inferido do número de respondentes.
         ...(ctx.org?.employeesCount
-          ? [
-              {
-                label: 'Adesão',
-                value: adhesionLabel(psy.totalRespondents, ctx.org.employeesCount),
-              },
-            ]
+          ? [{ label: 'Adesão', value: adhesionLabel(psy.totalRespondents, ctx.org.employeesCount) }]
           : []),
       ],
     });
@@ -2173,31 +2307,32 @@ export class DocumentsService {
     });
 
     if (matriz.length) {
-      sections.push({ heading: 'Matriz de risco 5 × 5', html: grade5x5Html(matriz) });
+      sections.push({ heading: 'Matriz de risco 5 x 5', html: grade5x5Html(matriz) });
     }
 
+    // Pontuação do modelo: hífen e "x" (o PDF oficial não usa travessão nem ×).
     sections.push({
       heading: '',
       rows: [
         {
-          label: 'Probabilidade (1–5)',
+          label: 'Probabilidade (1-5)',
           value:
             'Calculada a partir das exposições das respostas válidas vinculadas ao mesmo fator. ' +
-            'Exposição = 6 − resposta. Faixas: 1,00–1,49 = 1; 1,50–2,49 = 2; 2,50–3,49 = 3; ' +
-            '3,50–4,49 = 4; 4,50–5,00 = 5. Quando mais de 60% das respostas válidas do fator ' +
+            'Exposição = 6 - resposta. Faixas: 1,00-1,49 = 1; 1,50-2,49 = 2; 2,50-3,49 = 3; ' +
+            '3,50-4,49 = 4; 4,50-5,00 = 5. Quando mais de 60% das respostas válidas do fator ' +
             'estiverem em exposição alta (respostas 1 ou 2), a probabilidade é 5.',
         },
         {
-          label: 'Severidade (1–5)',
+          label: 'Severidade (1-5)',
           value:
             'É a severidade-base cadastrada para o Risco/Fator Psicossocial. Não é calculada pela ' +
             'dimensão e não é digitada livremente na pergunta.',
         },
         {
-          label: 'Risco = P × S',
+          label: 'Risco = P x S',
           value:
-            '1–4 Baixo / Tolerável · 5–9 Moderado / Atenção pontual · 10–15 Alto / Requer plano ' +
-            'de ação · 16–20 Muito alto / Prioridade imediata · 21–25 Crítico / Intolerável.',
+            '1-4 Baixo / Tolerável · 5-9 Moderado / Atenção pontual · 10-15 Alto / Requer plano ' +
+            'de ação · 16-20 Muito alto / Prioridade imediata · 21-25 Crítico / Intolerável.',
         },
       ],
     });
@@ -2221,37 +2356,51 @@ export class DocumentsService {
     // DETERMINÍSTICA por decisão: a homologação compara o conteúdo técnico do
     // Dossiê com o gabarito, e prosa reescrita a cada emissão nunca fecharia. O
     // texto APROVADO pela equipe CRIVO (fluxo F3, rascunhado pela IA) vence
-    // quando existe — é ali que a redação da IA entra neste documento.
-    const nomesPrioritarios = prioritarios.map((r) => r.label);
-    const sinteseAutomatica = !agregado
-      ? `O ciclo registrou ${psy.totalRespondents} resposta(s) válida(s), abaixo do mínimo de ` +
-        `${psy.minRespondents} exigido para exibição estatística. Os resultados agregados ficam ` +
-        'omitidos por confidencialidade.'
-      : `O ciclo apresenta score executivo geral de ${scoreDossie(agregado.score, agregado.decimals)} (${agregado.levelLabel}). ` +
-        (nomesPrioritarios.length
-          ? `A priorização técnica identifica ${nomesPrioritarios.join(', ')} como ` +
-            `${nomesPrioritarios.length === 1 ? 'fator que requer' : 'fatores que requerem'} ` +
-            'plano de ação pela metodologia CRIVO. '
-          : 'A priorização técnica não identificou fatores que requeiram plano de ação pela ' +
-            'metodologia CRIVO. ') +
-        'O score executivo e a classificação técnica de risco são leituras distintas.';
+    // quando existe — é ali que a redação da IA entra neste documento. A versão
+    // automática sai com o negrito do modelo (score e fatores).
     sections.push({ heading: 'Síntese do ciclo' });
-    sections.push({
-      heading: 'Síntese executiva',
-      body: approvedTexts['sintese_ciclo'] || sinteseAutomatica,
-    });
+    if (approvedTexts['sintese_ciclo']) {
+      sections.push({ heading: 'Síntese executiva', body: approvedTexts['sintese_ciclo'] });
+    } else if (!agregado) {
+      sections.push({
+        heading: 'Síntese executiva',
+        body:
+          `O ciclo registrou ${psy.totalRespondents} resposta(s) válida(s), abaixo do mínimo de ` +
+          `${psy.minRespondents} exigido para exibição estatística. Os resultados agregados ficam ` +
+          'omitidos por confidencialidade.',
+      });
+    } else {
+      const noGeral = new Set(prioritarios.map((r) => r.slug));
+      const soNosGhes = grupos.flatMap((g) =>
+        fatoresQueRequeremAcao(g.matriz, codigoDe)
+          .filter((f) => !noGeral.has(f.slug))
+          .map((f) => `${f.label} (${rotuloDoGhe(g.ghe)})`),
+      );
+      sections.push({
+        heading: 'Síntese executiva',
+        html: sinteseExecutivaHtml(
+          scoreDossie(agregado.score, casas),
+          agregado.levelLabel,
+          prioritarios.map((r) => r.label),
+          soNosGhes,
+        ),
+      });
+    }
 
     if (agregado && agregado.byDimension.length) {
       // Cor CADASTRADA na faixa vence; a rampa é o fallback de quem não
-      // configurou cor no Motor de Diagnósticos.
+      // configurou cor no Motor de Diagnósticos. A faixa sai da MESMA régua do
+      // rótulo (findBandForScore): 79,6 no vão entre 79 e 80 é Estruturado — e
+      // pinta de Estruturado (antes a cor caía no marrom de fallback).
       const RAMPA = ['#8E2F1B', '#C4671D', '#8A6D1F', '#2E7D4F'];
       const faixasOrdenadas = [...agregado.bands].sort((a, b) => a.min - b.min);
       const corDaFaixa = (v: number): string | null => {
-        const i = faixasOrdenadas.findIndex((x) => v >= x.min && v <= x.max);
-        if (i < 0) return null;
-        const propria = faixasOrdenadas[i].color?.trim();
+        const f = findBandForScore(faixasOrdenadas, v);
+        if (!f) return null;
+        const propria = f.color?.trim();
         if (propria) return propria;
         if (faixasOrdenadas.length < 2) return null;
+        const i = faixasOrdenadas.indexOf(f);
         const passo = (RAMPA.length - 1) / (faixasOrdenadas.length - 1);
         return RAMPA[Math.min(RAMPA.length - 1, Math.round(i * passo))] ?? null;
       };
@@ -2267,7 +2416,8 @@ export class DocumentsService {
           {
             cabecalho: true,
             rotuloEscala: 'Leitura gráfica',
-            formato: (v) => scoreDossie(v, agregado.decimals),
+            formato: (v) => scoreDossie(v, casas),
+            estiloDossie: true,
           },
         ),
       });
@@ -2275,7 +2425,7 @@ export class DocumentsService {
 
     if (prioritarios.length) {
       sections.push({
-        heading: 'Prioridades técnicas',
+        heading: 'Prioridades técnicas - Resultado Geral',
         table: {
           columns: ['Fator', 'P', 'S', 'R', 'Classificação'],
           data: prioritarios.map((r) => [
@@ -2289,96 +2439,124 @@ export class DocumentsService {
       });
     }
 
-    // ── Resultado Geral da Organização e Grupos Elegíveis ─────────────────
-    // Ajustes Finais Homologação §1: "Identificar claramente como Resultado Geral
-    // da Organização" e "Mostrar resultado próprio do grupo no Dossiê" (RH etc.)
-    // quando n >= mínimo configurado. Grupos abaixo do mínimo ficam suprimidos.
-    //
-    // REGRA CRÍTICA: auto-avaliação (SELF_ASSESSMENT) NÃO pode ser somada com
-    // outras avaliações — resultados devem ser exibidos EM SEPARADO.
-    // O agregado pode conter respostas de origens distintas; separamos para
-    // exibir cada uma de forma independente.
-    const resultadoGeralRows: string[][] = [];
-    const resultadoAutoAvaliacaoRows: string[][] = [];
-
-    if (agregado) {
-      resultadoGeralRows.push([
-        'Resultado Geral da Organização',
-        `${scoreDossie(agregado.score, agregado.decimals)} (${agregado.levelLabel ?? '—'})`,
-        `${psy.totalRespondents} respondentes`,
-      ]);
-    }
-
-    // Grupos elegíveis: score próprio do setor com n ≥ mínimo. Um único setor
-    // com TODOS os respondentes repetiria a linha do geral — fica de fora.
-    // (Antes lia `psy.sectors`, que não existia: nenhum grupo saía.)
-    const rotuloGrupo = agregado?.groupBy === 'ghe' ? 'GHE' : 'Área/Setor';
-    if (agregado) {
-      for (const s of agregado.sectors) {
-        if (s.suppressed || s.respondents === agregado.totalRespondents) continue;
-        const band = findBandForScore(agregado.bands, s.score);
+    // ── Resultado Geral (e panorama dos GHEs) · página 4 do modelo ─────────
+    if (porGhe && agregado) {
+      // Organizacional: Resultado Geral + cada GHE elegível calculado
+      // separadamente. O detalhe de cada grupo vai para o anexo, e o corpo do
+      // dossiê continua objetivo mesmo com 20 GHEs.
+      sections.push({ heading: 'Resultado Geral e panorama dos GHEs' });
+      sections.push({
+        heading: '',
+        body:
+          'O Resultado Geral representa a organização como um todo. Cada GHE elegível é calculado ' +
+          'separadamente com as respostas do próprio grupo. O panorama abaixo permite localizar ' +
+          'rapidamente os grupos com maior prioridade técnica e quantas ações específicas foram ' +
+          'aprovadas para cada um.',
+        table: tabelaPanorama(
+          { n: psy.totalRespondents, score: agregado.score, faixa: agregado.levelLabel, matriz },
+          grupos,
+          numeradas,
+          casas,
+        ),
+      });
+      if (grupos.length) {
+        sections.push({
+          heading: 'Leitura por grupo',
+          table: {
+            columns: ['GHE', 'Leitura técnica do ciclo'],
+            data: grupos.map((g) => {
+              const fatores = fatoresQueRequeremAcao(g.matriz, codigoDe);
+              return [
+                nomeDoGhe(g.ghe),
+                leituraDoGhe(
+                  fatores,
+                  acoesGeraisDoGhe(numeradas, fatores),
+                  acoesEspecificasDoGhe(numeradas, g.ghe),
+                ),
+              ];
+            }),
+          },
+        });
+      }
+      sections.push({
+        heading: '',
+        body:
+          'O detalhamento técnico de cada GHE e as ações aplicáveis aparecem no Anexo Técnico por ' +
+          'GHE, mantendo o corpo principal do dossiê objetivo mesmo quando a organização possuir ' +
+          'muitos grupos expostos.',
+      });
+    } else {
+      // Sem recorte por GHE (Essencial, ou Organizacional sem GHE cadastrado):
+      // Resultado Geral + grupos elegíveis por score, como antes. Grupo que
+      // cobre a população inteira repetiria a linha do geral — fica de fora.
+      const resultadoGeralRows: string[][] = [];
+      if (agregado) {
         resultadoGeralRows.push([
-          `${rotuloGrupo}: ${s.sector}`,
-          `${scoreDossie(s.score, agregado.decimals)} (${band?.label ?? '—'})`,
-          `${s.respondents} respondentes`,
+          'Resultado Geral da Organização',
+          `${scoreDossie(agregado.score, casas)} (${agregado.levelLabel ?? '—'})`,
+          `${psy.totalRespondents} respondentes`,
         ]);
+        for (const s of agregado.sectors) {
+          if (s.suppressed || s.respondents === agregado.totalRespondents) continue;
+          const band = findBandForScore(agregado.bands, s.score);
+          resultadoGeralRows.push([
+            agregado.groupBy === 'ghe' ? rotuloDoGhe(s.sector) : `Área/Setor: ${s.sector}`,
+            `${scoreDossie(s.score, casas)} (${band?.label ?? '—'})`,
+            `${s.respondents} respondentes`,
+          ]);
+        }
+      }
+      sections.push({
+        heading: 'Resultado Geral da Organização e Grupos Elegíveis',
+        body:
+          'Score executivo geral e abertura por grupo elegível (n >= mínimo configurado). ' +
+          'Grupos abaixo do mínimo são suprimidos por confidencialidade. ' +
+          (agregado?.groupBy === 'ghe'
+            ? 'Referência dos grupos expostos: Grupos de Exposição (GHE) cadastrados pela empresa.'
+            : 'Referência dos grupos: Área/Setor definido para a campanha (a empresa não cadastrou GHE).'),
+        table: {
+          columns: ['Recorte', 'Score Executivo', 'Respondentes'],
+          data: resultadoGeralRows.length
+            ? resultadoGeralRows
+            : [['Consolidado da organização', '—', `${psy.totalRespondents} respondentes`]],
+        },
+      });
+
+      // Auto-avaliação do gestor em tabela SEPARADA, nunca somada ao geral
+      // (regra crítica). É a resposta do próprio gestor — sem supressão.
+      const autoAvaliacao = await this.autoAvaliacaoDoGestor(tenantId, instrumento);
+      if (autoAvaliacao && agregado) {
+        const bandAuto = findBandForScore(agregado.bands, autoAvaliacao.score);
+        sections.push({
+          heading: 'Resultado da Auto-Avaliação',
+          body:
+            'Resultado específico da auto-avaliação do gestor. Este resultado é calculado ' +
+            'separadamente e não entra no Resultado Geral da Organização.',
+          table: {
+            columns: ['Recorte', 'Score Executivo', 'Respondentes'],
+            data: [
+              [
+                'Auto-avaliação do gestor',
+                `${scoreDossie(autoAvaliacao.score, casas)} (${bandAuto?.label ?? '—'})`,
+                `${autoAvaliacao.respondents} resposta(s)`,
+              ],
+            ],
+          },
+        });
       }
     }
 
-    // Auto-avaliação do gestor em tabela SEPARADA, nunca somada ao geral. É a
-    // resposta do próprio gestor — não cabe supressão por mínimo de respondentes.
-    const autoAvaliacao = await this.autoAvaliacaoDoGestor(tenantId, instrumento);
-    if (autoAvaliacao && agregado) {
-      const bandAuto = findBandForScore(agregado.bands, autoAvaliacao.score);
-      resultadoAutoAvaliacaoRows.push([
-        'Auto-avaliação do gestor',
-        `${scoreDossie(autoAvaliacao.score, agregado.decimals)} (${bandAuto?.label ?? '—'})`,
-        `${autoAvaliacao.respondents} resposta(s)`,
-      ]);
-    }
-
-    sections.push({
-      heading: 'Resultado Geral da Organização e Grupos Elegíveis',
-      body:
-        'Score executivo geral e abertura por grupo elegível (n ≥ mínimo configurado). ' +
-        'Grupos abaixo do mínimo são suprimidos por confidencialidade. ' +
-        (agregado?.groupBy === 'ghe'
-          ? 'Referência dos grupos expostos: Grupos de Exposição (GHE) cadastrados pela empresa.'
-          : 'Referência dos grupos: Área/Setor definido para a campanha (a empresa não cadastrou GHE).'),
-      table: {
-        columns: ['Recorte', 'Score Executivo', 'Respondentes'],
-        data: resultadoGeralRows.length
-          ? resultadoGeralRows
-          : [['Consolidado da organização', '—', `${psy.totalRespondents} respondentes`]],
-      },
-    });
-
-    // Tabela SEPARADA para Auto-Avaliação (quando existir e for elegível).
-    // Isso garante que a auto-avaliação NÃO seja somada com as demais avaliações.
-    if (resultadoAutoAvaliacaoRows.length > 0) {
-      sections.push({
-        heading: 'Resultado da Auto-Avaliação',
-        body:
-          'Resultado específico da auto-avaliação do gestor. Este resultado é calculado ' +
-          'separadamente e não entra no Resultado Geral da Organização.',
-        table: {
-          columns: ['Recorte', 'Score Executivo', 'Respondentes'],
-          data: resultadoAutoAvaliacaoRows,
-        },
-      });
-    }
-
-    // ── Inventário técnico · página 4 do modelo ───────────────────────────
+    // ── Inventário técnico · página 5 do modelo ───────────────────────────
     if (prioritarios.length) {
       sections.push({ heading: 'Inventário técnico' });
       sections.push({
-        heading: 'Caracterização dos fatores prioritários',
+        heading: 'Caracterização dos fatores prioritários - Resultado Geral',
         table: {
           columns: ['ID', 'Dimensão relacionada', 'Fator', 'Caracterização da exposição'],
           data: prioritarios.map((r) => {
-            const media = `Exposição média ${r.exposureAvg.toFixed(2)}`;
+            const media = `Exposição média ${decimalPtBr(r.exposureAvg, 2)}`;
             const pct = r.exposureCount
-              ? `; ${((r.highExposureCount / r.exposureCount) * 100).toFixed(1)}% das respostas ` +
+              ? `; ${decimalPtBr((r.highExposureCount / r.exposureCount) * 100, 1)}% das respostas ` +
                 'válidas do fator em exposição alta (respostas 1 ou 2).'
               : '.';
             return [idDe(r), r.dimensionLabel ?? '—', r.label, `${media}${pct}`];
@@ -2409,53 +2587,54 @@ export class DocumentsService {
       });
     }
 
-    // ── Plano, registros e responsabilidade · página 5 do modelo ──────────
-    const aprovadas = items.filter((i) => acaoEntraNoDocumento(i.status));
+    // ── Plano, registros e responsabilidade · páginas 6 e 7 do modelo ──────
+    // Um card por ação APROVADA de escopo Organização, numerada PA-00N. As
+    // específicas de GHE não se repetem aqui: saem no anexo do próprio grupo.
     const aguardando = items.filter((i) => i.status === 'SUGERIDA' || i.status === 'EM_REVISAO').length;
     sections.push({ heading: 'Plano, registros e responsabilidade' });
     sections.push({
-      heading: 'Plano de ação',
+      heading: 'Plano de ação aprovado - Resultado Geral da Organização',
       body:
-        'As medidas abaixo correspondem às ações aprovadas pela organização e vinculadas aos ' +
-        'fatores prioritários deste ciclo.' +
+        'As medidas abaixo correspondem às ações aprovadas pela organização para os fatores ' +
+        'prioritários do Resultado Geral. O responsável é da empresa contratante. A evidência ' +
+        'esperada e a forma de acompanhamento foram definidas no Plano de Evolução antes da ' +
+        'emissão do documento.' +
         (aguardando
           ? ` ${aguardando} ação(ões) permanece(m) como sugestão pendente de validação e não ` +
             'compõe(m) este documento.'
           : ''),
-      table: {
-        columns: ['Fator', 'Medida definida', 'Objetivo', 'Responsável', 'Prazo', 'Acompanhamento'],
-        data: aprovadas.length
-          ? aprovadas.map((i) => [
-              i.point,
-              i.action,
-              i.objective ?? '—',
-              i.responsible ?? '—',
-              i.dueDate ? fmt(i.dueDate) : '—',
-              i.indicator ?? '—',
-            ])
-          : [['—', '—', '—', '—', '—', '—']],
-      },
+      ...(geraisNum.length
+        ? { html: geraisNum.map((a) => cardAcaoHtml(a)).join('') }
+        : { rows: [{ label: 'Situação', value: 'Nenhuma ação aprovada para o Resultado Geral até o momento.' }] }),
     });
-
-    // Registros que a ORGANIZAÇÃO cadastrou. Não estão no modelo porque a massa
-    // de homologação não os tem — mas quem preencheu não pode perdê-los.
-    // UMA linha por FATOR (homologação 17/09: "medida existente — informação
-    // contraditória; uma fonte de verdade por fator"). A medida é gravada por
-    // AÇÃO, e um fator com três ações saía três vezes — às vezes "Nenhuma
-    // medida existente" numa e uma medida descrita na outra. Aqui a medida
-    // descrita vence "Nenhuma"; o portal já replica a medida entre as ações do
-    // mesmo fator ao salvar (action-plans.service).
-    const comMedida = medidasPorFator(items);
-    if (comMedida.length) {
+    if (semAnexo.length) {
       sections.push({
-        heading: 'Medidas existentes',
-        body: 'Medidas informadas pela própria organização para os fatores identificados (uma por fator).',
-        table: {
-          columns: ['Fator', 'Medida existente'],
-          data: comMedida.map(([fator, medida]) => [fator, medida]),
-        },
+        heading: 'Plano de ação aprovado - ações específicas de GHE',
+        body:
+          'Ações aprovadas com escopo de GHE cujo grupo não tem bloco próprio no anexo deste ' +
+          'documento (grupo abaixo do mínimo de respostas válidas ou ciclo sem recorte por GHE).',
+        html: semAnexo.map((a) => cardAcaoHtml(a)).join(''),
       });
     }
+
+    // Medida existente: informada pela ORGANIZAÇÃO (nunca inventada), uma linha
+    // por FATOR (homologação 17/09: "uma fonte de verdade por fator"), só das
+    // ações aprovadas. Sem registro, a seção existe e diz isso — como no modelo.
+    const medidas = medidasPorFator(aprovadas);
+    sections.push({
+      heading: 'Medidas existentes validadas',
+      table: {
+        columns: ['Fator', 'Medida existente validada'],
+        data: medidas.length
+          ? medidas
+          : [
+              [
+                'Fatores prioritários do ciclo',
+                'Não foram registradas medidas existentes validadas para os fatores prioritários deste ciclo.',
+              ],
+            ],
+      },
+    });
 
     const evidenciasAprovadas = items
       .flatMap((i) => i.evidences)
@@ -2513,14 +2692,19 @@ export class DocumentsService {
       });
     }
 
-    // Controle documental — as duas últimas linhas são do modelo e sobrevivem à
-    // emissão oficial (emit() só carimba o que é dele).
-    sections.push(
-      docControlSection([
-        { label: 'Método', value: versaoMetodologica },
-        { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
-      ]),
-    );
+    // ── Controle documental · página 8 do modelo (abre página) ────────────
+    // As duas últimas linhas são do modelo e sobrevivem à emissão (emit() só
+    // carimba o que é dele).
+    sections.push({
+      ...docControlSection(
+        [
+          { label: 'Método', value: versaoMetodologica },
+          { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
+        ],
+        VALIDACAO_DOSSIE,
+      ),
+      novaPagina: true,
+    });
 
     // "Responsabilidade" é SEÇÃO no modelo (entre o controle documental e as
     // referências), com esta redação — por isso o rodapé genérico
@@ -2530,9 +2714,9 @@ export class DocumentsService {
       body:
         'Os documentos gerados pela plataforma CRIVO têm caráter técnico, gerencial e documental ' +
         'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
-        'relacionados ao trabalho. A revisão, validação, assinatura e integração formal desses ' +
-        'documentos à AEP, ao GRO/PGR e às demais obrigações aplicáveis são de responsabilidade da ' +
-        'empresa contratante e/ou do responsável técnico/designado.',
+        'relacionados ao trabalho. A organização contratante valida o contexto, os responsáveis e ' +
+        'as ações, implementa as medidas aprovadas e realiza as integrações com seus documentos de ' +
+        'SST quando aplicáveis.',
     });
 
     // A CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO, quando existir, entra
@@ -2543,29 +2727,37 @@ export class DocumentsService {
     sections.push({
       heading: 'Referências',
       body:
-        'NR-1 — Disposições Gerais e Gerenciamento de Riscos Ocupacionais; NR-17 — Ergonomia; ' +
-        'Guia de Informações sobre os Fatores de Riscos Psicossociais Relacionados ao Trabalho — ' +
-        'Ministério do Trabalho e Emprego.',
+        'NR-1 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais; NR-17 - Ergonomia; ' +
+        'Guia de Informações sobre os Fatores de Riscos Psicossociais Relacionados ao Trabalho - ' +
+        'Ministério do Trabalho e Emprego; Manual de Interpretação e Aplicação do Capítulo 1.5 da ' +
+        'NR-1 - Gerenciamento de Riscos Ocupacionais (GRO) - Ministério do Trabalho e Emprego, 2026.',
     });
 
-    // ── Anexo técnico · última página do modelo ───────────────────────────
+    // ── Anexo técnico · fatores classificados (páginas 9 e 10 do modelo) ──
+    // O título se repete a cada parte, como no modelo; a quebra é natural.
     if (porCodigo.length) {
-      sections.push({
-        heading: 'Anexo técnico — fatores classificados',
-        body: 'Resultado consolidado do ciclo',
-        table: {
-          columns: ['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação'],
-          data: porCodigo.map((r) => [
-            idDe(r),
-            r.label,
-            r.dimensionLabel ?? '—',
-            r.exposureAvg.toFixed(2),
-            String(r.probability),
-            String(r.severity),
-            String(r.risk),
-            PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
-          ]),
-        },
+      const partes = emPartes(porCodigo);
+      partes.forEach((parte, i) => {
+        sections.push({ heading: 'Anexo técnico - fatores classificados' });
+        sections.push({
+          heading:
+            partes.length > 1
+              ? `Resultado consolidado do ciclo - parte ${i + 1}`
+              : 'Resultado consolidado do ciclo',
+          table: {
+            columns: ['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação'],
+            data: parte.map((r) => [
+              idDe(r),
+              r.label,
+              r.dimensionLabel ?? '—',
+              decimalPtBr(r.exposureAvg, 2),
+              String(r.probability),
+              String(r.severity),
+              String(r.risk),
+              PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
+            ]),
+          },
+        });
       });
       // Colunas de inventário (definição, fonte/circunstância, agravos) só
       // quando o contrato integra o GRO/PGR — é ali que elas são exigidas.
@@ -2576,7 +2768,7 @@ export class DocumentsService {
             'Relação dos fatores psicossociais para integração ao inventário de riscos do GRO/PGR ' +
             'pelo responsável técnico, após validação da organização.',
           table: {
-            columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Possíveis agravos', 'Risco (P × S)', 'Classificação'],
+            columns: ['ID risco', 'Processo/Dimensão', 'Fator psicossocial', 'Definição', 'Fonte/Circunstância', 'Possíveis agravos', 'Risco (P x S)', 'Classificação'],
             data: porCodigo.map((r) => [
               idDe(r),
               r.dimensionLabel ?? '—',
@@ -2584,7 +2776,7 @@ export class DocumentsService {
               r.definition ?? '—',
               r.sourceContext ?? '—',
               r.consequences ?? '—',
-              `${r.probability} × ${r.severity} = ${r.risk}`,
+              `${r.probability} x ${r.severity} = ${r.risk}`,
               PSYCHOSOCIAL_RISK_CLASS_LABEL[r.riskClass],
             ]),
           },
@@ -2592,18 +2784,87 @@ export class DocumentsService {
       }
     }
 
+    // ── Anexo técnico por GHE (páginas 11 a 13 do modelo) ─────────────────
+    // O MESMO bloco repetido para cada GHE elegível — 3 ou 20, sem outro
+    // modelo nem outro plano. Ação geral é REFERENCIADA onde o fator dela exige
+    // ação na matriz do próprio grupo; a específica sai em card.
+    for (const g of grupos) {
+      const fatores = fatoresQueRequeremAcao(g.matriz, codigoDe);
+      const gerais = acoesGeraisDoGhe(numeradas, fatores);
+      const especificas = acoesEspecificasDoGhe(numeradas, g.ghe);
+      sections.push({ heading: `Anexo técnico - ${rotuloDoGhe(g.ghe)}` });
+      sections.push({
+        heading: 'Leitura técnica do grupo exposto',
+        rows: [
+          { label: 'Respondentes', value: String(g.n) },
+          { label: 'Score executivo', value: `${scoreDossie(g.score, casas)} (${g.faixa})` },
+          { label: 'Fatores com R >= 10', value: String(fatores.length) },
+          { label: 'Maior risco técnico', value: maiorRisco(g.matriz) },
+        ],
+      });
+      sections.push(
+        fatores.length
+          ? { heading: 'Fatores que requerem ação', html: tabelaFatoresDoGheHtml(fatores, codigoDe) }
+          : {
+              heading: 'Fatores que requerem ação',
+              rows: [{ label: 'Situação', value: 'Nenhum fator com R >= 10 neste GHE no ciclo.' }],
+            },
+      );
+      sections.push(
+        gerais.length
+          ? {
+              heading: 'Ações gerais aplicáveis a este GHE',
+              table: {
+                columns: ['ID', 'Fator', 'Medida aprovada', 'Responsável', 'Prazo'],
+                data: gerais.map((a) => [
+                  a.pa,
+                  a.fatorLabel,
+                  a.acao.action,
+                  a.acao.responsible?.trim() || '—',
+                  dataPtBr(a.acao.dueDate),
+                ]),
+              },
+            }
+          : {
+              heading: 'Ações gerais aplicáveis a este GHE',
+              rows: [
+                {
+                  label: 'Situação',
+                  value: fatores.length
+                    ? 'Nenhuma ação geral aprovada abrange os fatores que requerem ação neste GHE.'
+                    : 'Sem fator que requeira ação neste GHE; nenhuma ação geral se aplica.',
+                },
+              ],
+            },
+      );
+      sections.push(
+        especificas.length
+          ? {
+              heading: 'Ações específicas aprovadas para este GHE',
+              html: especificas.map((a) => cardAcaoHtml(a)).join(''),
+            }
+          : {
+              heading: 'Ações específicas aprovadas para este GHE',
+              rows: [
+                {
+                  label: 'Situação',
+                  value: gerais.length
+                    ? 'Não há ação específica aprovada para este GHE neste ciclo. O grupo permanece ' +
+                      'abrangido pelas ações gerais acima, conforme os fatores técnicos calculados para ' +
+                      'o próprio GHE.'
+                    : 'Não há ação específica aprovada para este GHE neste ciclo.',
+                },
+              ],
+            },
+      );
+    }
+
     return {
       type: 'dossie_tecnico',
       title: DOCUMENT_TYPE_LABEL['dossie_tecnico'],
-      // O código do template é controle interno da CRIVO; não é informação do
-      // documento que a empresa recebe. O subtítulo segue a SAÍDA TÉCNICA do
-      // contrato: "GRO / PGR" só para quem contratou a integração.
-      subtitle:
-        output === 'AEP_PGR'
-          ? 'Documento técnico de apoio · NR-1 / AEP / GRO / PGR'
-          : output === 'AEP'
-            ? 'Documento técnico de apoio · NR-1 / AEP'
-            : 'Documento técnico e gerencial · NR-1 (sem integração documental contratada)',
+      // Subtítulo do modelo oficial de 23/09, igual para qualquer saída
+      // técnica. O código do template é controle interno da CRIVO.
+      subtitle: 'Documento técnico de apoio à gestão preventiva',
       company: ctx.company,
       generatedAt: new Date().toISOString(),
       meta,
@@ -3278,10 +3539,12 @@ export class DocumentsService {
     // do cliente, no Plano de Evolução. Religados a pedido da homologação —
     // ver `bloqueiosDoPlano`.
     if (type === 'dossie_tecnico' || modeloImportado) {
-      const bloqueios = bloqueiosDoPlano(
-        planoDoDocumento(plans),
-        await fatoresObrigatoriosDe(this.psychosocial, tenantId),
+      const obrigatorios = await fatoresObrigatoriosDe(
+        this.psychosocial,
+        tenantId,
+        (await this.instrumentoDoTenant(tenantId, method)).motorPsicossocial,
       );
+      const bloqueios = bloqueiosDoPlano(planoDoDocumento(plans), obrigatorios.geral, obrigatorios.ghe);
       if (bloqueios.length) {
         throw new BadRequestException(
           `Emissão final bloqueada — ${bloqueios.join(' ')} A pré-visualização (rascunho) continua disponível.`,
@@ -3337,17 +3600,24 @@ export class DocumentsService {
       const preservadas = (doc.sections[controlIdx]?.rows ?? []).filter(
         (r) => !CONTROLE_CARIMBADO.has(r.label),
       );
+      // O Dossiê segue o modelo oficial de 23/09 ("Final", versão "1.0",
+      // validação pela organização); os demais documentos mantêm o carimbo deles.
+      const dossie = type === 'dossie_tecnico';
       const emittedDoc: GeneratedDocument = {
         ...doc,
+        meta: dossie
+          ? doc.meta.map((m) => (m.label === 'Status' ? { ...m, value: 'Final' } : m))
+          : doc.meta,
         sections: doc.sections.map((s, i) =>
           i === controlIdx
             ? {
+                ...s,
                 heading: 'Controle documental',
                 rows: [
-                  { label: 'Status do documento', value: 'Documento emitido' },
-                  { label: 'Versão do documento', value: `v${emissionNumber}` },
+                  { label: 'Status do documento', value: dossie ? 'Final' : 'Documento emitido' },
+                  { label: 'Versão do documento', value: dossie ? `${emissionNumber}.0` : `v${emissionNumber}` },
                   { label: 'Data de emissão', value: fmt(new Date()) },
-                  { label: 'Validação', value: 'Assinatura fora do sistema (empresa e responsável técnico)' },
+                  { label: 'Validação', value: dossie ? VALIDACAO_DOSSIE : VALIDACAO_PADRAO },
                   { label: 'Hash/Identificador', value: contentHash.slice(0, 16) },
                   ...preservadas,
                 ],
@@ -3396,6 +3666,8 @@ export class DocumentsService {
   }
 }
 
+/** dd/mm/aaaa no fuso de Brasília — o servidor roda em UTC e, à noite, a
+ *  emissão saía datada do dia seguinte. */
 function fmt(d: Date): string {
-  return new Date(d).toLocaleDateString('pt-BR');
+  return dataPtBr(d);
 }
