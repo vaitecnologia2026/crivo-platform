@@ -510,8 +510,12 @@ export interface DashboardData {
     leadsSemPrimeiroContato: number; // leads do período ainda sem 1º contato
     valorPropostoCents: number; // soma do valor proposto dos leads em aberto (pipeline)
     propostasEnviadas: number; // leads com proposta enviada no período
+    leadsAtendidos: number; // leads do período com 1º contato registrado
+    /** Funil etapa a etapa (ordem do CRM, sem "Perdido") — bloco "Funil por etapa". */
+    funilEtapas: { key: string; label: string; count: number }[];
   };
   contratos: {
+    rascunho: number;
     ativos: number;
     mrrCents: number; // receita recorrente mensal (estimada, contratos ATIVO)
     arrCents: number;
@@ -531,6 +535,15 @@ export interface DashboardData {
     mentoriasAtrasadas: number;
     clientesSemResponsavel: number;
     clientesSemAvanco: number; // clientes ativos sem nenhum diagnóstico iniciado
+    acoesAtrasadas: number; // ações adotadas, não encerradas, com prazo vencido
+  };
+  /** Financeiro e Carteira — só o que o sistema apura hoje. Faturada, recebida,
+   *  atraso, expansão, redução e cancelamento dependem de módulo financeiro. */
+  financeiro: {
+    receitaContratadaCents: number; // = faturamento contratado no período (estimado)
+    novoMrrCents: number; // MRR dos contratos ativos iniciados no período
+    contratosVencer60: number;
+    emRenovacao: number; // leads na etapa "Renovação" do CRM (fora do arquivo)
   };
   executivo: {
     clientesAtivos: number;
@@ -542,7 +555,40 @@ export interface DashboardData {
     tipo: string;
     prazo: string | null; // ISO
     severidade: 'CRITICO' | 'ATENCAO' | 'OK';
+    /** Frase pronta para a Central de Pendências. */
+    texto: string;
+    /** Área de origem ("Contratos", "CRM"…). */
+    area: string;
+    /** Tela do Super Admin que resolve a pendência (chave do menu). */
+    secao: string;
   }[];
+  /** Registros por trás dos KPIs clicáveis (drill-down). Até 200 por lista. */
+  detalhe: {
+    leads: {
+      empresa: string;
+      origem: string | null;
+      responsavel: string | null;
+      etapa: string;
+      criadoEm: string; // ISO
+      atendido: boolean;
+    }[];
+    contratacoes: {
+      empresa: string;
+      solucao: string | null;
+      valorMensalCents: number;
+      consultor: string | null;
+      data: string; // ISO
+    }[];
+    acoesAtrasadas: {
+      acao: string;
+      empresa: string;
+      responsavel: string | null;
+      prazo: string; // ISO
+      diasAtraso: number;
+    }[];
+  };
+  /** Opções do filtro "Consultor" (responsáveis comerciais e de contrato). */
+  consultores: string[];
   /** Métricas do caderno ainda SEM suporte no schema (mostradas como "a modelar"). */
   naoModelado: string[];
 }

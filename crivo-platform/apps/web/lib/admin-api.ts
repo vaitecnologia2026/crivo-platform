@@ -479,12 +479,14 @@ export function getOverview(): Promise<AdminOverview> {
 /** Dashboard de Gestão CRIVO (Caderno Tela 01). `days` = período; filtros opcionais. */
 export function getDashboard(
   days = 30,
-  filters: { origem?: string; groupId?: string; tenantId?: string } = {},
+  filters: { origem?: string; groupId?: string; tenantId?: string; consultor?: string; status?: string } = {},
 ): Promise<DashboardData> {
   const q = new URLSearchParams({ days: String(days) });
   if (filters.origem) q.set("origem", filters.origem);
   if (filters.groupId) q.set("groupId", filters.groupId);
   if (filters.tenantId) q.set("tenantId", filters.tenantId);
+  if (filters.consultor) q.set("consultor", filters.consultor);
+  if (filters.status) q.set("status", filters.status);
   return adminFetch<DashboardData>(`/admin/dashboard?${q.toString()}`);
 }
 

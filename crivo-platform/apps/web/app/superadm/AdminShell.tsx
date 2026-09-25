@@ -16,7 +16,6 @@ import { NotificationsSection } from "./NotificationsSection";
 import { ExtrasSection } from "./ExtrasSection";
 import { RbacSection } from "./RbacSection";
 import { CnaeSection } from "./CnaeSection";
-import { CnpjLookupCard } from "./CnpjLookupCard";
 import { AdminPasswordModal } from "./AdminPasswordModal";
 import { ContractsSection } from "./ContractsSection";
 import { ManagementReportsSection } from "./ManagementReportsSection";
@@ -288,25 +287,11 @@ function OverviewSection({ onNavigate }: { onNavigate: (section: string) => void
       <div className="route__head">
         <div>
           <h1 className="page-title">Dashboard de Gestão CRIVO</h1>
-          <p className="page-sub">Central operacional — comercial, contratos, entregas e pendências.</p>
+          <p className="page-sub">Painel operacional — comercial, contratos, entregas, executivo e pendências.</p>
         </div>
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <CnpjLookupCard />
-      </div>
-
-      <div className="adm-callout" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <span>
-          Este é o painel <strong>operacional</strong> (situação e pendências). Para <strong>análise profunda</strong>
-          por cliente/CNPJ — cruzando diagnóstico, plano, evidências, ICD, custos e evolução — abra a Inteligência CRIVO.
-        </span>
-        <button className="btn btn--outline-dark btn--sm" onClick={() => onNavigate("inteligencia")}>
-          Abrir Inteligência CRIVO →
-        </button>
-      </div>
-
-      <DashboardSection onNavigate={onNavigate} />
+      <DashboardSection onNavigate={onNavigate} auditLabel={(a) => ACTION_LABEL[a] ?? a} />
     </>
   );
 }

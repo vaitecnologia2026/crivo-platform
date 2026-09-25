@@ -1,14 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PLATFORM_LEAD_LOST_REASON_LABEL, type DashboardData, type PlatformLeadLostReason } from '@crivo/types';
+import {
+  PLATFORM_LEAD_LOST_REASON_LABEL,
+  PLATFORM_LEAD_STAGES,
+  PLATFORM_LEAD_STAGE_LABEL,
+  type DashboardData,
+  type PlatformLeadLostReason,
+  type PlatformLeadStage,
+} from '@crivo/types';
 
 /** Filtros globais do dashboard (Caderno Tela 01 · [6]). Período sempre; os
  *  demais são opcionais e compõem o recorte. `groupId`/`tenantId` recortam a
- *  carteira (contratos/entregas/clientes); `origem` recorta o comercial. */
+ *  carteira (contratos/entregas/clientes); `origem` e `status` (etapa do lead)
+ *  recortam o comercial; `consultor` recorta leads (responsável comercial) e
+ *  contratos (responsável CRIVO). */
 export interface DashboardFilters {
   origem?: string;
   groupId?: string;
   tenantId?: string;
+  consultor?: string;
+  status?: string;
+}
+
+/** Máximo de registros por lista de detalhamento (drill-down). */
+const DETALHE_MAX = 200;
+
+/** Etapas pós-onboarding só entram no "Funil por etapa" quando têm lead. */
+const ETAPAS_FIXAS = new Set<PlatformLeadStage>([
+  'NOVO', 'PRE_DIAGNOSTICO', 'REUNIAO', 'OPORTUNIDADE', 'PROPOSTA', 'NEGOCIACAO', 'FECHADO', 'CONTRATO', 'ONBOARDING',
+]);
+
+/** dd/mm/aaaa. `utc` para datas sem hora (vencimento de contrato). */
+function fmtData(d: Date, utc = false): string {
+  return d.toLocaleDateString('pt-BR', { timeZone: utc ? 'UTC' : 'America/Sao_Paulo' });
 }
 
 /** Dashboard de Gestão CRIVO (Caderno Tela 01) — central operacional do Super
@@ -72,7 +96,15 @@ export class DashboardService {
       : filters.groupId
         ? { groupId: filters.groupId }
         : {};
-    const originWhere = filters.origem ? { origin: filters.origem } : {};
+    const stageFilter = (PLATFORM_LEAD_STAGES as readonly string[]).includes(filters.status ?? '')
+      ? (filters.status as PlatformLeadStage)
+      : undefined;
+    const originWhere = {
+      ...(filters.origem ? { origin: filters.origem } : {}),
+      ...(filters.consultor ? { commercialOwner: filters.consultor } : {}),
+      ...(stageFilter ? { stage: stageFilter } : {}),
+    };
+    const nowDateQ = new Date(now);
 
     const [
       products,
@@ -92,11 +124,20 @@ export class DashboardService {
       activeTenantOrgs,
       assessmentOrgs,
       addonRows,
+      acoesAtrasadasRows,
+      acoesAtrasadasTotal,
+      evidenciasRejeitadas,
+      emRenovacao,
+      donosComerciais,
     ] = await Promise.all([
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
       this.prisma.admin.platformLead.findMany({
         where: { createdAt: { gte: since }, ...originWhere },
+        orderBy: { createdAt: 'desc' },
         select: {
+          name: true,
+          company: true,
+          commercialOwner: true,
           stage: true,
           origin: true,
           convertedTenantId: true,
@@ -120,9 +161,11 @@ export class DashboardService {
           responsible: true,
           organizationId: true,
           groupId: true,
+          startDate: true,
+          createdAt: true,
         },
       }),
-      this.prisma.admin.tenant.findMany({ select: { organizationId: true, name: true } }),
+      this.prisma.admin.tenant.findMany({ select: { id: true, organizationId: true, name: true, createdAt: true } }),
       this.prisma.admin.assessmentCycle.count({ where: { status: 'OPEN', ...orgWhere } }),
       this.prisma.admin.assessment.count({ where: orgWhere }),
       this.prisma.admin.actionPlan.count({ where: { validatedAt: null, ...orgWhere } }),
@@ -144,23 +187,45 @@ export class DashboardService {
         where: { active: true, recurring: true },
         select: { moduleCode: true, monthlyPriceCents: true },
       }),
+      // Ações adotadas (aprovadas/em andamento) com prazo vencido.
+      this.prisma.admin.actionItem.findMany({
+        where: { status: { in: ['APROVADA', 'EM_ANDAMENTO'] }, dueDate: { lt: nowDateQ }, ...orgWhere },
+        orderBy: { dueDate: 'asc' },
+        take: DETALHE_MAX,
+        select: { action: true, responsible: true, dueDate: true, tenantId: true },
+      }),
+      this.prisma.admin.actionItem.count({
+        where: { status: { in: ['APROVADA', 'EM_ANDAMENTO'] }, dueDate: { lt: nowDateQ }, ...orgWhere },
+      }),
+      this.prisma.admin.evidence.count({ where: { status: 'REJEITADA', ...orgWhere } }),
+      this.prisma.admin.platformLead.count({ where: { stage: 'RENOVACAO', archivedAt: null } }),
+      this.prisma.admin.platformLead.findMany({
+        where: { commercialOwner: { not: null } },
+        distinct: ['commercialOwner'],
+        select: { commercialOwner: true },
+      }),
     ]);
     const addonPrice = new Map(addonRows.map((a) => [a.moduleCode, a.monthlyPriceCents]));
 
     const priceOf = new Map(products.map((p) => [p.id, p]));
     const nameOfOrg = new Map(tenants.map((t) => [t.organizationId, t.name]));
+    const tenantById = new Map(tenants.map((t) => [t.id, t]));
 
-    // ── Comercial (recortado por período + origem) ──
+    // ── Comercial (recortado por período + origem/consultor/etapa) ──
     const totalLeads = leadsPeriod.length;
     const fechadas = leadsPeriod.filter((l) => l.convertedTenantId).length;
     const propostas = leadsPeriod.filter((l) => l.stage === 'PROPOSTA').length;
     const conversao = totalLeads ? Math.round((fechadas / totalLeads) * 100) : 0;
+    const leadsAtendidos = leadsPeriod.filter((l) => l.firstContactedAt).length;
 
     const funnel = DashboardService.FUNNEL.map((g) => ({
       key: g.key,
       label: g.label,
       count: leadsPeriod.filter((l) => g.stages.includes(l.stage)).length,
     }));
+    const funilEtapas = PLATFORM_LEAD_STAGES.filter((s) => s !== 'PERDIDO')
+      .map((s) => ({ key: s, label: PLATFORM_LEAD_STAGE_LABEL[s], count: leadsPeriod.filter((l) => l.stage === s).length }))
+      .filter((e) => ETAPAS_FIXAS.has(e.key) || e.count > 0);
 
     const origemMap = new Map<string, number>();
     for (const l of leadsPeriod) {
@@ -215,23 +280,31 @@ export class DashboardService {
 
     // ── Contratos (recortados por grupo/empresa) ──
     // No recorte por grupo, inclui também o contrato do PRÓPRIO grupo (Tela 05 [5]).
-    const scopedContracts = orgIds
-      ? contractsAll.filter(
-          (c) =>
-            (c.organizationId && orgIds!.includes(c.organizationId)) ||
-            (!!filters.groupId && c.groupId === filters.groupId),
-        )
-      : contractsAll;
+    const scopedContracts = (
+      orgIds
+        ? contractsAll.filter(
+            (c) =>
+              (c.organizationId && orgIds!.includes(c.organizationId)) ||
+              (!!filters.groupId && c.groupId === filters.groupId),
+          )
+        : contractsAll
+    ).filter((c) => !filters.consultor || c.responsible === filters.consultor);
     const ativos = scopedContracts.filter((c) => c.status === 'ATIVO');
+    // MRR de um contrato: solução principal + adicionais recorrentes (Tela 05 · modelo Adicional).
+    const mrrDe = (c: (typeof ativos)[number]) => {
+      let v = c.productId ? (priceOf.get(c.productId)?.monthlyPriceCents ?? 0) : 0;
+      for (const code of Array.isArray(c.optionalModules) ? (c.optionalModules as string[]) : []) {
+        v += addonPrice.get(code) ?? 0;
+      }
+      return v;
+    };
     let mrrCents = 0;
+    let novoMrrCents = 0;
     const solMap = new Map<string, { count: number; receita: number }>();
     for (const c of ativos) {
       const p = c.productId ? priceOf.get(c.productId) : null;
-      mrrCents += p?.monthlyPriceCents ?? 0;
-      // Receita recorrente dos adicionais contratados (Tela 05 · modelo Adicional).
-      for (const code of Array.isArray(c.optionalModules) ? (c.optionalModules as string[]) : []) {
-        mrrCents += addonPrice.get(code) ?? 0;
-      }
+      mrrCents += mrrDe(c);
+      if ((c.startDate ?? c.createdAt) >= since) novoMrrCents += mrrDe(c);
       const name = p?.name ?? '(sem solução)';
       const s = solMap.get(name) ?? { count: 0, receita: 0 };
       s.count += 1;
@@ -261,40 +334,109 @@ export class DashboardService {
       .reduce((s, a) => s + a._count._all, 0);
     const mentoriasAtrasadas = mentorias.filter((m) => m.scheduledAt < nowDate).length;
 
-    // ── Central de Pendências (sinais reais) ──
+    // ── Central de Pendências (sinais reais; cada uma aponta a tela que resolve) ──
     type Pend = DashboardData['pendencias'][number];
     const pendencias: Pend[] = [];
+    const empresaDoContrato = (c: { organizationId: string | null }) =>
+      (c.organizationId ? nameOfOrg.get(c.organizationId) : 'Grupo') ?? '—';
+    for (const c of scopedContracts) {
+      if (c.status !== 'RASCUNHO') continue;
+      const empresa = empresaDoContrato(c);
+      pendencias.push({
+        empresa, tipo: 'Contrato em rascunho', prazo: null, severidade: 'ATENCAO',
+        texto: `Contrato de ${empresa} em rascunho aguardando ativação`, area: 'Contratos', secao: 'contratos',
+      });
+    }
     for (const c of ativos) {
       if (c.endDate && c.endDate >= nowDate && c.endDate <= in30) {
         const dias = Math.round((c.endDate.getTime() - now) / 86_400_000);
+        const empresa = empresaDoContrato(c);
         pendencias.push({
-          empresa: (c.organizationId ? nameOfOrg.get(c.organizationId) : "Grupo") ?? "—",
-          tipo: 'Contrato vencendo',
-          prazo: c.endDate.toISOString(),
+          empresa, tipo: 'Contrato vencendo', prazo: c.endDate.toISOString(),
           severidade: dias <= 7 ? 'CRITICO' : 'ATENCAO',
+          texto: `Contrato de ${empresa} vence em ${fmtData(c.endDate, true)}`, area: 'Contratos', secao: 'contratos',
         });
       }
     }
     for (const m of mentorias) {
       if (m.scheduledAt < nowDate) {
+        const empresa = nameOfOrg.get(m.tenantId) ?? '—';
         pendencias.push({
-          empresa: nameOfOrg.get(m.tenantId) ?? '—',
-          tipo: 'Mentoria atrasada',
-          prazo: m.scheduledAt.toISOString(),
-          severidade: 'CRITICO',
+          empresa, tipo: 'Mentoria atrasada', prazo: m.scheduledAt.toISOString(), severidade: 'CRITICO',
+          texto: `Mentoria de ${empresa} atrasada (agendada para ${fmtData(m.scheduledAt)})`,
+          area: 'Mentorias', secao: 'extras',
         });
       }
     }
     for (const c of semResponsavel) {
+      const empresa = empresaDoContrato(c);
       pendencias.push({
-        empresa: (c.organizationId ? nameOfOrg.get(c.organizationId) : "Grupo") ?? "—",
-        tipo: 'Contrato sem responsável',
-        prazo: null,
-        severidade: 'ATENCAO',
+        empresa, tipo: 'Contrato sem responsável', prazo: null, severidade: 'ATENCAO',
+        texto: `Contrato de ${empresa} sem responsável CRIVO`, area: 'Contratos', secao: 'contratos',
+      });
+    }
+    if (acoesAtrasadasTotal > 0) {
+      pendencias.push({
+        empresa: '—', tipo: 'Ações atrasadas', prazo: null, severidade: 'CRITICO',
+        texto: `${acoesAtrasadasTotal} ${acoesAtrasadasTotal === 1 ? 'ação do Plano de Ação atrasada' : 'ações do Plano de Ação atrasadas'}`,
+        area: 'Motor de Evolução', secao: 'evolucao',
+      });
+    }
+    if (evidenciasRejeitadas > 0) {
+      pendencias.push({
+        empresa: '—', tipo: 'Evidência rejeitada', prazo: null, severidade: 'ATENCAO',
+        texto: `${evidenciasRejeitadas} ${evidenciasRejeitadas === 1 ? 'evidência rejeitada aguardando reenvio' : 'evidências rejeitadas aguardando reenvio'}`,
+        area: 'Evidências', secao: 'evidencias',
+      });
+    }
+    if (leadsSemPrimeiroContato > 0) {
+      pendencias.push({
+        empresa: '—', tipo: 'Lead sem 1º contato', prazo: null, severidade: 'ATENCAO',
+        texto: `${leadsSemPrimeiroContato} ${leadsSemPrimeiroContato === 1 ? 'lead sem 1º contato' : 'leads sem 1º contato'} no período`,
+        area: 'CRM', secao: 'crm',
       });
     }
     const sevRank: Record<Pend['severidade'], number> = { CRITICO: 0, ATENCAO: 1, OK: 2 };
     pendencias.sort((a, b) => sevRank[a.severidade] - sevRank[b.severidade]);
+
+    // ── Detalhamento (drill-down dos KPIs clicáveis) ──
+    const detalheLeads = leadsPeriod.slice(0, DETALHE_MAX).map((l) => ({
+      empresa: l.company?.trim() || l.name,
+      origem: l.origin?.trim() || null,
+      responsavel: l.commercialOwner?.trim() || null,
+      etapa: PLATFORM_LEAD_STAGE_LABEL[l.stage as PlatformLeadStage] ?? l.stage,
+      criadoEm: l.createdAt.toISOString(),
+      atendido: !!l.firstContactedAt,
+    }));
+    const contratacoes = leadsPeriod
+      .filter((l) => l.convertedTenantId)
+      .slice(0, DETALHE_MAX)
+      .map((l) => {
+        const t = tenantById.get(l.convertedTenantId!);
+        const p = l.productId ? priceOf.get(l.productId) : undefined;
+        return {
+          empresa: t?.name ?? (l.company?.trim() || l.name),
+          solucao: p?.name ?? null,
+          valorMensalCents: p?.monthlyPriceCents ?? 0,
+          consultor: l.commercialOwner?.trim() || null,
+          data: (t?.createdAt ?? l.createdAt).toISOString(),
+        };
+      });
+    const acoesAtrasadas = acoesAtrasadasRows.map((a) => ({
+      acao: a.action,
+      empresa: nameOfOrg.get(a.tenantId) ?? '—',
+      responsavel: a.responsible?.trim() || null,
+      prazo: a.dueDate!.toISOString(),
+      diasAtraso: Math.max(1, Math.floor((now - a.dueDate!.getTime()) / 86_400_000)),
+    }));
+
+    const consultores = [
+      ...new Set(
+        [...donosComerciais.map((d) => d.commercialOwner), ...contractsAll.map((c) => c.responsible)]
+          .map((v) => v?.trim())
+          .filter((v): v is string => !!v),
+      ),
+    ].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     return {
       periodDays: days,
@@ -314,8 +456,11 @@ export class DashboardService {
         leadsSemPrimeiroContato,
         valorPropostoCents,
         propostasEnviadas,
+        leadsAtendidos,
+        funilEtapas,
       },
       contratos: {
+        rascunho: scopedContracts.filter((c) => c.status === 'RASCUNHO').length,
         ativos: ativos.length,
         mrrCents,
         arrCents: mrrCents * 12,
@@ -335,6 +480,13 @@ export class DashboardService {
         mentoriasAtrasadas,
         clientesSemResponsavel: semResponsavel.length,
         clientesSemAvanco,
+        acoesAtrasadas: acoesAtrasadasTotal,
+      },
+      financeiro: {
+        receitaContratadaCents: faturamentoEstimadoCents,
+        novoMrrCents,
+        contratosVencer60: vencendo(nowDate, in60),
+        emRenovacao,
       },
       executivo: {
         clientesAtivos,
@@ -342,6 +494,8 @@ export class DashboardService {
         novosClientes,
       },
       pendencias: pendencias.slice(0, 30),
+      detalhe: { leads: detalheLeads, contratacoes, acoesAtrasadas },
+      consultores,
       naoModelado: DashboardService.NAO_MODELADO,
     };
   }

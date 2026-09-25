@@ -16,12 +16,16 @@ export class DashboardController {
     @Query('origem') origem?: string,
     @Query('groupId') groupId?: string,
     @Query('tenantId') tenantId?: string,
+    @Query('consultor') consultor?: string,
+    @Query('status') status?: string,
   ) {
     const d = Math.min(365, Math.max(1, Number(days) || 30));
     return this.dashboard.build(d, {
       origem: origem?.trim() || undefined,
       groupId: groupId?.trim() || undefined,
       tenantId: tenantId?.trim() || undefined,
+      consultor: consultor?.trim() || undefined,
+      status: status?.trim() || undefined,
     });
   }
 }
