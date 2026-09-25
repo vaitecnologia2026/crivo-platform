@@ -271,131 +271,6 @@
 .adm .ct-pill--suspenso { background: var(--danger-soft); color: var(--danger); }
 .adm .ct-pill--encerrado { background: rgba(92, 100, 112, 0.12); color: var(--text-mute); }
 
-/* — Grupos empresariais (Grupos e Empresas-cliente) — cards no lugar da faixa
-   de chips improvisada ("funcional, mas feio" — feedback do cliente 10/07). */
-/* O variant ghost do @crivo/ui é para fundo ESCURO (texto off-white) — em card
-   claro fica invisível. Override escopado para o botão "Novo grupo". */
-.adm .gp-newbtn {
-  color: var(--ink-900);
-  border-color: rgba(13, 31, 60, 0.18);
-  background: #fff;
-}
-.adm .gp-newbtn:hover {
-  color: var(--gold-deep);
-  border-color: var(--gold);
-}
-.adm .gp-empty {
-  margin: 4px 0 2px;
-  font-size: 12.5px;
-  color: var(--text-sec);
-}
-.adm .gp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-  margin-top: 6px;
-}
-/* Card branco premium (mesma família dos KPIs), com avatar do grupo como
-   âncora visual — nada de bloco bege chapado. */
-.adm .gp-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px 16px 12px;
-  background: #fff;
-  border: 1px solid rgba(13, 31, 60, 0.08);
-  border-radius: var(--r-md);
-  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.04), 0 12px 28px -18px rgba(13, 31, 60, 0.16);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.adm .gp-card:hover {
-  transform: translateY(-1px);
-  border-color: var(--gold-soft, #e8d3b5);
-  box-shadow: 0 2px 4px rgba(13, 31, 60, 0.05), 0 16px 36px -18px rgba(13, 31, 60, 0.22);
-}
-.adm .gp-card__top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.adm .gp-avatar {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: var(--bg-sidebar, #202a3f);
-  color: #f6f2ea;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.adm .gp-card__id {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.adm .gp-card__name {
-  font-size: 14px;
-  color: var(--ink-900);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.adm .gp-card__sub {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-sec);
-}
-.adm .gp-card__tenants {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: 26px;
-}
-.adm .gp-chip {
-  display: inline-block;
-  max-width: 100%;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 11px;
-  border-radius: 999px;
-  background: var(--line-soft);
-  border: 1px solid var(--line);
-  color: var(--ink-700);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.adm .gp-chip--more {
-  background: var(--warn-soft);
-  border-color: transparent;
-  color: var(--gold-deep);
-}
-.adm .gp-card__hint {
-  font-size: 12px;
-  color: var(--text-mute);
-}
-.adm .gp-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
-}
-.adm .gp-card__actions .row-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
-}
-.adm .gp-card__actions .gp-del { margin-left: auto; }
 
 /* — Usuários CRIVO (Papéis & Permissões) — */
 .adm .pu-temp {
@@ -1115,3 +990,51 @@
 .adm .gd-drawer__table { margin-top: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
 .adm .gd-drawer__table td { font-size: 12px; }
 .adm .gd-drawer__foot { margin-top: 12px; font-size: 10.5px; color: var(--text-sec); }
+
+/* ── Grupos e Empresas-cliente (protótipo Lovable · /grupos) ── */
+.adm .ge-kpis { display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 24px; }
+@media (max-width: 1023px) { .adm .ge-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 559px) { .adm .ge-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.adm .gd-kpi--mini { padding: 16px 16px 12px; }
+.adm .gd-kpi--mini .gd-kpi__value { margin-top: 4px; font-size: 24px; }
+.adm .ge-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.adm .ge-search { flex: 1; min-width: 240px; max-width: 420px; }
+.adm .ge-groupbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 14px; padding: 10px 14px; border: 1px solid rgba(196, 103, 29, 0.3);
+  border-radius: var(--r-sm); background: rgba(196, 103, 29, 0.05); font-size: 13px;
+}
+.adm .ge-table { padding: 0; overflow-x: auto; }
+.adm .ge-table .data-table { margin: 0; }
+.adm .ge-table .data-table th, .adm .ge-table .data-table td { white-space: nowrap; }
+.adm .ge-table tr.is-selected td { background: rgba(196, 103, 29, 0.05); }
+.adm .ge-name { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; text-align: left; }
+.adm .ge-name:hover { color: var(--gold); }
+.adm .ge-mono { font-family: var(--font-jetbrains, ui-monospace, monospace); font-size: 11.5px; }
+.adm .ge-inline-select { font: inherit; font-size: 12.5px; padding: 3px 6px; border-radius: 8px; border: 1px solid var(--line); background: transparent; max-width: 160px; }
+.adm .ge-link { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; }
+.adm .ge-link:hover { color: var(--gold); }
+.adm .ge-link--mute { color: var(--text-sec); font-weight: 400; }
+.adm .ge-chip { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.adm .ge-chip--ok { background: rgba(46, 77, 122, 0.1); color: #2E4D7A; }
+.adm .ge-chip--alert { background: rgba(196, 103, 29, 0.12); color: #A0521A; }
+.adm .ge-chip--mute { background: var(--line-soft); color: var(--text-sec); }
+.adm .ge-chipbtn { border: 0; background: none; padding: 0; cursor: pointer; }
+.adm .ge-chipbtn:disabled { cursor: default; }
+.adm .ge-2col { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 24px; }
+@media (max-width: 1023px) { .adm .ge-2col { grid-template-columns: 1fr; } }
+.adm .ge-note { margin: 4px 0 0; font-size: 12px; color: var(--text-sec); }
+.adm .ge-fields { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+.adm .ge-field { display: flex; flex-direction: column; min-width: 0; }
+.adm .ge-field__label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-sec); }
+.adm .ge-field__value { margin-top: 4px; font-size: 13.5px; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.adm .ge-swatch { display: inline-flex; align-items: center; gap: 8px; }
+.adm .ge-swatch span { width: 12px; height: 12px; border-radius: 999px; box-shadow: 0 0 0 1px var(--line); }
+.adm .ge-auths { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.adm .ge-auth {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+  background: rgba(234, 230, 220, 0.25); font-size: 12px;
+}
+.adm .ge-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.adm .ge-subtable { margin-top: 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-md); }

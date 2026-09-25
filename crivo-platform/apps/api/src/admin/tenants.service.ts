@@ -26,12 +26,41 @@ export class TenantsService {
 
   /** Lista todas as empresas-cliente (mais recentes primeiro), com o nome do grupo (F1). */
   async list(): Promise<TenantSummary[]> {
-    const [rows, groups] = await Promise.all([
+    const [rows, groups, users, admins, accepted, modules, units] = await Promise.all([
       this.prisma.admin.tenant.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.admin.businessGroup.findMany({ select: { id: true, name: true } }),
+      // Contadores da tela Grupos e Empresas-cliente (protótipo /grupos).
+      this.prisma.admin.user.groupBy({ by: ['tenantId'], where: { active: true }, _count: { _all: true } }),
+      this.prisma.admin.user.groupBy({ by: ['tenantId'], where: { active: true, role: 'ADMIN' }, _count: { _all: true } }),
+      this.prisma.admin.user.groupBy({ by: ['tenantId'], where: { termsAcceptedAt: { not: null } }, _count: { _all: true } }),
+      this.prisma.admin.tenantModule.groupBy({ by: ['tenantId'], where: { enabled: true }, _count: { _all: true } }),
+      this.prisma.admin.unit.findMany({ select: { tenantId: true, name: true }, orderBy: { name: 'asc' } }),
     ]);
     const groupNames = new Map(groups.map((g) => [g.id, g.name]));
-    return rows.map((t) => toTenantSummary(t, t.groupId ? (groupNames.get(t.groupId) ?? null) : null));
+    const contagem = (xs: { tenantId: string; _count: { _all: number } }[]) =>
+      new Map(xs.map((x) => [x.tenantId, x._count._all]));
+    const nUsers = contagem(users);
+    const nAdmins = contagem(admins);
+    const nAccepted = contagem(accepted);
+    const nModules = contagem(modules);
+    const unitsOf = new Map<string, string[]>();
+    for (const u of units) unitsOf.set(u.tenantId, [...(unitsOf.get(u.tenantId) ?? []), u.name]);
+    // Os dados do portal (data plane) usam o organizationId como tenantId.
+    return rows.map((t) => {
+      const org = t.organizationId;
+      const nomes = unitsOf.get(org) ?? [];
+      return {
+        ...toTenantSummary(t, t.groupId ? (groupNames.get(t.groupId) ?? null) : null),
+        stats: {
+          usersCount: nUsers.get(org) ?? 0,
+          adminUsersCount: nAdmins.get(org) ?? 0,
+          modulesEnabled: nModules.get(org) ?? 0,
+          unitsCount: nomes.length,
+          unitNames: nomes.slice(0, 6),
+          termsAccepted: (nAccepted.get(org) ?? 0) > 0,
+        },
+      };
+    });
   }
 
   /** Visão geral da plataforma (KPIs do control plane). */

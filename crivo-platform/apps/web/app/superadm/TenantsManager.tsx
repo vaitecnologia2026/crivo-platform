@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@crivo/ui";
 import {
   PLANS,
@@ -9,10 +9,22 @@ import {
   type Plan,
   type PlatformAdmin,
   type ProvisionResult,
+  type TenantBrandingData,
+  type TenantDomainData,
   type TenantStatus,
   type TenantSummary,
 } from "@crivo/types";
-import { createGroup, deleteGroup, listGroups, setTenantGroup, setTenantProfile } from "@/lib/admin-api";
+import {
+  createGroup,
+  deleteGroup,
+  getTenantBranding,
+  listAllContracts,
+  listGroups,
+  listTenantDomains,
+  setTenantGroup,
+  setTenantProfile,
+  type ContractListItem,
+} from "@/lib/admin-api";
 
 /** CNPJ (14 dígitos) → 00.000.000/0000-00; devolve cru se não tiver 14 dígitos. */
 function formatCnpj(cnpj: string): string {
@@ -35,6 +47,63 @@ const STATUS_LABEL: Record<TenantStatus, string> = {
   DELETED: "Excluída",
 };
 
+const CONTRACT_STATUS: Record<string, string> = {
+  RASCUNHO: "Rascunho",
+  ATIVO: "Ativo",
+  SUSPENSO: "Suspenso",
+  ENCERRADO: "Encerrado",
+};
+
+const CONSENTS = [
+  ["consentBenchmark", "Participar do benchmark agregado da Base CRIVO"],
+  ["consentAnonymized", "Uso de dados anonimizados em estudos CRIVO"],
+  ["consentCase", "Virar case autorizado (com revisão prévia)"],
+  ["consentLogo", "Uso de logo em vitrine institucional CRIVO"],
+  ["consentTestimonial", "Depoimento público de C-level ou consultor"],
+] as const;
+
+const dataBr = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—");
+
+/** Cadastro completo = CNPJ + responsável interno (coluna "Dados"). */
+const dadosOk = (t: TenantSummary) => !!(t.cnpj && t.internalResponsible);
+
+/** Último trecho de uma URL (nome do arquivo do logo/favicon). */
+const arquivo = (url: string | null) => (url ? decodeURIComponent(url.split(/[/?#]/).filter(Boolean).pop() ?? url) : "—");
+
+/** Selo de status (StatusChip do protótipo). */
+function Chip({ tone, children }: { tone: "ok" | "alert" | "mute"; children: ReactNode }) {
+  return <span className={`ge-chip ge-chip--${tone}`}>{children}</span>;
+}
+
+function Field({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="ge-field">
+      <span className="ge-field__label">{label}</span>
+      <span className="ge-field__value">{value}</span>
+    </div>
+  );
+}
+
+function Swatch({ hex }: { hex: string | null }) {
+  if (!hex) return <>padrão CRIVO</>;
+  return (
+    <span className="ge-swatch">
+      <span style={{ background: hex }} />
+      {hex}
+    </span>
+  );
+}
+
+async function exportarXlsx(rows: Record<string, string | number>[]) {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Empresas");
+  XLSX.writeFile(wb, `grupos-empresas-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+/** Grupos e Empresas-cliente (Caderno Tela 06 · protótipo Lovable /grupos) —
+ *  cadastro administrativo. A habilitação real (módulos, soluções, adicionais)
+ *  vive no Contrato; as ações desta tela são atalhos. */
 export function TenantsManager({
   admin,
   onLogout,
@@ -50,7 +119,25 @@ export function TenantsManager({
   const [provisioned, setProvisioned] = useState<ProvisionResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [groups, setGroups] = useState<BusinessGroupSummary[] | null>(null);
+  const [contracts, setContracts] = useState<ContractListItem[]>([]);
   const [overviewOf, setOverviewOf] = useState<BusinessGroupSummary | null>(null);
+
+  // Filtros (FilterBar do protótipo).
+  const [busca, setBusca] = useState("");
+  const [statusF, setStatusF] = useState<"" | TenantStatus>("");
+  const [grupoF, setGrupoF] = useState(""); // "" = todos · "none" = sem grupo · id
+
+  // Empresa em foco nos painéis de baixo.
+  const [selId, setSelId] = useState<string | null>(null);
+  const [branding, setBranding] = useState<{ id: string; data: TenantBrandingData | null; domains: TenantDomainData[] } | null>(null);
+
+  const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
+  const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
+  const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
+  const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
+  const [onboardingOf, setOnboardingOf] = useState<TenantSummary | null>(null);
+  const [profileOf, setProfileOf] = useState<TenantSummary | null>(null);
+  const [groupContractOf, setGroupContractOf] = useState<{ id: string; name: string } | null>(null);
 
   // F1 · Grupos Empresariais (Caderno Tela 06): catálogo leve acima dos tenants.
   async function refreshGroups() {
@@ -60,9 +147,71 @@ export function TenantsManager({
       setGroups([]);
     }
   }
+  async function refreshContracts() {
+    try {
+      setContracts(await listAllContracts());
+    } catch {
+      setContracts([]);
+    }
+  }
   useEffect(() => {
     void refreshGroups();
+    void refreshContracts();
   }, []);
+
+  const selected = tenants.find((t) => t.id === selId) ?? tenants.find((t) => t.status !== "DELETED") ?? null;
+
+  // Marca e domínio da empresa em foco (carregados sob demanda; recarrega ao
+  // fechar o modal de marca).
+  const selectedId = selected?.id ?? null;
+  useEffect(() => {
+    if (!selectedId || brandingOf) return;
+    let alive = true;
+    Promise.all([getTenantBranding(selectedId).catch(() => null), listTenantDomains(selectedId).catch(() => [])]).then(
+      ([data, domains]) => {
+        if (alive) setBranding({ id: selectedId, data, domains });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [selectedId, brandingOf]);
+
+  /** Contratos da empresa: os próprios e o do grupo (vale para todos os CNPJs). */
+  const contratosDe = (t: TenantSummary) => {
+    const proprios = contracts.filter((c) => c.tenantId === t.id);
+    const doGrupo = t.groupId ? contracts.filter((c) => c.byGroup && c.groupId === t.groupId) : [];
+    return { proprios, doGrupo };
+  };
+  /** Contrato de referência da linha: ativo primeiro, depois o mais recente. */
+  const contratoPrincipal = (t: TenantSummary) => {
+    const { proprios, doGrupo } = contratosDe(t);
+    const ordena = (xs: ContractListItem[]) =>
+      [...xs].sort((a, b) => Number(b.status === "ATIVO") - Number(a.status === "ATIVO") || b.updatedAt.localeCompare(a.updatedAt));
+    const p = ordena(proprios)[0];
+    if (p) return { c: p, grupo: false };
+    const g = ordena(doGrupo)[0];
+    return g ? { c: g, grupo: true } : null;
+  };
+
+  const filtered = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const qDig = busca.replace(/\D/g, "");
+    return tenants.filter((t) => {
+      if (statusF && t.status !== statusF) return false;
+      if (grupoF === "none" && t.groupId) return false;
+      if (grupoF && grupoF !== "none" && t.groupId !== grupoF) return false;
+      if (!q) return true;
+      return (
+        `${t.name} ${t.groupName ?? ""} ${t.slug}`.toLowerCase().includes(q) ||
+        (qDig.length >= 3 && (t.cnpj ?? "").includes(qDig))
+      );
+    });
+  }, [tenants, busca, statusF, grupoF]);
+
+  const vivos = tenants.filter((t) => t.status !== "DELETED");
+  const semContratoAtivo = vivos.filter((t) => contratoPrincipal(t)?.c.status !== "ATIVO").length;
+  const grupoSel = grupoF && grupoF !== "none" ? groups?.find((g) => g.id === grupoF) ?? null : null;
 
   async function onCreateGroup() {
     const name = window.prompt("Nome do grupo empresarial (ex.: Grupo ABC):")?.trim();
@@ -83,6 +232,7 @@ export function TenantsManager({
     if (!confirm(`Excluir o grupo "${g.name}"?`)) return;
     try {
       await deleteGroup(g.id);
+      setGrupoF("");
       await refreshGroups();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Falha ao excluir o grupo");
@@ -101,13 +251,6 @@ export function TenantsManager({
       setBusyId(null);
     }
   }
-  const [modulesOf, setModulesOf] = useState<TenantSummary | null>(null);
-  const [brandingOf, setBrandingOf] = useState<TenantSummary | null>(null);
-  const [contractOf, setContractOf] = useState<TenantSummary | null>(null);
-  const [usersOf, setUsersOf] = useState<TenantSummary | null>(null);
-  const [onboardingOf, setOnboardingOf] = useState<TenantSummary | null>(null);
-  const [profileOf, setProfileOf] = useState<TenantSummary | null>(null);
-  const [groupContractOf, setGroupContractOf] = useState<{ id: string; name: string } | null>(null);
 
   async function act(id: string, action: "suspend" | "activate" | "delete") {
     if (action === "delete" && !confirm("Excluir esta empresa? (exclusão lógica, reversível)")) return;
@@ -120,6 +263,33 @@ export function TenantsManager({
       setBusyId(null);
     }
   }
+
+  function exportar() {
+    void exportarXlsx(
+      filtered.map((t) => {
+        const cp = contratoPrincipal(t);
+        return {
+          Empresa: t.name,
+          CNPJ: t.cnpj ? formatCnpj(t.cnpj) : "",
+          Slug: t.slug,
+          Grupo: t.groupName ?? "",
+          Plano: PLAN_LABELS[t.plan],
+          Status: STATUS_LABEL[t.status],
+          "Criada em": new Date(t.createdAt).toLocaleDateString("pt-BR"),
+          Contrato: cp ? `${cp.c.shortId}${cp.grupo ? " (grupo)" : ""} · ${CONTRACT_STATUS[cp.c.status] ?? cp.c.status}` : "",
+          Módulos: t.stats?.modulesEnabled ?? "",
+          Usuários: t.stats?.usersCount ?? "",
+          Dados: dadosOk(t) ? "OK" : "Pendente",
+        };
+      }),
+    );
+  }
+
+  const marcaCarregada = !!selected && branding?.id === selected.id;
+  const marca = marcaCarregada ? branding!.data : null;
+  const dominio = marcaCarregada
+    ? branding!.domains.find((d) => d.primary) ?? branding!.domains.find((d) => d.verified) ?? branding!.domains[0] ?? null
+    : null;
 
   return (
     <div className={embedded ? "font-body text-text" : "min-h-screen bg-off-white font-body text-text"}>
@@ -145,21 +315,16 @@ export function TenantsManager({
           <div>
             <h1 className="page-title">Grupos e Empresas-cliente</h1>
             <p className="page-sub">
-              {status === "ok"
-                ? `${tenants.length} empresa(s) na plataforma CRIVO`
-                : "Carregando empresas-cliente…"}
+              Cadastro administrativo. Empresa é identidade cadastral — nenhum módulo, IA, solução ou adicional é
+              habilitado nesta tela.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn--outline-dark btn--sm" onClick={onCreateGroup}>Novo grupo</button>
             {/* C2 (call 14/07): o caminho preferido cria a empresa pelos dados
-                REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard.
-                Botões do admin.css: a variante terra do @crivo/ui não aplica o
-                fundo neste shell (texto off-white sumia no fundo creme). */}
+                REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard. */}
             <button className="btn btn--terra btn--sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
-              {showCnpj ? "Fechar" : "Nova empresa (via CNPJ)"}
-            </button>
-            <button className="btn btn--outline-dark btn--sm" onClick={() => { setShowForm((v) => !v); setShowCnpj(false); }}>
-              {showForm ? "Fechar" : "Nova empresa (manual)"}
+              {showCnpj ? "Fechar" : "Nova empresa"}
             </button>
           </div>
         </div>
@@ -171,129 +336,17 @@ export function TenantsManager({
               onProvisioned={() => {
                 void refresh();
                 void refreshGroups();
+                void refreshContracts();
               }}
             />
-          </div>
-        )}
-
-        {status === "ok" && tenants.length > 0 && (
-          <div className="kpi-grid" style={{ marginBottom: 20 }}>
-            <div className="kpi">
-              <span className="kpi__label">Empresas</span>
-              <strong className="kpi__value">{tenants.length}</strong>
-              <span className="kpi__delta">total na base</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Ativas</span>
-              <strong className="kpi__value">
-                {tenants.filter((t) => t.status === "ACTIVE").length}
-              </strong>
-              <span className="kpi__delta">acesso liberado</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Bloqueadas</span>
-              <strong className="kpi__value">
-                {tenants.filter((t) => t.status === "SUSPENDED").length}
-              </strong>
-              <span className="kpi__delta">acesso suspenso</span>
-            </div>
-            <div className="kpi">
-              <span className="kpi__label">Excluídas</span>
-              <strong className="kpi__value">
-                {tenants.filter((t) => t.status === "DELETED").length}
-              </strong>
-              <span className="kpi__delta">exclusão lógica</span>
-            </div>
-          </div>
-        )}
-
-        {groups !== null && (
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div className="card__head">
-              <div>
-                <h3>Grupos empresariais</h3>
-                <span className="card__sub">
-                  Agrupe CNPJs do mesmo cliente para contrato de grupo e visão consolidada.
-                </span>
-              </div>
-              <Button variant="ghost" size="sm" className="gp-newbtn" onClick={onCreateGroup}>
-                Novo grupo
-              </Button>
-            </div>
-            {groups.length === 0 ? (
-              <p className="gp-empty">Nenhum grupo ainda — crie um para agrupar CNPJs do mesmo cliente.</p>
-            ) : (
-              <div className="gp-grid">
-                {groups.map((g) => (
-                  <article key={g.id} className="gp-card">
-                    <div className="gp-card__top">
-                      <span className="gp-avatar" aria-hidden="true">{groupInitials(g.name)}</span>
-                      <div className="gp-card__id">
-                        <strong className="gp-card__name" title={g.name}>{g.name}</strong>
-                        <span className="gp-card__sub">
-                          {g.tenants.length === 0
-                            ? "Nenhum CNPJ vinculado"
-                            : `${g.tenants.length} CNPJ${g.tenants.length === 1 ? "" : "s"} no grupo`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="gp-card__tenants">
-                      {g.tenants.length > 0 ? (
-                        <>
-                          {g.tenants.slice(0, 3).map((t) => (
-                            <span key={t.id} className="gp-chip" title={t.name}>{t.name}</span>
-                          ))}
-                          {g.tenants.length > 3 && (
-                            <span
-                              className="gp-chip gp-chip--more"
-                              title={g.tenants.slice(3).map((t) => t.name).join(", ")}
-                            >
-                              +{g.tenants.length - 3}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="gp-card__hint">
-                          Vincule CNPJs pela coluna Grupo da tabela abaixo.
-                        </span>
-                      )}
-                    </div>
-                    <div className="gp-card__actions">
-                      <button type="button" className="row-action" onClick={() => setOverviewOf(g)}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                        Consolidado
-                      </button>
-                      <button
-                        type="button"
-                        className="row-action"
-                        title="Contrato do grupo (aplica-se a todos os CNPJs)"
-                        onClick={() => setGroupContractOf({ id: g.id, name: g.name })}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M7 3h7l4 4v14H7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                          <path d="M14 3v4h4M10 12h5M10 16h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                        Contrato
-                      </button>
-                      <button
-                        type="button"
-                        className="row-action row-action--danger gp-del"
-                        title={g.tenants.length > 0 ? "Só é possível excluir um grupo vazio" : "Excluir grupo"}
-                        disabled={g.tenants.length > 0}
-                        onClick={() => onDeleteGroup(g)}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        Excluir
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              className="linklike"
+              style={{ fontSize: 12, marginTop: 8 }}
+              onClick={() => { setShowForm(true); setShowCnpj(false); }}
+            >
+              Empresa sem CNPJ? Cadastrar manualmente
+            </button>
           </div>
         )}
 
@@ -308,9 +361,7 @@ export function TenantsManager({
           />
         )}
 
-        {provisioned && (
-          <ProvisionedNotice result={provisioned} onClose={() => setProvisioned(null)} />
-        )}
+        {provisioned && <ProvisionedNotice result={provisioned} onClose={() => setProvisioned(null)} />}
 
         {status === "loading" && <p className="dash-state">Carregando empresas-cliente…</p>}
 
@@ -324,135 +375,301 @@ export function TenantsManager({
         )}
 
         {status === "ok" && (
-          <div className="card">
-            <table className="data-table data-table--tenants">
-              <thead>
-                <tr>
-                  <th>Empresa</th>
-                  <th>Slug</th>
-                  <th>Grupo</th>
-                  <th>Plano</th>
-                  <th>Status</th>
-                  <th>Criada</th>
-                  <th style={{ textAlign: "right" }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tenants.map((t) => (
-                  <tr key={t.id}>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() => setOnboardingOf(t)}
-                        title="Ver dados / onboarding"
-                        style={{
-                          background: "none",
-                          border: 0,
-                          padding: 0,
-                          font: "inherit",
-                          fontWeight: 700,
-                          color: "inherit",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                          textUnderlineOffset: 3,
-                        }}
-                      >
-                        {t.name}
-                      </button>
-                      {(t.cnpj || t.headquarterType || t.internalResponsible) && (
-                        <div className="cell-mute" style={{ fontSize: 11, marginTop: 2 }}>
-                          {t.cnpj && <span>{formatCnpj(t.cnpj)}</span>}
-                          {t.headquarterType && <span>{t.cnpj ? " · " : ""}{t.headquarterType === "MATRIZ" ? "Matriz" : "Filial"}</span>}
-                          {t.internalResponsible && <span> · resp. {t.internalResponsible}</span>}
-                        </div>
-                      )}
-                    </td>
-                    <td className="cell-mute">{t.slug}</td>
-                    <td>
-                      {t.status === "DELETED" || !groups ? (
-                        <span className="cell-mute">{t.groupName ?? "—"}</span>
-                      ) : (
-                        <select
-                          value={t.groupId ?? ""}
-                          disabled={busyId === t.id}
-                          onChange={(e) => onSetGroup(t, e.target.value || null)}
-                          title="Grupo empresarial da empresa"
-                          style={{
-                            font: "inherit",
-                            fontSize: 12.5,
-                            padding: "3px 6px",
-                            borderRadius: 8,
-                            border: "1px solid var(--line, #E3DDD3)",
-                            background: "transparent",
-                            color: t.groupId ? "inherit" : "var(--text-sec)",
-                            maxWidth: 160,
-                          }}
-                        >
-                          <option value="">— sem grupo</option>
-                          {groups.map((g) => (
-                            <option key={g.id} value={g.id}>
-                              {g.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </td>
-                    <td className="cell-mute">{PLAN_LABELS[t.plan]}</td>
-                    <td>
-                      <span
-                        className={`pattern-tag${t.status === "ACTIVE" ? "" : " pattern-tag--alert"}`}
-                      >
-                        {STATUS_LABEL[t.status]}
-                      </span>
-                    </td>
-                    <td className="cell-mute">
-                      {new Date(t.createdAt).toLocaleDateString("pt-BR")}
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        {t.status !== "DELETED" && (
-                          <ActionLink onClick={() => setContractOf(t)}>Contrato</ActionLink>
-                        )}
-                        {t.status !== "DELETED" && (
-                          <ActionLink onClick={() => setModulesOf(t)}>Módulos</ActionLink>
-                        )}
-                        {t.status !== "DELETED" && (
-                          <ActionLink onClick={() => setBrandingOf(t)}>Marca</ActionLink>
-                        )}
-                        {t.status !== "DELETED" && (
-                          <ActionLink onClick={() => setUsersOf(t)}>Usuários</ActionLink>
-                        )}
-                        {t.status !== "DELETED" && (
-                          <ActionLink onClick={() => setProfileOf(t)}>Dados</ActionLink>
-                        )}
-                        {t.status === "ACTIVE" ? (
-                          <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>
-                            Bloquear
-                          </ActionLink>
-                        ) : t.status === "SUSPENDED" ? (
-                          <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "activate")}>
-                            Reativar
-                          </ActionLink>
-                        ) : null}
-                        {t.status !== "DELETED" && (
-                          <ActionLink danger disabled={busyId === t.id} onClick={() => act(t.id, "delete")}>
-                            Excluir
-                          </ActionLink>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+          <>
+            <div className="ge-kpis">
+              {([
+                ["Empresas totais", tenants.length, "todas as empresas da base"],
+                ["Ativas", tenants.filter((t) => t.status === "ACTIVE").length, "acesso liberado"],
+                ["Rascunho", semContratoAtivo, "sem contrato ativo (próprio ou do grupo)"],
+                ["Bloqueadas", tenants.filter((t) => t.status === "SUSPENDED").length, "acesso suspenso"],
+                ["Excluídas", tenants.filter((t) => t.status === "DELETED").length, "exclusão lógica"],
+                ["Grupos empresariais", groups?.length ?? 0, "grupos cadastrados"],
+              ] as const).map(([label, value, title]) => (
+                <div key={label} className="gd-kpi gd-kpi--mini" title={title}>
+                  <span className="gd-kpi__label">{label}</span>
+                  <strong className="gd-kpi__value">{value}</strong>
+                </div>
+              ))}
+            </div>
+
+            {/* FilterBar */}
+            <div className="ge-filters">
+              <input
+                className="gd-select ge-search"
+                placeholder="Buscar por empresa, grupo, CNPJ ou slug"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+              <select className="gd-select" value={statusF} onChange={(e) => setStatusF(e.target.value as "" | TenantStatus)} title="Status">
+                <option value="">Status: Todos</option>
+                {(Object.keys(STATUS_LABEL) as TenantStatus[]).map((s) => (
+                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
                 ))}
-                {tenants.length === 0 && (
+              </select>
+              <select className="gd-select" value={grupoF} onChange={(e) => setGrupoF(e.target.value)} title="Grupo">
+                <option value="">Grupo: Todos</option>
+                <option value="none">Sem grupo</option>
+                {(groups ?? []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <button type="button" className="gd-chip" onClick={() => { setBusca(""); setStatusF(""); setGrupoF(""); }}>
+                Limpar
+              </button>
+              <button type="button" className="btn btn--sm btn--outline-dark" style={{ marginLeft: "auto" }} disabled={!filtered.length} onClick={exportar}>
+                ↓ Exportar XLSX
+              </button>
+            </div>
+
+            {/* Grupo escolhido no filtro: ações do grupo (consolidado, contrato, exclusão). */}
+            {grupoSel && (
+              <div className="ge-groupbar">
+                <div>
+                  <strong>{grupoSel.name}</strong>
+                  <span className="cell-mute">
+                    {" · "}
+                    {grupoSel.tenants.length === 0
+                      ? "nenhum CNPJ vinculado — vincule pela coluna Grupo"
+                      : `${grupoSel.tenants.length} CNPJ${grupoSel.tenants.length === 1 ? "" : "s"} no grupo`}
+                  </span>
+                </div>
+                <div className="row-actions">
+                  <ActionLink onClick={() => setOverviewOf(grupoSel)}>Consolidado</ActionLink>
+                  <ActionLink onClick={() => setGroupContractOf({ id: grupoSel.id, name: grupoSel.name })}>Contrato do grupo</ActionLink>
+                  <ActionLink danger disabled={grupoSel.tenants.length > 0} onClick={() => onDeleteGroup(grupoSel)}>
+                    Excluir grupo
+                  </ActionLink>
+                </div>
+              </div>
+            )}
+
+            <div className="card ge-table">
+              <table className="data-table data-table--tenants">
+                <thead>
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: 40, color: "var(--text-sec)" }}>
-                      Nenhuma empresa ainda. Crie a primeira em “Nova empresa”.
-                    </td>
+                    <th>Empresa</th>
+                    <th>Slug</th>
+                    <th>Grupo</th>
+                    <th>Plano</th>
+                    <th>Status</th>
+                    <th>Criada em</th>
+                    <th>Contrato</th>
+                    <th>Módulos</th>
+                    <th>Usuários</th>
+                    <th>Dados</th>
+                    <th style={{ textAlign: "right" }}>Ações</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtered.map((t) => {
+                    const cp = contratoPrincipal(t);
+                    const vivo = t.status !== "DELETED";
+                    return (
+                      <tr key={t.id} className={selected?.id === t.id ? "is-selected" : undefined}>
+                        <td>
+                          <button type="button" className="ge-name" onClick={() => setSelId(t.id)} title="Ver dados da empresa abaixo">
+                            {t.name}
+                          </button>
+                          {t.cnpj && <div className="cell-mute" style={{ fontSize: 11, marginTop: 2 }}>{formatCnpj(t.cnpj)}</div>}
+                        </td>
+                        <td className="cell-mute ge-mono">{t.slug}</td>
+                        <td>
+                          {!vivo || !groups ? (
+                            <span className="cell-mute">{t.groupName ?? "—"}</span>
+                          ) : (
+                            <select
+                              className="ge-inline-select"
+                              value={t.groupId ?? ""}
+                              disabled={busyId === t.id}
+                              onChange={(e) => onSetGroup(t, e.target.value || null)}
+                              title="Grupo empresarial da empresa"
+                            >
+                              <option value="">— sem grupo</option>
+                              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                            </select>
+                          )}
+                        </td>
+                        <td className="cell-mute" style={{ fontSize: 12 }}>{PLAN_LABELS[t.plan]}</td>
+                        <td>
+                          <Chip tone={t.status === "ACTIVE" ? "ok" : t.status === "SUSPENDED" ? "alert" : "mute"}>{STATUS_LABEL[t.status]}</Chip>
+                        </td>
+                        <td className="cell-mute" style={{ fontSize: 12 }}>{new Date(t.createdAt).toLocaleDateString("pt-BR")}</td>
+                        <td>
+                          {!vivo ? (
+                            <span className="cell-mute">—</span>
+                          ) : cp ? (
+                            <button
+                              type="button"
+                              className="ge-link"
+                              title={`Contrato ${CONTRACT_STATUS[cp.c.status] ?? cp.c.status}${cp.grupo ? " do grupo" : ""}`}
+                              onClick={() => (cp.grupo && t.groupId
+                                ? setGroupContractOf({ id: t.groupId, name: t.groupName ?? "Grupo" })
+                                : setContractOf(t))}
+                            >
+                              {cp.c.shortId}{cp.grupo ? " (grupo)" : ""} →
+                            </button>
+                          ) : (
+                            <button type="button" className="ge-link ge-link--mute" onClick={() => setContractOf(t)}>Criar contrato →</button>
+                          )}
+                        </td>
+                        <td>
+                          {vivo ? (
+                            <button type="button" className="ge-link ge-link--mute" onClick={() => setModulesOf(t)}>
+                              Ver módulos ({t.stats?.modulesEnabled ?? 0})
+                            </button>
+                          ) : <span className="cell-mute">—</span>}
+                        </td>
+                        <td>
+                          {vivo ? (
+                            <button type="button" className="ge-link ge-link--mute" onClick={() => setUsersOf(t)} title="Usuários ativos do portal">
+                              {t.stats?.usersCount ?? 0}
+                            </button>
+                          ) : <span className="cell-mute">{t.stats?.usersCount ?? 0}</span>}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="ge-chipbtn"
+                            disabled={!vivo}
+                            onClick={() => setProfileOf(t)}
+                            title={dadosOk(t) ? "CNPJ e responsável interno cadastrados" : "Falta CNPJ ou responsável interno"}
+                          >
+                            <Chip tone={dadosOk(t) ? "ok" : "alert"}>{dadosOk(t) ? "OK" : "Pendente"}</Chip>
+                          </button>
+                        </td>
+                        <td>
+                          <div className="row-actions">
+                            {vivo && <ActionLink onClick={() => setBrandingOf(t)}>Marca</ActionLink>}
+                            {t.status === "ACTIVE" ? (
+                              <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "suspend")}>Bloquear</ActionLink>
+                            ) : t.status === "SUSPENDED" ? (
+                              <ActionLink disabled={busyId === t.id} onClick={() => act(t.id, "activate")}>Desbloquear</ActionLink>
+                            ) : null}
+                            {vivo && (
+                              <ActionLink danger disabled={busyId === t.id} onClick={() => act(t.id, "delete")}>Excluir</ActionLink>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--text-sec)" }}>
+                        {tenants.length === 0 ? "Nenhuma empresa ainda. Crie a primeira em “Nova empresa”." : "Nenhuma empresa neste filtro."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {selected && (
+              <>
+                <div className="ge-2col">
+                  <div className="gd-panel">
+                    <div className="gd-panel__title">{selected.name} · dados autorizados</div>
+                    <div className="ge-fields">
+                      <Field label="Grupo" value={selected.groupName ?? "Sem grupo"} />
+                      <Field label="CNPJ principal" value={selected.cnpj ? formatCnpj(selected.cnpj) : "—"} />
+                      <Field
+                        label="Unidades"
+                        value={selected.stats?.unitsCount
+                          ? selected.stats.unitNames.join(" · ") +
+                            (selected.stats.unitsCount > selected.stats.unitNames.length
+                              ? ` +${selected.stats.unitsCount - selected.stats.unitNames.length}`
+                              : "")
+                          : "Nenhuma unidade cadastrada"}
+                      />
+                      <Field label="Usuários administrativos" value={String(selected.stats?.adminUsersCount ?? 0)} />
+                      <Field label="Marca visível" value={selected.name} />
+                      <Field
+                        label="Bloqueio"
+                        value={selected.status === "SUSPENDED"
+                          ? <Chip tone="alert">Bloqueada</Chip>
+                          : selected.status === "DELETED" ? <Chip tone="mute">Excluída</Chip> : <Chip tone="mute">Sem bloqueio</Chip>}
+                      />
+                    </div>
+                    {selected.status !== "DELETED" && (
+                      <div className="ge-actions">
+                        <button type="button" className="btn btn--sm btn--outline-dark" onClick={() => setOnboardingOf(selected)}>Ver onboarding</button>
+                        <button type="button" className="btn btn--sm btn--outline-dark" onClick={() => setUsersOf(selected)}>Usuários</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="gd-panel">
+                    <div className="gd-panel__title">Contratos desta empresa</div>
+                    <ContratosDaEmpresa
+                      linhas={[
+                        ...contratosDe(selected).proprios.map((c) => ({ c, grupo: false })),
+                        ...contratosDe(selected).doGrupo.map((c) => ({ c, grupo: true })),
+                      ]}
+                      podeCriar={selected.status !== "DELETED"}
+                      onAbrir={(grupo) => (grupo && selected.groupId
+                        ? setGroupContractOf({ id: selected.groupId, name: selected.groupName ?? "Grupo" })
+                        : setContractOf(selected))}
+                    />
+                  </div>
+                </div>
+
+                <div className="ge-2col">
+                  <div className="gd-panel">
+                    <div className="gd-panel__title">Marca / White-label — {selected.name}</div>
+                    <p className="ge-note">Identidade visual e canais aplicados ao Portal Executivo e comunicações operacionais desta empresa.</p>
+                    <div className="ge-fields">
+                      <Field label="Cor primária" value={marcaCarregada ? <Swatch hex={marca?.primaryColor ?? null} /> : "…"} />
+                      <Field label="Cor de acento" value={marcaCarregada ? <Swatch hex={marca?.accentColor ?? null} /> : "…"} />
+                      <Field label="Logo" value={arquivo(marca?.logoUrl ?? null)} />
+                      <Field label="Favicon" value={arquivo(marca?.faviconUrl ?? null)} />
+                      <Field label="E-mail remetente" value={marca?.emailFrom || "—"} />
+                      <Field label="WhatsApp" value={marca?.whatsapp || "—"} />
+                      <Field label="Rodapé institucional" value={marca?.footerText || "—"} />
+                      <Field label="Domínio próprio" value={dominio ? `${dominio.domain}${dominio.verified ? "" : " (não verificado)"}` : "—"} />
+                    </div>
+                    {selected.status !== "DELETED" && (
+                      <div className="ge-actions">
+                        <button type="button" className="btn btn--sm btn--outline-dark" onClick={() => setBrandingOf(selected)}>Editar marca</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="gd-panel">
+                    <div className="gd-panel__title">Dados da empresa e autorizações de uso</div>
+                    <p className="ge-note">Registros administrativos e consentimentos que habilitam benchmark, cases e vitrine institucional CRIVO.</p>
+                    <div className="ge-fields">
+                      <Field label="CNPJ principal" value={selected.cnpj ? formatCnpj(selected.cnpj) : "—"} />
+                      <Field
+                        label="Matriz / Filiais"
+                        value={`${selected.headquarterType === "FILIAL" ? "Filial" : selected.headquarterType === "MATRIZ" ? "Matriz" : "—"} · ${selected.stats?.unitsCount ?? 0} unidade(s) cadastrada(s)`}
+                      />
+                      <Field label="Responsável interno" value={selected.internalResponsible || "—"} />
+                      <Field label="LGPD" value={selected.stats?.termsAccepted ? <Chip tone="ok">Termo aceito</Chip> : <Chip tone="mute">Aguardando aceite</Chip>} />
+                    </div>
+                    <div className="ge-auths">
+                      {CONSENTS.map(([key, label]) => (
+                        <div key={key} className="ge-auth">
+                          <span>{label}</span>
+                          <Chip tone={selected[key] ? "ok" : "mute"}>{selected[key] ? "Autorizado" : "Não autorizado"}</Chip>
+                        </div>
+                      ))}
+                    </div>
+                    {selected.status !== "DELETED" && (
+                      <div className="ge-actions">
+                        <button type="button" className="btn btn--sm btn--outline-dark" onClick={() => setProfileOf(selected)}>Editar autorizações</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="gd-rulebox">
+              <div className="gd-rulebox__title">Regras desta tela</div>
+              Grupos e Empresas-cliente é <b>cadastro administrativo</b>. As ações desta tela são atalhos — habilitação
+              real de módulos, IA, soluções, adicionais, limites e recursos vive em <b>Contratos e Liberações</b>.
+              Bloqueio de empresa suspende acessos do Portal Executivo e é registrado em <b>Auditoria</b>. Para ver o
+              consolidado ou o contrato de um grupo, escolha o grupo no filtro.
+            </div>
+          </>
         )}
       </div>
 
@@ -461,7 +678,7 @@ export function TenantsManager({
       {modulesOf && (
         <ModulesModal
           tenant={modulesOf}
-          onClose={() => setModulesOf(null)}
+          onClose={() => { setModulesOf(null); void refresh(); }}
           onTenantUpdated={(t) => {
             applyTenant(t);
             setModulesOf(t);
@@ -471,10 +688,10 @@ export function TenantsManager({
 
       {brandingOf && <BrandingModal tenant={brandingOf} onClose={() => setBrandingOf(null)} />}
 
-      {contractOf && <ContractModal tenant={contractOf} onClose={() => setContractOf(null)} />}
+      {contractOf && <ContractModal tenant={contractOf} onClose={() => { setContractOf(null); void refreshContracts(); }} />}
 
       {groupContractOf && (
-        <ContractModal group={groupContractOf} onClose={() => setGroupContractOf(null)} />
+        <ContractModal group={groupContractOf} onClose={() => { setGroupContractOf(null); void refreshContracts(); }} />
       )}
 
       {profileOf && (
@@ -485,8 +702,51 @@ export function TenantsManager({
         />
       )}
 
-      {usersOf && <TenantUsersModal tenant={usersOf} onClose={() => setUsersOf(null)} />}
+      {usersOf && <TenantUsersModal tenant={usersOf} onClose={() => { setUsersOf(null); void refresh(); }} />}
       {onboardingOf && <OnboardingModal tenant={onboardingOf} onClose={() => setOnboardingOf(null)} />}
+    </div>
+  );
+}
+
+/** Tabela "Contratos desta empresa": os próprios e o do grupo. */
+function ContratosDaEmpresa({
+  linhas,
+  podeCriar,
+  onAbrir,
+}: {
+  linhas: { c: ContractListItem; grupo: boolean }[];
+  podeCriar: boolean;
+  onAbrir: (grupo: boolean) => void;
+}) {
+  return (
+    <div className="ge-subtable">
+      <table className="data-table" style={{ margin: 0 }}>
+        <thead>
+          <tr><th>Contrato</th><th>Vigência</th><th>Status</th><th style={{ textAlign: "right" }}>Ir para</th></tr>
+        </thead>
+        <tbody>
+          {linhas.map(({ c, grupo }) => (
+            <tr key={c.id}>
+              <td><strong>{c.shortId}</strong>{grupo && <span className="cell-mute"> (grupo)</span>}</td>
+              <td className="cell-mute" style={{ fontSize: 12 }}>{dataBr(c.startDate)} → {dataBr(c.endDate)}</td>
+              <td>
+                <Chip tone={c.status === "ATIVO" ? "ok" : c.status === "RASCUNHO" ? "mute" : "alert"}>{CONTRACT_STATUS[c.status] ?? c.status}</Chip>
+              </td>
+              <td style={{ textAlign: "right" }}>
+                <button type="button" className="ge-link" onClick={() => onAbrir(grupo)}>Ver contrato →</button>
+              </td>
+            </tr>
+          ))}
+          {linhas.length === 0 && (
+            <tr>
+              <td colSpan={4} className="cell-mute" style={{ textAlign: "center", padding: 18 }}>
+                Nenhum contrato.{" "}
+                {podeCriar && <button type="button" className="linklike" onClick={() => onAbrir(false)}>Criar contrato</button>}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -769,11 +1029,4 @@ function TenantProfileModal({
       </div>
     </div>
   );
-}
-
-/** Iniciais do grupo p/ o avatar do card (2 primeiras palavras; fallback: 2 primeiras letras). */
-function groupInitials(name: string): string {
-  const words = name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  const initials = words.slice(0, 2).map((w) => w[0]).join("");
-  return (initials || name.slice(0, 2) || "G").toUpperCase();
 }

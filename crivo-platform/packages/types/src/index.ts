@@ -471,6 +471,19 @@ export interface TenantSummary {
   consentLogo: boolean;
   consentTestimonial: boolean;
   createdAt: string;
+  /** Contadores da listagem (tela Grupos e Empresas-cliente). Só a listagem
+   *  resolve; respostas pontuais (mutações) omitem a chave. */
+  stats?: TenantListStats;
+}
+
+/** Números por empresa na listagem do Super Admin (protótipo Lovable /grupos). */
+export interface TenantListStats {
+  usersCount: number; // usuários ativos do portal
+  adminUsersCount: number; // usuários ativos com papel ADMIN
+  modulesEnabled: number; // módulos habilitados (tenant_modules)
+  unitsCount: number;
+  unitNames: string[]; // até 6 nomes, para o painel da empresa
+  termsAccepted: boolean; // algum usuário já aceitou o termo LGPD
 }
 
 /** Grupo Empresarial (F1): agrupa empresas-cliente (CNPJs) no control plane. */
