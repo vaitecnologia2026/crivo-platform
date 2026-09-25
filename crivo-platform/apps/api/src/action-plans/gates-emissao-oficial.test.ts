@@ -85,11 +85,14 @@ function build(
   };
   const svc = new DocumentsService(prisma as never, psychosocial as never, {} as never);
 
+  // `responsible` do teste = responsável da EMPRESA (organizations), não o
+  // responsável CRIVO do contrato — que não conta para a emissão.
   const org = {
     id: TENANT, name: 'ESSENCIAL - TESTE', legalName: 'Essencial Teste Ltda', taxId: '12.345.678/0001-90',
+    responsibleName: opts.responsible === undefined ? 'Rodrigo' : opts.responsible,
     ...(opts.org ?? {}),
   };
-  const contract = { responsible: opts.responsible === undefined ? 'Rodrigo' : opts.responsible, technicalOutput: 'SEM_INTEGRACAO' };
+  const contract = { responsible: 'Super Admin CRIVO', technicalOutput: 'SEM_INTEGRACAO' };
   vi.spyOn(svc as never as { context: () => unknown }, 'context').mockResolvedValue({
     contract, method: 'ESSENCIAL', org, company: org.name, plans: opts.plans ?? [], cnaeDecision: null,
   } as never);
@@ -176,11 +179,15 @@ describe('gates de emissão oficial do Dossiê Técnico', () => {
 describe('identificacaoFaltante — mesma régua do cartão e do emit()', () => {
   it('lista exatamente o que falta, na ordem do portão', async () => {
     const { identificacaoFaltante } = await import('./documents.service');
-    expect(identificacaoFaltante({ legalName: 'X', taxId: '1' }, { responsible: 'R' }, 'ESSENCIAL')).toEqual([]);
-    expect(identificacaoFaltante({ legalName: '', taxId: null }, { responsible: ' ' }, null)).toEqual([
-      'razão social', 'CNPJ/identificador legal', 'método aplicado', 'responsável da empresa',
+    expect(identificacaoFaltante({ legalName: 'X', taxId: '1', responsibleName: 'R' }, 'ESSENCIAL')).toEqual([]);
+    expect(identificacaoFaltante({ legalName: '', taxId: null, responsibleName: ' ' }, null)).toEqual([
+      'razão social', 'CNPJ/identificador legal', 'método aplicado (contrato CRIVO)', 'responsável da empresa',
     ]);
-    expect(identificacaoFaltante(null, null, 'ESSENCIAL')).toEqual(['razão social', 'CNPJ/identificador legal', 'responsável da empresa']);
+    expect(identificacaoFaltante(null, 'ESSENCIAL')).toEqual(['razão social', 'CNPJ/identificador legal', 'responsável da empresa']);
+    // O responsável CRIVO do contrato NÃO supre o responsável da empresa.
+    expect(identificacaoFaltante({ legalName: 'X', taxId: '1', responsibleName: null }, 'ESSENCIAL')).toEqual([
+      'responsável da empresa',
+    ]);
   });
 });
 

@@ -136,6 +136,9 @@ export interface OrganizationData {
   establishment: string | null;
   employeesCount: string | null;
   workModel: string | null;
+  /** Responsável da EMPRESA (nome) — exigido na emissão oficial. Não é o
+   *  responsável CRIVO do contrato. */
+  responsibleName: string | null;
 }
 export interface UpdateOrganizationRequest {
   name?: string;
@@ -146,6 +149,7 @@ export interface UpdateOrganizationRequest {
   establishment?: string | null;
   employeesCount?: string | null;
   workModel?: string | null;
+  responsibleName?: string | null;
 }
 
 /**

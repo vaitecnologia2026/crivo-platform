@@ -166,4 +166,8 @@ export class UpdateOrganizationDto {
 
   @IsOptional() @IsString() @MaxLength(60)
   workModel?: string | null;
+
+  /** Responsável da EMPRESA pela emissão oficial (não o responsável CRIVO). */
+  @IsOptional() @IsString() @MaxLength(160)
+  responsibleName?: string | null;
 }

@@ -1253,6 +1253,10 @@ model Organization {
   establishment       String? // unidade/estabelecimento avaliado
   employeesCount      String?              @map("employees_count") // nº de empregados (número ou faixa)
   workModel           String?              @map("work_model") // presencial | híbrido | remoto | misto
+  // Responsável da EMPRESA pela emissão oficial (nome), informado pela própria
+  // empresa em "Minha Organização". Não confundir com contracts.responsible,
+  // que é o responsável CRIVO pelo contrato.
+  responsibleName     String?              @map("responsible_name")
   website             String?
   phone               String?
   // Slug público do Questionário Psicossocial (Briefing §6): link anônimo sem

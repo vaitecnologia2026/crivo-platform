@@ -589,6 +589,7 @@ export class MeController {
         establishment: o?.establishment ?? null,
         employeesCount: o?.employeesCount ?? null,
         workModel: o?.workModel ?? null,
+        responsibleName: o?.responsibleName ?? null,
       };
     });
   }
@@ -641,6 +642,9 @@ export class MeController {
           ...(dto.establishment !== undefined ? { establishment: dto.establishment?.trim() || null } : {}),
           ...(dto.employeesCount !== undefined ? { employeesCount: dto.employeesCount?.trim() || null } : {}),
           ...(dto.workModel !== undefined ? { workModel: dto.workModel?.trim() || null } : {}),
+          ...(dto.responsibleName !== undefined
+            ? { responsibleName: dto.responsibleName?.trim() || null }
+            : {}),
         },
       });
       return {
@@ -653,6 +657,7 @@ export class MeController {
         establishment: o.establishment,
         employeesCount: o.employeesCount,
         workModel: o.workModel,
+        responsibleName: o.responsibleName,
       };
     });
   }

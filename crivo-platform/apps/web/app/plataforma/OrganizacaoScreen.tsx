@@ -66,7 +66,7 @@ export function OrganizacaoScreen() {
         const nomes = (d?.contracted?.length ? d.contracted.map((c) => c.productName) : d?.productName ? [d.productName] : [])
           .filter((n): n is string => !!n);
         setSolucoes(nomes.length ? Array.from(new Set(nomes)) : null);
-        setEditando(!o.legalName || !o.taxId);
+        setEditando(!o.legalName || !o.taxId || !o.responsibleName);
         setStatus("ok");
       })
       .catch(() => setStatus("error"));
@@ -141,6 +141,7 @@ export function OrganizacaoScreen() {
           <div className="org-info">
             <Info label="CNPJ" value={org.taxId} />
             <Info label="Razão social" value={org.legalName} />
+            <Info label="Responsável da empresa" value={org.responsibleName} />
             <Info label="Estabelecimento avaliado" value={org.establishment} />
             <Info label="Modelo de trabalho" value={org.workModel} />
             <Info label="Usuários" value={seats ? `${seats.active} ativos / ${seats.max == null ? "sem limite" : seats.max}` : null} />
@@ -204,9 +205,9 @@ export function OrganizacaoScreen() {
 
       {editando && (
         <>
-          {(!org.legalName || !org.taxId) && (
+          {(!org.legalName || !org.taxId || !org.responsibleName) && (
             <p className="prod-note" style={{ margin: "24px 0 12px" }}>
-              Falta razão social ou CNPJ: sem eles a emissão oficial do Dossiê Técnico fica bloqueada.
+              Falta razão social, CNPJ ou responsável da empresa: sem eles a emissão oficial do Dossiê Técnico fica bloqueada.
             </p>
           )}
           <div className="grid grid--2" style={{ marginTop: 24 }}>
@@ -255,6 +256,7 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
     establishment: org.establishment ?? "",
     employeesCount: org.employeesCount ?? "",
     workModel: org.workModel ?? "",
+    responsibleName: org.responsibleName ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -278,6 +280,7 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
         establishment: f.establishment.trim() || null,
         employeesCount: f.employeesCount.trim() || null,
         workModel: f.workModel.trim() || null,
+        responsibleName: f.responsibleName.trim() || null,
       });
       onSaved(o);
       setDone(true);
@@ -295,6 +298,7 @@ function DadosCard({ org, onSaved }: { org: OrganizationData; onSaved: (o: Organ
         <Field label="Nome (exibição)" value={f.name} onChange={set("name")} full />
         <Field label="Razão social" value={f.legalName} onChange={set("legalName")} full />
         <Field label="CNPJ" value={f.taxId} onChange={set("taxId")} />
+        <Field label="Responsável da empresa (emissão oficial)" value={f.responsibleName} onChange={set("responsibleName")} />
         <Field label="Telefone" value={f.phone} onChange={set("phone")} />
         <Field label="Site" value={f.website} onChange={set("website")} full />
         <Field label="Unidade/Estabelecimento avaliado" value={f.establishment} onChange={set("establishment")} full />

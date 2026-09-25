@@ -128,15 +128,19 @@ export function planoDoDocumento<T extends { validatedAt: Date | null; items: { 
  * antes só a campanha aberta aparecia no cartão e o resto virava 400 na hora).
  */
 export function identificacaoFaltante(
-  org: { legalName?: string | null; taxId?: string | null } | null | undefined,
-  contract: { responsible?: string | null } | null | undefined,
+  org:
+    | { legalName?: string | null; taxId?: string | null; responsibleName?: string | null }
+    | null
+    | undefined,
   method: unknown,
 ): string[] {
   const missing: string[] = [];
   if (!org?.legalName?.trim()) missing.push('razão social');
   if (!org?.taxId?.trim()) missing.push('CNPJ/identificador legal');
-  if (!method) missing.push('método aplicado');
-  if (!contract?.responsible?.trim()) missing.push('responsável da empresa');
+  if (!method) missing.push('método aplicado (contrato CRIVO)');
+  // Responsável da EMPRESA (Minha Organização). Antes lia contracts.responsible,
+  // que é o responsável CRIVO pelo contrato — outra pessoa, de outro lado.
+  if (!org?.responsibleName?.trim()) missing.push('responsável da empresa');
   return missing;
 }
 
@@ -1026,9 +1030,9 @@ export class DocumentsService {
     const cicloAberto = await this.cicloEmAndamento(tenantId);
     // Mesmos portões de emit(), na mesma ordem: campanha aberta e depois a
     // identificação da organização — o cartão diz o que vai barrar a emissão.
-    const faltam = identificacaoFaltante(org, contract, method);
+    const faltam = identificacaoFaltante(org, method);
     const bloqueioIdentificacao = faltam.length
-      ? `Emissão oficial bloqueada — complete no cadastro/contrato: ${faltam.join(', ')}. A pré-visualização continua disponível.`
+      ? `Emissão oficial bloqueada — complete em Minha Organização: ${faltam.join(', ')}. A pré-visualização continua disponível.`
       : undefined;
     const bloqueioDeEmissao = cicloAberto
       ? `Campanha "${cicloAberto}" ainda aberta — encerre a campanha para emitir a versão oficial. A pré-visualização continua disponível.`
@@ -3569,10 +3573,10 @@ export class DocumentsService {
     }
 
     if (type === 'dossie_tecnico' || type === 'relatorio_evolucao' || modeloImportado) {
-      const missing = identificacaoFaltante(org, contract, method);
+      const missing = identificacaoFaltante(org, method);
       if (missing.length) {
         throw new BadRequestException(
-          `Emissão final bloqueada — complete no cadastro/contrato: ${missing.join(', ')}. ` +
+          `Emissão final bloqueada — complete em Minha Organização: ${missing.join(', ')}. ` +
             'A pré-visualização (rascunho) continua disponível.',
         );
       }
