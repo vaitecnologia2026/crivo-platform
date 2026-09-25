@@ -146,3 +146,30 @@ describe('PocketService.aggregate — agregado por dimensão com supressão', ()
     await expect(svc.aggregate(TENANT, '11111111-1111-4111-8111-111111111111')).rejects.toThrow('Ciclo não encontrado');
   });
 });
+
+describe('Pocket v2 — resposta na escala 1–5 (25/09/2026)', () => {
+  it('reflexão só com valor na escala conta como tema tocado (sem texto)', async () => {
+    const escala = (leaderId: string, codes: string[]) => ({
+      leaderId,
+      reflections: codes.map((questionCode) => ({ questionCode, value: 4, text: null, tags: [] })),
+    });
+    const { svc } = build({
+      leaders: 10,
+      sessions: [
+        escala('l1', ['C1', 'R1']),
+        escala('l2', ['C2']),
+        escala('l3', ['C1']),
+        escala('l4', ['O1']),
+        escala('l5', ['V1']),
+      ],
+    });
+
+    const a = await svc.aggregate(TENANT);
+
+    expect(a.suppressed).toBe(false);
+    const por = Object.fromEntries((a.byDimension ?? []).map((d) => [d.dimension, d.sessions]));
+    expect(por).toMatchObject({ C: 3, R: 1, I: 0, V: 1, O: 1 });
+    expect(a.questionsVersion).toBe(POCKET_QUESTIONS_VERSION);
+  });
+});
+

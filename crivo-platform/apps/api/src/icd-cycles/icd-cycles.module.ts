@@ -7,5 +7,7 @@ import { IamModule } from '../iam/iam.module';
   imports: [IamModule], // ModuleGuard (gate F4 do módulo "icd")
   controllers: [IcdCyclesController],
   providers: [IcdCyclesService],
+  // Plano de Ação prioriza as ações sugeridas pelo eixo mais fraco do ICD.
+  exports: [IcdCyclesService],
 })
 export class IcdCyclesModule {}

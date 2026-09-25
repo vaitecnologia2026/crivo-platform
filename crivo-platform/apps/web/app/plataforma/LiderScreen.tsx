@@ -2,14 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, askCopiloto, listLibrary } from "@/lib/api";
-import type { LibraryItemData, MyIcd } from "@crivo/types";
-import { LEADER_TRACKS, LIBRARY_KIND_LABEL } from "@crivo/types";
-import { DIMENSION_LABEL, PATTERN_LABEL } from "./useIcdDashboard";
+import type { LibraryItemData, MeuIcdData } from "@crivo/types";
+import {
+  ICD_AXES,
+  ICD_AXIS_DESCRIPTION,
+  ICD_AXIS_TRACKS,
+  LIBRARY_KIND_LABEL,
+  eixoMaisFraco,
+} from "@crivo/types";
 import { IconGrid } from "./Icons";
 
 type LoadStatus = "loading" | "error" | "ok";
 
-const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
+/** Rótulo curto dos 4 eixos do ICD oficial (o mesmo da tela Liderança). */
+const EIXO_CURTO: Record<(typeof ICD_AXES)[number], string> = {
+  CLAREZA: "Clareza",
+  CRITERIO: "Critério",
+  ALINHAMENTO: "Alinhamento",
+  SUSTENTACAO: "Sustentação",
+};
 
 /** Conteúdos de desenvolvimento do líder (mentorias, cursos, trilhas, vídeos). */
 const DEV_KINDS = ["mentoria", "curso", "trilha", "video", "youtube", "linkedin", "podcast"];
@@ -22,10 +33,11 @@ function barClass(v: number): string {
   return "bar__fill--high";
 }
 
-/** Área do Líder: o ICD pessoal do usuário logado (dado real). Trilha/copiloto
- *  são features ainda não disponíveis — exibidas como "em breve", sem mock. */
+/** Área do Líder: o ICD pessoal do usuário logado no modelo OFICIAL — os 4
+ *  eixos (Clareza, Critério, Alinhamento, Sustentação), calculados pelas
+ *  decisões registradas no ciclo. A trilha foca o eixo com a menor média. */
 export function LiderScreen() {
-  const [data, setData] = useState<MyIcd | null>(null);
+  const [data, setData] = useState<MeuIcdData | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [content, setContent] = useState<LibraryItemData[]>([]);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -42,7 +54,7 @@ export function LiderScreen() {
       const res = await askCopiloto({
         question: text,
         context: data
-          ? { score: data.score, dominantPattern: data.dominantPattern, dimensions: data.dimensions }
+          ? { score: data.icd.score, band: data.icd.band.label, axes: data.icd.axesAverage }
           : undefined,
       });
       setTurns((t) => [...t, { role: "copiloto", text: res.ok ? res.answer ?? "" : res.reason ?? "Indisponível." }]);
@@ -56,7 +68,7 @@ export function LiderScreen() {
   async function load() {
     setStatus("loading");
     try {
-      setData(await apiFetch<MyIcd | null>("/icd/me"));
+      setData(await apiFetch<MeuIcdData | null>("/icd-cycles/me"));
       setStatus("ok");
     } catch {
       setStatus("error");
@@ -67,7 +79,7 @@ export function LiderScreen() {
     let alive = true;
     (async () => {
       try {
-        const d = await apiFetch<MyIcd | null>("/icd/me");
+        const d = await apiFetch<MeuIcdData | null>("/icd-cycles/me");
         if (alive) {
           setData(d);
           setStatus("ok");
@@ -88,9 +100,11 @@ export function LiderScreen() {
     };
   }, []);
 
-  const track = data ? LEADER_TRACKS[data.dominantPattern] : null;
-  const suggestions = track
-    ? [`Como começar a trabalhar minha tensão de ${PATTERN_LABEL[data!.dominantPattern] ?? data!.dominantPattern}?`,
+  // Foco de desenvolvimento = eixo com a MENOR média do líder no ciclo.
+  const foco = data ? eixoMaisFraco(data.icd.axesAverage) : null;
+  const track = foco ? ICD_AXIS_TRACKS[foco] : null;
+  const suggestions = foco
+    ? [`Como fortalecer o eixo ${EIXO_CURTO[foco]} nas minhas decisões?`,
        "Me dê um exercício prático para a próxima decisão difícil."]
     : ["Como o método CRIVO me ajuda a decidir melhor sob pressão?"];
 
@@ -99,7 +113,7 @@ export function LiderScreen() {
       <div className="route__head">
         <div>
           <h1 className="page-title">Área do Líder</h1>
-          <p className="page-sub">Seu Índice de Coerência Decisória e sua evolução.</p>
+          <p className="page-sub">Seu Índice de Coerência Decisória nos 4 eixos: Clareza, Critério, Alinhamento e Sustentação.</p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={load} disabled={status === "loading"}>
@@ -123,8 +137,11 @@ export function LiderScreen() {
         <div className="card">
           <div className="card__head">
             <div>
-              <h3>Você ainda não tem uma avaliação ICD</h3>
-              <span className="card__sub">Quando uma avaliação for aplicada, seu índice aparece aqui.</span>
+              <h3>Você ainda não tem ICD no ciclo</h3>
+              <span className="card__sub">
+                O ICD é calculado pelas decisões que você registra e avalia em "Registro de Decisões" (impacto médio ou alto).
+                Assim que houver uma decisão avaliada, seu índice aparece aqui.
+              </span>
             </div>
           </div>
         </div>
@@ -137,12 +154,14 @@ export function LiderScreen() {
               <div>
                 <h3>Seu ICD atual</h3>
                 <span className="card__sub">
-                  Tensão dominante: {PATTERN_LABEL[data.dominantPattern] ?? data.dominantPattern}
+                  {data.icd.band.label} · {data.origem === "CICLO_ABERTO" ? "parcial do ciclo" : "ciclo fechado"}
+                  {data.cicloNome ? ` ${data.cicloNome}` : ""} · {data.icd.decisionCount}{" "}
+                  {data.icd.decisionCount === 1 ? "decisão avaliada" : "decisões avaliadas"}
                 </span>
               </div>
             </div>
             <h2 style={{ fontSize: "48px", margin: "8px 0", color: "var(--crivo-azul-profundo)" }}>
-              {data.score}
+              {data.icd.score}
               <small style={{ fontSize: "20px", color: "var(--crivo-text-sec)" }}> /100</small>
             </h2>
           </div>
@@ -150,16 +169,16 @@ export function LiderScreen() {
           <div className="card">
             <div className="card__head">
               <div>
-                <h3>Suas dimensões</h3>
-                <span className="card__sub">Coerência por dimensão (0–100)</span>
+                <h3>Seus eixos</h3>
+                <span className="card__sub">Média por eixo do ICD (0–100)</span>
               </div>
             </div>
             <ul className="camp-sectors">
-              {DIMENSIONS.map((key) => {
-                const v = data.dimensions[key] ?? 0;
+              {ICD_AXES.map((eixo) => {
+                const v = Math.round(data.icd.axesAverage[eixo] ?? 0);
                 return (
-                  <li key={key}>
-                    <span>{DIMENSION_LABEL[key] ?? key}</span>
+                  <li key={eixo} title={ICD_AXIS_DESCRIPTION[eixo]}>
+                    <span>{EIXO_CURTO[eixo]}</span>
                     <div className="bar">
                       <div className={`bar__fill ${barClass(v)}`} style={{ width: `${v}%` }} />
                     </div>
@@ -172,14 +191,14 @@ export function LiderScreen() {
         </div>
       )}
 
-      {/* Trilha de desenvolvimento — derivada da tensão dominante do líder */}
-      {track && (
+      {/* Trilha de desenvolvimento — foco no eixo com a menor média do líder */}
+      {track && foco && (
         <div className="card" style={{ marginTop: "16px" }}>
           <div className="card__head">
             <div>
               <h3>Trilha de desenvolvimento</h3>
               <span className="card__sub">
-                Personalizada para sua tensão dominante · {PATTERN_LABEL[data!.dominantPattern] ?? data!.dominantPattern}
+                Foco no eixo com a menor média · {EIXO_CURTO[foco]}
               </span>
             </div>
             <span className="pill pill--gold">Foco do ciclo</span>

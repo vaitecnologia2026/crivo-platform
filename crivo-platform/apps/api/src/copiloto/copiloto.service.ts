@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-  DOMINANT_PATTERNS,
+  ICD_AXES,
+  ICD_AXIS_LABEL,
   type CopilotoAskRequest,
   type CopilotoAskResponse,
 } from '@crivo/types';
@@ -12,7 +13,8 @@ const COPILOTO_MODULE_KEYS = ['copiloto', 'lider'];
 /**
  * Copiloto CRIVO (Área do Líder · Briefing §6/§7) — apoio reflexivo por IA. Usa a
  * configuração GLOBAL de IA (token OpenAI criptografado do Super Admin). É um
- * copiloto de COERÊNCIA DECISÓRIA (4 Rs), não um diagnóstico de saúde mental.
+ * copiloto de COERÊNCIA DECISÓRIA (4 eixos do ICD: Clareza, Critério,
+ * Alinhamento e Sustentação), não um diagnóstico de saúde mental.
  * Quando a IA não está configurada/ativa, responde de forma honesta (sem mock).
  */
 @Injectable()
@@ -91,18 +93,20 @@ export class CopilotoService {
   private systemPrompt(base: string, context: CopilotoAskRequest['context']): string {
     // `base` = prompt técnico configurável (Central de Prompts). As linhas abaixo
     // são o CONTEXTO dinâmico do líder, anexadas ao prompt.
+    // Só o ICD OFICIAL (4 eixos). O contexto legado dos 4 Rs (dominantPattern,
+    // dimensions) é ignorado mesmo se um cliente antigo ainda o enviar.
     const lines = [base];
-    if (context?.dominantPattern && DOMINANT_PATTERNS.includes(context.dominantPattern)) {
-      lines.push(`Tensão dominante atual do líder: ${context.dominantPattern}.`);
-    }
     if (typeof context?.score === 'number') {
       lines.push(`Índice de Coerência Decisória (ICD) atual: ${context.score}/100.`);
     }
-    if (context?.dimensions) {
-      const dims = Object.entries(context.dimensions)
-        .map(([k, v]) => `${k}: ${v}`)
+    if (typeof context?.band === 'string' && context.band.trim()) {
+      lines.push(`Faixa de maturidade decisória: ${context.band.trim().slice(0, 80)}.`);
+    }
+    if (context?.axes) {
+      const eixos = ICD_AXES.filter((e) => typeof context.axes?.[e] === 'number')
+        .map((e) => `${ICD_AXIS_LABEL[e]}: ${context.axes![e]}`)
         .join(', ');
-      if (dims) lines.push(`Coerência por dimensão (0–100): ${dims}.`);
+      if (eixos) lines.push(`Médias do líder nos eixos do ICD (0–100): ${eixos}.`);
     }
     return lines.join(' ');
   }

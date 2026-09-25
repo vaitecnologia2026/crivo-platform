@@ -48,6 +48,12 @@ export class IcdCyclesController {
     return this.cycles.myPartialIcd(user.tenantId, user.id);
   }
 
+  /** Área do Líder: ICD do PRÓPRIO líder (ciclo aberto ou último fechado). */
+  @Get('me')
+  meuIcd(@CurrentUser() user: SessionUser) {
+    return this.cycles.meuIcd(user.tenantId, user.id);
+  }
+
   // Rotas fixas ANTES de `:id` (o ParseUUIDPipe do `:id` responderia 400 a
   // "history" e "current/summary" se fossem declaradas depois).
 

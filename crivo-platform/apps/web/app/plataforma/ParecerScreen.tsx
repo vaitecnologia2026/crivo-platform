@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { ParecerData, UpsertParecerRequest } from "@crivo/types";
-import { PARECER_STATUS_LABEL } from "@crivo/types";
+import {
+  PARECER_STATUS_LABEL,
+  ICD_AXES,
+  ICD_AXIS_LABEL,
+  MIN_LEADERS_FOR_DISCLOSURE,
+  eixoMaisFraco,
+  getIcdMaturityBand,
+} from "@crivo/types";
 import {
   createParecer,
   generateParecerDocument,
@@ -12,10 +19,8 @@ import {
   updateParecer,
 } from "@/lib/api";
 import { printDocument } from "./DocumentsPanel";
-import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
+import { useIcdAxes } from "./useIcdDashboard";
 import { IconCheck, IconDot } from "./Icons";
-
-const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
 function barClass(v: number): string {
   if (v >= 80) return "is-high";
@@ -76,7 +81,9 @@ function toPayload(f: Form): UpsertParecerRequest {
  * publica; os demais leem o parecer entregue e baixam o documento.
  */
 export function ParecerScreen() {
-  const { data, status, refresh } = useIcdDashboard();
+  // ICD oficial da empresa (4 Eixos, ciclo trimestral aberto) — GET
+  // /icd-cycles/current. Agregado e já suprimido no servidor (§11).
+  const { data, status, refresh } = useIcdAxes();
   const [pareceres, setPareceres] = useState<ParecerData[] | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -116,12 +123,21 @@ export function ParecerScreen() {
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const temaCritico = (() => {
-    if (!data) return null;
-    const entries = Object.entries(data.distribuicaoPadrao).filter(([k]) => k !== "EQUILIBRADO");
-    if (!entries.length) return "EQUILIBRADO";
-    return entries.sort((a, b) => b[1] - a[1])[0][0];
-  })();
+  // Só há número quando o agregado foi liberado: ciclo aberto, empresa com
+  // score e fora da supressão (< MIN_LEADERS_FOR_DISCLOSURE líderes). Fora
+  // disso a tela mostra o motivo, nunca um zero que pareceria resultado.
+  const cycle = data?.cycle ?? null;
+  const company = data?.company ?? null;
+  const icdLiberado = !!cycle && !!company && !company.suppressed && company.score != null;
+  const icdScore = icdLiberado ? company!.score! : null;
+  const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
+  // Tema crítico = eixo do ICD com a menor média na liderança.
+  const temaCritico = icdLiberado ? eixoMaisFraco(company!.axesAverage) : null;
+  const motivoSemIcd = !data
+    ? "O programa Liderança (ICD) não está ativo para a sua empresa. Os indicadores aparecem aqui quando o módulo for liberado no contrato."
+    : !cycle
+      ? "Nenhum ciclo trimestral aberto. Os 4 Eixos (Clareza, Critério, Alinhamento e Sustentação) aparecem quando um ciclo estiver aberto e houver decisões avaliadas pelo ICD."
+      : `ICD sob supressão de confidencialidade (§11): mínimo ${MIN_LEADERS_FOR_DISCLOSURE} líderes com decisões avaliadas no ciclo. Atualmente ${company?.eligibleLeaders ?? 0}.`;
 
   async function save() {
     setBusy("save"); setErr(null);
@@ -178,14 +194,20 @@ export function ParecerScreen() {
         </div>
       )}
 
-      {status === "ok" && data && (
+      {/* Sem o módulo ICD (data null) o parecer continua acessível: só o card
+          de indicadores explica a ausência. */}
+      {status === "ok" && (
         <>
           {/* Fluxo: dados consolidados → análise do consultor → parecer entregue */}
           <div className="kpi-grid">
             <div className="kpi">
               <span className="kpi__label">1 · Dados consolidados</span>
-              <strong className="kpi__value"><IconCheck size={14} /></strong>
-              <span className="kpi__delta">{data.totalAvaliacoes} respostas · {data.totalLideres} líderes</span>
+              <strong className="kpi__value">{icdLiberado ? <IconCheck size={14} /> : <IconDot size={14} />}</strong>
+              <span className="kpi__delta">
+                {cycle
+                  ? `Ciclo ${cycle.name || `${cycle.quarter}º tri/${cycle.year}`} · ${company?.eligibleLeaders ?? 0} líder(es) com decisões avaliadas`
+                  : "aguardando ciclo trimestral do ICD"}
+              </span>
             </div>
             <div className="kpi">
               <span className="kpi__label">2 · Análise do consultor</span>
@@ -216,36 +238,44 @@ export function ParecerScreen() {
                   <span className="card__sub">Gerados pela plataforma — base para o parecer humano</span>
                 </div>
               </div>
-              <div className="kpi-grid">
-                <div className="kpi">
-                  <span className="kpi__label">Índice Geral CRIVO</span>
-                  <strong className="kpi__value">{data.icdMedio ?? "—"}</strong>
-                  <span className="kpi__delta">leitura agregada da liderança</span>
-                </div>
-                <div className="kpi">
-                  <span className="kpi__label">Tema crítico predominante</span>
-                  <strong className="kpi__value" style={{ fontSize: "20px" }}>
-                    {temaCritico ? (PATTERN_LABEL[temaCritico] ?? temaCritico) : "—"}
-                  </strong>
-                  <span className="kpi__delta">tensão dominante nos 4 Eixos</span>
-                </div>
-              </div>
-              <div className="icd-dims" style={{ marginTop: "16px" }}>
-                {DIMENSIONS.map((d) => {
-                  const v = data.dimensionAverages?.[d] ?? 0;
-                  return (
-                    <div className="icd-dim" key={d}>
-                      <div className="icd-dim__top">
-                        <span>{DIMENSION_LABEL[d] ?? d}</span>
-                        <strong>{v}</strong>
-                      </div>
-                      <div className="icd-dim__bar">
-                        <div className={`icd-dim__fill ${barClass(v)}`} style={{ width: `${v}%` }} />
-                      </div>
+              {icdLiberado && company && icdScore !== null ? (
+                <>
+                  <div className="kpi-grid">
+                    <div className="kpi">
+                      <span className="kpi__label">ICD da liderança</span>
+                      <strong className="kpi__value">{icdScore}<small> /100</small></strong>
+                      <span className="kpi__delta">
+                        ICD agregado da liderança{icdBand ? ` · ${icdBand.label}` : ""}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="kpi">
+                      <span className="kpi__label">Tema crítico predominante</span>
+                      <strong className="kpi__value" style={{ fontSize: "20px" }}>
+                        {temaCritico ? ICD_AXIS_LABEL[temaCritico] : "—"}
+                      </strong>
+                      <span className="kpi__delta">eixo com menor média nos 4 Eixos</span>
+                    </div>
+                  </div>
+                  <div className="icd-dims" style={{ marginTop: "16px" }}>
+                    {ICD_AXES.map((ax) => {
+                      const v = Math.round(company.axesAverage[ax] ?? 0);
+                      return (
+                        <div className="icd-dim" key={ax}>
+                          <div className="icd-dim__top">
+                            <span>{ICD_AXIS_LABEL[ax]}</span>
+                            <strong>{v}</strong>
+                          </div>
+                          <div className="icd-dim__bar">
+                            <div className={`icd-dim__fill ${barClass(v)}`} style={{ width: `${v}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="dash-state" style={{ margin: 0 }}>{motivoSemIcd}</p>
+              )}
             </div>
 
             {/* Parecer do especialista (camada humana) */}

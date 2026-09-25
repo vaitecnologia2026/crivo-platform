@@ -138,11 +138,6 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="grupo-root"></div>
       </section>
 
-      <!-- ============ QUESTIONÁRIO ============ -->
-      <section class="route" data-route="questionario">
-        <div id="quiz-root"></div>
-      </section>
-
       <!-- ============ ÁREA DO LÍDER ============ -->
       <section class="route" data-route="lider">
         <div id="lider-root"></div>

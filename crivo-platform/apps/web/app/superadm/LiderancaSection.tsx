@@ -407,7 +407,7 @@ function PocketTab({ data }: { data: LiderancaAdminSummary }) {
     <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__head">
-          <div><h3>Banco de perguntas Pocket</h3><span className="card__sub">10 perguntas reflexivas C1–O2 nas 5 dimensões CRIVO (Anexo Pocket §6). Sem score.</span></div>
+          <div><h3>Banco de perguntas Pocket</h3><span className="card__sub">10 afirmações C1–O2 nas 5 dimensões CRIVO, respondidas na escala 1–5 de concordância (a mesma do ICD). Sem score oficial.</span></div>
           <Chip tone="gold">versão {POCKET_QUESTIONS_VERSION}</Chip>
         </div>
         <div style={{ overflowX: "auto" }}>
@@ -483,7 +483,7 @@ function PerguntasTab() {
           ))}
         </div>
         <div className="card">
-          <div className="card__head"><div><h3>Pocket — perguntas por dimensão</h3><span className="card__sub">Função de cada dimensão (Anexo Pocket §4.1) e suas 2 perguntas.</span></div></div>
+          <div className="card__head"><div><h3>Pocket — perguntas por dimensão</h3><span className="card__sub">Função de cada dimensão (Anexo Pocket §4.1) e suas 2 afirmações (escala 1–5).</span></div></div>
           {POCKET_DIMENSIONS.map((d) => (
             <div key={d} style={{ marginBottom: 12 }}>
               <strong style={{ fontSize: 13 }}>{d} · {POCKET_DIMENSION_LABEL[d]}</strong>

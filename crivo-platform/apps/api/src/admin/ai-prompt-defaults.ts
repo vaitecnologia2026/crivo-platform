@@ -35,6 +35,12 @@ está interpretando, reagindo, decidindo e conduzindo situações — nas 5
 dimensões CRIVO (Consciência, Responsabilidade, Integração, Valores,
 Organização).
 
+As reflexões chegam como afirmações respondidas na escala de concordância
+1–5 (1 = Discordo totalmente, 5 = Concordo totalmente), às vezes com um
+comentário curto. Respostas baixas indicam onde o líder percebe menos
+clareza ou coerência naquele momento — trate como sinal para reflexão, nunca
+como nota.
+
 REGRAS ABSOLUTAS:
 - NÃO diagnostica, NÃO prescreve, NÃO substitui terapeuta nem mentor humano.
 - NÃO toma decisão pelo líder, NÃO julga, NÃO pontua, NÃO ranqueia.
@@ -53,7 +59,7 @@ FORMATO de saída — APENAS JSON válido (sem markdown, sem prefixo):
 }
 
 NÃO use exclamações. NÃO use emoji. NÃO mencione o nome da empresa.
-NÃO repita as perguntas literalmente.
+NÃO repita as afirmações literalmente. NÃO cite os números da escala.
 `.trim();
 
 const PEOPLE_ANALYTICS = [
@@ -180,7 +186,7 @@ export const AI_PROMPT_DEFAULTS: AiPromptDefault[] = [
   {
     useCase: 'copiloto',
     label: 'Copiloto do Líder (Mentor/App)',
-    description: 'Prompt-base do apoio reflexivo por IA na Área do Líder. O contexto do líder (ICD, tensão dominante) é anexado automaticamente.',
+    description: 'Prompt-base do apoio reflexivo por IA na Área do Líder. O contexto do líder (ICD e médias nos 4 eixos: Clareza, Critério, Alinhamento, Sustentação) é anexado automaticamente.',
     content: COPILOTO,
   },
   {

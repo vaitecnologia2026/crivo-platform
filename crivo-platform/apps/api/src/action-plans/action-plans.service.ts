@@ -1,34 +1,28 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   EVIDENCE_KIND_JUSTIFICATIVA,
-  MIN_LEADERS_FOR_DISCLOSURE,
   MSG_CONCLUSAO_SEM_COMPROVACAO,
   acaoEncerrada,
   actionTermDays,
   podeConcluirAcao,
-  TENSION_TO_TEMPLATE_CATEGORIES,
+  ICD_AXIS_LABEL,
+  ICD_AXIS_TO_TEMPLATE_CATEGORIES,
+  eixoMaisFraco,
+  type IcdAxesScores,
   type ActionItemData,
   type ActionPlanData,
   type ActionStatus,
   type CreateActionItemRequest,
   type CreateActionPlanRequest,
   type CreateEvidenceRequest,
-  type DominantPattern,
   type EvidenceData,
   type SuggestedActionsData,
   type UpdateActionItemRequest,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RiskSuggestionsService, riskOriginLabel } from './risk-suggestions.service';
+import { IcdCyclesService } from '../icd-cycles/icd-cycles.service';
 import { resolveTenantInstrument } from '../admin/methodology.service';
-
-const TENSION_LABEL: Record<DominantPattern, string> = {
-  REATIVIDADE: 'Reatividade',
-  RIGIDEZ: 'Rigidez',
-  REPERCUSSAO: 'Repercussão',
-  RISCO: 'Risco',
-  EQUILIBRADO: 'Equilibrado',
-};
 
 type ActorName = string;
 
@@ -43,6 +37,7 @@ export class ActionPlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly riskSuggestions: RiskSuggestionsService,
+    private readonly icdCycles?: IcdCyclesService,
   ) {}
 
   /**
@@ -625,41 +620,46 @@ export class ActionPlansService {
     });
   }
 
-  /** §8 — Sugestão AUTOMÁTICA de ações a partir do diagnóstico: a tensão dominante
-   *  da liderança (4 Rs) prioriza ActionTemplates das categorias afins; fallback no
-   *  catálogo completo. Respeita §14: sem tensão se < 5 líderes (não vaza agregado). */
-  async suggestedActions(tenantId: string): Promise<SuggestedActionsData> {
-    const tension = await this.prisma.forTenant(tenantId, async (tx) => {
-      const scores = await tx.icdScore.findMany({
+  /** ICD da empresa nos 4 eixos: o parcial do ciclo aberto ou o do último
+   *  ciclo fechado — só sem supressão (§11: mínimo de 5 líderes). */
+  private async eixosDaEmpresa(tenantId: string): Promise<IcdAxesScores | null> {
+    const parcial = this.icdCycles ? (await this.icdCycles.partialCompanyIcd(tenantId)).company : null;
+    if (parcial && !parcial.suppressed) return parcial.axesAverage;
+    const fechado = await this.prisma.forTenant(tenantId, (tx) =>
+      tx.companyQuarterlyIcd.findFirst({
+        where: { suppressed: false },
         orderBy: { computedAt: 'desc' },
-        select: { leaderId: true, dominantPattern: true },
-      });
-      const latest = new Map<string, string>();
-      for (const s of scores) if (!latest.has(s.leaderId)) latest.set(s.leaderId, s.dominantPattern);
-      if (latest.size < MIN_LEADERS_FOR_DISCLOSURE) return null; // §14 — supressão
-      const counts: Record<string, number> = {};
-      for (const p of latest.values()) if (p !== 'EQUILIBRADO') counts[p] = (counts[p] ?? 0) + 1;
-      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      return (top ? top[0] : null) as DominantPattern | null;
-    });
+        select: { axesAverage: true },
+      }),
+    );
+    return (fechado?.axesAverage as unknown as IcdAxesScores | undefined) ?? null;
+  }
+
+  /** §8 — Sugestão AUTOMÁTICA de ações a partir do diagnóstico: o eixo do ICD
+   *  oficial com a menor média da empresa (Clareza, Critério, Alinhamento,
+   *  Sustentação) prioriza ActionTemplates das categorias afins; fallback no
+   *  catálogo completo. Sem eixo se < 5 líderes (§11/§14, não vaza agregado). */
+  async suggestedActions(tenantId: string): Promise<SuggestedActionsData> {
+    const axis = eixoMaisFraco(await this.eixosDaEmpresa(tenantId));
 
     // rls-allow: actionTemplate é catálogo GLOBAL (control-plane, sem RLS).
     const all = await this.prisma.admin.actionTemplate.findMany({
       where: { active: true },
       orderBy: [{ category: 'asc' }, { title: 'asc' }],
     });
-    const cats = tension ? TENSION_TO_TEMPLATE_CATEGORIES[tension] : [];
+    const cats = axis ? ICD_AXIS_TO_TEMPLATE_CATEGORIES[axis] : [];
     const matched = cats.length ? all.filter((t) => cats.includes(t.category)) : [];
     const chosen = matched.length ? matched : all;
 
-    const reason = !tension
-      ? 'Catálogo completo — sem leitura agregada suficiente (mín. 5 respondentes) para priorizar por tensão.'
+    const reason = !axis
+      ? 'Catálogo completo — sem ICD da liderança com leitura agregada suficiente (mín. 5 líderes) para priorizar por eixo.'
       : matched.length
-        ? `Priorizadas para a tensão dominante da liderança: ${TENSION_LABEL[tension]}.`
-        : `Tensão dominante: ${TENSION_LABEL[tension]} — catálogo completo (sem ação modelo na categoria afim).`;
+        ? `Priorizadas para o eixo do ICD com menor média na liderança: ${ICD_AXIS_LABEL[axis]}.`
+        : `Eixo com menor média: ${ICD_AXIS_LABEL[axis]} — catálogo completo (sem ação modelo na categoria afim).`;
 
     return {
-      tension,
+      tension: null,
+      axis,
       reason,
       templates: chosen.map((t) => ({
         id: t.id,

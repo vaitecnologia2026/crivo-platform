@@ -1,10 +1,13 @@
 import {
   IsArray,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { POCKET_MOMENTS } from '@crivo/types';
@@ -33,6 +36,14 @@ export class UpsertReflectionDto {
   @MaxLength(3)
   questionCode!: string;
 
+  /** Resposta na escala de concordância 1–5 (POCKET_SCALE). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  value?: number;
+
+  /** Comentário opcional. */
   @IsOptional()
   @IsString()
   @MaxLength(2000)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useIcdDashboard, useIcdAxes, PATTERN_LABEL, DIMENSION_LABEL, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
+import { useIcdAxes, type IcdAxesData, type LoadStatus } from "./useIcdDashboard";
 import {
   getDashboardDiagnostic,
   getMyModules,
@@ -129,8 +129,6 @@ function FatoresPsicossociaisCard({ diag, psy }: { diag: DashboardDiagnostic | n
 
 const PORTAL_S11 =
   "O ICD do Líder é ferramenta de desenvolvimento e sustentação da liderança. Não deve ser utilizado para ranking individual, punição, promoção, avaliação de performance ou comparação nominal entre líderes.";
-
-const DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
 
 function scoreClass(score: number): string {
   if (score >= 80) return "is-high";
@@ -557,17 +555,20 @@ function ExecutiveKpiRow({ plans, diag, psy, docs, cobertura }: { plans: ActionP
 }
 
 export function DashboardScreen() {
-  const { data, status, refresh } = useIcdDashboard();
-  const { data: axesData, status: axesStatus } = useIcdAxes();
+  // ICD = só os 4 Eixos (Clareza/Critério/Alinhamento/Sustentação) do ciclo
+  // aberto, via /icd-cycles/current. O antigo /icd/dashboard (modelo anterior)
+  // não é mais chamado aqui: KPI, Índice Geral e card de Coerência Decisória
+  // leem todos o MESMO agregado oficial (com supressão §11 do servidor).
+  const { data: axesData, status, refresh } = useIcdAxes();
   const [plans, setPlans] = useState<ActionPlanData[] | null>(null);
   // Resultado do diagnóstico CONTRATADO. Fica fora do gate de status do
-  // /icd/dashboard de propósito: era o dado que a empresa mais procurava e ele
+  // /icd-cycles/current de propósito: era o dado que a empresa mais procurava e ele
   // não podia sumir junto com os indicadores quando aquele endpoint falha.
   const [diag, setDiag] = useState<DashboardDiagnostic | null>(null);
   const [diagErro, setDiagErro] = useState(false);
   // Módulos CONTRATADOS (tenant_modules). A Visão Geral mostrava a camada de
   // Liderança/ICD — Índice via ICD, "Líderes elegíveis", Coerência Decisória,
-  // 4 Rs, frase §11 — para toda empresa, inclusive quem contratou só o
+  // frase §11 — para toda empresa, inclusive quem contratou só o
   // Diagnóstico Essencial (homologação 17/09: "módulos/conceitos não
   // contratados"). null = ainda não carregou → a camada fica escondida até a
   // prova positiva; falha na chamada também esconde (não mostrar o que não foi
@@ -632,9 +633,13 @@ export function DashboardScreen() {
 
   // ICD agregado (camada complementar) — com supressão §11. Só existe para
   // quem contratou o módulo; sem ele, nada de ICD entra em nenhum card.
-  const icdScore = icdContratado && status === "ok" ? data?.icdMedio ?? null : null;
-  const leadersN = icdContratado && status === "ok" ? data?.totalLideres ?? 0 : 0;
-  const icdSuppressed = leadersN > 0 && leadersN < MIN_LEADERS_FOR_DISCLOSURE;
+  // Fonte: ICD oficial da empresa (4 Eixos, ciclo aberto). A supressão vem do
+  // servidor (`company.suppressed`, n < MIN_LEADERS_FOR_DISCLOSURE): suprimido,
+  // nenhum número do ICD sai daqui.
+  const icdCompany = icdContratado && status === "ok" ? axesData?.company ?? null : null;
+  const leadersN = icdCompany?.eligibleLeaders ?? 0;
+  const icdSuppressed = leadersN > 0 && (icdCompany?.suppressed ?? false);
+  const icdScore = icdCompany && !icdCompany.suppressed ? icdCompany.score ?? null : null;
   const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
   // #17 — estado vazio profissional: sem ICD e sem plano = nenhum diagnóstico concluído ainda.
   const temResultado = !!diag?.aggregate && diag.aggregate.totalRespondents > 0;
@@ -1066,58 +1071,7 @@ export function DashboardScreen() {
                   </div>
 
                   {/* ── 4 EIXOS (modelo OFICIAL) — Clareza/Critério/Alinhamento/Sustentação ── */}
-                  <IcdAxesOfficial axes={axesData} status={axesStatus} />
-
-                  {/* ── 4 Rs (modelo LEGADO · diagnóstico de tensão · histórico) ── */}
-                  <h4 className="eixos-legacy-h">
-                    Modelo legado · 4 Rs <span className="card__sub" style={{ fontWeight: 400 }}>— diagnóstico de tensão (histórico)</span>
-                  </h4>
-
-                  {leadersN === 0 ? (
-                    <p className="dash-state" style={{ margin: 0 }}>
-                      Nenhuma avaliação registrada no ciclo. Quando os líderes responderem, os indicadores aparecem aqui.
-                    </p>
-                  ) : icdSuppressed ? (
-                    <p className="dash-state" style={{ margin: 0 }}>
-                      Dados insuficientes para preservar a confidencialidade (mínimo {MIN_LEADERS_FOR_DISCLOSURE} respondentes — §11).
-                      Atualmente {leadersN} líder{leadersN === 1 ? "" : "es"}.
-                    </p>
-                  ) : data && (
-                    <>
-                      <div className="dash-dist" style={{ marginBottom: 14 }}>
-                        {Object.entries(data.distribuicaoPadrao).map(([p, n]) => (
-                          <span key={p} className="dash-dist__item">
-                            {PATTERN_LABEL[p] ?? p}: <strong>{n}</strong>
-                          </span>
-                        ))}
-                      </div>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Dimensão (modelo legado · 4 Rs)</th>
-                            <th>Coerência média</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {DIMENSIONS.map((d) => (
-                            <tr key={d}>
-                              <td>{DIMENSION_LABEL[d] ?? d}</td>
-                              <td>
-                                <strong className={`dash-score ${scoreClass(data.dimensionAverages?.[d] ?? 0)}`}>
-                                  {data.dimensionAverages?.[d] ?? 0}
-                                </strong>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <p className="card__sub" style={{ marginTop: 10 }}>
-                        Os <strong>4 Rs</strong> medem a <strong>tensão</strong> sob pressão (diagnóstico legado). O{" "}
-                        <strong>ICD oficial</strong> usa os <strong>4 Eixos</strong> acima, medidos por decisão real ao longo do
-                        ciclo trimestral.
-                      </p>
-                    </>
-                  )}
+                  <IcdAxesOfficial axes={axesData} status={status} />
                 </div>
               )}
 

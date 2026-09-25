@@ -6,6 +6,8 @@ import {
   POCKET_DIMENSION_LABEL,
   POCKET_MOMENT_LABEL,
   POCKET_QUESTIONS,
+  POCKET_SCALE,
+  reflexaoPocketRespondida,
   type PocketDimension,
   type PocketMomentOfUse,
   type PocketSessionData,
@@ -170,7 +172,7 @@ function PocketList({ onOpen }: { onOpen: (sessionId: string) => void }) {
               </div>
               <h4>{s.context || "Reflexão sem contexto"}</h4>
               <div className="pocket-row__meta">
-                <span>{s.reflections.length}/10 perguntas</span>
+                <span>{s.reflections.filter(reflexaoPocketRespondida).length}/{POCKET_QUESTIONS.length} afirmações respondidas</span>
                 <time>{new Date(s.createdAt).toLocaleString("pt-BR")}</time>
               </div>
             </li>
@@ -188,6 +190,8 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [text, setText] = useState("");
+  // Resposta na escala 1–5 (v2). O texto virou comentário opcional.
+  const [value, setValue] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const total = POCKET_QUESTIONS.length;
@@ -199,6 +203,7 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
     if (!session || !current) return;
     const existing = session.reflections.find((r) => r.questionCode === current.code);
     setText(existing?.text ?? "");
+    setValue(existing?.value ?? null);
   }, [step, session, current]);
 
   useEffect(() => {
@@ -207,9 +212,9 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
       .then((s) => {
         if (!alive) return;
         setSession(s);
-        // Retoma na primeira pergunta sem reflexão.
+        // Retoma na primeira afirmação ainda sem resposta.
         const firstEmpty = POCKET_QUESTIONS.findIndex(
-          (q) => !s.reflections.find((r) => r.questionCode === q.code && (r.text?.length ?? 0) > 0),
+          (q) => !s.reflections.find((r) => r.questionCode === q.code && reflexaoPocketRespondida(r)),
         );
         setStep(firstEmpty === -1 ? 0 : firstEmpty);
       })
@@ -219,7 +224,7 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
 
   const progress = useMemo(() => {
     if (!session) return 0;
-    return Math.round((session.reflections.filter((r) => (r.text?.length ?? 0) > 0).length / total) * 100);
+    return Math.round((session.reflections.filter(reflexaoPocketRespondida).length / total) * 100);
   }, [session, total]);
 
   async function save({ moveNext, complete }: { moveNext?: boolean; complete?: boolean }) {
@@ -228,7 +233,9 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
     try {
       const updated = await upsertPocketReflection(sessionId, {
         questionCode: current.code,
-        text: text.trim() || undefined,
+        value: value ?? undefined,
+        // Sempre enviado: vazio apaga um comentário que o líder removeu.
+        text: text.trim(),
       });
       // Reflete localmente.
       const merged: PocketSessionData = {
@@ -333,12 +340,33 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
           <h2 className="pocket-question">{current.text}</h2>
           <p className="card__sub pocket-dim-fn">{POCKET_DIMENSION_FUNCTION[dimension]}</p>
 
+          {/* Resposta na escala de concordância 1–5 (a mesma do ICD). */}
+          <div className="icd-aval__scale" role="radiogroup" aria-label="Sua resposta" style={{ margin: "14px 0 6px" }}>
+            {POCKET_SCALE.map((s) => (
+              <button
+                type="button"
+                key={s.value}
+                role="radio"
+                aria-checked={value === s.value}
+                className={`icd-aval__opt${value === s.value ? " is-on" : ""}`}
+                onClick={() => setValue(s.value)}
+                title={s.label}
+              >
+                {s.value}
+              </button>
+            ))}
+          </div>
+          <p className="card__sub" style={{ margin: "0 0 12px" }}>
+            1 = {POCKET_SCALE[0].label} · 5 = {POCKET_SCALE[POCKET_SCALE.length - 1].label}
+            {value != null && <> · Sua resposta: <strong>{POCKET_SCALE.find((s) => s.value === value)?.label}</strong></>}
+          </p>
+
           <textarea
             className="pocket-input"
-            placeholder="Escreva o que vier — palavras, frases curtas, observações. Não há resposta certa."
+            placeholder="Comentário (opcional) — uma observação curta, se quiser."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            rows={5}
+            rows={3}
             maxLength={2000}
           />
 
@@ -354,7 +382,8 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
               <button
                 className="btn btn--gold btn--sm"
                 onClick={() => save({ complete: true })}
-                disabled={saving}
+                disabled={saving || value == null}
+                title={value == null ? "Escolha uma resposta na escala" : undefined}
               >
                 {saving ? "Salvando…" : "Concluir sessão"}
               </button>
@@ -362,7 +391,8 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
               <button
                 className="btn btn--gold btn--sm"
                 onClick={() => save({ moveNext: true })}
-                disabled={saving}
+                disabled={saving || value == null}
+                title={value == null ? "Escolha uma resposta na escala" : undefined}
               >
                 {saving ? "Salvando…" : "Próxima →"}
               </button>
@@ -373,7 +403,7 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
           <button
             className="btn btn--ghost-dark btn--sm pocket-save-resume"
             onClick={() => save({})}
-            disabled={saving || !text.trim()}
+            disabled={saving || (value == null && !text.trim())}
           >
             Salvar e continuar depois
           </button>

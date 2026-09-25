@@ -13,6 +13,7 @@ import {
   type IcdCurrentSummary,
   type LeaderQuarterlyIcdData,
   type CompanyQuarterlyIcdData,
+  type MeuIcdData,
 } from '@crivo/types';
 import type { CreateIcdCycleDto } from './dto';
 
@@ -182,6 +183,44 @@ export class IcdCyclesService {
         axesAverage: computed.axesAverage,
         band: getIcdMaturityBand(computed.score),
         computedAt: new Date().toISOString(),
+      };
+    });
+  }
+
+  /**
+   * ICD do PRÓPRIO líder para a Área do Líder: o parcial do ciclo aberto
+   * quando já há decisão avaliada nele; senão, o do último ciclo fechado.
+   * Dado individual do próprio usuário (§11 não se aplica).
+   */
+  async meuIcd(tenantId: string, userId: string): Promise<MeuIcdData | null> {
+    const parcial = await this.myPartialIcd(tenantId, userId);
+    if (parcial) {
+      const ciclo = await this.prisma.forTenant(tenantId, (tx) =>
+        tx.icdCycle.findUnique({ where: { id: parcial.cycleId }, select: { name: true } }),
+      );
+      return { origem: 'CICLO_ABERTO', cicloNome: ciclo?.name ?? '', icd: parcial };
+    }
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const r = await tx.leaderQuarterlyIcd.findFirst({
+        where: { leaderId: userId, cycle: { status: 'CLOSED' } },
+        orderBy: [{ cycle: { year: 'desc' } }, { cycle: { quarter: 'desc' } }],
+        include: { cycle: { select: { name: true } } },
+      });
+      if (!r) return null;
+      return {
+        origem: 'CICLO_FECHADO',
+        cicloNome: r.cycle.name,
+        icd: {
+          id: r.id,
+          cycleId: r.cycleId,
+          leaderId: r.leaderId,
+          score: r.score,
+          decisionCount: r.decisionCount,
+          totalWeight: r.totalWeight,
+          axesAverage: r.axesAverage as unknown as IcdAxesScores,
+          band: getIcdMaturityBand(r.score),
+          computedAt: r.computedAt.toISOString(),
+        },
       };
     });
   }

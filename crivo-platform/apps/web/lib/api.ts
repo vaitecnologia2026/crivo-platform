@@ -374,9 +374,10 @@ export function getMyActionTemplates(): Promise<ActionTemplateLite[]> {
   return apiFetch<ActionTemplateLite[]>('/me/action-templates');
 }
 
-/** §8 — Ações sugeridas automaticamente pela tensão dominante do diagnóstico. */
+/** §8 — Ações sugeridas automaticamente pelo eixo do ICD com menor média na liderança (Clareza, Critério, Alinhamento, Sustentação). */
 export interface SuggestedActions {
   tension: string | null;
+  axis?: string | null;
   reason: string;
   templates: ActionTemplateLite[];
 }

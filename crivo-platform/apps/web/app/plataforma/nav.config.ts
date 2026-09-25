@@ -273,14 +273,10 @@ export const NAV: NavGroup[] = [
         module: 'lider',
         breadcrumb: { path: 'Área do Líder', current: 'Área do Líder' },
       },
-      {
-        route: 'questionario',
-        label: 'Aplicação do ICD (líderes)',
-        icon: 'clipboard-pen',
-        module: 'icd',
-        perm: 'icd:submit',
-        breadcrumb: { path: 'Área do Líder', current: 'Aplicação do ICD (líderes)' },
-      },
+      // "Aplicação do ICD (líderes)" saiu em 25/09/2026 (tela removida): aplicava
+      // as 8 perguntas do modelo LEGADO (4 Rs). O ICD oficial é medido por
+      // decisão em "Registro de Decisões" (4 eixos). Os dados antigos continuam
+      // no banco.
       {
         route: 'decisoes',
         label: 'Registro de Decisões',

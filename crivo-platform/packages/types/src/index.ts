@@ -2288,8 +2288,11 @@ export interface SuggestedActionTemplate {
 }
 
 export interface SuggestedActionsData {
-  /** Tensão dominante identificada (null = sem leitura agregada suficiente). */
+  /** LEGADO (4 Rs) — sempre null desde 25/09/2026; a priorização é pelo eixo. */
   tension: DominantPattern | null;
+  /** Eixo do ICD oficial com a menor média da empresa (null = sem leitura
+   *  agregada suficiente — mínimo de 5 líderes, §11). */
+  axis?: IcdAxis | null;
   reason: string;
   templates: SuggestedActionTemplate[];
 }
@@ -3423,7 +3426,10 @@ export interface IcdCurrentSummary {
 
 // =====================================================================
 // POCKET CRIVO / INTERNAL ENGINE (Anexo Técnico Pocket v1).
-// 10 perguntas reflexivas (C1-O2) nas 5 dimensões CRIVO. NÃO gera score.
+// 10 afirmações (C1-O2) nas 5 dimensões CRIVO, respondidas na ESCALA 1–5 de
+// concordância (a mesma do ICD) desde a v2 (25/09/2026: "as respostas têm
+// escala e não são dissertativas"). O texto é comentário opcional. NÃO gera
+// score oficial.
 // Prepara o líder ANTES ou DURANTE decisões relevantes (§5).
 // =====================================================================
 
@@ -3447,72 +3453,86 @@ export const POCKET_DIMENSION_FUNCTION: Record<PocketDimension, string> = {
   O: 'Transformar clareza em próximo passo, ação e acompanhamento.',
 };
 
-/** Pergunta reflexiva oficial do Pocket (Anexo §6). */
+/** Afirmação oficial do Pocket (Anexo §6, redigida em afirmação na v2). */
 export interface PocketQuestion {
   /** Código oficial: "C1" .. "O2". */
   code: string;
   dimension: PocketDimension;
-  /** Texto da pergunta (mantém ponto de interrogação — §6: pergunta reflexiva). */
+  /** Afirmação respondida na escala 1–5 (POCKET_SCALE). */
   text: string;
 }
 
-/** Catálogo OFICIAL das 10 perguntas do Pocket (Anexo §6). */
+/** Catálogo OFICIAL das 10 afirmações do Pocket (v2). Mesmos códigos e
+ *  dimensões da v1 (perguntas abertas), reescritas como afirmação para a
+ *  escala de concordância: 5 = situação mais coerente. */
 export const POCKET_QUESTIONS: PocketQuestion[] = [
   {
     code: 'C1',
     dimension: 'C',
-    text: 'O que parece estar influenciando mais esta decisão agora: os fatos, o contexto ou meu estado interno?',
+    text: 'Consigo separar os fatos, o contexto e o meu estado interno ao avaliar esta decisão.',
   },
   {
     code: 'C2',
     dimension: 'C',
-    text: 'Se a pressão fosse menor, eu avaliaria esta situação da mesma forma?',
+    text: 'Eu avaliaria esta situação da mesma forma se a pressão fosse menor.',
   },
   {
     code: 'R1',
     dimension: 'R',
-    text: 'Estou conduzindo a situação ou sendo conduzido por ela?',
+    text: 'Estou conduzindo a situação, e não sendo conduzido por ela.',
   },
   {
     code: 'R2',
     dimension: 'R',
-    text: 'O que está realmente sob minha influência neste momento?',
+    text: 'Tenho clareza do que está realmente sob minha influência neste momento.',
   },
   {
     code: 'I1',
     dimension: 'I',
-    text: 'Que informação relevante ainda precisa ser considerada?',
+    text: 'Já considerei as informações relevantes para esta decisão.',
   },
   {
     code: 'I2',
     dimension: 'I',
-    text: 'Estou avaliando apenas o resultado imediato ou também seus impactos?',
+    text: 'Estou avaliando também os impactos da decisão, e não apenas o resultado imediato.',
   },
   {
     code: 'V1',
     dimension: 'V',
-    text: 'Esta decisão reforça a cultura que desejo construir?',
+    text: 'Esta decisão reforça a cultura que desejo construir.',
   },
   {
     code: 'V2',
     dimension: 'V',
-    text: 'Eu gostaria que esta forma de decidir virasse referência para a equipe?',
+    text: 'Eu gostaria que esta forma de decidir virasse referência para a equipe.',
   },
   {
     code: 'O1',
     dimension: 'O',
-    text: 'O próximo passo está claro ou apenas parece urgente?',
+    text: 'O próximo passo está claro, e não apenas parece urgente.',
   },
   {
     code: 'O2',
     dimension: 'O',
-    text: 'Esta decisão simplifica ou complica a execução futura?',
+    text: 'Esta decisão simplifica a execução futura.',
   },
 ];
 
+/** Escala de resposta do Pocket — a MESMA concordância 1–5 do ICD. */
+export const POCKET_SCALE = ICD_AXIS_SCALE.map(({ value, label }) => ({ value, label }));
+
+/** Reflexão respondida: valor na escala (v2) ou, nas sessões da v1, texto/tag. */
+export function reflexaoPocketRespondida(r: {
+  value?: number | null;
+  text?: string | null;
+  tags?: string[] | null;
+}): boolean {
+  return r.value != null || (r.text?.trim().length ?? 0) > 0 || (r.tags?.length ?? 0) > 0;
+}
+
 /** Versão oficial do conjunto de perguntas (Anexo §12). Bumpar quando o
  *  catálogo for revisado para manter rastro histórico nas sessões antigas. */
-export const POCKET_QUESTIONS_VERSION = 'v1';
+export const POCKET_QUESTIONS_VERSION = 'v2';
 
 /** Momento de uso (Anexo §8). */
 export const POCKET_MOMENTS = ['AVULSO', 'ANTES_DECISAO', 'DURANTE_DECISAO'] as const;
@@ -3531,6 +3551,9 @@ export type PocketSessionStatus = (typeof POCKET_SESSION_STATUSES)[number];
 export interface PocketReflectionData {
   id: string;
   questionCode: string;
+  /** Resposta na escala 1–5 (POCKET_SCALE); null nas sessões da v1. */
+  value: number | null;
+  /** Comentário opcional (na v1 era a própria resposta). */
   text: string | null;
   tags: string[];
   createdAt: string;
@@ -3573,6 +3596,8 @@ export interface CreatePocketSessionRequest {
 /** Payload de submissão de uma reflexão (POST /pocket/sessions/:id/reflections). */
 export interface UpsertPocketReflectionRequest {
   questionCode: string;
+  /** Resposta na escala 1–5. */
+  value?: number;
   text?: string;
   tags?: string[];
 }
@@ -3695,10 +3720,97 @@ export interface CopilotoAskRequest {
   question: string;
   context?: {
     score?: number;
+    /** Faixa de maturidade decisória (Anexo §10). */
+    band?: string;
+    /** Médias do líder nos 4 eixos oficiais (0–100). */
+    axes?: Partial<IcdAxesScores>;
+    /** LEGADO (4 Rs) — ignorado pelo copiloto desde 25/09/2026. */
     dominantPattern?: DominantPattern;
+    /** LEGADO (4 Rs) — ignorado pelo copiloto desde 25/09/2026. */
     dimensions?: Partial<IcdDimensions>;
   };
 }
+
+// ── Área do Líder no ICD OFICIAL (4 eixos: Clareza, Critério, Alinhamento,
+// Sustentação). Substitui a trilha pela tensão dominante dos 4 Rs (legado).
+
+/** ICD do próprio líder: parcial do ciclo aberto ou o do último ciclo fechado. */
+export interface MeuIcdData {
+  origem: 'CICLO_ABERTO' | 'CICLO_FECHADO';
+  cicloNome: string;
+  icd: LeaderQuarterlyIcdData;
+}
+
+/** Eixo com a MENOR média — o foco de desenvolvimento. Empate: ordem oficial
+ *  dos eixos. null quando nenhum eixo tem valor. */
+export function eixoMaisFraco(axes: Partial<IcdAxesScores> | null | undefined): IcdAxis | null {
+  let pior: IcdAxis | null = null;
+  for (const eixo of ICD_AXES) {
+    const v = axes?.[eixo];
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    if (pior === null || v < (axes![pior] as number)) pior = eixo;
+  }
+  return pior;
+}
+
+export interface IcdAxisTrack {
+  axis: IcdAxis;
+  title: string;
+  focus: string;
+  practices: string[];
+}
+
+/** Trilha de desenvolvimento pelo eixo mais fraco do ICD do líder. */
+export const ICD_AXIS_TRACKS: Record<IcdAxis, IcdAxisTrack> = {
+  CLAREZA: {
+    axis: 'CLAREZA',
+    title: 'Decidir com base em fatos e lacunas conhecidas',
+    focus: 'Construir a decisão com dados relevantes e deixar explícito o que ainda não se sabe.',
+    practices: [
+      'Antes de decidir, liste os fatos que sustentam a decisão e as informações que faltam.',
+      'Separe o que é dado do que é interpretação ou suposição.',
+      'Registre a fonte das informações usadas nas decisões de maior impacto.',
+    ],
+  },
+  CRITERIO: {
+    axis: 'CRITERIO',
+    title: 'Manter critério e prioridade sob pressão',
+    focus: 'Conduzir a decisão com discernimento e consistência, mesmo com urgência.',
+    practices: [
+      'Defina os critérios da decisão antes de avaliar as alternativas.',
+      'Compare ao menos duas alternativas e registre por que escolheu uma delas.',
+      'Revise decisões tomadas sob pressão e verifique se os critérios foram mantidos.',
+    ],
+  },
+  ALINHAMENTO: {
+    axis: 'ALINHAMENTO',
+    title: 'Envolver pessoas e condições reais de implementação',
+    focus: 'Considerar pessoas, áreas, processos e comunicação antes de fechar a decisão.',
+    practices: [
+      'Identifique quem é afetado pela decisão e ouça ao menos uma dessas partes antes de decidir.',
+      'Verifique se processos e recursos permitem executar o que foi decidido.',
+      'Comunique a decisão com o porquê, o que muda e quem faz o quê.',
+    ],
+  },
+  SUSTENTACAO: {
+    axis: 'SUSTENTACAO',
+    title: 'Sustentar a decisão na execução e no tempo',
+    focus: 'Garantir que a decisão seja executável, coerente com a cultura e sustentável nos impactos.',
+    practices: [
+      'Defina responsável, prazo e forma de acompanhamento de cada decisão relevante.',
+      'Avalie os impactos futuros da decisão sobre pessoas, cultura e resultados.',
+      'Revise periodicamente decisões em execução e ajuste o que não se sustentou.',
+    ],
+  },
+};
+
+/** Eixo mais fraco da empresa → categorias de ActionTemplate afins. */
+export const ICD_AXIS_TO_TEMPLATE_CATEGORIES: Record<IcdAxis, string[]> = {
+  CLAREZA: ['Operação', 'Compliance'],
+  CRITERIO: ['Compliance', 'Operação'],
+  ALINHAMENTO: ['Pessoas', 'Cultura'],
+  SUSTENTACAO: ['Cultura', 'Operação'],
+};
 
 export interface CopilotoAskResponse {
   ok: boolean;

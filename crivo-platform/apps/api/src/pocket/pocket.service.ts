@@ -12,6 +12,8 @@ import {
   POCKET_DIMENSION_LABEL,
   POCKET_QUESTIONS,
   POCKET_QUESTIONS_VERSION,
+  POCKET_SCALE,
+  reflexaoPocketRespondida,
   type PocketAggregate,
   type PocketDimension,
   type PocketSessionData,
@@ -141,12 +143,16 @@ export class PocketService {
           tenantId,
           sessionId,
           questionCode: dto.questionCode,
+          value: dto.value ?? null,
           text: dto.text ?? null,
           tags: dto.tags ?? [],
         },
+        // Só o que veio no pedido muda: salvar a resposta não apaga o
+        // comentário e vice-versa. Texto vazio limpa o comentário.
         update: {
-          text: dto.text ?? null,
-          tags: dto.tags ?? [],
+          ...(dto.value !== undefined ? { value: dto.value } : {}),
+          ...(dto.text !== undefined ? { text: dto.text.trim() || null } : {}),
+          ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
         },
       });
       return toReflectionData(reflection);
@@ -214,9 +220,10 @@ export class PocketService {
     );
     if (!session) return;
 
-    // Sem reflexões substantivas → não gera (evita custo de IA com payload vazio).
+    // Sem resposta na escala nem comentário substantivo → não gera (evita
+    // custo de IA com payload vazio).
     const hasContent = session.reflections.some(
-      (r: any) => (r.text?.trim().length ?? 0) > 10,
+      (r: any) => r.value != null || (r.text?.trim().length ?? 0) > 10,
     );
     if (!hasContent) return;
 
@@ -316,7 +323,7 @@ export class PocketService {
         for (const s of sessions) {
           const touched = new Set<PocketDimension>();
           for (const r of s.reflections) {
-            const answered = (r.text?.trim().length ?? 0) > 0 || (r.tags?.length ?? 0) > 0;
+            const answered = reflexaoPocketRespondida(r);
             const dim = QUESTION_DIMENSION.get(r.questionCode);
             if (answered && dim) touched.add(dim);
           }
@@ -381,12 +388,21 @@ export class PocketService {
 function buildPocketSummaryUserMessage(session: any): string {
   const ctx = session.context ? `Contexto: ${session.context}\n` : '';
   const moment = `Momento de uso: ${session.momentOfUse}\n`;
+  // v2: afirmação + resposta na escala 1–5 (+ comentário opcional). Sessões
+  // da v1 só têm o texto.
   const reflections = (session.reflections as any[])
-    .filter((r) => r.text && r.text.trim().length > 0)
+    .filter((r) => r.value != null || (r.text && r.text.trim().length > 0))
     .map((r) => {
       const q = POCKET_QUESTIONS.find((x) => x.code === r.questionCode);
       const dim = q ? POCKET_DIMENSION_LABEL[q.dimension as PocketDimension] : r.questionCode;
-      return `[${r.questionCode} · ${dim}] ${q?.text ?? ''}\n→ ${r.text.trim()}`;
+      const escala = POCKET_SCALE.find((s) => s.value === r.value);
+      const resposta = escala ? `${escala.value} (${escala.label})` : null;
+      const comentario = r.text?.trim() ? r.text.trim() : null;
+      const linhas = [
+        ...(resposta ? [`→ Resposta: ${resposta}`] : []),
+        ...(comentario ? [`→ ${resposta ? 'Comentário: ' : ''}${comentario}`] : []),
+      ];
+      return `[${r.questionCode} · ${dim}] ${q?.text ?? ''}\n${linhas.join('\n')}`;
     })
     .join('\n\n');
   return `${ctx}${moment}\n${reflections}\n\nProduza a síntese seguindo o formato JSON especificado.`;
@@ -404,6 +420,7 @@ function toReflectionData(row: any): PocketReflectionData {
   return {
     id: row.id,
     questionCode: row.questionCode,
+    value: row.value ?? null,
     text: row.text,
     tags: row.tags ?? [],
     createdAt: row.createdAt.toISOString(),

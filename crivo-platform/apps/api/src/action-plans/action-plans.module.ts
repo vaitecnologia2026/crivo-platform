@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { IamModule } from '../iam/iam.module';
 import { PsychosocialModule } from '../psychosocial/psychosocial.module';
 import { AdminModule } from '../admin/admin.module';
+import { IcdCyclesModule } from '../icd-cycles/icd-cycles.module';
 import { ActionPlansController } from './action-plans.controller';
 import { ActionPlansService } from './action-plans.service';
 import { CyclesService } from './cycles.service';
@@ -12,7 +13,7 @@ import { RiskSuggestionsService } from './risk-suggestions.service';
  *  Importa AdminModule para consumir AiSettingsService (IA da plataforma no Dossiê).
  *  Sem ciclo: AdminModule só importa MeteringModule (nenhum caminho volta a este módulo). */
 @Module({
-  imports: [IamModule, PsychosocialModule, AdminModule],
+  imports: [IamModule, PsychosocialModule, AdminModule, IcdCyclesModule],
   controllers: [ActionPlansController],
   providers: [ActionPlansService, DocumentsService, CyclesService, RiskSuggestionsService],
 })

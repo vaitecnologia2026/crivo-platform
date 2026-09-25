@@ -309,7 +309,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .eixo__fill.is-high { background: var(--success); }
 .eixo__fill.is-mid { background: var(--gold); }
 .eixo__fill.is-low { background: var(--gold-deep); }
-.eixos-legacy-h { font-size: 13px; font-weight: 700; color: var(--text); margin: 18px 0 8px; }
 @media (max-width: 640px) { .eixos-grid { grid-template-columns: 1fr; } }
 
 /* Registro de Decisões — avaliação ICD (8 afirmações P1–P8) + chips de público */

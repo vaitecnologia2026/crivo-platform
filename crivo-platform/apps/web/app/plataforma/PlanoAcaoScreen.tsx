@@ -1003,7 +1003,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
   }
   async function loadSuggested() {
     if (suggested) return;
-    try { setSuggested(await getSuggestedActions()); } catch { setSuggested({ tension: null, reason: "", templates: [] }); }
+    try { setSuggested(await getSuggestedActions()); } catch { setSuggested({ tension: null, axis: null, reason: "", templates: [] }); }
   }
 
   async function loadRisk() {

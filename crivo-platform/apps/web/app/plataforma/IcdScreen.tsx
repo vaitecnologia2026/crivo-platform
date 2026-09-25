@@ -17,7 +17,6 @@ import {
 } from "@crivo/types";
 import { ApiError, getIcdCurrent, getIcdCurrentSummary, getIcdHistory, getPocketAggregate } from "@/lib/api";
 import { exportPDF, exportXLSX, useExportContext, type ExportSection, type ExportSheet } from "@/lib/exports";
-import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboard";
 
 /**
  * Programas › Liderança (rota `icd`) — painel EXCLUSIVAMENTE AGREGADO do
@@ -35,8 +34,9 @@ import { useIcdDashboard, PATTERN_LABEL, DIMENSION_LABEL } from "./useIcdDashboa
  * Escala: o ICD oficial é 0–100 (Anexo §8: resposta 1–5 → (valor − 1) × 25).
  * O protótipo desenhava 0–5; aqui o eixo é o real, para não inventar escala.
  *
- * O modelo LEGADO dos 4 Rs (GET /icd/dashboard) fica no fim, como "Leitura
- * legada", para quem ainda acompanha o histórico daquele instrumento.
+ * O ICD é só os 4 Eixos (decisão do cliente): a antiga "Leitura legada" do
+ * modelo anterior saiu da tela. Os dados continuam no banco e a rota da API
+ * não foi removida — apenas não são mais exibidos.
  */
 
 type LoadStatus = "loading" | "error" | "ok";
@@ -104,12 +104,11 @@ export function IcdScreen() {
   const current = useAgregado<{ cycle: IcdCycleData | null; company: CompanyQuarterlyIcdData | null }>(getIcdCurrent);
   const history = useAgregado<IcdCycleHistoryEntry[]>(getIcdHistory);
   const pocket = useAgregado<PocketAggregate>(() => getPocketAggregate());
-  const legado = useIcdDashboard();
   const exportCtx = useExportContext();
   const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
 
   const loading = [summary, current, history, pocket].some((r) => r.status === "loading");
-  const refreshAll = () => { summary.refresh(); current.refresh(); history.refresh(); pocket.refresh(); legado.refresh(); };
+  const refreshAll = () => { summary.refresh(); current.refresh(); history.refresh(); pocket.refresh(); };
 
   // ── Exportação (helper compartilhado da fatia 1). Só o que está na tela:
   // agregados já suprimidos; célula "suprimido" onde o servidor devolveu null.
@@ -214,8 +213,6 @@ export function IcdScreen() {
           Ver ações vinculadas no Plano de Evolução →
         </a>
       </p>
-
-      <LeituraLegada legado={legado} />
     </>
   );
 }
@@ -527,77 +524,6 @@ function PocketCard({ pocket }: { pocket: ReturnType<typeof useAgregado<PocketAg
           <span className="card__eyebrow" style={{ display: "block", marginTop: 12 }}>
             Fonte: Pocket CRIVO · sessões concluídas na Área do Líder · {p.period ? `ciclo ${p.period.cycleName}` : "todo o histórico"} · {p.completedSessions} sessões · sem individualização
           </span>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Leitura legada — modelo dos 4 Rs (GET /icd/dashboard) ─────────────────
-
-const LEGACY_DIMENSIONS = ["reatividade", "rigidez", "repercussao", "risco"] as const;
-function barClass(v: number): string {
-  if (v >= 80) return "is-high";
-  if (v >= 60) return "is-mid";
-  return "is-low";
-}
-
-function LeituraLegada({ legado }: { legado: ReturnType<typeof useIcdDashboard> }) {
-  const [open, setOpen] = useState(false);
-  const { data, status } = legado;
-  const dims = data ? LEGACY_DIMENSIONS.map((key) => ({ key, label: DIMENSION_LABEL[key] ?? key, value: data.dimensionAverages?.[key] ?? 0 })) : [];
-  const pattern = data ? Object.entries(data.distribuicaoPadrao).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null : null;
-  const vazio = !data || data.icdMedio === null || data.totalLideres === 0;
-
-  return (
-    <div className="card" style={{ marginBottom: 24 }}>
-      <div className="card__head" style={{ cursor: "pointer" }} onClick={() => setOpen((o) => !o)}>
-        <div>
-          <h3>Leitura legada — 4 Rs</h3>
-          <span className="card__sub">
-            Instrumento anterior (Reatividade, Rigidez, Repercussão, Risco — score /100 e tensão dominante). Mantido para histórico; o modelo oficial é o dos 4 Eixos acima.
-          </span>
-        </div>
-        <button className="btn btn--outline-dark btn--sm" onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}>
-          {open ? "Ocultar" : "Ver leitura legada"}
-        </button>
-      </div>
-      {open && (
-        <>
-          {status === "loading" && <p className="dash-state">Carregando…</p>}
-          {status === "error" && <p className="dash-state dash-state--error">Não foi possível carregar a leitura legada.</p>}
-          {status === "ok" && vazio && <p className="dash-state">Nenhuma avaliação registrada no instrumento legado.</p>}
-          {status === "ok" && data && !vazio && (
-            <div className="grid grid--2" style={{ marginBottom: 0 }}>
-              <div>
-                <span className="card__eyebrow">COERÊNCIA POR DIMENSÃO (4 Rs)</span>
-                <div className="icd-dims">
-                  {dims.map((d) => (
-                    <div className="icd-dim" key={d.key}>
-                      <div className="icd-dim__top"><span>{d.label}</span><strong>{d.value}</strong></div>
-                      <div className="icd-dim__bar"><div className={`icd-dim__fill ${barClass(d.value)}`} style={{ width: `${d.value}%` }} /></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="icd-side">
-                <div className="card card--pattern">
-                  <span className="card__eyebrow">ICD MÉDIO (LEGADO)</span>
-                  <strong className="big-num">{data.icdMedio}<small>/100</small></strong>
-                  <span className="card__hint">Média agregada de {data.totalLideres} líderes — sem identificação individual.</span>
-                </div>
-                <div className="card card--pattern">
-                  <span className="card__eyebrow">TENSÃO DOMINANTE</span>
-                  <strong className="pattern-label">{pattern ? (PATTERN_LABEL[pattern] ?? pattern) : "—"}</strong>
-                  <div className="dash-dist" style={{ marginTop: 8 }}>
-                    {Object.entries(data.distribuicaoPadrao).map(([k, n]) => (
-                      <span key={k} className="dash-dist__item">{PATTERN_LABEL[k] ?? k}: <strong>{n}</strong></span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
