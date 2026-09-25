@@ -82,10 +82,10 @@ describe('bloqueiosDoPlano — gates mínimos da emissão oficial (matriz de ace
     expect(bloqueiosDoPlano(validado([{ ...ok, riskFactorSlug: null, point: 'sobrecarga de trabalho' }]), [sobrecarga])).toEqual([]);
   });
 
-  it('3. aprovada sem prazo (ou responsável/evidência) bloqueia', () => {
-    expect(bloqueiosDoPlano(validado([{ ...ok, dueDate: null }]), [sobrecarga])[0]).toMatch(/sem responsável, prazo ou evidência esperada/);
+  it('3. aprovada sem prazo (ou responsável) bloqueia; evidência esperada não é gate', () => {
+    expect(bloqueiosDoPlano(validado([{ ...ok, dueDate: null }]), [sobrecarga])[0]).toMatch(/sem responsável ou prazo/);
     expect(bloqueiosDoPlano(validado([{ ...ok, responsible: '  ' }]), [sobrecarga])).toHaveLength(1);
-    expect(bloqueiosDoPlano(validado([{ ...ok, expectedEvidence: null }]), [sobrecarga])).toHaveLength(1);
+    expect(bloqueiosDoPlano(validado([{ ...ok, expectedEvidence: null }]), [sobrecarga])).toHaveLength(0);
   });
 
   it('7. plano não validado bloqueia', () => {

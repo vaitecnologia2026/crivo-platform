@@ -47,6 +47,7 @@ import {
   acoesEspecificasDoGhe,
   acoesGeraisDoGhe,
   cardAcaoHtml,
+  cnpjFormatado,
   dataPtBr,
   decimalPtBr,
   emPartes,
@@ -54,6 +55,7 @@ import {
   leituraDoGhe,
   maiorRisco,
   numerarAcoes,
+  participacaoDoCiclo,
   sinteseExecutivaHtml,
   tabelaFatoresDoGheHtml,
   tabelaPanorama,
@@ -317,21 +319,23 @@ export function bloqueiosDoPlano(
     );
   }
 
-  // 3. Ação aprovada de fator obrigatório completa: responsável, prazo,
-  //    evidência esperada (NR-1 1.5.5.2.2 — cronograma, responsáveis, aferição).
-  //    Aprovar já exige responsável + evidência; o prazo só é cobrado aqui.
+  // 3. Ação aprovada de fator obrigatório completa: responsável e prazo
+  //    (NR-1 1.5.5.2.2 — cronograma e responsáveis). A evidência esperada
+  //    deixou de ser gate (modelo final 25/09): a evidência é acompanhada no
+  //    Plano, e concluir a ação exige evidência ou justificativa validada.
+  //    Aprovar já exige responsável; o prazo só é cobrado aqui.
   // Qualquer ESCOPO: a específica de um GHE (PA-005 do modelo) também sai
   // no documento e precisa de prazo — `cobre` (só geral) é regra do gate 2.
   const incompletas = itens.filter(
     (i) =>
       acaoEntraNoDocumento(i.status) &&
       (obrigatorios.some((f) => doFator(f, i)) || obrigatoriosGhe.some((f) => cobreGhe(f, i))) &&
-      (!i.responsible?.trim() || !i.dueDate || !i.expectedEvidence?.trim()),
+      (!i.responsible?.trim() || !i.dueDate),
   );
   if (incompletas.length) {
     const nomes = [...new Set(incompletas.map((i) => i.point))].join(', ');
     out.push(
-      `${incompletas.length} ação(ões) aprovada(s) sem responsável, prazo ou evidência esperada (${nomes}).`,
+      `${incompletas.length} ação(ões) aprovada(s) sem responsável ou prazo (${nomes}).`,
     );
   }
 
@@ -813,6 +817,8 @@ function signatureSection(conclusionBody: string): DocumentSection {
  */
 /** Status da PRÉ-VISUALIZAÇÃO (cabeçalho e controle documental). */
 const STATUS_RASCUNHO = 'Rascunho (pré-visualização)';
+/** Status do Dossiê emitido (modelo final 25/09). */
+const STATUS_EMITIDO = 'Emitido';
 /** Validação do Dossiê no modelo oficial de 23/09. */
 const VALIDACAO_DOSSIE = 'Organização / responsável autorizado';
 /** Validação dos demais documentos técnicos (assinatura em branco no PDF). */
@@ -2176,34 +2182,33 @@ export class DocumentsService {
     const versaoMetodologica = await this.activeVersionLabel(instrumento.slug);
     const meta: GeneratedDocument['meta'] = [
       { label: 'Organização', value: ctx.org?.legalName ?? ctx.company },
-      { label: 'CNPJ', value: ctx.org?.taxId ?? '—' },
+      { label: 'CNPJ', value: cnpjFormatado(ctx.org?.taxId) },
       { label: 'Método aplicado', value: ctx.method ? METHOD_LABEL[ctx.method] ?? ctx.method : '—' },
       { label: 'Respostas válidas', value: String(psy.totalRespondents) },
       { label: 'Período avaliado', value: psy.period },
       { label: 'Data de emissão', value: dataPtBr(new Date()) },
       { label: 'Versão metodológica', value: versaoMetodologica },
-      // emit() carimba "Final" na versão oficial.
+      // emit() carimba "Emitido" na versão oficial.
       { label: 'Status', value: STATUS_RASCUNHO },
       { label: 'Estabelecimento', value: ctx.org?.establishment ?? '—' },
     ];
 
     // ── Objetivo e escopo ─────────────────────────────────────────────────
-    // Redação do modelo oficial de 23/09, igual para qualquer saída técnica
-    // contratada: "subsidiar… quando aplicável" + "não substitui a AEP, o PGR".
-    // As seções que SÓ quem contratou integração recebe continuam condicionais
-    // (Indicação de integração documental, anexo para o inventário do PGR).
+    // Redação simplificada do modelo final (25/09), igual para qualquer saída
+    // técnica contratada. Siglas explicadas na primeira ocorrência (AEP, PGR;
+    // SST vem em Responsabilidades). As seções que SÓ quem contratou integração
+    // recebe continuam condicionais (integração documental, anexo do PGR).
     sections.push({
       heading: 'Objetivo e escopo',
       body:
         'Este dossiê consolida os fatores de riscos psicossociais relacionados ao trabalho ' +
-        'identificados no ciclo e organiza os resultados, as prioridades técnicas e as medidas ' +
-        'aprovadas para apoiar a prevenção e o acompanhamento pela organização.\n\n' +
-        'Os resultados podem subsidiar a Avaliação Ergonômica Preliminar (AEP) e a atualização dos ' +
-        'documentos de Segurança e Saúde no Trabalho da organização, quando aplicável. Este documento ' +
-        'não substitui a AEP, o PGR, a validação técnica ou as responsabilidades legais da empresa.\n\n' +
-        'O escopo é restrito às condições, à organização e à gestão do trabalho. Não realiza ' +
-        'diagnóstico clínico individual, avaliação psicológica individual nem análise de aspectos ' +
-        'pessoais desvinculados do trabalho.' +
+        'identificados no ciclo, apresenta os resultados e prioridades técnicas e registra as ' +
+        'medidas aprovadas pela organização para prevenção e acompanhamento.\n\n' +
+        'Os resultados podem apoiar a Avaliação Ergonômica Preliminar (AEP) e a atualização do ' +
+        'Programa de Gerenciamento de Riscos (PGR), quando aplicável. O documento trata ' +
+        'exclusivamente das condições, da organização e da gestão do trabalho; não substitui a ' +
+        'AEP, o PGR ou a validação da organização e não realiza diagnóstico clínico ou ' +
+        'psicológico individual.' +
         (approvedTexts['finalidade_limites'] ? `\n\n${approvedTexts['finalidade_limites']}` : ''),
     });
 
@@ -2228,15 +2233,15 @@ export class DocumentsService {
         {
           label: 'CRIVO',
           value:
-            'Aplica a metodologia configurada, processa os dados conforme a versão registrada e ' +
-            'gera este dossiê como instrumento técnico de apoio.',
+            'Aplica o Método CRIVO vigente, processa as respostas conforme as regras registradas ' +
+            'para o ciclo e gera este dossiê técnico.',
         },
         {
           label: 'Organização',
           value:
-            'Valida as informações de contexto, aprova e implementa as ações, define os ' +
-            'responsáveis internos e mantém atualizados os documentos de SST sob sua ' +
-            'responsabilidade.',
+            'Confirma as informações de contexto, aprova e implementa as medidas, define ' +
+            'responsáveis e prazos, acompanha os resultados e mantém atualizados seus documentos ' +
+            'de Segurança e Saúde no Trabalho (SST).',
         },
       ],
     });
@@ -2251,14 +2256,22 @@ export class DocumentsService {
             .filter((x) => !x.suppressed && !(agregado.groupBy === 'ghe' && x.sector === 'Não informado'))
             .map((x) => (agregado.groupBy === 'ghe' ? rotuloDoGhe(x.sector) : x.sector))
         : exibidos.map((x) => x.sector);
+    // Convidados e taxa de participação quando o ciclo tem convite registrado
+    // (modelo final 25/09); sem convite, as linhas não existem — nunca se infere.
+    const participacao = participacaoDoCiclo(
+      await this.convidadosDoCiclo(tenantId, instrumento),
+      psy.totalRespondents,
+    );
     sections.push({
       heading: 'Escopo da avaliação',
       rows: [
+        ...(participacao ? [{ label: 'Convidados', value: String(participacao.convidados) }] : []),
         { label: 'Respostas válidas', value: String(psy.totalRespondents) },
+        ...(participacao ? [{ label: 'Taxa de participação', value: participacao.taxa }] : []),
         {
           label: 'Estrutura considerada',
           value: gruposPorGhe
-            ? 'Organização e GHEs cadastrados no ciclo'
+            ? 'Organização e GHEs (Grupos de Exposição) cadastrados no ciclo'
             : 'Organização e áreas cadastradas no ciclo',
         },
         { label: 'Recortes exibidos', value: recortesExibidos.join('; ') || '—' },
@@ -2268,9 +2281,9 @@ export class DocumentsService {
             `Recortes estatísticos somente quando atingido o mínimo de ${psy.minRespondents} ` +
             'respostas válidas. Respostas individuais e recortes abaixo do mínimo não são exibidos.',
         },
-        // Adesão só quando a empresa informou o público elegível — dado
-        // contextual, nunca inferido do número de respondentes.
-        ...(ctx.org?.employeesCount
+        // Sem convite registrado, a adesão sobre o público elegível informado
+        // pela empresa — dado contextual, nunca inferido dos respondentes.
+        ...(!participacao && ctx.org?.employeesCount
           ? [{ label: 'Adesão', value: adhesionLabel(psy.totalRespondents, ctx.org.employeesCount) }]
           : []),
       ],
@@ -2480,10 +2493,11 @@ export class DocumentsService {
       }
       sections.push({
         heading: '',
+        nota: true,
         body:
           'O detalhamento técnico de cada GHE e as ações aplicáveis aparecem no Anexo Técnico por ' +
-          'GHE, mantendo o corpo principal do dossiê objetivo mesmo quando a organização possuir ' +
-          'muitos grupos expostos.',
+          'GHE, mantendo o corpo principal objetivo mesmo quando a organização possuir muitos ' +
+          'grupos expostos.',
       });
     } else {
       // Sem recorte por GHE (Essencial, ou Organizacional sem GHE cadastrado):
@@ -2580,6 +2594,7 @@ export class DocumentsService {
       // Sem título: no modelo é a nota de rodapé da página, não uma seção.
       sections.push({
         heading: '',
+        nota: true,
         body:
           'As possíveis lesões ou agravos à saúde indicados neste dossiê têm caráter preventivo e ' +
           'documental, com base nos fatores de risco psicossociais relacionados ao trabalho. Não ' +
@@ -2596,9 +2611,8 @@ export class DocumentsService {
       heading: 'Plano de ação aprovado - Resultado Geral da Organização',
       body:
         'As medidas abaixo correspondem às ações aprovadas pela organização para os fatores ' +
-        'prioritários do Resultado Geral. O responsável é da empresa contratante. A evidência ' +
-        'esperada e a forma de acompanhamento foram definidas no Plano de Evolução antes da ' +
-        'emissão do documento.' +
+        'prioritários do Resultado Geral. O Dossiê registra o estado validado no momento da ' +
+        'emissão. O acompanhamento posterior ocorre no Plano de Evolução.' +
         (aguardando
           ? ` ${aguardando} ação(ões) permanece(m) como sugestão pendente de validação e não ` +
             'compõe(m) este documento.'
@@ -2636,24 +2650,9 @@ export class DocumentsService {
       },
     });
 
-    const evidenciasAprovadas = items
-      .flatMap((i) => i.evidences)
-      .filter((e) => e.status === 'APROVADA');
-    if (evidenciasAprovadas.length) {
-      sections.push({
-        heading: 'Evidências',
-        body: 'Somente evidência aprovada compõe a documentação técnica.',
-        table: {
-          columns: ['Evidência', 'Tipo', 'Vínculo/Referência', 'Validada em'],
-          data: evidenciasAprovadas.map((e) => [
-            e.title,
-            e.kind,
-            e.url ?? '—',
-            e.reviewedAt ? fmt(e.reviewedAt) : '—',
-          ]),
-        },
-      });
-    }
+    // Evidências NÃO entram no Dossiê (modelo final 25/09): ele é a fotografia
+    // do plano aprovado na emissão; a evidência é acompanhada no Plano de
+    // Evolução e documentada no Extrato do Plano de Ação Preventivo.
 
     const devolutivas = await this.prisma.forTenant(tenantId, (tx) =>
       tx.devolutivaRecord.findMany({ orderBy: [{ date: 'desc' }, { id: 'desc' }], take: 10 }),
@@ -2661,8 +2660,6 @@ export class DocumentsService {
     if (devolutivas.length) {
       sections.push({
         heading: 'Registro de comunicação e devolutiva',
-        body:
-          'Comunicações dos resultados e medidas aos trabalhadores, registradas pela organização.',
         table: {
           columns: ['Data', 'Formato', 'Público envolvido', 'Temas comunicados', 'Medidas comunicadas'],
           data: devolutivas.map((r) => [
@@ -2716,7 +2713,17 @@ export class DocumentsService {
         'para identificação, registro, gestão e acompanhamento dos fatores de risco psicossociais ' +
         'relacionados ao trabalho. A organização contratante valida o contexto, os responsáveis e ' +
         'as ações, implementa as medidas aprovadas e realiza as integrações com seus documentos de ' +
-        'SST quando aplicáveis.',
+        'Segurança e Saúde no Trabalho quando aplicáveis.',
+    });
+
+    // Dossiê x Plano (modelo final 25/09): o PDF emitido é congelado; o que
+    // muda depois no Plano aparece no Extrato, nunca aqui.
+    sections.push({
+      heading: 'Estado do documento e acompanhamento',
+      body:
+        'Este Dossiê registra o estado validado no momento da emissão e permanece inalterado. O ' +
+        'acompanhamento posterior das ações ocorre no Plano de Evolução e pode ser documentado por ' +
+        'meio do Extrato do Plano de Ação Preventivo, sem alterar retroativamente este documento.',
     });
 
     // A CONCLUSÃO TÉCNICA aprovada pela equipe CRIVO, quando existir, entra
@@ -2724,13 +2731,22 @@ export class DocumentsService {
     if (approvedTexts['conclusao_tecnica']) {
       sections.push({ heading: 'Conclusão técnica', body: approvedTexts['conclusao_tecnica'] });
     }
+    // O Método CRIVO é autoral; as referências subsidiam a estrutura.
     sections.push({
-      heading: 'Referências',
+      heading: 'Referências técnicas e metodológicas',
       body:
         'NR-1 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais; NR-17 - Ergonomia; ' +
         'Guia de Informações sobre os Fatores de Riscos Psicossociais Relacionados ao Trabalho - ' +
         'Ministério do Trabalho e Emprego; Manual de Interpretação e Aplicação do Capítulo 1.5 da ' +
-        'NR-1 - Gerenciamento de Riscos Ocupacionais (GRO) - Ministério do Trabalho e Emprego, 2026.',
+        'NR-1 - Gerenciamento de Riscos Ocupacionais (GRO) - Ministério do Trabalho e Emprego; ' +
+        'COPSOQ / Copenhagen Psychosocial Questionnaire; HSE Management Standards.',
+    });
+    sections.push({
+      heading: '',
+      nota: true,
+      body:
+        'O instrumento CRIVO é autoral. As referências acima subsidiam a estrutura metodológica e ' +
+        'não significam aplicação integral de instrumentos de terceiros.',
     });
 
     // ── Anexo técnico · fatores classificados (páginas 9 e 10 do modelo) ──
@@ -3492,6 +3508,34 @@ export class DocumentsService {
     return aberto?.name ?? null;
   }
 
+  /**
+   * Convites registrados nos ciclos das respostas que o Dossiê agrega (mesmo
+   * filtro de `psychosocialSummary`: sem auto-avaliação). 0 = sem convite —
+   * coleta por link público ou resposta sem ciclo.
+   */
+  private async convidadosDoCiclo(tenantId: string, instrumento: TenantInstrument): Promise<number> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const ciclos = instrumento.motorPsicossocial
+        ? await tx.psychosocialResponse.findMany({
+            where: { cycleId: { not: null } },
+            distinct: ['cycleId'],
+            select: { cycleId: true },
+          })
+        : await tx.diagnosticResponse.findMany({
+            where: {
+              instrumentSlug: instrumento.slug,
+              cycleId: { not: null },
+              OR: [{ origin: null }, { origin: { not: SELF_ASSESSMENT_ORIGIN } }],
+            },
+            distinct: ['cycleId'],
+            select: { cycleId: true },
+          });
+      const ids = ciclos.map((c) => c.cycleId).filter((x): x is string => !!x);
+      if (!ids.length) return 0;
+      return tx.campaignInvite.count({ where: { cycleId: { in: ids } } });
+    });
+  }
+
   async emit(tenantId: string, type: string, actorEmail?: string) {
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
@@ -3600,13 +3644,13 @@ export class DocumentsService {
       const preservadas = (doc.sections[controlIdx]?.rows ?? []).filter(
         (r) => !CONTROLE_CARIMBADO.has(r.label),
       );
-      // O Dossiê segue o modelo oficial de 23/09 ("Final", versão "1.0",
+      // O Dossiê segue o modelo final de 25/09 ("Emitido", versão "N.0",
       // validação pela organização); os demais documentos mantêm o carimbo deles.
       const dossie = type === 'dossie_tecnico';
       const emittedDoc: GeneratedDocument = {
         ...doc,
         meta: dossie
-          ? doc.meta.map((m) => (m.label === 'Status' ? { ...m, value: 'Final' } : m))
+          ? doc.meta.map((m) => (m.label === 'Status' ? { ...m, value: STATUS_EMITIDO } : m))
           : doc.meta,
         sections: doc.sections.map((s, i) =>
           i === controlIdx
@@ -3614,7 +3658,7 @@ export class DocumentsService {
                 ...s,
                 heading: 'Controle documental',
                 rows: [
-                  { label: 'Status do documento', value: dossie ? 'Final' : 'Documento emitido' },
+                  { label: 'Status do documento', value: dossie ? STATUS_EMITIDO : 'Documento emitido' },
                   { label: 'Versão do documento', value: dossie ? `${emissionNumber}.0` : `v${emissionNumber}` },
                   { label: 'Data de emissão', value: fmt(new Date()) },
                   { label: 'Validação', value: dossie ? VALIDACAO_DOSSIE : VALIDACAO_PADRAO },

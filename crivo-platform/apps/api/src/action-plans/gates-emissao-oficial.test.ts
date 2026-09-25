@@ -121,7 +121,7 @@ describe('gates de emissão oficial do Dossiê Técnico', () => {
     expect(emissoes).toHaveLength(0);
   });
 
-  it('3. com os gates satisfeitos, congela a v1 com hash e o carimbo do modelo (Final · 1.0)', async () => {
+  it('3. com os gates satisfeitos, congela a v1 com hash e o carimbo do modelo (Emitido · 1.0)', async () => {
     const { svc, emissoes } = build();
     const r = await svc.emit(TENANT, 'dossie_tecnico', 'rodrigo@empresa.com');
     expect(r.reused).toBe(false);
@@ -131,17 +131,17 @@ describe('gates de emissão oficial do Dossiê Técnico', () => {
     expect(e.contentHash).toMatch(/^[0-9a-f]{64}$/);
     expect(e.generatedBy).toBe('rodrigo@empresa.com');
     const controle = e.content.sections.find((s) => s.heading === 'Controle documental')!.rows!;
-    // Modelo oficial de 23/09: "Final", versão "1.0", validação pela organização.
+    // Modelo final de 25/09: "Emitido", versão "1.0", validação pela organização.
     expect(controle).toEqual(expect.arrayContaining([
-      { label: 'Status do documento', value: 'Final' },
+      { label: 'Status do documento', value: 'Emitido' },
       { label: 'Versão do documento', value: '1.0' },
       { label: 'Validação', value: 'Organização / responsável autorizado' },
       { label: 'Hash/Identificador', value: e.contentHash.slice(0, 16) },
       { label: 'Método', value: 'Essencial' }, // linha do gerador preservada
     ]));
     expect(controle.find((r) => r.value === 'Rascunho')).toBeUndefined();
-    // O Status do cabeçalho também vira "Final" na versão congelada.
-    expect(e.content.meta).toEqual([{ label: 'Status', value: 'Final' }]);
+    // O Status do cabeçalho também vira "Emitido" na versão congelada.
+    expect(e.content.meta).toEqual([{ label: 'Status', value: 'Emitido' }]);
   });
 
   it('4. reemitir sem mudança devolve a v1 — não cria versão nova', async () => {
@@ -232,7 +232,7 @@ describe('gates de PLANO na emissão oficial (matriz de aceite 21/09)', () => {
 
   it('3. aprovada sem prazo bloqueia', async () => {
     const { svc } = build({ plans: [validado([{ ...aprovada, dueDate: null }])], obrigatorios: [sobrecarga] });
-    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável, prazo ou evidência esperada/);
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável ou prazo/);
   });
 
   it('7. plano não validado bloqueia', async () => {
@@ -325,6 +325,6 @@ describe('completude cobra a ação específica de GHE (revisão 24/09)', () => 
       obrigatorios: [sobrecarga],
       ghes: [{ ghe: 'GHE-Operações', obrigatorios: [sobrecarga] }],
     });
-    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável, prazo ou evidência esperada/);
+    await expect(svc.emit(TENANT, 'dossie_tecnico')).rejects.toThrow(/sem responsável ou prazo/);
   });
 });

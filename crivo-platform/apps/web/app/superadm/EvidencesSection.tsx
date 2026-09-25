@@ -50,7 +50,7 @@ function EvidenceContent({ e }: { e: EngineEvidenceRow }) {
   return (
     <>
       {e.planTitle && <p>Plano: {e.planTitle}</p>}
-      {e.note && <p>Obs.: {e.note}</p>}
+      {e.note && <p>{e.kind === "justificativa" ? "Justificativa" : "Obs."}: {e.note}</p>}
       <p>
         {e.fileName ? (
           <button

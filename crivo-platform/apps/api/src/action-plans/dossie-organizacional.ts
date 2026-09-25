@@ -176,30 +176,54 @@ export function tituloDaAcao(a: AcaoNumerada): string {
 }
 
 /**
- * Card de UMA ação aprovada, como no modelo: título em negrito, Medida,
- * Objetivo e dois pares lado a lado (Responsável | Prazo, Acompanhamento |
- * Evidência esperada), com filete lateral. Todo texto variável é escapado.
+ * Card de UMA ação aprovada, como no modelo final ajustado (25/09): faixa de
+ * título em negrito e, embaixo, Medida, Objetivo, Responsável | Prazo e
+ * Acompanhamento em linha inteira. A "Evidência esperada" saiu do documento:
+ * a evidência é acompanhada no Plano de Evolução, depois da emissão. Todo
+ * texto variável é escapado.
  */
 export function cardAcaoHtml(a: AcaoNumerada): string {
   const x = a.acao;
-  // Medidas do modelo: texto 8pt, título 9,3pt, borda 0,45pt e filete de 2,2pt.
-  const par = (rotulo: string, valor: string) =>
-    `<td style="width:50%;padding:2pt 10pt 2pt 0;vertical-align:top;border:0;font-size:8pt">` +
-    `<b>${esc(rotulo)}:</b> ${esc(valor)}</td>`;
-  const linha = (rotulo: string, valor: string) =>
-    `<p style="margin:0 0 5pt;font-size:8pt"><b>${esc(rotulo)}:</b> ${esc(valor)}</p>`;
+  // Medidas do modelo: texto 8pt, borda 0,45pt #C8BDAA, faixa #F8F6F1.
+  const linha = (conteudo: string) => `<div style="padding:0 9pt 7pt;font-size:8pt">${conteudo}</div>`;
+  const campo = (rotulo: string, valor: string) => `${esc(rotulo)}: ${esc(valor)}`;
   return (
-    '<div style="border:0.45pt solid #D8D1C5;border-left:2.2pt solid #B56E2E;padding:6pt 9pt 4pt;' +
-    'margin:0 0 7pt;break-inside:avoid;page-break-inside:avoid">' +
-    `<div style="font-weight:700;font-size:9.3pt;color:#14253F;margin:0 0 5pt">${esc(tituloDaAcao(a))}</div>` +
-    linha('Medida', x.action) +
-    linha('Objetivo', x.objective?.trim() || '—') +
-    '<table style="width:100%;border-collapse:collapse;margin:0">' +
-    `<tr>${par('Responsável da empresa', x.responsible?.trim() || '—')}${par('Prazo', dataPtBr(x.dueDate))}</tr>` +
-    `<tr>${par('Acompanhamento', x.indicator?.trim() || '—')}` +
-    `${par('Evidência esperada', x.expectedEvidence?.trim() || '—')}</tr>` +
-    '</table></div>'
+    '<div style="border:0.45pt solid #C8BDAA;margin:0 0 7pt;break-inside:avoid;page-break-inside:avoid">' +
+    '<div style="background:#F8F6F1;font-weight:700;font-size:8pt;color:#14253F;padding:4pt 9pt;margin:0 0 7pt">' +
+    `${esc(tituloDaAcao(a))}</div>` +
+    linha(campo('Medida', x.action)) +
+    linha(campo('Objetivo', x.objective?.trim() || '—')) +
+    linha(
+      '<table style="width:100%;border-collapse:collapse;margin:0;border:0"><tr>' +
+        `<td style="width:50%;padding:0;border:0;font-size:8pt">${campo('Responsável', x.responsible?.trim() || '—')}</td>` +
+        `<td style="width:50%;padding:0;border:0;font-size:8pt">${campo('Prazo', dataPtBr(x.dueDate))}</td>` +
+        '</tr></table>',
+    ) +
+    linha(campo('Acompanhamento', x.indicator?.trim() || '—')) +
+    '</div>'
   );
+}
+
+/**
+ * "Convidados" e "Taxa de participação" do Escopo da avaliação (modelo final
+ * 25/09). Só com convite registrado que cubra as respostas: resposta por link
+ * público sem convite faria a taxa passar de 100% — aí as linhas não saem.
+ */
+export function participacaoDoCiclo(
+  convidados: number,
+  respostasValidas: number,
+): { convidados: number; taxa: string } | null {
+  if (convidados <= 0 || convidados < respostasValidas) return null;
+  return { convidados, taxa: `${decimalPtBr((respostasValidas / convidados) * 100, 1)}%` };
+}
+
+/** CNPJ no formato do modelo (54.924.959/0001-42). Outro identificador legal
+ *  (CPF, CAEPF, texto livre) sai como foi cadastrado. */
+export function cnpjFormatado(taxId: string | null | undefined): string {
+  const bruto = (taxId ?? '').trim();
+  const d = bruto.replace(/\D/g, '');
+  if (d.length !== 14) return bruto || '—';
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }
 
 /** Fatores com R >= 10 (plano obrigatório) de uma matriz, na ordem do CÓDIGO —
@@ -309,8 +333,9 @@ export function tabelaPanorama(
   };
 }
 
-/** "Fatores que requerem ação" do anexo do GHE — R e Classificação pintados
- *  com a cor da classe, como no modelo. Mesmas classes CSS da tabela comum. */
+/** "Fatores que requerem ação" do anexo do GHE — R pintado com a cor da classe
+ *  e em negrito, como no modelo final (a Classificação sai sem fundo). Mesmas
+ *  classes CSS da tabela comum. */
 export function tabelaFatoresDoGheHtml(fatores: LinhaMatriz[], codigoDe: (slug: string) => string): string {
   const cab = ['ID', 'Fator', 'Exposição', 'P', 'S', 'R', 'Classificação']
     .map((c) => `<th>${esc(c)}</th>`)
@@ -321,8 +346,8 @@ export function tabelaFatoresDoGheHtml(fatores: LinhaMatriz[], codigoDe: (slug: 
       return (
         `<tr><td>${esc(codigoDe(f.slug))}</td><td>${esc(f.label)}</td>` +
         `<td>${esc(decimalPtBr(f.exposureAvg, 2))}</td><td>${f.probability}</td><td>${f.severity}</td>` +
-        `<td style="${cor}">${f.risk}</td>` +
-        `<td style="${cor}">${esc(PSYCHOSOCIAL_RISK_CLASS_LABEL[f.riskClass])}</td></tr>`
+        `<td style="${cor};font-weight:700">${f.risk}</td>` +
+        `<td>${esc(PSYCHOSOCIAL_RISK_CLASS_LABEL[f.riskClass])}</td></tr>`
       );
     })
     .join('');
@@ -330,8 +355,9 @@ export function tabelaFatoresDoGheHtml(fatores: LinhaMatriz[], codigoDe: (slug: 
 }
 
 /** Linhas do anexo em partes: o título se repete a cada parte, como no modelo
- *  (40 fatores → parte 1 e parte 2). Até `tamanho`, uma parte só, sem sufixo. */
-export function emPartes<T>(itens: T[], tamanho = 20): T[][] {
+ *  final (40 fatores → partes 1 a 4, cada uma abrindo página, com a fonte da
+ *  tabela sem redução). Até `tamanho`, uma parte só, sem sufixo. */
+export function emPartes<T>(itens: T[], tamanho = 10): T[][] {
   if (itens.length <= tamanho) return [itens];
   const out: T[][] = [];
   for (let i = 0; i < itens.length; i += tamanho) out.push(itens.slice(i, i + tamanho));

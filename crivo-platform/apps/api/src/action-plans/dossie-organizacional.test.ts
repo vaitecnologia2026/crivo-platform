@@ -7,10 +7,10 @@ import {
 } from '@crivo/types';
 
 /**
- * GABARITO do Dossiê Técnico Organizacional — modelo oficial de 23/09
- * (CRIVO_Dossie_Tecnico_Organizacional_OFICIAL_DEFINITIVO_23Set2026.pdf,
- * Massa Ouro: O2 Legacy, 19 respostas, GHEs Recursos Humanos 7 · Financeiro 6 ·
- * Operações 6). Os números de entrada são os do PDF; a saída tem de reproduzir
+ * GABARITO do Dossiê Técnico Organizacional — modelo final ajustado de 25/09
+ * (CRIVO_Dossie_Organizacional_Final_Ajustado.pdf, que substitui o de 23/09.
+ * Massa Ouro: O2 LEGACY, 19 convidados e 19 respostas, GHEs Recursos Humanos 7 ·
+ * Financeiro 6 · Operações 6). Os números de entrada são os do PDF; a saída tem de reproduzir
  * texto, colunas, ordem e numeração do documento. Se um valor aqui mudar, o
  * Dossiê deixou de bater com o modelo que o cliente homologa.
  */
@@ -28,8 +28,10 @@ vi.mock('../admin/methodology.service', () => ({
 import { DocumentsService } from './documents.service';
 import {
   cardAcaoHtml,
+  cnpjFormatado,
   leituraDoGhe,
   numerarAcoes,
+  participacaoDoCiclo,
   tabelaPanorama,
   tituloDaAcao,
   type AcaoPlano,
@@ -165,7 +167,7 @@ const ACOES = {
     point: 'Baixa autonomia', riskFactorSlug: 'rps-005', scopeGhe: null,
     action: 'Formalizar alçadas de decisão para situações recorrentes, definindo o que a equipe decide e o que deve ser escalado.',
     objective: 'Aumentar autonomia com clareza de limites, reduzindo centralização e retrabalho decisório.',
-    responsible: 'Diretoria Administrativa + Gestores', dueDate: meioDia('2026-12-22'),
+    responsible: 'Diretoria Administrativa + Gestores', dueDate: meioDia('2026-11-23'),
     indicator: 'Tempo de aprovação, decisões tomadas dentro da alçada e volume de escalonamentos.',
     expectedEvidence: 'Matriz de alçadas aprovada e comunicada às áreas abrangidas.',
   },
@@ -173,7 +175,7 @@ const ACOES = {
     point: 'Demandas simultâneas e interrupções recorrentes', riskFactorSlug: 'rps-003', scopeGhe: null,
     action: 'Instituir rotina semanal de priorização, com critérios de urgência, interrupção e escalonamento.',
     objective: 'Reduzir simultaneidade de demandas, conflitos de prioridade e interrupções evitáveis.',
-    responsible: 'Coordenadores / Gestores', dueDate: meioDia('2026-10-23'),
+    responsible: 'Coordenadores / Gestores', dueDate: meioDia('2026-10-24'),
     indicator: 'Aderência ao ritual, pendências críticas e ocorrências de repriorização emergencial.',
     expectedEvidence: 'Registro semanal de prioridades, pauta/ata do ritual e critérios de escalonamento publicados.',
   },
@@ -189,7 +191,7 @@ const ACOES = {
     point: 'Falta de suporte gerencial', riskFactorSlug: 'rps-018', scopeGhe: null,
     action: 'Padronizar fluxo de suporte da liderança e escalonamento de impedimentos operacionais.',
     objective: 'Aumentar disponibilidade e previsibilidade do suporte gerencial em situações críticas.',
-    responsible: 'RH + Gestores', dueDate: meioDia('2026-11-22'),
+    responsible: 'RH + Gestores', dueDate: meioDia('2026-12-22'),
     indicator: 'Tempo de resposta, volume de escalonamentos e percepção de apoio no acompanhamento do ciclo.',
     expectedEvidence: 'Fluxo de suporte validado, responsáveis definidos e registros de escalonamento.',
   },
@@ -237,17 +239,32 @@ describe('peças do modelo oficial (funções puras)', () => {
     ]);
   });
 
-  it('card da ação com os campos do modelo, escapando o texto', () => {
+  it('card da ação com os campos do modelo final, sem evidência esperada, escapando o texto', () => {
     const [pa1] = numerar();
     const html = cardAcaoHtml(pa1);
     expect(html).toContain('PA-001 - Resultado Geral da Organização - RPS-001 - Sobrecarga de trabalho');
-    expect(html).toContain('<b>Medida:</b> Instituir revisão mensal de capacidade');
-    expect(html).toContain('<b>Responsável da empresa:</b> RH + Gestores');
-    expect(html).toContain('<b>Prazo:</b> 22/11/2026');
-    expect(html).toContain('<b>Acompanhamento:</b> Horas extras');
-    expect(html).toContain('<b>Evidência esperada:</b> Registro mensal de capacidade');
+    expect(html).toContain('>Medida: Instituir revisão mensal de capacidade');
+    expect(html).toContain('>Objetivo: Reduzir sobrecarga recorrente');
+    expect(html).toContain('>Responsável: RH + Gestores<');
+    expect(html).toContain('>Prazo: 22/11/2026<');
+    expect(html).toContain('>Acompanhamento: Horas extras, backlog, volume demanda/capacidade e recorrência de picos.<');
+    // Evidência é acompanhada no Plano, não no documento emitido.
+    expect(html).not.toContain('Evidência');
+    expect(html).not.toContain('Responsável da empresa');
     const perigoso = cardAcaoHtml({ ...pa1, acao: { ...pa1.acao, action: '<script>x</script>' } });
     expect(perigoso).not.toContain('<script>');
+  });
+
+  it('CNPJ no formato do modelo e participação só com convite que cubra as respostas', () => {
+    expect(cnpjFormatado('54924959000142')).toBe('54.924.959/0001-42');
+    expect(cnpjFormatado('54.924.959/0001-42')).toBe('54.924.959/0001-42');
+    expect(cnpjFormatado('123')).toBe('123');
+    expect(cnpjFormatado(null)).toBe('—');
+    expect(participacaoDoCiclo(19, 19)).toEqual({ convidados: 19, taxa: '100,0%' });
+    expect(participacaoDoCiclo(30, 19)).toEqual({ convidados: 30, taxa: '63,3%' });
+    // Sem convite, ou resposta por link público além dos convidados: não sai.
+    expect(participacaoDoCiclo(0, 19)).toBeNull();
+    expect(participacaoDoCiclo(10, 19)).toBeNull();
   });
 
   it('leitura do grupo: sem específica, "as medidas gerais abrangem"; com uma, "além das medidas gerais"', () => {
@@ -323,11 +340,12 @@ async function gerarDossie(): Promise<GeneratedDocument> {
   espiar('approvedTextsOf', {});
   espiar('sectorAdhesion', { minRespondents: 5, total: 19, sectors: [] });
   espiar('activeVersionLabel', 'CRIVO NR-1 v2.0');
+  espiar('convidadosDoCiclo', 19);
 
   const generate = (priv.generateDossieTecnico as unknown as (t: string, c: unknown) => Promise<GeneratedDocument>).bind(svc);
   return generate('org-ouro', {
     company: 'ORGANIZACIONAL TESTE 23 09 2026',
-    org: { legalName: 'O2 Legacy', taxId: '54924959000142' },
+    org: { legalName: 'O2 LEGACY', taxId: '54924959000142' },
     contract: { technicalOutput: 'SEM_INTEGRACAO', responsible: 'RH' },
     method: 'ORGANIZACIONAL',
     plans: [
@@ -348,7 +366,7 @@ async function gerarDossie(): Promise<GeneratedDocument> {
 const secao = (doc: GeneratedDocument, heading: string, n = 0) =>
   doc.sections.filter((s) => s.heading === heading)[n];
 
-describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', () => {
+describe('Dossiê Organizacional montado — igual ao modelo final de 25/09', () => {
   it('cabeçalho: subtítulo e os 8 campos do modelo, em pares', async () => {
     const doc = await gerarDossie();
     expect(doc.subtitle).toBe('Documento técnico de apoio à gestão preventiva');
@@ -358,13 +376,14 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
       'Período avaliado', 'Data de emissão', 'Versão metodológica', 'Status',
     ]);
     const valor = (l: string) => doc.meta.find((m) => m.label === l)?.value;
+    expect(valor('CNPJ')).toBe('54.924.959/0001-42');
     expect(valor('Método aplicado')).toBe('Diagnóstico Organizacional CRIVO');
     expect(valor('Respostas válidas')).toBe('19');
     expect(valor('Versão metodológica')).toBe('CRIVO NR-1 v2.0');
     expect(valor('Data de emissão')).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
 
-  it('seções na ordem do modelo (13 páginas, anexo em partes e um bloco por GHE)', async () => {
+  it('seções na ordem do modelo (14 páginas, anexo em 4 partes e um bloco por GHE)', async () => {
     const doc = await gerarDossie();
     const ghe = (nome: string) => [
       `Anexo técnico - GHE - ${nome}`,
@@ -381,9 +400,12 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
       'Inventário técnico', 'Caracterização dos fatores prioritários - Resultado Geral', '', '',
       'Plano, registros e responsabilidade', 'Plano de ação aprovado - Resultado Geral da Organização',
       'Medidas existentes validadas',
-      'Controle documental', 'Responsabilidade', 'Referências',
+      'Controle documental', 'Responsabilidade', 'Estado do documento e acompanhamento',
+      'Referências técnicas e metodológicas', '',
       'Anexo técnico - fatores classificados', 'Resultado consolidado do ciclo - parte 1',
       'Anexo técnico - fatores classificados', 'Resultado consolidado do ciclo - parte 2',
+      'Anexo técnico - fatores classificados', 'Resultado consolidado do ciclo - parte 3',
+      'Anexo técnico - fatores classificados', 'Resultado consolidado do ciclo - parte 4',
       ...ghe('Recursos Humanos'), ...ghe('Financeiro'), ...ghe('Operações'),
     ]);
   });
@@ -392,22 +414,33 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     const doc = await gerarDossie();
     expect(secao(doc, 'Objetivo e escopo').body).toBe(
       'Este dossiê consolida os fatores de riscos psicossociais relacionados ao trabalho identificados ' +
-        'no ciclo e organiza os resultados, as prioridades técnicas e as medidas aprovadas para apoiar a ' +
-        'prevenção e o acompanhamento pela organização.\n\n' +
-        'Os resultados podem subsidiar a Avaliação Ergonômica Preliminar (AEP) e a atualização dos ' +
-        'documentos de Segurança e Saúde no Trabalho da organização, quando aplicável. Este documento não ' +
-        'substitui a AEP, o PGR, a validação técnica ou as responsabilidades legais da empresa.\n\n' +
-        'O escopo é restrito às condições, à organização e à gestão do trabalho. Não realiza diagnóstico ' +
-        'clínico individual, avaliação psicológica individual nem análise de aspectos pessoais ' +
-        'desvinculados do trabalho.',
+        'no ciclo, apresenta os resultados e prioridades técnicas e registra as medidas aprovadas pela ' +
+        'organização para prevenção e acompanhamento.\n\n' +
+        'Os resultados podem apoiar a Avaliação Ergonômica Preliminar (AEP) e a atualização do Programa ' +
+        'de Gerenciamento de Riscos (PGR), quando aplicável. O documento trata exclusivamente das ' +
+        'condições, da organização e da gestão do trabalho; não substitui a AEP, o PGR ou a validação da ' +
+        'organização e não realiza diagnóstico clínico ou psicológico individual.',
     );
-    expect(secao(doc, 'Responsabilidades').rows?.[1].value).toBe(
-      'Valida as informações de contexto, aprova e implementa as ações, define os responsáveis internos ' +
-        'e mantém atualizados os documentos de SST sob sua responsabilidade.',
-    );
+    expect(secao(doc, 'Responsabilidades').rows).toEqual([
+      {
+        label: 'CRIVO',
+        value:
+          'Aplica o Método CRIVO vigente, processa as respostas conforme as regras registradas para o ' +
+          'ciclo e gera este dossiê técnico.',
+      },
+      {
+        label: 'Organização',
+        value:
+          'Confirma as informações de contexto, aprova e implementa as medidas, define responsáveis e ' +
+          'prazos, acompanha os resultados e mantém atualizados seus documentos de Segurança e Saúde no ' +
+          'Trabalho (SST).',
+      },
+    ]);
     expect(secao(doc, 'Escopo da avaliação').rows).toEqual([
+      { label: 'Convidados', value: '19' },
       { label: 'Respostas válidas', value: '19' },
-      { label: 'Estrutura considerada', value: 'Organização e GHEs cadastrados no ciclo' },
+      { label: 'Taxa de participação', value: '100,0%' },
+      { label: 'Estrutura considerada', value: 'Organização e GHEs (Grupos de Exposição) cadastrados no ciclo' },
       { label: 'Recortes exibidos', value: 'GHE - Recursos Humanos; GHE - Financeiro; GHE - Operações' },
       {
         label: 'Confidencialidade',
@@ -459,6 +492,12 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     const panorama = doc.sections[doc.sections.findIndex((s) => s.heading === 'Resultado Geral e panorama dos GHEs') + 1];
     expect(panorama.table?.data[0]).toEqual(['Resultado Geral da Organização', '19', '72,3', 'Em estruturação', '4', '16', '4 ações gerais']);
     expect(panorama.table?.data[3]).toEqual(['Operações', '6', '72,0', 'Em estruturação', '4', '20', '1']);
+    const nota = doc.sections[doc.sections.findIndex((s) => s.heading === 'Leitura por grupo') + 1];
+    expect(nota.nota).toBe(true);
+    expect(nota.body).toBe(
+      'O detalhamento técnico de cada GHE e as ações aplicáveis aparecem no Anexo Técnico por GHE, ' +
+        'mantendo o corpo principal objetivo mesmo quando a organização possuir muitos grupos expostos.',
+    );
     const leitura = secao(doc, 'Leitura por grupo').table!;
     expect(leitura.columns).toEqual(['GHE', 'Leitura técnica do ciclo']);
     expect(leitura.data.map((r) => r[0])).toEqual(['Recursos Humanos', 'Financeiro', 'Operações']);
@@ -480,14 +519,16 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     );
   });
 
-  it('páginas 6 e 7: 4 cards gerais (a do GHE não se repete aqui) e medidas existentes', async () => {
+  it('página 6: 4 cards gerais (a do GHE não se repete aqui) e medidas existentes', async () => {
     const doc = await gerarDossie();
     const plano = secao(doc, 'Plano de ação aprovado - Resultado Geral da Organização');
     expect(plano.body).toBe(
       'As medidas abaixo correspondem às ações aprovadas pela organização para os fatores prioritários ' +
-        'do Resultado Geral. O responsável é da empresa contratante. A evidência esperada e a forma de ' +
-        'acompanhamento foram definidas no Plano de Evolução antes da emissão do documento.',
+        'do Resultado Geral. O Dossiê registra o estado validado no momento da emissão. O ' +
+        'acompanhamento posterior ocorre no Plano de Evolução.',
     );
+    expect(plano.html).not.toContain('Evidência esperada');
+    expect(doc.sections.some((s) => s.heading === 'Evidências')).toBe(false);
     const titulos = [...plano.html!.matchAll(/PA-\d{3} - [^<]+/g)].map((m) => m[0]);
     expect(titulos).toEqual([
       'PA-001 - Resultado Geral da Organização - RPS-001 - Sobrecarga de trabalho',
@@ -504,38 +545,52 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     });
   });
 
-  it('página 8: controle documental abre página; responsabilidade e referências do modelo', async () => {
+  it('página 7: controle documental abre página; responsabilidade, estado e referências do modelo', async () => {
     const doc = await gerarDossie();
     const controle = secao(doc, 'Controle documental');
     expect(controle.novaPagina).toBe(true);
     expect(controle.rows).toEqual(expect.arrayContaining([
       { label: 'Validação', value: 'Organização / responsável autorizado' },
       { label: 'Método', value: 'CRIVO NR-1 v2.0' },
-      { label: 'Organização', value: 'O2 Legacy' },
+      { label: 'Organização', value: 'O2 LEGACY' },
     ]));
     expect(secao(doc, 'Responsabilidade').body).toContain(
       'A organização contratante valida o contexto, os responsáveis e as ações, implementa as medidas ' +
-        'aprovadas e realiza as integrações com seus documentos de SST quando aplicáveis.',
+        'aprovadas e realiza as integrações com seus documentos de Segurança e Saúde no Trabalho quando ' +
+        'aplicáveis.',
     );
-    expect(secao(doc, 'Referências').body).toBe(
+    expect(secao(doc, 'Estado do documento e acompanhamento').body).toBe(
+      'Este Dossiê registra o estado validado no momento da emissão e permanece inalterado. O ' +
+        'acompanhamento posterior das ações ocorre no Plano de Evolução e pode ser documentado por meio ' +
+        'do Extrato do Plano de Ação Preventivo, sem alterar retroativamente este documento.',
+    );
+    expect(secao(doc, 'Referências técnicas e metodológicas').body).toBe(
       'NR-1 - Disposições Gerais e Gerenciamento de Riscos Ocupacionais; NR-17 - Ergonomia; Guia de ' +
         'Informações sobre os Fatores de Riscos Psicossociais Relacionados ao Trabalho - Ministério do ' +
         'Trabalho e Emprego; Manual de Interpretação e Aplicação do Capítulo 1.5 da NR-1 - Gerenciamento ' +
-        'de Riscos Ocupacionais (GRO) - Ministério do Trabalho e Emprego, 2026.',
+        'de Riscos Ocupacionais (GRO) - Ministério do Trabalho e Emprego; COPSOQ / Copenhagen ' +
+        'Psychosocial Questionnaire; HSE Management Standards.',
     );
+    const autoral = doc.sections[doc.sections.findIndex((s) => s.heading === 'Referências técnicas e metodológicas') + 1];
+    expect(autoral).toEqual({
+      heading: '',
+      nota: true,
+      body:
+        'O instrumento CRIVO é autoral. As referências acima subsidiam a estrutura metodológica e não ' +
+        'significam aplicação integral de instrumentos de terceiros.',
+    });
   });
 
-  it('páginas 9 e 10: 40 fatores em duas partes de 20, na ordem do código', async () => {
+  it('páginas 8 a 11: 40 fatores em quatro partes de 10, na ordem do código', async () => {
     const doc = await gerarDossie();
-    const p1 = secao(doc, 'Resultado consolidado do ciclo - parte 1').table!;
-    const p2 = secao(doc, 'Resultado consolidado do ciclo - parte 2').table!;
-    expect(p1.columns).toEqual(['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação']);
-    expect(p1.data).toHaveLength(20);
-    expect(p2.data).toHaveLength(20);
-    expect(p1.data[0]).toEqual(['RPS-001', 'Sobrecarga de trabalho', 'Demandas e Ritmo de Trabalho', '3,58', '4', '4', '16', 'Muito alto / Prioridade imediata']);
-    expect(p1.data[19][0]).toBe('RPS-020');
-    expect(p2.data[0]).toEqual(['RPS-021', 'Falta de apoio social no trabalho', 'Relações, Respeito e Segurança Psicológica', '1,63', '2', '3', '6', 'Moderado / Atenção pontual']);
-    expect(p2.data[19][0]).toBe('RPS-040');
+    const parte = (n: number) => secao(doc, `Resultado consolidado do ciclo - parte ${n}`).table!;
+    expect(parte(1).columns).toEqual(['ID', 'Fator', 'Dimensão relacionada', 'Exposição', 'P', 'S', 'R', 'Classificação']);
+    expect([1, 2, 3, 4].map((n) => parte(n).data.length)).toEqual([10, 10, 10, 10]);
+    expect(parte(1).data[0]).toEqual(['RPS-001', 'Sobrecarga de trabalho', 'Demandas e Ritmo de Trabalho', '3,58', '4', '4', '16', 'Muito alto / Prioridade imediata']);
+    expect(parte(1).data[9][0]).toBe('RPS-010');
+    expect(parte(2).data[0][0]).toBe('RPS-011');
+    expect(parte(3).data[0]).toEqual(['RPS-021', 'Falta de apoio social no trabalho', 'Relações, Respeito e Segurança Psicológica', '1,63', '2', '3', '6', 'Moderado / Atenção pontual']);
+    expect(parte(4).data[9][0]).toBe('RPS-040');
   });
 
   // Conferência VISUAL contra o PDF: `DOSSIE_OURO_JSON=<arquivo> npx vitest run
@@ -548,7 +603,7 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     writeFileSync(destino, JSON.stringify(await gerarDossie(), null, 2));
   });
 
-  it('páginas 11 a 13: bloco de cada GHE com os fatores DELE e as ações aplicáveis', async () => {
+  it('páginas 12 a 14: bloco de cada GHE com os fatores DELE e as ações aplicáveis', async () => {
     const doc = await gerarDossie();
     const bloco = (nome: string) => {
       const i = doc.sections.findIndex((s) => s.heading === `Anexo técnico - GHE - ${nome}`);
@@ -561,18 +616,18 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
       { label: 'Fatores com R >= 10', value: '3' },
       { label: 'Maior risco técnico', value: '16' },
     ]);
-    // Na ordem do código; R e Classificação pintados com a cor da classe.
+    // Na ordem do código; só o R pintado com a cor da classe (modelo final).
     expect([...fatoresRh.html!.matchAll(/<td>(RPS-\d{3})<\/td>/g)].map((m) => m[1])).toEqual(['RPS-001', 'RPS-003', 'RPS-018']);
     expect(fatoresRh.html).toContain('<td>3,57</td>');
-    expect(fatoresRh.html).toContain('<td style="background:#E74B3B">16</td>');
-    expect(fatoresRh.html).toContain('<td style="background:#F58B3A">Alto / Requer plano de ação</td>');
+    expect(fatoresRh.html).toContain('<td style="background:#E74B3B;font-weight:700">16</td>');
+    expect(fatoresRh.html).toContain('<td>Alto / Requer plano de ação</td>');
     // RH não tem Baixa autonomia com R >= 10: a PA-004 não vale para o grupo.
     expect(geraisRh.table?.columns).toEqual(['ID', 'Fator', 'Medida aprovada', 'Responsável', 'Prazo']);
     expect(geraisRh.table?.data.map((r) => r[0])).toEqual(['PA-001', 'PA-002', 'PA-003']);
     expect(geraisRh.table?.data[1]).toEqual([
       'PA-002', 'Demandas simultâneas e interrupções recorrentes',
       'Instituir rotina semanal de priorização, com critérios de urgência, interrupção e escalonamento.',
-      'Coordenadores / Gestores', '23/10/2026',
+      'Coordenadores / Gestores', '24/10/2026',
     ]);
     expect(especRh.rows).toEqual([{
       label: 'Situação',
@@ -589,7 +644,9 @@ describe('Dossiê Organizacional montado — igual ao modelo oficial de 23/09', 
     expect(leituraOp.rows?.[3]).toEqual({ label: 'Maior risco técnico', value: '20' });
     expect(geraisOp.table?.data.map((r) => r[0])).toEqual(['PA-001', 'PA-002', 'PA-003', 'PA-004']);
     expect(especOp.html).toContain('PA-005 - GHE - Operações - RPS-001 - Sobrecarga de trabalho');
-    expect(especOp.html).toContain('<b>Responsável da empresa:</b> Gerente de Operações');
+    expect(especOp.html).toContain('>Responsável: Gerente de Operações<');
+    expect(especOp.html).toContain('>Prazo: 23/10/2026<');
+    expect(especOp.html).not.toContain('Evidência');
   });
 });
 

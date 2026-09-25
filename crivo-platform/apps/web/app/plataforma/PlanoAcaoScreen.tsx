@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   ACTION_STATUSES,
   ACTION_STATUS_LABEL,
+  EVIDENCE_KIND_JUSTIFICATIVA,
+  MSG_CONCLUSAO_SEM_COMPROVACAO,
+  acaoEncerrada,
+  podeConcluirAcao,
   INVENTORY_RISK_LEVELS,
   INVENTORY_RISK_LABEL,
   RISK_LEVELS_3,
@@ -44,7 +48,8 @@ import {
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
 
-const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link"];
+// "justificativa" é texto, sem arquivo: vale para concluir depois de validada.
+const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link", EVIDENCE_KIND_JUSTIFICATIVA];
 
 /** GHEs ELEGÍVEIS do ciclo — os escopos que uma ação pode ter além da
  *  Organização (Dossiê Organizacional). Vazio fora do Organizacional: aí o
@@ -601,18 +606,26 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   // aprova na mesma gravação.
   const [aprovando, setAprovando] = useState(false);
   async function setStatus(s: ActionStatus) {
+    // Concluir exige evidência anexada ou justificativa validada (o servidor
+    // confere de novo). Sem comprovação, abre o painel de evidências.
+    if (acaoEncerrada(s) && !acaoEncerrada(item.status) && !podeConcluirAcao(item.evidences)) {
+      alert(MSG_CONCLUSAO_SEM_COMPROVACAO);
+      setEvOpen(true);
+      return;
+    }
     try { await updateActionItem(item.id, { status: s }); onChanged(); }
     catch (e) { alert(e instanceof Error ? e.message : "Falha"); }
   }
   // Sugestão ainda não decidida: a organização Edita, Aprova ou Descarta
   // (Ajustes Finais de Homologação). Só depois de aprovada entra no Dossiê.
   const pendente = item.status === "SUGERIDA" || item.status === "EM_REVISAO";
-  // Responsável e evidência esperada são exigidos pelo servidor para aprovar.
+  // Responsável é exigido pelo servidor para aprovar (a evidência esperada
+  // deixou de ser obrigatória no modelo final de 25/09).
   // Antes, o clique falhava com um alerta e abria os detalhes; quem preenchia e
   // salvava achava que tinha aprovado — e a ação seguia SUGERIDA, fora do
   // Dossiê (homologação 17/09: 12 ações editadas, zero aprovadas). Agora, se
   // falta algo, os detalhes abrem em modo "Salvar e aprovar": uma gravação só.
-  const prontaParaAprovar = !!item.responsible?.trim() && !!item.expectedEvidence?.trim();
+  const prontaParaAprovar = !!item.responsible?.trim();
   async function aprovar() {
     if (!prontaParaAprovar) {
       setAprovando(true);
@@ -662,7 +675,7 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span className="card__sub">{ACTION_STATUS_LABEL[item.status]}</span>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                <button className="btn btn--terra btn--sm" onClick={() => void aprovar()} title="Exige responsável e evidência esperada (em detalhes)">Aprovar</button>
+                <button className="btn btn--terra btn--sm" onClick={() => void aprovar()} title="Exige responsável (em detalhes)">Aprovar</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => setDetailsOpen(true)}>Editar</button>
                 <button className="btn btn--ghost btn--sm" onClick={() => void descartar()}>Descartar</button>
               </div>
@@ -758,7 +771,6 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     if (aprovar) {
       const faltam = [
         !f.responsible.trim() ? "responsável" : null,
-        !f.expectedEvidence.trim() ? "evidência esperada" : null,
       ].filter(Boolean);
       if (faltam.length) {
         setErro(`Para aprovar, preencha: ${faltam.join(" e ")}.`);
@@ -795,7 +807,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     <div style={{ padding: 12 }}>
       {aprovar && (
         <p className="card__sub" style={{ margin: "0 0 10px" }}>
-          <strong>Aprovar esta ação.</strong> Informe o responsável e a evidência esperada (obrigatórios) —
+          <strong>Aprovar esta ação.</strong> Informe o responsável (obrigatório) —
           ao salvar, a ação fica <strong>Aprovada</strong> e passa a compor o Dossiê.
         </p>
       )}
@@ -807,7 +819,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
         <label className="prod-field"><span>Responsável (obrigatório para aprovar)</span>
           <input value={f.responsible} onChange={(e) => setF((s) => ({ ...s, responsible: e.target.value }))} placeholder="Ex.: Gerente de Operações" />
         </label>
-        <label className="prod-field"><span>Evidência esperada (obrigatória para aprovar)</span>
+        <label className="prod-field"><span>Evidência esperada (opcional)</span>
           <input value={f.expectedEvidence} onChange={(e) => setF((s) => ({ ...s, expectedEvidence: e.target.value }))} placeholder="Ex.: ata da reunião, relatório de carga" />
         </label>
         <label className="prod-field"><span>Prazo</span>
@@ -865,18 +877,22 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const justificativa = kind === EVIDENCE_KIND_JUSTIFICATIVA;
   async function add(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      if (file) {
+      if (justificativa) {
+        await addEvidence(item.id, { kind, title: title.trim() || "Justificativa de conclusão", note: note.trim() });
+      } else if (file) {
         // §9 — upload de arquivo (prioridade sobre o link quando há arquivo).
         await uploadEvidence(item.id, file, { kind, title: title.trim() || file.name });
       } else {
         await addEvidence(item.id, { kind, title: title.trim(), url: url || undefined });
       }
-      setTitle(""); setUrl(""); setFile(null); onChanged();
+      setTitle(""); setUrl(""); setFile(null); setNote(""); onChanged();
     }
     catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
   }
@@ -905,6 +921,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
               >
                 {ev.status === "APROVADA" ? "Aprovada pela CRIVO" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando validação CRIVO"}
               </span>
+              {ev.kind === EVIDENCE_KIND_JUSTIFICATIVA && ev.note && <span>{ev.note}</span>}
               <span>
                 {ev.kind}
                 {ev.fileName && <> · <button type="button" className="lib-act" onClick={() => baixar(ev)}>baixar {ev.fileName} ({fmtSize(ev.fileSize)})</button></>}
@@ -920,16 +937,24 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
           <select value={kind} onChange={(e) => setKind(e.target.value)}>{EVIDENCE_KINDS.map((k) => (<option key={k}>{k}</option>))}</select>
         </label>
         <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Título</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Ata da reunião 12/06" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={justificativa ? "Justificativa de conclusão" : "Ex.: Ata da reunião 12/06"} />
         </label>
-        <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Arquivo (até 8 MB)</span>
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>ou Link</span>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" disabled={!!file} />
-        </label>
-        <button type="submit" className="btn btn--terra btn--sm" disabled={saving || (!file && !title.trim() && !url)}>
-          {saving ? "Enviando…" : file ? "Enviar arquivo" : "Anexar"}
+        {justificativa ? (
+          <label className="prod-field" style={{ flex: 2, minWidth: 220 }}><span>Justificativa (vale para concluir depois de validada)</span>
+            <textarea rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Por que a ação pode ser concluída sem outro registro" />
+          </label>
+        ) : (
+          <>
+            <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>Arquivo (até 8 MB)</span>
+              <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </label>
+            <label className="prod-field" style={{ flex: 1, minWidth: 160 }}><span>ou Link</span>
+              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" disabled={!!file} />
+            </label>
+          </>
+        )}
+        <button type="submit" className="btn btn--terra btn--sm" disabled={saving || (justificativa ? !note.trim() : !file && !title.trim() && !url)}>
+          {saving ? "Enviando…" : justificativa ? "Registrar justificativa" : file ? "Enviar arquivo" : "Anexar"}
         </button>
       </form>
     </div>

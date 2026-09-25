@@ -164,6 +164,7 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       const cls = [
         s.heading && !inner ? "bloco" : /^Anexo t[eé]cnico/i.test(s.heading ?? "") ? "anexo" : "",
         s.novaPagina ? "quebra" : "",
+        s.nota ? "nota" : "",
       ].filter(Boolean).join(" ");
       return `<section${cls ? ` class="${cls}"` : ""}>${title}${inner}</section>`;
     })
@@ -217,17 +218,17 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   section table:not(.kv):not(.grid):not(.ident):not(.mdl-grid):not(.mdl-rows) td { border: 0; padding: 4px 10px 4px 0; text-align: left; vertical-align: top; }
   .note { margin-top: 30px; padding: 14px 16px; background: #f6f4f0; border-left: 3px solid #a8693d; font-size: 11.5px; color: #3a4858; font-style: italic; }
   /* Dossiê Técnico (Essencial e Organizacional): a régua tipográfica do modelo
-     oficial de 23/09, medida no PDF — Times, corpo 9pt, tabelas 7,4pt,
-     subtítulos 10,2pt, títulos de bloco 14pt, título 17,5pt, grade fina
-     #D8D1C5 com cabeçalho #F1EEE8. Na escala anterior (Georgia 12pt) o mesmo
-     conteúdo saía em 19 páginas, contra 13 do modelo. Os demais documentos
-     seguem com o desenho deles. */
+     oficial, medida no PDF — Times, corpo 9pt, subtítulos 10,2pt, títulos de
+     bloco 14pt, grade #C8BDAA com cabeçalho #F1EEE8. Modelo final de 25/09:
+     tabelas e fontes secundárias SEM redução (8pt, rótulos em negrito, título
+     18,5pt) — a quebra de página é natural, mesmo que o documento cresça. Os
+     demais documentos seguem com o desenho deles. */
   body.modelo-dossie { font-family: 'Times New Roman', Times, serif; color: #16233A; font-size: 9pt; line-height: 1.25; }
   body.modelo-dossie .brandbar b { color: #14253F; }
   body.modelo-dossie .rule { border-top: 1.2pt solid #0F2746; margin: 0 0 14pt; }
   /* 85%: o título quebra depois de "Psicossociais", como no modelo. */
-  body.modelo-dossie h1 { font-size: 17.5pt; font-weight: 700; color: #14253F; line-height: 1.12; margin: 0 0 3pt; max-width: 85%; }
-  body.modelo-dossie .sub { font-size: 8.4pt; color: #627083; margin-bottom: 8pt; }
+  body.modelo-dossie h1 { font-size: 18.5pt; font-weight: 700; color: #14253F; line-height: 1.12; margin: 0 0 3pt; max-width: 85%; }
+  body.modelo-dossie .sub { font-size: 9.3pt; color: #627083; margin-bottom: 8pt; }
   body.modelo-dossie p { margin: 0 0 6pt; }
   body.modelo-dossie h2 { font-size: 10.2pt; color: #14253F; border-bottom: 0.6pt solid #0F2746; padding-bottom: 3pt; margin: 14pt 0 7pt; }
   body.modelo-dossie section.bloco > h2 { font-size: 14pt; border-bottom: 0; padding-bottom: 0; margin: 18pt 0 2pt; }
@@ -235,16 +236,19 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
   /* Seção que abre página com conteúdo ("Controle documental"): título do
      tamanho de bloco, com o filete embaixo, como no modelo. */
   body.modelo-dossie section.quebra > h2 { font-size: 14pt; margin-top: 18pt; }
-  body.modelo-dossie table { font-size: 7.4pt; margin: 5pt 0 10pt; }
-  body.modelo-dossie table.ident { margin-top: 8pt; border: 0.28pt solid #D8D1C5; }
-  body.modelo-dossie table.ident th, body.modelo-dossie table.ident td { padding: 5pt 7pt; border: 0.28pt solid #D8D1C5; }
-  body.modelo-dossie table.ident th { background: #F1EEE8; color: #16233A; font-size: 7.4pt; }
+  body.modelo-dossie table { font-size: 8pt; margin: 5pt 0 10pt; }
+  body.modelo-dossie table.ident { margin-top: 8pt; border: 0.4pt solid #C8BDAA; }
+  body.modelo-dossie table.ident th, body.modelo-dossie table.ident td { padding: 5pt 7pt; border: 0.4pt solid #C8BDAA; }
+  body.modelo-dossie table.ident th { background: #F1EEE8; color: #16233A; font-size: 8pt; }
   body.modelo-dossie table.ident td { color: #16233A; }
-  body.modelo-dossie table.kv { border: 0.28pt solid #D8D1C5; }
-  body.modelo-dossie table.kv th, body.modelo-dossie table.kv td { padding: 4pt 6pt; border: 0.28pt solid #D8D1C5; vertical-align: top; }
-  body.modelo-dossie table.kv th { width: 25%; color: #16233A; font-weight: 400; }
-  body.modelo-dossie table.grid th, body.modelo-dossie table.grid td { border: 0.28pt solid #D8D1C5; padding: 3.5pt 5pt; }
-  body.modelo-dossie table.grid th { background: #F1EEE8; color: #16233A; font-size: 7.4pt; }
+  body.modelo-dossie table.kv { border: 0.4pt solid #C8BDAA; }
+  body.modelo-dossie table.kv th, body.modelo-dossie table.kv td { padding: 4.5pt 6pt; border: 0.4pt solid #C8BDAA; vertical-align: top; }
+  body.modelo-dossie table.kv th { width: 25%; color: #16233A; font-weight: 700; }
+  body.modelo-dossie table.grid th, body.modelo-dossie table.grid td { border: 0.4pt solid #C8BDAA; padding: 4.5pt 5pt; }
+  body.modelo-dossie table.grid th { background: #F1EEE8; color: #16233A; font-size: 8pt; }
+  /* Observação de rodapé do modelo ("As possíveis lesões…", "O instrumento
+     CRIVO é autoral…"): itálico, um passo abaixo do corpo. */
+  body.modelo-dossie section.nota p { font-style: italic; font-size: 7.6pt; color: #3A4858; }
   .foot { margin-top: 16px; font-size: 11px; color: #8a97a5; }
   /* Margem zero na PAGINA tira o cabecalho/rodape que o navegador imprime
      por conta propria (data, titulo, URL blob: e numero de pagina). O
@@ -272,7 +276,7 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       vertical-align: top;
       padding-top: 3mm;
       border-top: 0.5pt solid #D5D9DC;
-      font: 6pt 'Times New Roman', Times, serif;
+      font: 6.4pt 'Times New Roman', Times, serif;
       color: #627083;
     }
     @bottom-right {
@@ -282,7 +286,7 @@ export function renderDocumentHtml(doc: GeneratedDocument): string {
       vertical-align: top;
       padding-top: 3mm;
       border-top: 0.5pt solid #D5D9DC;
-      font: 6pt 'Times New Roman', Times, serif;
+      font: 6.4pt 'Times New Roman', Times, serif;
       color: #627083;
     }
   }

@@ -1,7 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  EVIDENCE_KIND_JUSTIFICATIVA,
   MIN_LEADERS_FOR_DISCLOSURE,
+  MSG_CONCLUSAO_SEM_COMPROVACAO,
+  acaoEncerrada,
   actionTermDays,
+  podeConcluirAcao,
   TENSION_TO_TEMPLATE_CATEGORIES,
   type ActionItemData,
   type ActionPlanData,
@@ -336,17 +340,25 @@ export class ActionPlansService {
       const existing = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!existing) throw new NotFoundException('Ação não encontrada');
 
-      // Validação de Homologação: exigir responsável e evidência esperada antes de aprovar.
-      // "Definir onde é cadastrado/selecionado e exigir antes da aprovação final."
+      // Validação de Homologação: exigir responsável antes de aprovar. A
+      // evidência esperada deixou de ser obrigatória (modelo final 25/09): a
+      // evidência é acompanhada no Plano, depois da aprovação.
       const newStatus = (dto.status ?? existing.status) as ActionStatus;
       if (newStatus === 'APROVADA') {
         const responsible = dto.responsible !== undefined ? dto.responsible : existing.responsible;
-        const expectedEvidence = dto.expectedEvidence !== undefined ? dto.expectedEvidence : existing.expectedEvidence;
         if (!responsible?.trim()) {
           throw new BadRequestException('Responsável é obrigatório para aprovar a ação.');
         }
-        if (!expectedEvidence?.trim()) {
-          throw new BadRequestException('Evidência esperada é obrigatória para aprovar a ação.');
+      }
+      // Concluir exige evidência anexada ou justificativa validada. Só na
+      // TRANSIÇÃO: ação já encerrada continua editável.
+      if (acaoEncerrada(newStatus) && !acaoEncerrada(existing.status)) {
+        const evidencias = await tx.evidence.findMany({
+          where: { itemId },
+          select: { kind: true, status: true },
+        });
+        if (!podeConcluirAcao(evidencias)) {
+          throw new BadRequestException(MSG_CONCLUSAO_SEM_COMPROVACAO);
         }
       }
 
@@ -539,6 +551,10 @@ export class ActionPlansService {
     itemId: string,
     dto: CreateEvidenceRequest,
   ): Promise<EvidenceData> {
+    // Justificativa é o próprio texto: sem ele não há o que validar.
+    if (dto.kind.trim() === EVIDENCE_KIND_JUSTIFICATIVA && !dto.note?.trim()) {
+      throw new BadRequestException('Escreva a justificativa.');
+    }
     return this.prisma.forTenant(tenantId, async (tx) => {
       const item = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!item) throw new NotFoundException('Ação não encontrada');
@@ -563,6 +579,11 @@ export class ActionPlansService {
     meta: { kind: string; title: string; note?: string },
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
   ): Promise<EvidenceData> {
+    // Justificativa é só texto (vale para concluir depois de validada): por
+    // upload ela chegaria sem o texto que o revisor precisa auditar.
+    if (meta.kind.trim() === EVIDENCE_KIND_JUSTIFICATIVA) {
+      throw new BadRequestException('Justificativa é registrada como texto, sem arquivo.');
+    }
     return this.prisma.forTenant(tenantId, async (tx) => {
       const item = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!item) throw new NotFoundException('Ação não encontrada');

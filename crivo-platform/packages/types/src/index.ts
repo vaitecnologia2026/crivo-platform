@@ -2039,6 +2039,31 @@ export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
   NAO_ADOTADA: 'Não adotada',
 };
 
+/** Tipo de evidência que é TEXTO de justificativa (sem arquivo/link). Vale
+ *  para concluir a ação só depois de validada (status APROVADA). */
+export const EVIDENCE_KIND_JUSTIFICATIVA = 'justificativa';
+
+/** Status que encerram a ação — entrar neles exige comprovação. */
+export function acaoEncerrada(status: string): boolean {
+  return status === 'CONCLUIDA' || status === 'REAVALIADA';
+}
+
+/**
+ * Regra de conclusão (modelo final 25/09): para marcar a ação como concluída
+ * deve existir evidência anexada (arquivo/link não rejeitado nem substituído)
+ * ou justificativa validada (tipo `justificativa`, aprovada na revisão).
+ */
+export function podeConcluirAcao(evidencias: { kind: string; status: string }[]): boolean {
+  return evidencias.some((e) =>
+    e.kind === EVIDENCE_KIND_JUSTIFICATIVA
+      ? e.status === 'APROVADA'
+      : e.status !== 'REJEITADA' && e.status !== 'SUBSTITUIDA',
+  );
+}
+
+export const MSG_CONCLUSAO_SEM_COMPROVACAO =
+  'Para concluir a ação, anexe uma evidência ou registre uma justificativa e aguarde a validação.';
+
 export interface EvidenceData {
   id: string;
   itemId: string | null;
@@ -2437,6 +2462,9 @@ export interface DocumentSection {
    *  anexos já quebram sozinhos; isto é para seção com conteúdo que o modelo
    *  oficial põe no topo da página ("Controle documental"). */
   novaPagina?: boolean;
+  /** Corpo como NOTA (itálico, fonte menor): as observações de rodapé do
+   *  modelo do Dossiê ("As possíveis lesões…", "O instrumento CRIVO é autoral…"). */
+  nota?: boolean;
 }
 
 export interface GeneratedDocument {
