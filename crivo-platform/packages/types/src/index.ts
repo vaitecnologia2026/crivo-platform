@@ -2040,7 +2040,8 @@ export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
 };
 
 /** Tipo de evidência que é TEXTO de justificativa (sem arquivo/link). Vale
- *  para concluir a ação só depois de validada (status APROVADA). */
+ *  para concluir a ação só depois de VALIDADA PELA EMPRESA no Plano de
+ *  Evolução do portal (status APROVADA) — não passa pela fila da CRIVO. */
 export const EVIDENCE_KIND_JUSTIFICATIVA = 'justificativa';
 
 /** Status que encerram a ação — entrar neles exige comprovação. */
@@ -2051,7 +2052,7 @@ export function acaoEncerrada(status: string): boolean {
 /**
  * Regra de conclusão (modelo final 25/09): para marcar a ação como concluída
  * deve existir evidência anexada (arquivo/link não rejeitado nem substituído)
- * ou justificativa validada (tipo `justificativa`, aprovada na revisão).
+ * ou justificativa validada pela empresa (tipo `justificativa`, APROVADA).
  */
 export function podeConcluirAcao(evidencias: { kind: string; status: string }[]): boolean {
   return evidencias.some((e) =>
@@ -2062,7 +2063,7 @@ export function podeConcluirAcao(evidencias: { kind: string; status: string }[])
 }
 
 export const MSG_CONCLUSAO_SEM_COMPROVACAO =
-  'Para concluir a ação, anexe uma evidência ou registre uma justificativa e aguarde a validação.';
+  'Para concluir a ação, anexe uma evidência ou registre uma justificativa e valide-a no Plano.';
 
 export interface EvidenceData {
   id: string;
@@ -2080,6 +2081,9 @@ export interface EvidenceData {
   fileMime: string | null;
   fileSize: number | null;
   createdAt: string;
+  /** Quem validou e quando (justificativa: usuário da empresa no portal). */
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
 }
 
 /** Classificação de risco do fator psicossocial (inventário/PGR §6/§15). */

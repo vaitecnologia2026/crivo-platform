@@ -35,6 +35,7 @@ import {
   listActionPlans,
   updateActionItem,
   validateActionPlan,
+  validateJustification,
   type ActionTemplateLite,
   listDevolutivas,
   createDevolutiva,
@@ -896,6 +897,15 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
     }
     catch (err) { alert(err instanceof Error ? err.message : "Falha"); } finally { setSaving(false); }
   }
+  // Justificativa de conclusão: a EMPRESA valida aqui (não a CRIVO).
+  const [validando, setValidando] = useState<string | null>(null);
+  async function validar(ev: ActionPlanData["items"][number]["evidences"][number]) {
+    if (!window.confirm(`Validar a justificativa "${ev.title}"? Depois de validada, ela permite concluir a ação.`)) return;
+    setValidando(ev.id);
+    try { await validateJustification(ev.id); onChanged(); }
+    catch (err) { alert(err instanceof Error ? err.message : "Falha ao validar"); }
+    finally { setValidando(null); }
+  }
   async function baixar(ev: ActionPlanData["items"][number]["evidences"][number]) {
     try { await downloadEvidenceFile(ev.id, ev.fileName ?? ev.title); }
     catch (err) { alert(err instanceof Error ? err.message : "Falha ao baixar"); }
@@ -919,8 +929,17 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
                   color: ev.status === "APROVADA" ? "var(--success)" : ev.status === "REJEITADA" ? "var(--danger, #b4432f)" : "var(--gold-deep)",
                 }}
               >
-                {ev.status === "APROVADA" ? "Aprovada pela CRIVO" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando validação CRIVO"}
+                {ev.kind === EVIDENCE_KIND_JUSTIFICATIVA
+                  ? ev.status === "APROVADA"
+                    ? `Validada${ev.reviewedBy ? ` por ${ev.reviewedBy}` : ""}${ev.reviewedAt ? ` em ${new Date(ev.reviewedAt).toLocaleDateString("pt-BR")}` : ""}`
+                    : "Aguardando validação da empresa"
+                  : ev.status === "APROVADA" ? "Aprovada pela CRIVO" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando validação CRIVO"}
               </span>
+              {ev.kind === EVIDENCE_KIND_JUSTIFICATIVA && (ev.status === "ENVIADA" || ev.status === "PENDENTE") && (
+                <button type="button" className="btn btn--ghost btn--sm" style={{ marginLeft: 8 }} disabled={validando === ev.id} onClick={() => void validar(ev)}>
+                  {validando === ev.id ? "Validando…" : "Validar justificativa"}
+                </button>
+              )}
               {ev.kind === EVIDENCE_KIND_JUSTIFICATIVA && ev.note && <span>{ev.note}</span>}
               <span>
                 {ev.kind}
@@ -940,7 +959,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={justificativa ? "Justificativa de conclusão" : "Ex.: Ata da reunião 12/06"} />
         </label>
         {justificativa ? (
-          <label className="prod-field" style={{ flex: 2, minWidth: 220 }}><span>Justificativa (vale para concluir depois de validada)</span>
+          <label className="prod-field" style={{ flex: 2, minWidth: 220 }}><span>Justificativa (vale para concluir depois de validada aqui no Plano)</span>
             <textarea rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Por que a ação pode ser concluída sem outro registro" />
           </label>
         ) : (

@@ -537,6 +537,11 @@ export function removeActionItem(itemId: string): Promise<{ ok: true }> {
 export function validateActionPlan(planId: string): Promise<ActionPlanData> {
   return apiFetch<ActionPlanData>(`/action-plans/${planId}/validate`, { method: 'POST' });
 }
+/** A empresa valida a justificativa de conclusão (não passa pela CRIVO). */
+export function validateJustification(evidenceId: string): Promise<EvidenceData> {
+  return apiFetch<EvidenceData>(`/action-plans/evidences/${evidenceId}/validate`, { method: "POST" });
+}
+
 export function addEvidence(itemId: string, dto: CreateEvidenceRequest): Promise<EvidenceData> {
   return apiFetch<EvidenceData>(`/action-plans/items/${itemId}/evidences`, {
     method: 'POST',

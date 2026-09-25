@@ -192,15 +192,22 @@ export function EvidencesSection() {
                       )}
                     </td>
                     <td className="addx-actions">
-                      <button type="button" disabled={busyId === e.id || e.status === "APROVADA"} onClick={() => review(e.id, "approve")}>
-                        Aprovar
-                      </button>
-                      <button type="button" disabled={busyId === e.id || e.status === "REJEITADA"} onClick={() => review(e.id, "reject")}>
-                        Rejeitar
-                      </button>
-                      <button type="button" disabled={busyId === e.id} onClick={() => review(e.id, "supersede")}>
-                        Substituir
-                      </button>
+                      {e.kind === "justificativa" ? (
+                        // Validada pela EMPRESA no Plano de Evolução do portal.
+                        <p className="evd-reason">{e.status === "APROVADA" ? "Validada pela empresa" : "Aguarda validação da empresa"}</p>
+                      ) : (
+                        <>
+                          <button type="button" disabled={busyId === e.id || e.status === "APROVADA"} onClick={() => review(e.id, "approve")}>
+                            Aprovar
+                          </button>
+                          <button type="button" disabled={busyId === e.id || e.status === "REJEITADA"} onClick={() => review(e.id, "reject")}>
+                            Rejeitar
+                          </button>
+                          <button type="button" disabled={busyId === e.id} onClick={() => review(e.id, "supersede")}>
+                            Substituir
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}

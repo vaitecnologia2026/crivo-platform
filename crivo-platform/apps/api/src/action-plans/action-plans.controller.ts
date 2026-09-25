@@ -229,6 +229,13 @@ export class ActionPlansController {
     return this.plans.addEvidence(user.tenantId, itemId, dto);
   }
 
+  /** Justificativa de conclusão validada pela EMPRESA (mesmo nível de
+   *  permissão de validar o plano), não pela CRIVO. */
+  @Post('evidences/:id/validate')
+  validarJustificativa(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.plans.validarJustificativa(user.tenantId, id, user.name ?? user.email);
+  }
+
   /** §9 — Evidência por UPLOAD de arquivo (multipart). Cap de 8 MB; bytes vão
    *  para evidence_files. kind/title/note vêm como campos do form. */
   @Post('items/:itemId/evidences/upload')

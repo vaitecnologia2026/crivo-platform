@@ -734,10 +734,44 @@ export class ActionPlansService {
     };
   }
 
+  /**
+   * A EMPRESA valida a justificativa de conclusão no Plano de Evolução (não é
+   * a fila de governança da CRIVO). Só o tipo `justificativa`; a validação
+   * fica registrada (quem/quando) na evidência e na trilha da ação.
+   */
+  async validarJustificativa(tenantId: string, evidenceId: string, by: ActorName): Promise<EvidenceData> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const ev = await tx.evidence.findUnique({ where: { id: evidenceId } });
+      if (!ev) throw new NotFoundException('Evidência não encontrada');
+      if (ev.kind !== EVIDENCE_KIND_JUSTIFICATIVA) {
+        throw new BadRequestException('Só justificativa é validada pela empresa no Plano.');
+      }
+      if (ev.status === 'APROVADA') return this.toEvidence(ev);
+      if (ev.status === 'REJEITADA' || ev.status === 'SUBSTITUIDA') {
+        throw new BadRequestException('Justificativa rejeitada ou substituída não pode ser validada.');
+      }
+      const upd = await tx.evidence.update({
+        where: { id: evidenceId },
+        data: { status: 'APROVADA', reviewedAt: new Date(), reviewedBy: by },
+      });
+      if (ev.itemId) {
+        await tx.actionItemHistory.create({
+          data: {
+            tenantId,
+            actionItemId: ev.itemId,
+            change: `Justificativa validada: ${ev.title}`,
+            changedBy: by,
+          },
+        });
+      }
+      return this.toEvidence(upd);
+    });
+  }
+
   private toEvidence(e: {
     id: string; itemId: string | null; kind: string; title: string; url: string | null;
     note: string | null; status?: string | null; fileName?: string | null; fileMime?: string | null;
-    fileSize?: number | null; createdAt: Date;
+    fileSize?: number | null; createdAt: Date; reviewedBy?: string | null; reviewedAt?: Date | null;
   }): EvidenceData {
     return {
       id: e.id,
@@ -751,6 +785,8 @@ export class ActionPlansService {
       fileMime: e.fileMime ?? null,
       fileSize: e.fileSize ?? null,
       createdAt: e.createdAt.toISOString(),
+      reviewedBy: e.reviewedBy ?? null,
+      reviewedAt: e.reviewedAt ? e.reviewedAt.toISOString() : null,
     };
   }
 }

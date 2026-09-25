@@ -322,7 +322,10 @@ export class EngineService {
     const stats = {
       total: rows.length,
       aprovadas: rows.filter((r) => r.status === 'APROVADA').length,
-      pendentes: rows.filter((r) => r.status === 'ENVIADA' || r.status === 'PENDENTE').length,
+      // Justificativa pendente espera a EMPRESA, não a CRIVO.
+      pendentes: rows.filter(
+        (r) => r.kind !== 'justificativa' && (r.status === 'ENVIADA' || r.status === 'PENDENTE'),
+      ).length,
       rejeitadas: rows.filter((r) => r.status === 'REJEITADA').length,
     };
     return { stats, rows };
@@ -362,6 +365,10 @@ export class EngineService {
   ) {
     const ev = await this.prisma.admin.evidence.findUnique({ where: { id } });
     if (!ev) throw new NotFoundException('Evidência não encontrada.');
+    // Justificativa de conclusão é validada pela EMPRESA no portal.
+    if (ev.kind === 'justificativa') {
+      throw new BadRequestException('Justificativa é validada pela empresa no Plano de Evolução do portal.');
+    }
     if (action === 'reject' && !reason?.trim()) {
       throw new BadRequestException('Informe o motivo da rejeição.');
     }
