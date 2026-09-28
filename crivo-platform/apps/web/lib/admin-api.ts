@@ -469,6 +469,8 @@ export interface AuditEntry {
   action: string;
   actorEmail: string | null;
   target: string | null;
+  /** Detalhes gravados no evento (ex.: status do contrato). */
+  meta?: Record<string, unknown> | null;
   at: string;
 }
 
@@ -492,9 +494,12 @@ export function getDashboard(
 
 /** Trilha de auditoria. `tenantId` = organizationId da empresa; `prefixes` =
  *  prefixos de ação (ex.: ["icd.", "pocket."]) — filtros das abas por módulo. */
-export function getAuditLog(filters: { tenantId?: string; prefixes?: string[]; limit?: number } = {}): Promise<AuditEntry[]> {
+export function getAuditLog(
+  filters: { tenantId?: string; prefixes?: string[]; limit?: number; target?: string } = {},
+): Promise<AuditEntry[]> {
   const q = new URLSearchParams();
   if (filters.tenantId) q.set("tenantId", filters.tenantId);
+  if (filters.target) q.set("target", filters.target);
   if (filters.prefixes?.length) q.set("prefix", filters.prefixes.join(","));
   if (filters.limit) q.set("limit", String(filters.limit));
   const qs = q.toString();

@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CONTRACT_STATUS_LABEL, type ContractStatus, type TenantSummary } from "@crivo/types";
-import {
-  deleteContractTemplate,
-  listAllContracts,
-  listContractTemplates,
-  listTenants,
-  uploadContractTemplate,
-  type ContractListItem,
-  type ContractTemplateSummary,
-} from "../../lib/admin-api";
+import { listAllContracts, listTenants, type ContractListItem } from "../../lib/admin-api";
+import { ContractDetail } from "./ContractDetail";
 import { ContractModal } from "./ContractModal";
 import "./cnae.css";
 
@@ -24,15 +17,18 @@ const STATUS_PILL: Record<string, string> = {
   ENCERRADO: "ct-pill ct-pill--encerrado",
 };
 
-/** Tabela central de contratos — modelo aprovado ("Contratos e Liberações"). */
-function ContractsTable() {
+/** Contratos e Liberações (protótipo Lovable /contratos): lista central de
+ *  contratos; "Ver →" abre a ficha do contrato com as 4 abas oficiais
+ *  (ContractDetail). O modelo de contrato (Clicksign) fica na aba Comercial. */
+export function ContractsSection() {
   const [rows, setRows] = useState<ContractListItem[] | null>(null);
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("");
   const [onlyAddons, setOnlyAddons] = useState(false);
-  const [open, setOpen] = useState<{ tenant?: TenantSummary; group?: { id: string; name: string } } | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [creating, setCreating] = useState<TenantSummary | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   async function refresh() {
@@ -62,18 +58,23 @@ function ContractsTable() {
   // em fuso negativo (UTC-3) o toLocaleDateString exibia o dia anterior.
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "UTC" }) : "—");
 
-  function openContract(r: ContractListItem) {
-    if (r.byGroup && r.groupId) {
-      setOpen({ group: { id: r.groupId, name: r.clientName } });
-    } else if (r.tenantId) {
-      const t = tenants.find((x) => x.id === r.tenantId);
-      // ContractModal só lê id/name do tenant — o cast mínimo é seguro.
-      setOpen({ tenant: t ?? ({ id: r.tenantId, name: r.clientName } as TenantSummary) });
-    }
+  const detail = detailId ? rows?.find((r) => r.id === detailId) ?? null : null;
+  if (detail) {
+    const tenant = detail.tenantId ? tenants.find((t) => t.id === detail.tenantId) : undefined;
+    return (
+      <ContractDetail
+        key={detail.id}
+        row={detail}
+        tenants={tenants}
+        groupName={tenant?.groupName ?? null}
+        onBack={() => setDetailId(null)}
+        onChanged={() => void refresh()}
+      />
+    );
   }
 
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div>
       <div className="route__head">
         <div>
           <h1 className="page-title">Contratos e Liberações</h1>
@@ -82,7 +83,7 @@ function ContractsTable() {
             permissões são administrados aqui.
           </p>
         </div>
-        <button className="btn btn--sm" onClick={() => setPickerOpen(true)}>Novo contrato</button>
+        <button className="btn btn--gold btn--sm" onClick={() => setPickerOpen(true)}>Novo contrato</button>
       </div>
 
       <div className="ct-filters">
@@ -117,7 +118,7 @@ function ContractsTable() {
             <thead>
               <tr>
                 <th>Contrato</th><th>Cliente</th><th>Vigência</th><th>Responsável</th>
-                <th>MRR</th><th>Adicionais</th><th>Ciclos</th><th>Status</th><th>Abrir</th>
+                <th>MRR</th><th>Adicionais</th><th>Ciclo</th><th>Status</th><th style={{ textAlign: "right" }}>Abrir</th>
               </tr>
             </thead>
             <tbody>
@@ -128,24 +129,31 @@ function ContractsTable() {
                     <strong>{r.clientName}</strong>
                     {r.byGroup && <span className="cell-mute"> · grupo</span>}
                   </td>
-                  <td>{r.startDate || r.endDate ? `${fmt(r.startDate)} → ${fmt(r.endDate)}` : "—"}</td>
+                  <td className="cell-mute">{r.startDate || r.endDate ? `${fmt(r.startDate)} → ${fmt(r.endDate)}` : "—"}</td>
                   <td>{r.responsible ?? "—"}</td>
                   <td>{r.mrrCents > 0 ? brl(r.mrrCents) : "—"}</td>
                   <td>{r.addonsCount}</td>
                   <td>{r.rounds || "—"}</td>
                   <td><span className={STATUS_PILL[r.status] ?? "ct-pill"}>{CONTRACT_STATUS_LABEL[r.status as ContractStatus] ?? r.status}</span></td>
-                  <td>
-                    <button className="btn btn--ghost btn--sm" onClick={() => openContract(r)}>Ver →</button>
+                  <td style={{ textAlign: "right" }}>
+                    <button className="ge-link" onClick={() => setDetailId(r.id)}>Ver →</button>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: "center", padding: 24 }} className="cell-mute">Nenhum contrato encontrado.</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: "center", padding: 24 }} className="cell-mute">Sem contratos neste filtro.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      <div className="gd-rulebox">
+        <div className="gd-rulebox__title">Regras desta tela</div>
+        Cada contrato é a <b>fonte de verdade</b> das liberações do cliente. Alterações em módulo, adicional, IA, limite,
+        CNPJ, recurso ou permissão geram evento em <b>Auditoria</b>. Contrato em rascunho não libera portal; contrato
+        ativo libera apenas o contratado. O modelo de contrato para assinatura fica na aba Comercial de cada contrato.
+      </div>
 
       {pickerOpen && (
         <div className="modal-backdrop" onClick={() => setPickerOpen(false)}>
@@ -158,7 +166,7 @@ function ContractsTable() {
                 defaultValue=""
                 onChange={(e) => {
                   const t = tenants.find((x) => x.id === e.target.value);
-                  if (t) { setPickerOpen(false); setOpen({ tenant: t }); }
+                  if (t) { setPickerOpen(false); setCreating(t); }
                 }}
               >
                 <option value="" disabled>Selecione a empresa…</option>
@@ -171,147 +179,12 @@ function ContractsTable() {
         </div>
       )}
 
-      {open && (
+      {creating && (
         <ContractModal
-          tenant={open.tenant}
-          group={open.group}
-          onClose={() => { setOpen(null); void refresh(); }}
+          tenant={creating}
+          onClose={() => { setCreating(null); void refresh(); }}
         />
       )}
-    </div>
-  );
-}
-
-// C5: o painel legado de preços saiu daqui — precificação de adicionais vive
-// SÓ na tela Adicionais (fonte única; lá os não precificados aparecem como
-// placeholders editáveis).
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const s = String(reader.result);
-      resolve(s.includes(",") ? s.slice(s.indexOf(",") + 1) : s);
-    };
-    reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
-    reader.readAsDataURL(file);
-  });
-}
-
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-
-export function ContractsSection() {
-  const [items, setItems] = useState<ContractTemplateSummary[]>([]);
-  const [name, setName] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function refresh() {
-    try {
-      setItems(await listContractTemplates());
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Falha ao carregar.");
-    } finally {
-      setLoaded(true);
-    }
-  }
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  async function upload() {
-    if (!file) {
-      setErr("Selecione um arquivo (PDF ou DOCX).");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setErr("Arquivo muito grande (máx. 8 MB).");
-      return;
-    }
-    setBusy(true);
-    setErr(null);
-    try {
-      const data = await fileToBase64(file);
-      await uploadContractTemplate({
-        name: name.trim() || file.name,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        data,
-      });
-      setName("");
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
-      await refresh();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Falha no upload.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(id: string) {
-    if (!window.confirm("Remover este modelo de contrato?")) return;
-    await deleteContractTemplate(id).catch(() => undefined);
-    await refresh();
-  }
-
-  return (
-    <div>
-      <ContractsTable />
-
-      <h3 style={{ margin: "0 0 6px" }}>Modelo de contrato</h3>
-      <p className="cnae-muted" style={{ marginTop: 0 }}>
-        Suba aqui o <strong>modelo de contrato</strong> (PDF ou DOCX). Ele fica disponível para envio à assinatura
-        (Clicksign) a partir do Onboarding da empresa.
-      </p>
-      {err && <div className="cnae-note cnae-block--warn">{err}</div>}
-
-      <div className="cnae-card">
-        <div className="ct-form">
-          <label className="prod-field">
-            <span>Nome do modelo</span>
-            <input
-              value={name}
-              placeholder="Ex.: Contrato de Prestação de Serviço CRIVO"
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="prod-field">
-            <span>Arquivo (PDF/DOCX)</span>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <button className="btn btn--terra btn--sm" disabled={busy || !file} onClick={upload}>
-            {busy ? "Enviando…" : "Subir modelo"}
-          </button>
-        </div>
-      </div>
-
-      {loaded && items.length === 0 && <p className="cnae-muted" style={{ marginTop: 16 }}>Nenhum modelo carregado ainda.</p>}
-
-      <ul className="ct-list">
-        {items.map((t) => (
-          <li key={t.id} className="ct-item">
-            <div>
-              <strong>{t.name}</strong>
-              <div className="ct-item__meta">
-                {t.fileName} · {new Date(t.createdAt).toLocaleDateString("pt-BR")}
-              </div>
-            </div>
-            <button className="btn btn--ghost btn--sm" style={{ color: "var(--danger, #b4453a)" }} onClick={() => remove(t.id)}>
-              Remover
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

@@ -323,7 +323,7 @@ export function TenantsManager({
             <button className="btn btn--outline-dark btn--sm" onClick={onCreateGroup}>Novo grupo</button>
             {/* C2 (call 14/07): o caminho preferido cria a empresa pelos dados
                 REAIS da Receita — mesmo fluxo de consulta CNPJ do Dashboard. */}
-            <button className="btn btn--terra btn--sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
+            <button className="btn btn--gold btn--sm" onClick={() => { setShowCnpj((v) => !v); setShowForm(false); }}>
               {showCnpj ? "Fechar" : "Nova empresa"}
             </button>
           </div>
@@ -1022,7 +1022,7 @@ function TenantProfileModal({
         </div>
         <div className="modal__foot">
           <button type="button" className="btn btn--outline-dark btn--sm" onClick={onClose}>Cancelar</button>
-          <button type="button" className="btn btn--terra btn--sm" disabled={saving} onClick={save}>
+          <button type="button" className="btn btn--gold btn--sm" disabled={saving} onClick={save}>
             {saving ? "Salvando…" : "Salvar dados"}
           </button>
         </div>

@@ -22,10 +22,13 @@ export class AdminOverviewController {
     @Query('limit') limit?: string,
     @Query('tenantId') tenantId?: string,
     @Query('prefix') prefix?: string,
+    @Query('target') target?: string,
   ) {
     return this.tenants.recentAudit(limit ? Number(limit) : 30, {
       tenantId: tenantId || undefined,
       prefixes: prefix ? prefix.split(',').map((p) => p.trim()).filter(Boolean) : undefined,
+      // `target` = alvo gravado no evento (ex.: organização/grupo do contrato).
+      target: target?.trim() || undefined,
     });
   }
 }
