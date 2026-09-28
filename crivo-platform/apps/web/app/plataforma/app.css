@@ -430,6 +430,21 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   box-shadow: 0 0 40px var(--gold-glow);
 }
 
+/* Ação primária chapada ("terra" do protótipo Lovable = acento laranja).
+   Usada em 30+ telas do portal e do Super Admin, mas só existia no lp.css do
+   site — aqui ela renderizava como .btn sem fundo. */
+.btn--terra {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
+.btn--terra:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--gold-deep);
+  border-color: var(--gold-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -6px var(--gold-glow);
+}
+
 .btn--outline-dark {
   background: transparent;
   color: var(--text);
