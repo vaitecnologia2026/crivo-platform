@@ -1067,3 +1067,30 @@
 .adm .cd-switch input:checked + span { background: var(--gold); }
 .adm .cd-switch input:checked + span::after { transform: translateX(14px); }
 .adm .cd-switch input:focus-visible + span { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ── Relatórios Gerenciais (protótipo Lovable · /relatorios-gerenciais) ── */
+.adm .rg-filters__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.adm .rg-filters { display: grid; gap: 10px 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 12px; }
+@media (max-width: 1023px) { .adm .rg-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 639px) { .adm .rg-filters { grid-template-columns: 1fr; } }
+.adm .rg-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adm .rg-filter .gd-select { max-width: none; width: 100%; }
+.adm .rg-tabs {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+  margin: 24px 0 16px; padding: 4px; border-radius: var(--r-md); background: rgba(234, 230, 220, 0.7);
+}
+.adm .rg-tab {
+  border: 0; border-radius: var(--r-sm); background: none; padding: 6px 12px;
+  font: inherit; font-size: 12.5px; color: var(--text-sec); cursor: pointer;
+}
+.adm .rg-tab:hover { color: var(--text); }
+.adm .rg-tab.is-active { background: #fff; color: var(--text); font-weight: 500; box-shadow: 0 1px 2px rgba(13, 31, 60, 0.08); }
+.adm .rg-grid4 { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1023px) { .adm .rg-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 559px) { .adm .rg-grid4 { grid-template-columns: 1fr; } }
+.adm .rg-span3 { grid-column: span 3; }
+@media (max-width: 1023px) { .adm .rg-span3 { grid-column: span 2; } }
+@media (max-width: 559px) { .adm .rg-span3 { grid-column: auto; } }
+.adm .rg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.adm .rg-chip { border: 1px solid rgba(196, 103, 29, 0.4); border-radius: 999px; background: rgba(196, 103, 29, 0.05); padding: 4px 10px; font-size: 11.5px; }
+.adm .rg-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }

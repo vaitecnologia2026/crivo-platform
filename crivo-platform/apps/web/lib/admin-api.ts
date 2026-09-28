@@ -885,6 +885,12 @@ export interface ContractListItem {
   rounds: number;
   addonsCount: number;
   mrrCents: number;
+  /** Modelo comercial (CONTRACT_MODEL_LABEL). */
+  model: string;
+  /** Mensalidade da solução principal (parte do MRR que não é adicional). */
+  productMonthlyCents: number;
+  /** Adicionais do contrato com o preço do catálogo (mensal só se recorrente). */
+  addons: { code: string; label: string; monthlyPriceCents: number; setupPriceCents: number }[];
   updatedAt: string;
 }
 

@@ -44,7 +44,9 @@ export class ContractsService {
       this.prisma.admin.tenant.findMany({ select: { id: true, organizationId: true, name: true } }),
       this.prisma.admin.businessGroup.findMany({ select: { id: true, name: true } }),
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
-      this.prisma.admin.addon.findMany({ select: { moduleCode: true, monthlyPriceCents: true, recurring: true } }),
+      this.prisma.admin.addon.findMany({
+        select: { moduleCode: true, label: true, monthlyPriceCents: true, setupPriceCents: true, recurring: true },
+      }),
     ]);
     const tenantByOrg = new Map(tenants.map((t) => [t.organizationId, t]));
     const groupById = new Map(groups.map((g) => [g.id, g]));
@@ -75,6 +77,18 @@ export class ContractsService {
         rounds: c.rounds,
         addonsCount: optional.length,
         mrrCents: (product?.monthlyPriceCents ?? 0) + addonsMrr,
+        // Relatórios Gerenciais: filtros por modelo/adicional e vendas por solução/adicional.
+        model: c.model,
+        productMonthlyCents: product?.monthlyPriceCents ?? 0,
+        addons: optional.map((code) => {
+          const a = addonByCode.get(code);
+          return {
+            code,
+            label: a?.label ?? code,
+            monthlyPriceCents: a && a.recurring ? a.monthlyPriceCents : 0,
+            setupPriceCents: a?.setupPriceCents ?? 0,
+          };
+        }),
         updatedAt: c.updatedAt.toISOString(),
       };
     });

@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  CONTRACT_MODELS,
+  CONTRACT_MODEL_LABEL,
+  CONTRACT_STATUSES,
   CONTRACT_STATUS_LABEL,
   platformLeadOriginLabel,
   type BusinessGroupSummary,
-  type ContractStatus,
+  type ContractModel,
   type DashboardData,
   type TenantSummary,
 } from "@crivo/types";
@@ -23,53 +26,23 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "exportacoes", label: "Exportações" },
 ];
 
-const PERIODS: { days: number; label: string }[] = [
-  { days: 30, label: "30 dias" },
-  { days: 60, label: "60 dias" },
-  { days: 90, label: "90 dias" },
-  { days: 365, label: "12 meses" },
+/** "ano" = do dia 1º de janeiro até hoje (a API aceita até 365 dias). */
+const PERIODS: { key: string; label: string }[] = [
+  { key: "30", label: "30 dias" },
+  { key: "60", label: "60 dias" },
+  { key: "90", label: "90 dias" },
+  { key: "365", label: "12 meses" },
+  { key: "ano", label: "Ano vigente" },
 ];
 
-/* Filtros do mockup que ainda não têm dado no schema para ligar. Mesma convenção
-   do Dashboard de Gestão (FILTER_SOON): aparecem apagados, não como select morto. */
-const FILTER_SOON = ["Contrato", "Solução", "Adicional", "Status", "Consultor", "Modelo comercial"];
+function diasDoPeriodo(key: string): number {
+  if (key !== "ano") return Number(key);
+  const hoje = new Date();
+  const jan1 = new Date(hoje.getFullYear(), 0, 1);
+  return Math.min(365, Math.max(1, Math.ceil((hoje.getTime() - jan1.getTime()) / 86_400_000)));
+}
 
-/* Indicadores do mockup sem suporte no schema. Não são exibidos com número —
-   mesma "nota de honestidade" do Dashboard, para não induzir leitura errada. */
-const NAO_MODELADO = [
-  "Receita faturada",
-  "Receita recebida",
-  "Receita em atraso",
-  "Novo MRR",
-  "Expansão de MRR",
-  "Redução de MRR",
-  "Cancelamento de MRR",
-  "Receita por adicional",
-  "Diagnósticos concluídos",
-  "Relatórios emitidos",
-  "Dossiês emitidos",
-];
-
-const SELECT_STYLE: CSSProperties = {
-  font: "inherit",
-  fontSize: 12.5,
-  padding: "5px 8px",
-  borderRadius: 8,
-  border: "1px solid var(--line, #E3DDD3)",
-  background: "transparent",
-  maxWidth: 190,
-};
-
-const SEC_HEAD: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  letterSpacing: ".1em",
-  textTransform: "uppercase",
-  color: "#14263C",
-  margin: "26px 0 12px",
-  paddingBottom: 6,
-  borderBottom: "1px solid var(--line, #E3DDD3)",
-};
+const SEM_FINANCEIRO = "aguarda módulo financeiro";
 
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -91,34 +64,57 @@ export function downloadCsv(fileName: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
-function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/** KPI do protótipo: faixa no topo, número serifado; "a definir" = sem dado no sistema. */
+function Kpi({ label, value, hint, aModelar, tone }: { label: string; value: string; hint?: string; aModelar?: boolean; tone?: "alert" }) {
   return (
-    <div className="kpi">
-      <span className="kpi__label">{label}</span>
-      <strong className="kpi__value">{value}</strong>
-      {hint && <span className="kpi__delta">{hint}</span>}
+    <div className={`gd-kpi gd-kpi--mini${aModelar ? " gd-kpi--amodelar" : ""}${tone === "alert" ? " gd-kpi--alert" : ""}`}>
+      <span className="gd-kpi__label">
+        {label}
+        {aModelar && <span className="gd-kpi__tag">a definir</span>}
+      </span>
+      <strong className="gd-kpi__value">{value}</strong>
+      {hint && <span className="gd-kpi__hint">{hint}</span>}
     </div>
   );
 }
 
-/** Relatórios Gerenciais CRIVO — leitura executiva agregada (mockup Lovable).
- *  Seis blocos: Visão Executiva, Comercial, Contratos e Receita, Clientes/Soluções/
- *  Adicionais, Entregas e Exportações. Dados REAIS (mesma fonte do Dashboard de
- *  Gestão + lista de contratos); filtros funcionais de período, grupo e empresa.
- *  Indicadores do mockup ainda sem dado no schema não recebem número: entram na
- *  lista "a modelar", igual à nota de honestidade do Dashboard. */
-export function ManagementReportsSection() {
+function Filtro({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode }) {
+  return (
+    <label className="rg-filter">
+      <span className="ge-field__label">{label}</span>
+      <select className="gd-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {children}
+      </select>
+    </label>
+  );
+}
+
+type Linha = [string, string | number];
+
+/** Relatórios Gerenciais CRIVO (protótipo Lovable /relatorios-gerenciais) —
+ *  leitura executiva agregada pelos filtros. Dados reais: indicadores do
+ *  Dashboard de Gestão (período, grupo, empresa, consultor) + lista de contratos
+ *  (recortada também por contrato, solução, adicional, status e modelo).
+ *  Receita faturada/recebida/em atraso e movimentação de MRR ficam "a definir". */
+export function ManagementReportsSection({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
   const [tab, setTab] = useState<Tab>("executiva");
-  const [days, setDays] = useState(30);
+  const [periodo, setPeriodo] = useState("30");
   const [groupId, setGroupId] = useState("");
   const [tenantId, setTenantId] = useState("");
+  const [contratoId, setContratoId] = useState("");
+  const [solucao, setSolucao] = useState("");
+  const [adicional, setAdicional] = useState("");
+  const [status, setStatus] = useState("");
+  const [consultor, setConsultor] = useState("");
+  const [modelo, setModelo] = useState("");
 
   const [load, setLoad] = useState<Load>("loading");
   const [d, setD] = useState<DashboardData | null>(null);
-
   const [groups, setGroups] = useState<BusinessGroupSummary[]>([]);
   const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [contracts, setContracts] = useState<ContractListItem[] | null>(null);
+
+  const days = diasDoPeriodo(periodo);
 
   // Catálogos dos selects + lista de contratos (uma vez). A lista de contratos é
   // complementar: se falhar, os demais blocos continuam funcionando.
@@ -131,7 +127,7 @@ export function ManagementReportsSection() {
   useEffect(() => {
     let alive = true;
     setLoad("loading");
-    getDashboard(days, { groupId, tenantId })
+    getDashboard(days, { groupId, tenantId, consultor })
       .then((res) => {
         if (!alive) return;
         setD(res);
@@ -143,40 +139,156 @@ export function ManagementReportsSection() {
     return () => {
       alive = false;
     };
-  }, [days, groupId, tenantId]);
+  }, [days, groupId, tenantId, consultor]);
 
-  // Recorte da lista de contratos igual ao do dashboard: empresa exata; grupo =
-  // contrato do próprio grupo OU de qualquer empresa vinculada a ele.
+  // Recorte da lista de contratos: empresa exata; grupo = contrato do próprio
+  // grupo OU de qualquer empresa vinculada a ele; + filtros do contrato.
   const contratos = useMemo(() => {
-    if (!contracts) return [];
-    if (tenantId) return contracts.filter((c) => c.tenantId === tenantId);
-    if (groupId) {
+    let xs = contracts ?? [];
+    if (tenantId) xs = xs.filter((c) => c.tenantId === tenantId);
+    else if (groupId) {
       const ids = new Set(tenants.filter((t) => t.groupId === groupId).map((t) => t.id));
-      return contracts.filter((c) => c.groupId === groupId || (c.tenantId !== null && ids.has(c.tenantId)));
+      xs = xs.filter((c) => c.groupId === groupId || (c.tenantId !== null && ids.has(c.tenantId)));
     }
-    return contracts;
-  }, [contracts, tenants, groupId, tenantId]);
+    if (contratoId) xs = xs.filter((c) => c.id === contratoId);
+    if (solucao) xs = xs.filter((c) => c.productName === solucao);
+    if (adicional) xs = xs.filter((c) => (c.addons ?? []).some((a) => a.code === adicional));
+    if (status) xs = xs.filter((c) => c.status === status);
+    if (consultor) xs = xs.filter((c) => c.responsible === consultor);
+    if (modelo) xs = xs.filter((c) => c.model === modelo);
+    return xs;
+  }, [contracts, tenants, groupId, tenantId, contratoId, solucao, adicional, status, consultor, modelo]);
 
-  const adicionaisLiberados = useMemo(
-    () => contratos.reduce((acc, c) => acc + c.addonsCount, 0),
-    [contratos],
-  );
+  // Opções dos selects vindas dos próprios contratos.
+  const opcoes = useMemo(() => {
+    const xs = contracts ?? [];
+    const addons = new Map<string, string>();
+    for (const c of xs) for (const a of c.addons ?? []) addons.set(a.code, a.label);
+    const consultores = new Set<string>([...(d?.consultores ?? []), ...xs.map((c) => c.responsible ?? "").filter(Boolean)]);
+    return {
+      solucoes: [...new Set(xs.map((c) => c.productName).filter((p): p is string => !!p))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      adicionais: [...addons.entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR")),
+      consultores: [...consultores].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    };
+  }, [contracts, d]);
 
-  const topClientes = useMemo(
-    () => [...contratos].sort((a, b) => b.mrrCents - a.mrrCents).slice(0, 8),
-    [contratos],
-  );
+  const tenantOpts = groupId ? tenants.filter((t) => t.groupId === groupId) : tenants;
+  const contratoOpts = (contracts ?? []).filter((c) => !tenantId || c.tenantId === tenantId);
 
-  const periodoLabel = PERIODS.find((p) => p.days === days)?.label ?? `${days} dias`;
+  // ── Números calculados sobre os contratos recortados ──
+  const agora = Date.now();
+  const desde = agora - days * 86_400_000;
+  const ativos = contratos.filter((c) => c.status === "ATIVO");
+  const mrr = ativos.reduce((s, c) => s + c.mrrCents, 0);
+  const novoMrr = ativos
+    .filter((c) => c.startDate && new Date(c.startDate).getTime() >= desde)
+    .reduce((s, c) => s + c.mrrCents, 0);
+  const aVencer = ativos.filter(
+    (c) => c.endDate && new Date(c.endDate).getTime() >= agora && new Date(c.endDate).getTime() <= agora + 60 * 86_400_000,
+  ).length;
+  const bloqueados = contratos.filter((c) => c.status === "SUSPENSO").length;
+  const clientesAtivos = new Set(ativos.map((c) => c.groupId ?? c.tenantId)).size;
+
+  const porSolucao = useMemo(() => {
+    const m = new Map<string, { qtd: number; mensal: number }>();
+    for (const c of contratos) {
+      if (c.status === "RASCUNHO") continue;
+      const k = c.productName ?? "(sem solução)";
+      const v = m.get(k) ?? { qtd: 0, mensal: 0 };
+      v.qtd += 1;
+      v.mensal += c.productMonthlyCents ?? 0;
+      m.set(k, v);
+    }
+    return [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.qtd - a.qtd);
+  }, [contratos]);
+  const porAdicional = useMemo(() => {
+    const m = new Map<string, { nome: string; qtd: number; mensal: number; unico: number }>();
+    for (const c of contratos) {
+      if (c.status === "RASCUNHO") continue;
+      for (const a of c.addons ?? []) {
+        const v = m.get(a.code) ?? { nome: a.label, qtd: 0, mensal: 0, unico: 0 };
+        v.qtd += 1;
+        v.mensal += a.monthlyPriceCents;
+        v.unico += a.monthlyPriceCents ? 0 : a.setupPriceCents;
+        m.set(a.code, v);
+      }
+    }
+    return [...m.values()].sort((a, b) => b.qtd - a.qtd);
+  }, [contratos]);
+  const receitaAdicional = (a: { mensal: number; unico: number }) =>
+    a.mensal ? `${brl(a.mensal)}/mês` : a.unico ? `${brl(a.unico)} (único)` : "—";
+
+  const periodoLabel = PERIODS.find((p) => p.key === periodo)?.label ?? `${days} dias`;
   const escopo = tenantId
     ? tenants.find((t) => t.id === tenantId)?.name ?? "empresa"
     : groupId
-      ? groups.find((g) => g.id === groupId)?.name ?? "grupo"
+      ? `Grupo ${groups.find((g) => g.id === groupId)?.name ?? ""}`
       : "Todos os clientes";
-  const hasFilters = !!(groupId || tenantId);
 
-  // ── Exportações (CSV real, gerado do que está na tela) ──
-  const cabecalho: (string | number)[][] = [
+  // ── Blocos exportáveis (CSV da aba e PDF consolidado usam os mesmos dados) ──
+  function blocos(dd: DashboardData): Record<Exclude<Tab, "exportacoes">, { titulo: string; linhas: Linha[] }> {
+    return {
+      executiva: {
+        titulo: "Visão Executiva",
+        linhas: [
+          ["Receita contratada no período (estimada)", brl(dd.financeiro.receitaContratadaCents)],
+          ["Receita faturada", "a definir"],
+          ["Receita recebida", "a definir"],
+          ["Em atraso", "a definir"],
+          ["MRR", brl(mrr)],
+          ["ARR", brl(mrr * 12)],
+          ["Contratos ativos", ativos.length],
+          ["Clientes ativos (com contrato ativo)", clientesAtivos],
+        ],
+      },
+      comercial: {
+        titulo: "Comercial",
+        linhas: [
+          ["Leads", dd.comercial.leads],
+          ["Propostas enviadas", dd.comercial.propostasEnviadas],
+          ["Vendas", dd.comercial.fechadas],
+          ["Conversão (%)", dd.comercial.conversao],
+          ["Ticket médio", brl(dd.comercial.ticketMedioCents)],
+          ...dd.comercial.motivosPerda.map((m) => [`Motivo de perda · ${m.motivo}`, m.count] as Linha),
+          ...dd.comercial.porOrigem.map((o) => [`Origem · ${platformLeadOriginLabel(o.origem)}`, o.count] as Linha),
+        ],
+      },
+      contratos: {
+        titulo: "Contratos e Receita",
+        linhas: [
+          ["MRR", brl(mrr)],
+          ["ARR", brl(mrr * 12)],
+          ["Novo MRR no período", brl(novoMrr)],
+          ["Expansão", "a definir"],
+          ["Redução", "a definir"],
+          ["Cancelamento", "a definir"],
+          ["Contratos a vencer (60 dias)", aVencer],
+          ["Em renovação (CRM)", dd.financeiro.emRenovacao],
+          ["Bloqueados (suspensos)", bloqueados],
+        ],
+      },
+      clientes: {
+        titulo: "Clientes, Soluções e Adicionais",
+        linhas: [
+          ...porSolucao.map((s) => [`Solução · ${s.nome} (${s.qtd})`, s.mensal ? `${brl(s.mensal)}/mês` : "—"] as Linha),
+          ...porAdicional.map((a) => [`Adicional · ${a.nome} (${a.qtd})`, receitaAdicional(a)] as Linha),
+        ],
+      },
+      entregas: {
+        titulo: "Entregas",
+        linhas: [
+          ["Diagnósticos em andamento", dd.entregas.diagnosticosAndamento],
+          ["Diagnósticos concluídos no período", dd.entregas.diagnosticosConcluidos],
+          ["Ciclos de ICD em andamento", dd.entregas.ciclosIcdAbertos],
+          ["Relatórios emitidos no período", dd.entregas.relatoriosEmitidos],
+          ["Dossiês emitidos no período", dd.entregas.dossiesEmitidos],
+          ["Itens mais contratados", porAdicional.slice(0, 3).map((a) => a.nome).join(", ") || "—"],
+        ],
+      },
+    };
+  }
+
+  const cabecalho = (): (string | number)[][] => [
     ["Relatórios Gerenciais CRIVO"],
     ["Período", periodoLabel],
     ["Escopo", escopo],
@@ -184,190 +296,113 @@ export function ManagementReportsSection() {
     [],
   ];
 
-  function exportExecutiva() {
+  function csv(chave: Exclude<Tab, "exportacoes">) {
     if (!d) return;
-    downloadCsv("crivo-relatorio-executivo.csv", [
-      ...cabecalho,
-      ["Indicador", "Valor"],
-      ["MRR", brl(d.contratos.mrrCents)],
-      ["ARR", brl(d.contratos.arrCents)],
-      ["Faturamento estimado no período", brl(d.comercial.faturamentoEstimadoCents)],
-      ["Valor em pipeline", brl(d.comercial.valorPropostoCents)],
-      ["Contratos ativos", d.contratos.ativos],
-      ["Clientes ativos", d.executivo.clientesAtivos],
-      ["Clientes bloqueados", d.executivo.clientesBloqueados],
-      ["Novos clientes no período", d.executivo.novosClientes],
-      ["Conversão (%)", d.comercial.conversao],
-    ]);
+    const b = blocos(d)[chave];
+    downloadCsv(`crivo-relatorio-${chave}.csv`, [...cabecalho(), [b.titulo, "Valor"], ...b.linhas]);
   }
 
-  function exportComercial() {
+  async function pdf() {
     if (!d) return;
-    downloadCsv("crivo-relatorio-comercial.csv", [
-      ...cabecalho,
-      ["Indicador", "Valor"],
-      ["Leads", d.comercial.leads],
-      ["Leads no período anterior", d.comercial.leadsPrev],
-      ["Propostas", d.comercial.propostas],
-      ["Propostas enviadas", d.comercial.propostasEnviadas],
-      ["Vendas fechadas", d.comercial.fechadas],
-      ["Conversão (%)", d.comercial.conversao],
-      ["Ticket médio", brl(d.comercial.ticketMedioCents)],
-      ["Leads sem 1º contato", d.comercial.leadsSemPrimeiroContato],
-      [],
-      ["Etapa do funil", "Leads"],
-      ...d.comercial.funnel.map((f) => [f.label, f.count] as (string | number)[]),
-      [],
-      ["Origem", "Leads"],
-      ...d.comercial.porOrigem.map((o) => [platformLeadOriginLabel(o.origem), o.count] as (string | number)[]),
-      [],
-      ["Motivo de perda", "Leads"],
-      ...d.comercial.motivosPerda.map((m) => [m.motivo, m.count] as (string | number)[]),
-    ]);
+    const { exportPDF } = await import("@/lib/exports");
+    const b = blocos(d);
+    await exportPDF(
+      "relatorios-gerenciais",
+      "Relatórios Gerenciais CRIVO",
+      (Object.keys(b) as (keyof typeof b)[]).map((k) => ({
+        heading: b[k].titulo,
+        rows: b[k].linhas.map(([indicador, valor]) => ({ Indicador: indicador, Valor: valor })),
+      })),
+      { company: `${escopo} · ${periodoLabel}`, source: "CRIVO · Super Admin" },
+    );
   }
 
-  function exportContratos() {
-    if (!d) return;
-    downloadCsv("crivo-relatorio-contratos.csv", [
-      ...cabecalho,
-      ["Indicador", "Valor"],
-      ["MRR", brl(d.contratos.mrrCents)],
-      ["ARR", brl(d.contratos.arrCents)],
-      ["Contratos ativos", d.contratos.ativos],
-      ["Contratos com adicionais", d.contratos.comAdicionais],
-      ["Vencendo em 30 dias", d.contratos.vencendo30],
-      ["Vencendo em 60 dias", d.contratos.vencendo60],
-      ["Vencendo em 90 dias", d.contratos.vencendo90],
-      [],
-      ["Status", "Contratos"],
-      ...d.contratos.porStatus.map(
-        (s) => [CONTRACT_STATUS_LABEL[s.status as ContractStatus] ?? s.status, s.count] as (string | number)[],
-      ),
-      [],
-      ["Contrato", "Cliente", "Solução", "Status", "MRR", "Adicionais", "Ciclos"],
-      ...contratos.map(
-        (c) =>
-          [
-            c.shortId,
-            c.clientName,
-            c.productName ?? "—",
-            CONTRACT_STATUS_LABEL[c.status as ContractStatus] ?? c.status,
-            brl(c.mrrCents),
-            c.addonsCount,
-            c.rounds,
-          ] as (string | number)[],
-      ),
-    ]);
+  function limpar() {
+    setGroupId(""); setTenantId(""); setContratoId(""); setSolucao(""); setAdicional("");
+    setStatus(""); setConsultor(""); setModelo("");
   }
-
-  function exportSolucoes() {
-    if (!d) return;
-    downloadCsv("crivo-relatorio-solucoes.csv", [
-      ...cabecalho,
-      ["Solução", "Vendas", "Receita mensal"],
-      ...d.comercial.porSolucao.map(
-        (s) => [s.produto, s.count, brl(s.receitaMensalCents)] as (string | number)[],
-      ),
-    ]);
-  }
-
-  function exportEntregas() {
-    if (!d) return;
-    downloadCsv("crivo-relatorio-entregas.csv", [
-      ...cabecalho,
-      ["Indicador", "Valor"],
-      ["Diagnósticos em andamento", d.entregas.diagnosticosAndamento],
-      ["Avaliações", d.entregas.avaliacoes],
-      ["Planos pendentes de validação", d.entregas.planosPendentes],
-      ["Ações pendentes", d.entregas.acoesPendentes],
-      ["Evidências registradas", d.entregas.evidencias],
-      ["Mentorias agendadas", d.entregas.mentoriasAgendadas],
-      ["Mentorias atrasadas", d.entregas.mentoriasAtrasadas],
-      ["Clientes sem responsável", d.entregas.clientesSemResponsavel],
-      ["Clientes sem avanço", d.entregas.clientesSemAvanco],
-    ]);
-  }
+  const temFiltro = !!(groupId || tenantId || contratoId || solucao || adicional || status || consultor || modelo);
 
   return (
     <>
       <div className="route__head">
         <div>
           <h1 className="page-title">Relatórios Gerenciais CRIVO</h1>
-          <p className="page-sub">
-            Leitura executiva agregada por período, grupo e empresa — comercial, contratos e receita,
-            soluções, adicionais e entregas. Exportação em CSV do que está na tela.
-          </p>
+          <p className="page-sub">Leitura executiva agregada por qualquer combinação dos filtros. Exportação do que está na tela.</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn--outline-dark btn--sm"
+            disabled={!d}
+            onClick={() => csv(tab === "exportacoes" ? "executiva" : tab)}
+            title="CSV da aba aberta"
+          >
+            Exportar CSV
+          </button>
+          <button type="button" className="btn btn--gold btn--sm" disabled={!d} onClick={() => void pdf()} title="PDF com todas as abas">
+            Exportar PDF
+          </button>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="card" style={{ padding: "12px 16px", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <strong style={{ fontSize: 12.5, letterSpacing: ".04em" }}>Período</strong>
-          <div style={{ display: "flex", gap: 4 }}>
-            {PERIODS.map((p) => (
-              <button
-                key={p.days}
-                onClick={() => setDays(p.days)}
-                className="btn btn--sm"
-                style={{
-                  background: days === p.days ? "#14263C" : "transparent",
-                  color: days === p.days ? "#fff" : "inherit",
-                  border: "1px solid var(--line, #E3DDD3)",
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <span style={{ width: 1, height: 20, background: "var(--line, #E3DDD3)" }} />
-
-          <select
-            value={groupId}
-            onChange={(e) => { setGroupId(e.target.value); setTenantId(""); }}
-            style={SELECT_STYLE}
-            title="Grupo empresarial"
-          >
-            <option value="">Grupo: todos</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
-
-          <select value={tenantId} onChange={(e) => setTenantId(e.target.value)} style={SELECT_STYLE} title="Empresa (CNPJ)">
-            <option value="">Empresa: todas</option>
-            {tenants.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-
-          {hasFilters && (
-            <button
-              className="btn btn--sm btn--outline-dark"
-              onClick={() => { setGroupId(""); setTenantId(""); }}
-            >
-              Limpar
-            </button>
-          )}
-
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginLeft: "auto" }}>
-            {FILTER_SOON.map((f) => (
-              <span key={f} className="pattern-tag" style={{ opacity: 0.45 }} title="Filtro em breve">{f}</span>
-            ))}
-          </div>
+      <div className="gd-panel">
+        <div className="rg-filters__head">
+          <span className="gd-panel__title">Filtros</span>
+          {temFiltro && <button type="button" className="gd-chip" onClick={limpar}>Limpar filtros</button>}
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--text-sec)", margin: "8px 0 0" }}>
-          Escopo atual: <strong>{escopo}</strong> · últimos {periodoLabel}. O bloco Comercial (funil de
-          leads) responde ao período; Contratos, Clientes e Entregas respondem também a grupo e empresa.
+        <div className="rg-filters">
+          <Filtro label="Período" value={periodo} onChange={setPeriodo}>
+            {PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </Filtro>
+          <Filtro label="Grupo" value={groupId} onChange={(v) => { setGroupId(v); setTenantId(""); setContratoId(""); }}>
+            <option value="">Todos</option>
+            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </Filtro>
+          <Filtro label="Empresa" value={tenantId} onChange={(v) => { setTenantId(v); setContratoId(""); }}>
+            <option value="">Todas</option>
+            {tenantOpts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </Filtro>
+          <Filtro label="Contrato" value={contratoId} onChange={setContratoId}>
+            <option value="">Todos</option>
+            {contratoOpts.map((c) => <option key={c.id} value={c.id}>{c.shortId} · {c.clientName}</option>)}
+          </Filtro>
+          <Filtro label="Solução" value={solucao} onChange={setSolucao}>
+            <option value="">Todas</option>
+            {opcoes.solucoes.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Filtro>
+          <Filtro label="Adicional" value={adicional} onChange={setAdicional}>
+            <option value="">Todos</option>
+            {opcoes.adicionais.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          </Filtro>
+          <Filtro label="Status" value={status} onChange={setStatus}>
+            <option value="">Todos</option>
+            {CONTRACT_STATUSES.map((s) => <option key={s} value={s}>{CONTRACT_STATUS_LABEL[s]}</option>)}
+          </Filtro>
+          <Filtro label="Consultor" value={consultor} onChange={setConsultor}>
+            <option value="">Todos</option>
+            {opcoes.consultores.map((c) => <option key={c} value={c}>{c}</option>)}
+          </Filtro>
+          <Filtro label="Modelo comercial" value={modelo} onChange={setModelo}>
+            <option value="">Todos</option>
+            {CONTRACT_MODELS.map((m) => <option key={m} value={m}>{CONTRACT_MODEL_LABEL[m as ContractModel]}</option>)}
+          </Filtro>
+        </div>
+        <p className="ge-note" style={{ marginTop: 10 }}>
+          Escopo: <strong>{escopo}</strong> · {periodoLabel}. Comercial e Entregas respondem a período, grupo, empresa e
+          consultor; Contratos, Receita, Soluções e Adicionais respondem a todos os filtros.
         </p>
       </div>
 
-      <div className="adm-tabs">
+      <div className="rg-tabs" role="tablist">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={`adm-tab${tab === t.key ? " is-active" : ""}`}
+            role="tab"
+            aria-selected={tab === t.key}
+            className={`rg-tab${tab === t.key ? " is-active" : ""}`}
             onClick={() => setTab(t.key)}
           >
             {t.label}
@@ -381,228 +416,159 @@ export function ManagementReportsSection() {
       {load === "ok" && d && (
         <>
           {tab === "executiva" && (
-            <>
-              <div className="kpi-grid">
-                <Kpi label="MRR (recorrência)" value={brl(d.contratos.mrrCents)} hint={`ARR ${brl(d.contratos.arrCents)} · estimado`} />
-                <Kpi label="Faturamento estimado" value={brl(d.comercial.faturamentoEstimadoCents)} hint={`no período · ${periodoLabel}`} />
-                <Kpi label="Valor em pipeline" value={brl(d.comercial.valorPropostoCents)} hint={`${d.comercial.propostasEnviadas} proposta(s) enviada(s)`} />
-                <Kpi label="Ticket médio" value={brl(d.comercial.ticketMedioCents)} hint="por venda fechada" />
-                <Kpi label="Contratos ativos" value={String(d.contratos.ativos)} hint={`${d.contratos.comAdicionais} com adicionais`} />
-                <Kpi label="Clientes ativos" value={String(d.executivo.clientesAtivos)} hint={`${d.executivo.clientesBloqueados} bloqueado(s)`} />
-                <Kpi label="Novos clientes" value={String(d.executivo.novosClientes)} hint={`últimos ${d.periodDays} dias`} />
-                <Kpi label="Taxa de conversão" value={`${d.comercial.conversao}%`} hint="lead → venda" />
-              </div>
-
-              <div className="adm-callout">
-                <strong>Receita contratada</strong> é o que está assinado (MRR/ARR dos contratos ativos).
-                Receita <strong>faturada</strong> e <strong>recebida</strong> dependem do módulo financeiro
-                e ainda não são apuradas — por isso não aparecem com número aqui. Valores únicos
-                (implantação/setup) não somam ao MRR.
-              </div>
-            </>
+            <div className="rg-grid4">
+              <Kpi label="Receita contratada" value={brl(d.financeiro.receitaContratadaCents)} hint="no período · estimada" />
+              <Kpi label="Receita faturada" value="—" aModelar hint={SEM_FINANCEIRO} />
+              <Kpi label="Receita recebida" value="—" aModelar hint={SEM_FINANCEIRO} />
+              <Kpi label="Em atraso" value="—" aModelar tone="alert" hint={SEM_FINANCEIRO} />
+              <Kpi label="MRR" value={brl(mrr)} hint="contratos ativos" />
+              <Kpi label="ARR" value={brl(mrr * 12)} hint="MRR × 12 · estimado" />
+              <Kpi label="Contratos ativos" value={String(ativos.length)} />
+              <Kpi label="Clientes ativos" value={String(clientesAtivos)} hint="com contrato ativo" />
+            </div>
           )}
 
           {tab === "comercial" && (
             <>
-              <div className="kpi-grid">
-                <Kpi label="Leads no período" value={String(d.comercial.leads)} hint={`período anterior: ${d.comercial.leadsPrev}`} />
-                <Kpi label="Propostas" value={String(d.comercial.propostas)} hint={`${d.comercial.propostasEnviadas} enviada(s)`} />
-                <Kpi label="Vendas fechadas" value={String(d.comercial.fechadas)} hint={`conversão ${d.comercial.conversao}%`} />
-                <Kpi label="Ticket médio" value={brl(d.comercial.ticketMedioCents)} hint="por venda fechada" />
-                <Kpi label="Sem 1º contato" value={String(d.comercial.leadsSemPrimeiroContato)} hint="leads aguardando retorno" />
+              <div className="rg-grid4">
+                <Kpi label="Leads" value={String(d.comercial.leads)} hint={`período anterior: ${d.comercial.leadsPrev}`} />
+                <Kpi label="Propostas" value={String(d.comercial.propostasEnviadas)} hint="enviadas no período" />
+                <Kpi label="Vendas" value={String(d.comercial.fechadas)} hint="leads convertidos" />
+                <Kpi label="Conversão" value={`${d.comercial.conversao}%`} hint="lead → venda" />
+                <Kpi label="Ticket médio" value={brl(d.comercial.ticketMedioCents)} hint="por venda · estimado" />
               </div>
-
-              <div style={SEC_HEAD}>Funil, origem e perdas</div>
-              <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Etapa do funil</th><th>Leads</th></tr></thead>
-                  <tbody>
-                    {d.comercial.funnel.map((f) => (
-                      <tr key={f.key}><td><strong>{f.label}</strong></td><td>{f.count}</td></tr>
-                    ))}
-                    {d.comercial.funnel.length === 0 && (
-                      <tr><td colSpan={2} style={{ textAlign: "center", padding: 20 }}>Sem leads no período.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="card" style={{ padding: 0, overflowX: "auto", marginTop: 14 }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Origem</th><th>Leads</th></tr></thead>
-                  <tbody>
-                    {d.comercial.porOrigem.map((o) => (
-                      <tr key={o.origem}><td><strong>{platformLeadOriginLabel(o.origem)}</strong></td><td>{o.count}</td></tr>
-                    ))}
-                    {d.comercial.porOrigem.length === 0 && (
-                      <tr><td colSpan={2} style={{ textAlign: "center", padding: 20 }}>Sem origem registrada no período.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="card" style={{ padding: 0, overflowX: "auto", marginTop: 14 }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Motivo de perda</th><th>Leads</th></tr></thead>
-                  <tbody>
+              <div className="ge-2col" style={{ marginTop: 16 }}>
+                <div className="gd-panel">
+                  <div className="gd-panel__title">Motivos de perda</div>
+                  <ul className="gd-list">
                     {d.comercial.motivosPerda.map((m) => (
-                      <tr key={m.motivo}><td><strong>{m.motivo}</strong></td><td>{m.count}</td></tr>
+                      <li key={m.motivo}><span>{m.motivo}</span><span className="cell-mute">{m.count}</span></li>
                     ))}
-                    {d.comercial.motivosPerda.length === 0 && (
-                      <tr><td colSpan={2} style={{ textAlign: "center", padding: 20 }}>Nenhuma perda registrada no período.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                    {d.comercial.motivosPerda.length === 0 && <li className="cell-mute">Nenhuma perda registrada no período.</li>}
+                  </ul>
+                </div>
+                <div className="gd-panel">
+                  <div className="gd-panel__title">Leads por origem</div>
+                  <ul className="gd-list">
+                    {d.comercial.porOrigem.map((o) => (
+                      <li key={o.origem}><span>{platformLeadOriginLabel(o.origem)}</span><span className="cell-mute">{o.count}</span></li>
+                    ))}
+                    {d.comercial.porOrigem.length === 0 && <li className="cell-mute">Sem leads no período.</li>}
+                  </ul>
+                </div>
               </div>
             </>
           )}
 
           {tab === "contratos" && (
             <>
-              <div className="kpi-grid">
-                <Kpi label="MRR (recorrência)" value={brl(d.contratos.mrrCents)} hint="contratos ativos" />
-                <Kpi label="ARR" value={brl(d.contratos.arrCents)} hint="MRR × 12 · estimado" />
-                <Kpi label="Contratos ativos" value={String(d.contratos.ativos)} hint={`${d.contratos.comAdicionais} com adicionais`} />
-                <Kpi label="Vencendo em 30 dias" value={String(d.contratos.vencendo30)} hint={`60 dias: ${d.contratos.vencendo60} · 90 dias: ${d.contratos.vencendo90}`} />
+              <div className="rg-grid4">
+                <Kpi label="MRR" value={brl(mrr)} hint="contratos ativos" />
+                <Kpi label="ARR" value={brl(mrr * 12)} hint="MRR × 12" />
+                <Kpi label="Novo MRR" value={brl(novoMrr)} hint="contratos iniciados no período" />
+                <Kpi label="Expansão" value="—" aModelar hint="aguarda histórico de aditivos" />
+                <Kpi label="Redução" value="—" aModelar hint="aguarda histórico de aditivos" />
+                <Kpi label="Cancelamento" value="—" aModelar hint="aguarda histórico de aditivos" />
+                <Kpi label="Contratos a vencer" value={String(aVencer)} hint="próximos 60 dias" />
+                <Kpi label="Em renovação" value={String(d.financeiro.emRenovacao)} hint="renovações em negociação no CRM" />
+                <Kpi label="Bloqueados" value={String(bloqueados)} hint="contratos suspensos" />
               </div>
-
-              <div style={SEC_HEAD}>Contratos por status</div>
-              <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Status</th><th>Contratos</th></tr></thead>
-                  <tbody>
-                    {d.contratos.porStatus.map((s) => (
-                      <tr key={s.status}>
-                        <td><strong>{CONTRACT_STATUS_LABEL[s.status as ContractStatus] ?? s.status}</strong></td>
-                        <td>{s.count}</td>
-                      </tr>
-                    ))}
-                    {d.contratos.porStatus.length === 0 && (
-                      <tr><td colSpan={2} style={{ textAlign: "center", padding: 20 }}>Nenhum contrato cadastrado.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="adm-callout" style={{ marginTop: 14 }}>
-                A movimentação de MRR (<strong>novo</strong>, <strong>expansão</strong>,
-                <strong> redução</strong> e <strong>cancelamento</strong>) exige histórico de alterações
-                do contrato, que ainda não é guardado. Aparece na lista de métricas a modelar.
-              </div>
+              <p className="ge-note" style={{ marginTop: 12 }}>
+                Receita contratada, faturada e recebida são diferenciadas. Valores únicos (implantação/setup) não somam ao MRR.
+              </p>
             </>
           )}
 
           {tab === "clientes" && (
-            <>
-              <div style={SEC_HEAD}>Vendas por solução</div>
-              <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Solução</th><th>Vendas</th><th>Receita mensal</th></tr></thead>
-                  <tbody>
-                    {d.comercial.porSolucao.map((s) => (
-                      <tr key={s.produto}>
-                        <td><strong>{s.produto}</strong></td>
-                        <td>{s.count}</td>
-                        <td>{brl(s.receitaMensalCents)}</td>
-                      </tr>
-                    ))}
-                    {d.comercial.porSolucao.length === 0 && (
-                      <tr><td colSpan={3} style={{ textAlign: "center", padding: 20 }}>Nenhuma venda por solução no período.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+            <div className="ge-2col" style={{ marginTop: 0 }}>
+              <div className="gd-panel">
+                <div className="gd-panel__title">Vendas por solução</div>
+                <div className="ge-subtable">
+                  <table className="data-table" style={{ margin: 0 }}>
+                    <thead><tr><th>Solução</th><th style={{ textAlign: "right" }}>Qtd</th><th style={{ textAlign: "right" }}>Receita</th></tr></thead>
+                    <tbody>
+                      {porSolucao.map((s) => (
+                        <tr key={s.nome}>
+                          <td>{s.nome}</td>
+                          <td style={{ textAlign: "right" }}>{s.qtd}</td>
+                          <td style={{ textAlign: "right" }}>{s.mensal ? `${brl(s.mensal)}/mês` : "—"}</td>
+                        </tr>
+                      ))}
+                      {porSolucao.length === 0 && (
+                        <tr><td colSpan={3} className="cell-mute" style={{ textAlign: "center", padding: 18 }}>Nenhum contrato vendido neste recorte.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-              <div style={SEC_HEAD}>Adicionais liberados</div>
-              <div className="kpi-grid">
-                <Kpi label="Contratos com adicionais" value={String(d.contratos.comAdicionais)} hint="pelo menos um adicional liberado" />
-                <Kpi label="Adicionais liberados" value={String(adicionaisLiberados)} hint="somados em todos os contratos do escopo" />
+              <div className="gd-panel">
+                <div className="gd-panel__title">Vendas por adicional</div>
+                <div className="ge-subtable">
+                  <table className="data-table" style={{ margin: 0 }}>
+                    <thead><tr><th>Adicional</th><th style={{ textAlign: "right" }}>Qtd</th><th style={{ textAlign: "right" }}>Receita</th></tr></thead>
+                    <tbody>
+                      {porAdicional.map((a) => (
+                        <tr key={a.nome}>
+                          <td>{a.nome}</td>
+                          <td style={{ textAlign: "right" }}>{a.qtd}</td>
+                          <td style={{ textAlign: "right" }}>{receitaAdicional(a)}</td>
+                        </tr>
+                      ))}
+                      {porAdicional.length === 0 && (
+                        <tr><td colSpan={3} className="cell-mute" style={{ textAlign: "center", padding: 18 }}>Nenhum adicional vendido neste recorte.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-              <div style={SEC_HEAD}>Clientes por MRR</div>
-              <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead><tr><th>Cliente</th><th>Contrato</th><th>Solução</th><th>MRR</th><th>Adicionais</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {topClientes.map((c) => (
-                      <tr key={c.id}>
-                        <td><strong>{c.clientName}</strong></td>
-                        <td className="cell-mute">{c.shortId}</td>
-                        <td className="cell-mute">{c.productName ?? "—"}</td>
-                        <td>{brl(c.mrrCents)}</td>
-                        <td>{c.addonsCount}</td>
-                        <td>{CONTRACT_STATUS_LABEL[c.status as ContractStatus] ?? c.status}</td>
-                      </tr>
-                    ))}
-                    {topClientes.length === 0 && (
-                      <tr><td colSpan={6} style={{ textAlign: "center", padding: 20 }}>Nenhum contrato no escopo selecionado.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
+            </div>
           )}
 
           {tab === "entregas" && (
-            <div className="kpi-grid">
+            <div className="rg-grid4">
               <Kpi label="Diagnósticos em andamento" value={String(d.entregas.diagnosticosAndamento)} hint="ciclos abertos" />
-              <Kpi label="Avaliações" value={String(d.entregas.avaliacoes)} hint="respostas registradas" />
-              <Kpi label="Planos pendentes" value={String(d.entregas.planosPendentes)} hint="minutas não validadas" />
-              <Kpi label="Ações pendentes" value={String(d.entregas.acoesPendentes)} hint="ainda não concluídas" />
-              <Kpi label="Evidências" value={String(d.entregas.evidencias)} hint="registradas na plataforma" />
-              <Kpi label="Mentorias agendadas" value={String(d.entregas.mentoriasAgendadas)} hint={`${d.entregas.mentoriasAtrasadas} atrasada(s)`} />
-              <Kpi label="Clientes sem responsável" value={String(d.entregas.clientesSemResponsavel)} hint="sem consultor vinculado" />
-              <Kpi label="Clientes sem avanço" value={String(d.entregas.clientesSemAvanco)} hint="ativos sem diagnóstico iniciado" />
+              <Kpi label="Diagnósticos concluídos" value={String(d.entregas.diagnosticosConcluidos)} hint="fechados no período" />
+              <Kpi label="Ciclos em andamento" value={String(d.entregas.ciclosIcdAbertos)} hint="ciclos trimestrais de ICD" />
+              <Kpi label="Relatórios emitidos" value={String(d.entregas.relatoriosEmitidos)} hint="emissões oficiais no período" />
+              <Kpi label="Dossiês" value={String(d.entregas.dossiesEmitidos)} hint="emitidos no período" />
+              <div className="gd-panel rg-span3">
+                <div className="gd-panel__title">Itens mais contratados</div>
+                <div className="rg-chips">
+                  {porAdicional.slice(0, 3).map((a) => <span key={a.nome} className="rg-chip">{a.nome}</span>)}
+                  {porAdicional.length === 0 && <span className="cell-mute">Nenhum adicional contratado neste recorte.</span>}
+                </div>
+              </div>
             </div>
           )}
 
           {tab === "exportacoes" && (
-            <div className="card">
-              <div className="card__head">
-                <div>
-                  <h3>Exportações</h3>
-                  <span className="card__sub">
-                    Cada arquivo sai com o período e o escopo aplicados no filtro acima. CSV com
-                    separador &quot;;&quot; — abre direto no Excel em português.
-                  </span>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                <button className="btn btn--sm btn--outline-dark" onClick={exportExecutiva}>CSV · Visão Executiva</button>
-                <button className="btn btn--sm btn--outline-dark" onClick={exportComercial}>CSV · Comercial</button>
-                <button className="btn btn--sm btn--outline-dark" onClick={exportContratos}>CSV · Contratos e Receita</button>
-                <button className="btn btn--sm btn--outline-dark" onClick={exportSolucoes}>CSV · Soluções</button>
-                <button className="btn btn--sm btn--outline-dark" onClick={exportEntregas}>CSV · Entregas</button>
-              </div>
-              <p style={{ fontSize: 12, color: "var(--text-sec)", margin: "12px 0 0" }}>
-                Dossiê em PDF por cliente continua no <strong>Motor de Relatórios e Dossiês</strong>, que é
-                onde os modelos de documento são administrados — não foi duplicado aqui.
+            <div className="gd-panel">
+              <p className="ge-note" style={{ marginTop: 0 }}>
+                Cada arquivo sai com o período e o escopo dos filtros acima. CSV com separador &quot;;&quot; — abre direto no
+                Excel em português. O PDF consolida todas as abas.
               </p>
+              <div className="rg-exports">
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => csv("executiva")}>CSV · Visão Executiva</button>
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => csv("comercial")}>CSV · Comercial</button>
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => csv("contratos")}>CSV · Contratos e Receita</button>
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => csv("clientes")}>CSV · Soluções e Adicionais</button>
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => csv("entregas")}>CSV · Entregas</button>
+                <button type="button" className="btn btn--outline-dark btn--sm" onClick={() => void pdf()}>PDF · Relatório consolidado</button>
+                {onNavigate && (
+                  <button type="button" className="gd-chip" onClick={() => onNavigate("overview")}>Voltar ao Dashboard</button>
+                )}
+              </div>
             </div>
           )}
-
-          {/* Nota de honestidade — mesma do Dashboard de Gestão. */}
-          <div className="card" style={{ marginTop: 16, background: "#FBF9F5", borderLeft: "3px solid #A8693D" }}>
-            <div className="card__head">
-              <div>
-                <h3>Métricas a modelar</h3>
-                <span className="card__sub">
-                  Indicadores do mockup ainda sem dado no sistema — não exibidos com número para não
-                  induzir a leitura. Precisam de nova modelagem/decisão.
-                </span>
-              </div>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-              {NAO_MODELADO.map((m) => (
-                <span key={m} className="pattern-tag pattern-tag--alert">{m}</span>
-              ))}
-              {d.naoModelado.map((m) => (
-                <span key={m} className="pattern-tag pattern-tag--alert">{m}</span>
-              ))}
-            </div>
-          </div>
         </>
       )}
+
+      <div className="gd-rulebox">
+        <div className="gd-rulebox__title">Regras desta tela</div>
+        Diferencia claramente <b>receita contratada</b>, <b>faturada</b> e <b>recebida</b>. Valores únicos não somam ao MRR.
+        Este é o destino dos cliques financeiros do Dashboard. Indicadores marcados como <b>a definir</b> aguardam o módulo
+        financeiro ou o histórico de aditivos — não exibem número falso.
+      </div>
     </>
   );
 }

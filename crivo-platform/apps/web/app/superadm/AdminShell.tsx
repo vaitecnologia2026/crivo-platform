@@ -254,7 +254,7 @@ export function AdminShell({ admin, onLogout }: { admin: PlatformAdmin; onLogout
           {section === "email" && <MailSettingsSection />}
           {section === "cnae" && <CnaeSection />}
           {section === "contratos" && <ContractsSection />}
-          {section === "relgerenciais" && <ManagementReportsSection />}
+          {section === "relgerenciais" && <ManagementReportsSection onNavigate={(s) => setSection(s as Section)} />}
           {section === "empresas" && <TenantsManager admin={admin} onLogout={onLogout} embedded />}
           {section === "integracoes" && <IntegrationsSection />}
           {section === "metodologia" && <MethodologySection />}

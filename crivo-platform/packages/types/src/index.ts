@@ -549,6 +549,10 @@ export interface DashboardData {
     clientesSemResponsavel: number;
     clientesSemAvanco: number; // clientes ativos sem nenhum diagnóstico iniciado
     acoesAtrasadas: number; // ações adotadas, não encerradas, com prazo vencido
+    diagnosticosConcluidos: number; // ciclos de diagnóstico fechados no período
+    ciclosIcdAbertos: number; // ciclos trimestrais de ICD em andamento
+    relatoriosEmitidos: number; // emissões oficiais (exceto dossiês) no período
+    dossiesEmitidos: number; // emissões oficiais do tipo dossiê no período
   };
   /** Financeiro e Carteira — só o que o sistema apura hoje. Faturada, recebida,
    *  atraso, expansão, redução e cancelamento dependem de módulo financeiro. */

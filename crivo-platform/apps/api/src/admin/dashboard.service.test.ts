@@ -52,6 +52,14 @@ function build() {
       evidence: { count: vi.fn(async (args: { where: { status?: string } }) => (args.where.status === 'REJEITADA' ? 1 : 7)) },
       mentoria: { findMany: vi.fn(async () => []) },
       addon: { findMany: vi.fn(async () => []) },
+      icdCycle: { count: vi.fn(async () => 2) },
+      reportEmission: {
+        groupBy: vi.fn(async () => [
+          { type: 'relatorio_preliminar', _count: { _all: 3 } },
+          { type: 'dossie_aep', _count: { _all: 1 } },
+          { type: 'dossie_aep_pgr', _count: { _all: 2 } },
+        ]),
+      },
     },
   };
   return { svc: new DashboardService(prisma as never), prisma };
@@ -68,6 +76,8 @@ describe('Dashboard de Gestão — modelo do protótipo', () => {
     expect(r.consultores).toEqual(['Consultor A', 'Consultor B']);
     expect(r.comercial.funilEtapas.map((e) => e.label)).toContain('Onboarding');
     expect(r.comercial.funilEtapas.some((e) => e.key === 'PERDIDO')).toBe(false);
+    // Relatórios Gerenciais · Entregas: dossiês separados dos demais relatórios.
+    expect(r.entregas).toMatchObject({ diagnosticosConcluidos: 1, ciclosIcdAbertos: 2, relatoriosEmitidos: 3, dossiesEmitidos: 3 });
   });
 
   it('pendências trazem frase, área e a tela que resolve', async () => {

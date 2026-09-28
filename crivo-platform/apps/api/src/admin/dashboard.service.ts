@@ -129,6 +129,9 @@ export class DashboardService {
       evidenciasRejeitadas,
       emRenovacao,
       donosComerciais,
+      diagnosticosConcluidos,
+      ciclosIcdAbertos,
+      emissoesPorTipo,
     ] = await Promise.all([
       this.prisma.admin.product.findMany({ select: { id: true, name: true, monthlyPriceCents: true } }),
       this.prisma.admin.platformLead.findMany({
@@ -203,6 +206,14 @@ export class DashboardService {
         where: { commercialOwner: { not: null } },
         distinct: ['commercialOwner'],
         select: { commercialOwner: true },
+      }),
+      // Entregas do período (Relatórios Gerenciais · aba Entregas).
+      this.prisma.admin.assessmentCycle.count({ where: { status: 'CLOSED', closedAt: { gte: since }, ...orgWhere } }),
+      this.prisma.admin.icdCycle.count({ where: { status: 'OPEN', ...orgWhere } }),
+      this.prisma.admin.reportEmission.groupBy({
+        by: ['type'],
+        where: { createdAt: { gte: since }, ...orgWhere },
+        _count: { _all: true },
       }),
     ]);
     const addonPrice = new Map(addonRows.map((a) => [a.moduleCode, a.monthlyPriceCents]));
@@ -481,6 +492,14 @@ export class DashboardService {
         clientesSemResponsavel: semResponsavel.length,
         clientesSemAvanco,
         acoesAtrasadas: acoesAtrasadasTotal,
+        diagnosticosConcluidos,
+        ciclosIcdAbertos,
+        relatoriosEmitidos: emissoesPorTipo
+          .filter((e) => !e.type.startsWith('dossie'))
+          .reduce((s, e) => s + e._count._all, 0),
+        dossiesEmitidos: emissoesPorTipo
+          .filter((e) => e.type.startsWith('dossie'))
+          .reduce((s, e) => s + e._count._all, 0),
       },
       financeiro: {
         receitaContratadaCents: faturamentoEstimadoCents,
