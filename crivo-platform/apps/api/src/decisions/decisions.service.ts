@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -403,16 +404,32 @@ export class DecisionsService {
         );
       }
 
-      // Anexo §9.4: vincula ao ciclo trimestral aberto cuja janela contém
-      // `decidedAt` da decisão. Se nenhum cobrir, cycleId fica null e o
-      // fechamento ignora — pode ser religado depois pela criação de ciclo.
-      const openCycle = await tx.icdCycle.findFirst({
-        where: {
-          status: 'OPEN',
-          startsAt: { lte: decision.decidedAt },
-          endsAt: { gte: decision.decidedAt },
-        },
+      // Decisão CRIVO 6 (28/09/2026): ciclo fechado é o oficial congelado e só
+      // muda com reabertura auditada. Reenviar a avaliação de uma decisão já
+      // contada num ciclo fechado não pode trocar a nota nem o ciclo dela.
+      const existing = await tx.decisionIcdScore.findUnique({
+        where: { decisionId },
+        include: { cycle: { select: { id: true, status: true } } },
       });
+      if (existing?.cycle?.status === 'CLOSED') {
+        throw new ConflictException(
+          'A avaliação desta decisão já entrou num ciclo fechado do ICD e não pode ser alterada.',
+        );
+      }
+
+      // Anexo §9.4: vincula ao ciclo aberto cuja janela contém `decidedAt` da
+      // decisão. Se nenhum cobrir, cycleId fica null e o fechamento ignora —
+      // pode ser religado depois pela criação de ciclo. Reenvio mantém o ciclo
+      // aberto em que a avaliação já estava.
+      const openCycle =
+        existing?.cycle ??
+        (await tx.icdCycle.findFirst({
+          where: {
+            status: 'OPEN',
+            startsAt: { lte: decision.decidedAt },
+            endsAt: { gte: decision.decidedAt },
+          },
+        }));
 
       const persisted = await tx.decisionIcdScore.upsert({
         where: { decisionId },

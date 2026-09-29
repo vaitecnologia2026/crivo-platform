@@ -46,8 +46,10 @@ import {
   listRiskActionSuggestions,
   acceptRiskActionSuggestions,
   listGhesDoPlano,
+  getMyRole,
 } from "@/lib/api";
 import { IconCheck, IconPaperclip, IconGrid } from "./Icons";
+import { ResponsavelField, responsavelInicial, responsavelPayload, responsavelProntoParaAprovar } from "./ResponsavelField";
 
 // "justificativa" é texto, sem arquivo: vale para concluir depois de validada.
 const EVIDENCE_KINDS = ["ata", "reunião", "print", "foto", "documento", "comunicado", "lista", "treinamento", "link", EVIDENCE_KIND_JUSTIFICATIVA];
@@ -60,6 +62,22 @@ const GhesContext = createContext<GheOpcao[]>([]);
 
 /** Escopo da ação na linha do plano. Só aparece quando a empresa tem GHE
  *  elegível (ou a ação já tem escopo): no Essencial seria ruído. */
+// Validar o plano e a justificativa é ato FORMAL da empresa (H-009): a API
+// aceita só RH/GESTOR/CEO/ADMIN (GESTAO_EMPRESA em apps/api/src/iam/role-groups).
+// Consultor e Jurídico veem o plano, mas não recebem os botões que dariam 403.
+const PAPEIS_QUE_VALIDAM = ["RH", "GESTOR", "CEO", "ADMIN"];
+let papelPromise: Promise<string | null> | null = null;
+function usePodeValidar(): boolean {
+  const [pode, setPode] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    if (!papelPromise) papelPromise = getMyRole().then((r) => r.role).catch(() => { papelPromise = null; return null; });
+    void papelPromise.then((role) => { if (vivo) setPode(!!role && PAPEIS_QUE_VALIDAM.includes(role)); });
+    return () => { vivo = false; };
+  }, []);
+  return pode;
+}
+
 function EscopoPill({ scopeGhe }: { scopeGhe: string | null }) {
   const ghes = useContext(GhesContext);
   if (!scopeGhe && !ghes.length) return null;
@@ -482,6 +500,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
   const [addingItem, setAddingItem] = useState(false);
   const [busy, setBusy] = useState(false);
   const validated = !!plan.validatedAt;
+  const podeValidar = usePodeValidar();
 
   // Descartadas (NAO_ADOTADA) saem da lista operacional e ficam recolhidas
   // embaixo: não entram no Dossiê e não devem poluir o plano — mas o rastro da
@@ -528,7 +547,7 @@ function PlanCard({ plan, onChanged }: { plan: ActionPlanData; onChanged: () => 
           <span className={`pattern-tag${validated ? "" : ""}`} style={{ color: validated ? "var(--success)" : "var(--gold-deep)" }}>
             {validated ? <><IconCheck size={13} /> Documento final</> : "Minuta"}
           </span>
-          {!validated && (
+          {!validated && podeValidar && (
             <button
               className="btn btn--outline-dark btn--sm"
               disabled={busy || plan.items.length === 0}
@@ -626,7 +645,8 @@ function ItemRow({ item, onChanged }: { item: ActionPlanData["items"][number]; o
   // salvava achava que tinha aprovado — e a ação seguia SUGERIDA, fora do
   // Dossiê (homologação 17/09: 12 ações editadas, zero aprovadas). Agora, se
   // falta algo, os detalhes abrem em modo "Salvar e aprovar": uma gravação só.
-  const prontaParaAprovar = !!item.responsible?.trim();
+  // H-008: aprovar exige responsável VINCULADO (usuário, cargo, área; texto só externo/exceção).
+  const prontaParaAprovar = responsavelProntoParaAprovar(responsavelInicial(item));
   async function aprovar() {
     if (!prontaParaAprovar) {
       setAprovando(true);
@@ -755,7 +775,6 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     objective: item.objective ?? "",
     // Exigidos para APROVAR (regra de homologação): a ação gerada pela IA nasce
     // sem os dois, e antes não havia onde preenchê-los numa ação existente.
-    responsible: item.responsible ?? "",
     expectedEvidence: item.expectedEvidence ?? "",
     dueDate: item.dueDate ? item.dueDate.slice(0, 10) : "",
     scopeGhe: item.scopeGhe ?? "",
@@ -764,6 +783,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     action: item.action,
   });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">(initialMode);
+  const [resp, setResp] = useState(() => responsavelInicial(item));
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   async function save() {
@@ -771,7 +791,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     // fica no formulário, ao lado do campo, em vez de num alerta que some.
     if (aprovar) {
       const faltam = [
-        !f.responsible.trim() ? "responsável" : null,
+        !responsavelProntoParaAprovar(resp) ? "responsável vinculado (usuário, cargo ou área; ou externo/exceção com motivo)" : null,
       ].filter(Boolean);
       if (faltam.length) {
         setErro(`Para aprovar, preencha: ${faltam.join(" e ")}.`);
@@ -788,7 +808,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
           measureMode === "none" ? "Nenhuma medida existente" : f.existingMeasure || undefined,
         indicator: f.indicator || undefined,
         objective: f.objective || undefined,
-        responsible: f.responsible || undefined,
+        ...responsavelPayload(resp),
         expectedEvidence: f.expectedEvidence || undefined,
         dueDate: f.dueDate ? new Date(`${f.dueDate}T12:00:00`).toISOString() : undefined,
         // Escopo só vai quando MUDOU: uma ação cujo GHE deixou de ser elegível
@@ -808,7 +828,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
     <div style={{ padding: 12 }}>
       {aprovar && (
         <p className="card__sub" style={{ margin: "0 0 10px" }}>
-          <strong>Aprovar esta ação.</strong> Informe o responsável (obrigatório) —
+          <strong>Aprovar esta ação.</strong> Vincule o responsável (obrigatório) —
           ao salvar, a ação fica <strong>Aprovada</strong> e passa a compor o Dossiê.
         </p>
       )}
@@ -817,9 +837,7 @@ function ItemDetailsForm({ item, aprovar = false, onChanged, onClose }: { item: 
           <textarea rows={2} maxLength={1000} value={f.action} onChange={(e) => setF((s) => ({ ...s, action: e.target.value }))} />
         </label>
         <EscopoSelect value={f.scopeGhe} onChange={(v) => setF((s) => ({ ...s, scopeGhe: v }))} />
-        <label className="prod-field"><span>Responsável (obrigatório para aprovar)</span>
-          <input value={f.responsible} onChange={(e) => setF((s) => ({ ...s, responsible: e.target.value }))} placeholder="Ex.: Gerente de Operações" />
-        </label>
+        <ResponsavelField value={resp} onChange={setResp} obrigatorio />
         <label className="prod-field"><span>Evidência esperada (opcional)</span>
           <input value={f.expectedEvidence} onChange={(e) => setF((s) => ({ ...s, expectedEvidence: e.target.value }))} placeholder="Ex.: ata da reunião, relatório de carga" />
         </label>
@@ -899,6 +917,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
   }
   // Justificativa de conclusão: a EMPRESA valida aqui (não a CRIVO).
   const [validando, setValidando] = useState<string | null>(null);
+  const podeValidar = usePodeValidar();
   async function validar(ev: ActionPlanData["items"][number]["evidences"][number]) {
     if (!window.confirm(`Validar a justificativa "${ev.title}"? Depois de validada, ela permite concluir a ação.`)) return;
     setValidando(ev.id);
@@ -935,7 +954,7 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
                     : "Aguardando validação da empresa"
                   : ev.status === "APROVADA" ? "Aprovada pela CRIVO" : ev.status === "REJEITADA" ? "Rejeitada" : ev.status === "SUBSTITUIDA" ? "Substituída" : "Aguardando validação CRIVO"}
               </span>
-              {ev.kind === EVIDENCE_KIND_JUSTIFICATIVA && (ev.status === "ENVIADA" || ev.status === "PENDENTE") && (
+              {podeValidar && ev.kind === EVIDENCE_KIND_JUSTIFICATIVA && (ev.status === "ENVIADA" || ev.status === "PENDENTE") && (
                 <button type="button" className="btn btn--ghost btn--sm" style={{ marginLeft: 8 }} disabled={validando === ev.id} onClick={() => void validar(ev)}>
                   {validando === ev.id ? "Validando…" : "Validar justificativa"}
                 </button>
@@ -981,8 +1000,9 @@ function EvidenceBlock({ item, onChanged }: { item: ActionPlanData["items"][numb
 }
 
 function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: () => void; onAdded: () => void }) {
-  const [f, setF] = useState({ point: "", action: "", responsible: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "", objective: "", scopeGhe: "" });
+  const [f, setF] = useState({ point: "", action: "", dueDate: "", expectedEvidence: "", origin: "", exposedGroup: "", severity: "", probability: "", riskLevel: "", areaProcess: "", existingMeasure: "", indicator: "", objective: "", scopeGhe: "" });
   const [measureMode, setMeasureMode] = useState<"" | "none" | "other">("");
+  const [resp, setResp] = useState(() => responsavelInicial());
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState<ActionTemplateLite[] | null>(null);
@@ -1046,7 +1066,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
     try {
       await addActionItem(planId, {
         point: f.point.trim(), action: f.action.trim(),
-        origin: f.origin || undefined, responsible: f.responsible || undefined,
+        origin: f.origin || undefined, ...responsavelPayload(resp),
         dueDate: f.dueDate || null, expectedEvidence: f.expectedEvidence || undefined,
         exposedGroup: f.exposedGroup || undefined,
         severity: f.severity || undefined, probability: f.probability || undefined,
@@ -1223,9 +1243,7 @@ function NewItemForm({ planId, onClose, onAdded }: { planId: string; onClose: ()
           <input value={f.action} onChange={(e) => set("action")(e.target.value)} required />
         </label>
         <EscopoSelect value={f.scopeGhe} onChange={set("scopeGhe")} />
-        <label className="prod-field"><span>Responsável</span>
-          <input value={f.responsible} onChange={(e) => set("responsible")(e.target.value)} />
-        </label>
+        <ResponsavelField value={resp} onChange={setResp} />
         <label className="prod-field"><span>Prazo</span>
           <input type="date" value={f.dueDate} onChange={(e) => set("dueDate")(e.target.value)} />
         </label>

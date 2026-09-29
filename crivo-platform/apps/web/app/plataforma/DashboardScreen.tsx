@@ -65,6 +65,7 @@ import {
   type CampaignSummary,
   type DocumentDescriptor,
   type IcdCycleHistoryEntry,
+  formatIcdScore,
 } from "@crivo/types";
 
 /**
@@ -213,7 +214,7 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
     <div className="eixos-official">
       <div className="eixos-official__head">
         <div className="eixos-official__score">
-          <strong className={`dash-score ${scoreClass(company.score)}`}>{company.score}</strong>
+          <strong className={`dash-score ${scoreClass(company.score)}`}>{formatIcdScore(company.score)}</strong>
           <span>{company.band.label}</span>
         </div>
         <span className="card__sub">
@@ -222,12 +223,12 @@ function IcdAxesOfficial({ axes, status }: { axes: IcdAxesData | null; status: L
       </div>
       <div className="eixos-grid">
         {ICD_AXES.map((ax) => {
-          const v = Math.round(company.axesAverage[ax] ?? 0);
+          const v = company.axesAverage[ax] ?? 0;
           return (
             <div className="eixo" key={ax} title={ICD_AXIS_DESCRIPTION[ax]}>
               <div className="eixo__top">
                 <span className="eixo__label">{ICD_AXIS_LABEL[ax]}</span>
-                <strong className={`dash-score ${scoreClass(v)}`}>{v}</strong>
+                <strong className={`dash-score ${scoreClass(v)}`}>{formatIcdScore(v)}</strong>
               </div>
               <div className="eixo__bar">
                 <span className={`eixo__fill ${scoreClass(v)}`} style={{ width: `${v}%` }} />
@@ -640,6 +641,8 @@ export function DashboardScreen() {
   const leadersN = icdCompany?.eligibleLeaders ?? 0;
   const icdSuppressed = leadersN > 0 && (icdCompany?.suppressed ?? false);
   const icdScore = icdCompany && !icdCompany.suppressed ? icdCompany.score ?? null : null;
+  // ICD: faixa pelo valor bruto; o número exibido tem 1 casa (decisão CRIVO 28/09/2026).
+  const icdScoreExibido = icdScore !== null ? Math.round(icdScore * 10) / 10 : null;
   const icdBand = icdScore !== null ? getIcdMaturityBand(icdScore) : null;
   // #17 — estado vazio profissional: sem ICD e sem plano = nenhum diagnóstico concluído ainda.
   const temResultado = !!diag?.aggregate && diag.aggregate.totalRespondents > 0;
@@ -653,7 +656,8 @@ export function DashboardScreen() {
   const agg = diag?.engine === "DIAGNOSTICS" && temResultado && !diag!.aggregate!.suppressed ? diag!.aggregate! : null;
   const psyGeral = diag?.engine === "PSYCHOSOCIAL" && psy && psy.totalRespondents > 0 && !psy.overall.suppressed ? psy.overall : null;
   const indiceGeral: number | null =
-    agg?.score != null ? agg.score : psyGeral ? psyGeral.score : icdScore;
+    agg?.score != null ? agg.score : psyGeral ? psyGeral.score : icdScoreExibido;
+  const indiceGeralDoIcd = agg?.score == null && !psyGeral && icdScore !== null;
   const indiceFaixa: string | null =
     agg?.score != null
       ? agg.levelLabel ?? null
@@ -900,7 +904,7 @@ export function DashboardScreen() {
                     </>
                   ) : (
                     <>
-                      <strong className="kpi__value">{indiceGeral}<small> /100</small></strong>
+                      <strong className="kpi__value">{indiceGeralDoIcd ? formatIcdScore(indiceGeral) : indiceGeral}<small> /100</small></strong>
                       {indiceFaixa && <span className="pill pill--gold" style={{ marginTop: 4 }}>{indiceFaixa}</span>}
                       <div className="kpi__bar" style={{ marginTop: 6 }}>
                         <div style={{ width: `${Math.max(0, Math.min(100, indiceGeral))}%` }} />

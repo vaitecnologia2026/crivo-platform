@@ -1395,6 +1395,11 @@ model User {
   name               String
   passwordHash       String
   role               Role         @default(COLABORADOR)
+  // Também é líder (Spec V1 v1.2 §3): o papel corporativo continua em `role` e
+  // esta marcação dá a Minha Jornada (Líder + Administrador, um único login).
+  // Papel LIDER é sempre líder (true). Lida do banco a cada request (AuthGuard)
+  // — não vai no JWT, então marcar/desmarcar vale na hora.
+  isLeader           Boolean      @default(false) @map("is_leader")
   active             Boolean      @default(true)
   // Revogação de sessão (segurança): incrementar invalida TODOS os JWTs do
   // usuário (logout, troca de senha, desativação). O token carrega `tv`; o
@@ -1424,6 +1429,7 @@ model User {
   decisionIcdScoresMine    DecisionIcdScore[]   @relation("LeaderDecisionIcdScores")
   leaderQuarterlyIcdScores LeaderQuarterlyIcd[] @relation("LeaderQuarterlyIcdScores")
   pocketSessions           PocketSession[]      @relation("LeaderPocketSessions")
+  actionItemsResponsible   ActionItem[]         @relation("ActionItemResponsible")
   userRoles                UserRole[] // #68 — multi-papel dinâmico
 
   // E-mail único POR tenant (mesmo e-mail pode existir em orgs diferentes)
@@ -1610,7 +1616,14 @@ model ActionPlan {
   sourceInstrumentSlug String?               @map("source_instrument_slug")
   sourceInstrument     DiagnosticInstrument? @relation("plan_source_instrument", fields: [sourceInstrumentSlug], references: [slug], onDelete: SetNull, onUpdate: Cascade)
   validatedAt          DateTime? // sem validação = minuta; com validação = documento final
-  validatedBy          String?
+  validatedBy          String? // nome/e-mail de quem validou (exibição)
+  /// H-009 (decisão CRIVO 28/09/2026): a validação registra usuário, papel,
+  /// data/hora (validatedAt), versão e auditoria (AuditLog plan.validate).
+  /// Sem assinatura certificada na V1.
+  validatedByUserId    String?               @map("validated_by_user_id") @db.Uuid
+  validatedByRole      String?               @map("validated_by_role")
+  /// Quantas vezes o plano foi validado (1 = primeira validação).
+  validationVersion    Int                   @default(0) @map("validation_version")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -1629,7 +1642,16 @@ model ActionItem {
   point                String // ponto identificado (= fator psicossocial, para o inventário §6/§15)
   origin               String? // origem do ponto (autoavaliação/escuta/questionário/observação/parecer)
   action               String // ação proposta (= medida de controle no inventário)
-  responsible          String? // responsável (empresa)
+  responsible          String? // nome exibido do responsável (empresa) — Dossiê/exportações leem daqui
+  /// H-008 (decisão CRIVO 28/09/2026): o responsável da ação formal é VINCULADO.
+  /// USUARIO = usuário da empresa (responsibleUserId); CARGO / AREA = valor do
+  /// cadastro de colaboradores (role / area·sector), gravado em `responsible`;
+  /// EXTERNO = pessoa de fora (texto livre); EXCECAO = texto livre com motivo
+  /// (responsibleReason). null = legado/sugestão sem vínculo — não pode aprovar.
+  responsibleType      String?               @map("responsible_type")
+  responsibleUserId    String?               @map("responsible_user_id") @db.Uuid
+  responsibleUser      User?                 @relation("ActionItemResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  responsibleReason    String?               @map("responsible_reason")
   dueDate              DateTime?
   status               ActionStatus          @default(SUGERIDA)
   expectedEvidence     String? // evidência esperada
@@ -1690,6 +1712,7 @@ model ActionItem {
   @@unique([planId, suggestionKey])
   @@index([tenantId])
   @@index([planId])
+  @@index([responsibleUserId])
   @@map("action_items")
 }
 
@@ -1755,6 +1778,9 @@ model ReportEmission {
   content         Json // GeneratedDocument completo (snapshot; nunca reprocessado)
   contentHash     String       @map("content_hash") // sha256 do JSON canônico
   generatedBy     String?      @map("generated_by") // e-mail de quem emitiu
+  /// H-009: id e papel de quem emitiu (a versão é emissionNumber; auditoria em report.emit).
+  generatedByUserId String?    @map("generated_by_user_id") @db.Uuid
+  generatedByRole   String?    @map("generated_by_role")
   status          String       @default("EMITIDA") // EMITIDA | REVISADA
   reviewedBy      String?      @map("reviewed_by")
   reviewedAt      DateTime?    @map("reviewed_at")
@@ -2022,7 +2048,7 @@ model DecisionIcdScore {
   cycleId    String?      @db.Uuid
   cycle      IcdCycle?    @relation(fields: [cycleId], references: [id], onDelete: SetNull)
 
-  score      Int // 0–100, média dos 4 eixos (§9.2)
+  score      Float // 0–100, média dos 4 eixos (§9.2) — precisão total; a tela exibe 1 casa
   axes       Json // { clareza, criterio, alinhamento, sustentacao } cada 0–100
   answers    Json // [{ id: "P1"|...|"P8", value: 1..5 }]
   weight     Int // 0|1|2 derivado do impact da decisão (§9.3)
@@ -2076,7 +2102,7 @@ model LeaderQuarterlyIcd {
   leaderId String       @db.Uuid
   leader   User         @relation("LeaderQuarterlyIcdScores", fields: [leaderId], references: [id], onDelete: Cascade)
 
-  score         Int // 0–100, média ponderada das decisões elegíveis
+  score         Float // 0–100, média ponderada das decisões elegíveis (precisão total)
   decisionCount Int // quantas decisões MÉDIO/ALTO elegíveis entraram
   totalWeight   Int // soma dos pesos (peso médio + peso alto)
   axesAverage   Json // { clareza, criterio, alinhamento, sustentacao } médias ponderadas
@@ -2099,10 +2125,10 @@ model CompanyQuarterlyIcd {
   cycleId  String       @unique @db.Uuid // 1:1 com ciclo
   cycle    IcdCycle     @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
-  score           Int? // null se suppressed (< 5 líderes elegíveis)
+  score           Float? // null se suppressed (< 5 líderes elegíveis); precisão total
   eligibleLeaders Int // quantos líderes elegíveis no ciclo
   suppressed      Boolean  @default(false) // §11: recorte < 5
-  distribution    Json // { critica, desenvolvimento, funcional, consistente, avancada, elevada } counts
+  distribution    Json // { CRITICA, VULNERAVEL, CONSISTENTE, FORTE } counts (Anexo v1.1 §6.3)
   axesAverage     Json // médias agregadas dos 4 eixos (apenas se !suppressed)
   computedAt      DateTime @default(now())
 

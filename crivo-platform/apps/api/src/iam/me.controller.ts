@@ -1,7 +1,11 @@
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from './guards/auth.guard';
 import { ModuleGuard } from './guards/module.guard';
 import { PermissionGuard } from './guards/permission.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { OrganizacaoGuard } from './guards/organizacao.guard';
+import { Roles } from './roles.decorator';
+import { GESTAO_EMPRESA, LEITURA_GESTAO, veEmpresaInteira } from './role-groups';
 import { RequireModule } from './require-module.decorator';
 import { RequirePermission } from './require-permission.decorator';
 import { CurrentUser } from './current-user.decorator';
@@ -14,7 +18,10 @@ import { AuditService } from '../admin/audit.service';
 import { UpdateBrandingDto, UpdateOrganizationDto } from '../admin/dto';
 import type { TenantBranding } from '@crivo/db';
 import {
+  MIN_LEADERS_FOR_DISCLOSURE,
   TERMS_VERSION,
+  contextsFor,
+  type MyRoleData,
   type SessionUser,
   type TenantBrandingData,
   type TermsStatus,
@@ -41,6 +48,27 @@ const BUILTIN_BY_METHOD: Record<string, string> = {
   ORGANIZACIONAL: 'PSYCHOSOCIAL',
 };
 
+/** E-mails contidos num texto livre (separados por vírgula, ponto e vírgula,
+ *  espaço ou "Nome <email>"), em minúsculas. */
+export function emailsDoTexto(texto: string | null | undefined): string[] {
+  return (texto ?? '')
+    .toLowerCase()
+    .split(/[\s,;<>()]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.includes('@'));
+}
+
+/** Nome comparável: sem espaços nas pontas (e repetidos), minúsculo e sem
+ *  acento — "  José  Silva" e "jose silva" são a mesma pessoa. */
+export function nomeNormalizado(nome: string | null | undefined): string {
+  return (nome ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 /** Converte a linha (ou ausência) no contrato compartilhado (nulls). */
 function toBrandingData(b: TenantBranding | null): TenantBrandingData {
   return {
@@ -54,7 +82,15 @@ function toBrandingData(b: TenantBranding | null): TenantBrandingData {
   };
 }
 
-/** Dados da sessão da própria empresa (data-driven nav — F6 · white-label — F5). */
+/**
+ * Dados da sessão da própria empresa (data-driven nav — F6 · white-label — F5).
+ *
+ * Contextos (Spec V1 v1.2 §3): o que o shell lê na ENTRADA, para qualquer
+ * papel (role, modules, permissions, screens, branding, organization,
+ * diagnostic-context, terms, mentorias, global-academy), fica aberto. O que
+ * devolve dado CORPORATIVO leva o OrganizacaoGuard — "Somente Líder" não vê a
+ * Área da Organização nem por URL/API.
+ */
 @Controller('me')
 @UseGuards(AuthGuard)
 export class MeController {
@@ -86,19 +122,32 @@ export class MeController {
 
   /** Papel do usuário logado — define a HOME inicial e a área padrão (#51).
    *  `mustChangePassword` acompanha: com a senha de PRIMEIRO ACESSO (sorteada
-   *  pela plataforma), o portal exige a troca antes de liberar a navegação. */
+   *  pela plataforma), o portal exige a troca antes de liberar a navegação.
+   *  `isLeader`/`contexts` (Spec V1 v1.2 §3): Minha Jornada e/ou Área da
+   *  Organização. O papel é o do token (a troca de papel incrementa o
+   *  tokenVersion, então ele não fica velho); nome, senha provisória e a
+   *  marcação de líder vêm do banco nesta mesma consulta. */
   @Get('role')
-  async myRole(
-    @CurrentUser() user: SessionUser,
-  ): Promise<{ role: string; name: string; mustChangePassword: boolean }> {
+  async myRole(@CurrentUser() user: SessionUser): Promise<MyRoleData> {
     const row = await this.prisma.forTenant(user.tenantId, (tx) =>
-      tx.user.findFirst({ where: { id: user.id }, select: { mustChangePassword: true } }),
+      tx.user.findFirst({
+        where: { id: user.id },
+        select: { name: true, mustChangePassword: true, isLeader: true },
+      }),
     );
-    return { role: user.role, name: user.name, mustChangePassword: row?.mustChangePassword ?? false };
+    const isLeader = row?.isLeader ?? false;
+    return {
+      role: user.role,
+      name: row?.name ?? user.name,
+      mustChangePassword: row?.mustChangePassword ?? false,
+      isLeader,
+      contexts: contextsFor({ role: user.role, isLeader }),
+    };
   }
 
   /** F3 — Consolidado do Grupo Empresarial do usuário (403 se não autorizado). */
   @Get('group/overview')
+  @UseGuards(OrganizacaoGuard)
   myGroupOverview(@CurrentUser() user: SessionUser) {
     return this.groups.portalOverviewForUser(user);
   }
@@ -226,14 +275,19 @@ export class MeController {
     });
   }
 
-  /** #65 — Onboarding checklist do tenant. Retorna 5 marcos do primeiro
+  /** #65 — Onboarding checklist do tenant. Retorna 3 marcos do primeiro
    *  uso, para o Dashboard guiar o cliente nos primeiros passos. Some
-   *  do Dashboard quando `allDone` é true. */
+   *  do Dashboard quando `allDone` é true. Área da Organização: conta
+   *  campanhas e plano validado da empresa (o Dashboard é corporativo).
+   *
+   *  Sem marcos pessoais de líder (primeira decisão, primeira sessão do
+   *  Pocket): são conteúdo PRIVADO de Minha Jornada (Spec V1 v1.2 §3). O card
+   *  é do Portal corporativo — não pode pedir esse conteúdo, nem exigi-lo de
+   *  quem é só Administrador (o LeaderGuard nem o deixa registrar). */
   @Get('onboarding-status')
+  @UseGuards(OrganizacaoGuard)
   async myOnboardingStatus(@CurrentUser() user: SessionUser): Promise<{
     termsAccepted: boolean;
-    firstDecisionRegistered: boolean;
-    firstPocketCompleted: boolean;
     firstCampaignCreated: boolean;
     firstPlanValidated: boolean;
     allDone: boolean;
@@ -245,28 +299,15 @@ export class MeController {
       });
       const termsAccepted = !!me?.termsAcceptedAt && me.termsVersion === TERMS_VERSION;
 
-      const decisionCount = await tx.decision.count({
-        where: { leaderId: user.id, deletedAt: null },
-      });
-      const pocketDone = await tx.pocketSession.count({
-        where: { leaderId: user.id, status: 'CONCLUIDA' },
-      });
       const campaignCount = await tx.assessmentCycle.count();
       const validatedPlan = await tx.actionPlan.count({ where: { validatedAt: { not: null } } });
 
       const status = {
         termsAccepted,
-        firstDecisionRegistered: decisionCount > 0,
-        firstPocketCompleted: pocketDone > 0,
         firstCampaignCreated: campaignCount > 0,
         firstPlanValidated: validatedPlan > 0,
       };
-      const allDone =
-        status.termsAccepted &&
-        status.firstDecisionRegistered &&
-        status.firstPocketCompleted &&
-        status.firstCampaignCreated &&
-        status.firstPlanValidated;
+      const allDone = status.termsAccepted && status.firstCampaignCreated && status.firstPlanValidated;
       return { ...status, allDone };
     });
   }
@@ -279,13 +320,27 @@ export class MeController {
    *  - Plano de ação: contagens por status × origem
    *  Indicadores importados (turnover/clima/absenteísmo) ficam para fase
    *  futura — o front exibe placeholder honesto quando ausentes. */
+  //
+  // Privacidade (Anexo v1.1 §7; Diretriz de Integração §8): é leitura da
+  // EMPRESA — só gestão/consultoria/jurídico e só com o módulo contratado.
+  // Decisões e Pocket só aparecem com o mínimo de líderes distintos
+  // (MIN_LEADERS_FOR_DISCLOSURE); abaixo disso, com 1–4 líderes a contagem por
+  // categoria/momento é, na prática, dado individual.
   @Get('analytics')
+  @UseGuards(ModuleGuard, RolesGuard)
+  @RequireModule('analytics')
+  @Roles(...LEITURA_GESTAO)
   async myAnalytics(@CurrentUser() user: SessionUser): Promise<{
     icdEvolution: Array<{ cycleName: string; quarter: number; year: number; score: number | null; suppressed: boolean; eligibleLeaders: number; closedAt: string | null }>;
     decisionsByCategory: Array<{ category: string; count: number }>;
     decisionsByPressure: Array<{ pressureFactor: string; count: number }>;
     pocketUsage: { totalSessions: number; concluded: number; byMoment: Record<string, number> };
     planSummary: { total: number; byStatus: Record<string, number>; byOrigin: Record<string, number> };
+    /** true = menos de `minLeaders` líderes com decisão: categorias/pressão vêm vazias. */
+    decisionsSuppressed: boolean;
+    /** true = menos de `minLeaders` líderes com sessão Pocket: uso vem zerado. */
+    pocketSuppressed: boolean;
+    minLeaders: number;
   }> {
     // ICD oficial trimestral (CompanyQuarterlyIcd) com info do ciclo.
     const icdRows = await this.prisma.admin.companyQuarterlyIcd.findMany({
@@ -306,6 +361,18 @@ export class MeController {
 
     // Decisões — usa RLS (forTenant) para Decision/PocketSession/ActionItem.
     return this.prisma.forTenant(user.tenantId, async (tx) => {
+      const decisionLeaders = await tx.decision.findMany({
+        where: { deletedAt: null },
+        distinct: ['leaderId'],
+        select: { leaderId: true },
+      });
+      const decisionsSuppressed = decisionLeaders.length < MIN_LEADERS_FOR_DISCLOSURE;
+      const pocketLeaders = await tx.pocketSession.findMany({
+        distinct: ['leaderId'],
+        select: { leaderId: true },
+      });
+      const pocketSuppressed = pocketLeaders.length < MIN_LEADERS_FOR_DISCLOSURE;
+
       const decByCategoryRaw = await tx.decision.groupBy({
         by: ['categoryId'],
         where: { deletedAt: null },
@@ -345,7 +412,9 @@ export class MeController {
       });
       const byMoment: Record<string, number> = {};
       for (const r of byMomentRaw) byMoment[r.momentOfUse] = r._count._all;
-      const pocketUsage = { totalSessions, concluded, byMoment };
+      const pocketUsage = pocketSuppressed
+        ? { totalSessions: 0, concluded: 0, byMoment: {} }
+        : { totalSessions, concluded, byMoment };
 
       // Plano de ação — agrega por status e origem.
       const items = await tx.actionItem.findMany({
@@ -362,10 +431,13 @@ export class MeController {
 
       return {
         icdEvolution,
-        decisionsByCategory,
-        decisionsByPressure,
+        decisionsByCategory: decisionsSuppressed ? [] : decisionsByCategory,
+        decisionsByPressure: decisionsSuppressed ? [] : decisionsByPressure,
         pocketUsage,
         planSummary,
+        decisionsSuppressed,
+        pocketSuppressed,
+        minLeaders: MIN_LEADERS_FOR_DISCLOSURE,
       };
     });
   }
@@ -413,8 +485,14 @@ export class MeController {
   }
 
   /** #59 — Mentorias do tenant. Líder vê só as suas (match por e-mail no
-   *  campo attendee); RH/CEO/GESTOR/ADMIN veem todas. Control plane sem RLS.
+   *  campo attendee); gestão/consultoria (RH/CEO/GESTOR/ADMIN/CONSULTOR) e o
+   *  MENTOR veem todas. Control plane sem RLS.
    *  Gate de módulo "mentorias" (F4) só nesta rota: o resto de /me é da sessão.
+   *
+   *  `?escopo=minhas` (Minha Jornada) devolve só as mentorias de que a pessoa
+   *  participa, QUALQUER que seja o papel — o Líder + Administrador não vê a
+   *  agenda da empresa dentro da Jornada. Sem escopo, a visão segue o papel
+   *  (Área da Organização). Outro valor de escopo é ignorado.
    *
    *  `contractedHours` vem do CONTRATO vigente da empresa (Contract.organizationId
    *  = user.tenantId, igual ao padrão de `diagnosticContext` acima) — KPI "Horas
@@ -426,6 +504,7 @@ export class MeController {
   @RequireModule('mentorias')
   async myMentorias(
     @CurrentUser() user: SessionUser,
+    @Query('escopo') escopo?: string,
   ): Promise<{
     rows: Array<{
       id: string;
@@ -443,7 +522,32 @@ export class MeController {
     }>;
     contractedHours: number | null;
   }> {
-    const isLeaderOnly = user.role === 'LIDER' || user.role === 'COLABORADOR';
+    // Veem a agenda da empresa inteira a gestão/consultoria e o papel MENTOR
+    // (mentor CRIVO que conduz as sessões — esta tela é a home dele). Os demais
+    // papéis (LÍDER, COLABORADOR, JURÍDICO…) veem só as mentorias em que
+    // participam. Em Minha Jornada (escopo=minhas) é sempre só as próprias.
+    const veAgendaDaEmpresa = veEmpresaInteira(user.role) || user.role === 'MENTOR';
+    const isLeaderOnly = escopo === 'minhas' || !veAgendaDaEmpresa;
+    const myEmail = user.email.trim().toLowerCase();
+    // `attendee` é texto livre (um ou mais e-mails). Participa quem tem o e-mail
+    // IGUAL a um dos itens — `includes` casava "ana@x" dentro de "mariana@x".
+    const participa = (attendee: string) => emailsDoTexto(attendee).includes(myEmail);
+    // O MENTOR aparece em `mentorName` (um nome), nunca no attendee: a sessão
+    // que ele CONDUZ conta como "participa" (nome comparado sem acento/caixa).
+    const meuNome = nomeNormalizado(user.name);
+    const conduz = (mentorName: string) =>
+      user.role === 'MENTOR' && meuNome !== '' && nomeNormalizado(mentorName) === meuNome;
+    // Link, notas e gravação: (a) quem participa (e-mail no attendee) ou o
+    // mentor que conduz recebe os três; (b) attendee com e-mail(s) de OUTRA
+    // pessoa é a mentoria privada dela — os três vêm null; (c) attendee sem
+    // nenhum e-mail (ex.: 'Equipe de liderança', 'Diretoria e RH') pode ser
+    // sessão coletiva: na visão da empresa recebe SÓ o link para entrar. Notas
+    // e gravação não, porque o texto livre também pode ser o NOME de um líder
+    // numa mentoria individual — e aí seria conteúdo privado dele.
+    const libera = (m: { attendee: string; mentorName: string }) =>
+      participa(m.attendee) || conduz(m.mentorName);
+    const linkColetivo = (m: { attendee: string }) =>
+      !isLeaderOnly && emailsDoTexto(m.attendee).length === 0;
     const [rows, contract] = await Promise.all([
       this.prisma.admin.mentoria.findMany({
         where: {
@@ -451,7 +555,7 @@ export class MeController {
           ...(isLeaderOnly ? { attendee: { contains: user.email, mode: 'insensitive' } } : {}),
         },
         orderBy: { scheduledAt: 'desc' },
-      }),
+      }).then((rs) => (isLeaderOnly ? rs.filter((m) => participa(m.attendee)) : rs)),
       this.prisma.admin.contract.findFirst({
         where: { organizationId: user.tenantId },
         orderBy: { createdAt: 'desc' },
@@ -459,20 +563,28 @@ export class MeController {
       }),
     ]);
     return {
-      rows: rows.map((m) => ({
-        id: m.id,
-        title: m.title,
-        format: m.format,
-        mentorName: m.mentorName,
-        attendee: m.attendee,
-        scheduledAt: m.scheduledAt.toISOString(),
-        durationMin: m.durationMin,
-        meetingUrl: m.meetingUrl,
-        location: m.location,
-        status: m.status,
-        notes: m.notes,
-        recordingUrl: m.recordingUrl,
-      })),
+      rows: rows.map((m) => {
+        const liberada = libera(m);
+        return {
+          id: m.id,
+          title: m.title,
+          format: m.format,
+          mentorName: m.mentorName,
+          attendee: m.attendee,
+          scheduledAt: m.scheduledAt.toISOString(),
+          durationMin: m.durationMin,
+          // O link da reunião dá entrada na mentoria PRIVADA de outro líder: na
+          // visão da empresa só quem participa (ou o mentor que a conduz) recebe
+          // — a agenda continua visível. Sessão coletiva segue com o link.
+          meetingUrl: liberada || linkColetivo(m) ? m.meetingUrl : null,
+          location: m.location,
+          status: m.status,
+          // Notas e gravação são conteúdo INDIVIDUAL da mentoria (Anexo v1.1 §7:
+          // proibido expor ao nível da empresa): só quem participou recebe.
+          notes: liberada ? m.notes : null,
+          recordingUrl: liberada ? m.recordingUrl : null,
+        };
+      }),
       contractedHours: contract?.contractedHours ?? null,
     };
   }
@@ -481,6 +593,8 @@ export class MeController {
    *  #56 — alimenta a rota /historico do portal. Não expõe `meta` para evitar
    *  PII; lista apenas action/target/timestamp/actorEmail. */
   @Get('audit-log')
+  @UseGuards(RolesGuard)
+  @Roles(...GESTAO_EMPRESA, 'CONSULTOR')
   async myAuditLog(
     @CurrentUser() user: SessionUser,
   ): Promise<Array<{ id: string; action: string; target: string | null; actorEmail: string | null; at: string }>> {
@@ -555,10 +669,11 @@ export class MeController {
   /**
    * Self-service: o admin da empresa edita o próprio branding (F5). Gateado por
    * `branding:edit` (PermissionGuard) e escrito sob RLS (forTenant) — o tenant
-   * só consegue alterar a própria identidade.
+   * só consegue alterar a própria identidade. Área da Organização: nem um
+   * papel customizado com `branding:edit` abre isto para o perfil Líder.
    */
   @Put('branding')
-  @UseGuards(AuthGuard, PermissionGuard)
+  @UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard)
   @RequirePermission('branding:edit')
   updateBranding(
     @CurrentUser() user: SessionUser,
@@ -597,10 +712,11 @@ export class MeController {
   /**
    * Painel da tela "Minha Organização": população, unidades e áreas agregadas
    * do cadastro de colaboradores + a campanha aberta. Gateado por
-   * `branding:edit`, o mesmo da tela (sai nome de gestor de unidade).
+   * `branding:edit`, o mesmo da tela (sai nome de gestor de unidade), e pela
+   * Área da Organização (perfil Líder fora, mesmo com papel customizado).
    */
   @Get('organization/overview')
-  @UseGuards(AuthGuard, PermissionGuard)
+  @UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard)
   @RequirePermission('branding:edit')
   organizationOverview(@CurrentUser() user: SessionUser): Promise<OrganizationOverview> {
     return this.prisma.forTenant(user.tenantId, async (tx) => {
@@ -621,10 +737,11 @@ export class MeController {
 
   /**
    * Self-service: o admin edita os dados cadastrais da própria empresa. Gateado
-   * por `branding:edit` (capacidade de admin da empresa) e escrito sob RLS.
+   * por `branding:edit` (capacidade de admin da empresa) e pela Área da
+   * Organização, e escrito sob RLS.
    */
   @Put('organization')
-  @UseGuards(AuthGuard, PermissionGuard)
+  @UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard)
   @RequirePermission('branding:edit')
   updateOrganization(
     @CurrentUser() user: SessionUser,

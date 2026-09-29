@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, ParseUUIDPipe, UseGuards } f
 import { LeadsService } from './leads.service';
 import { CreateLeadDto, UpdateLeadDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { RequirePermission } from '../iam/require-permission.decorator';
@@ -14,7 +15,7 @@ import type { SessionUser } from '@crivo/types';
 // Piloto do gate de módulo (F4): @RequireModule('crm') exige que a empresa
 // tenha o módulo CRM ativo no plano — independente do papel do usuário.
 @Controller('leads')
-@UseGuards(AuthGuard, PermissionGuard, ModuleGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard, ModuleGuard)
 @RequireModule('crm')
 export class LeadsController {
   constructor(private readonly leads: LeadsService) {}

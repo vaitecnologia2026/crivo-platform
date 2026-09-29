@@ -1,10 +1,9 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { mailConfigured, sendMail } from '../common/mailer';
-import { computeIcd } from './scoring';
 import { EditableTextsService } from '../admin/editable-texts.service';
 import { NotificationSettingsService } from '../notifications/notification-settings.service';
-import type { SubmitIcdDto, SubmitCampaignDto } from './dto';
+import type { SubmitCampaignDto } from './dto';
 import { PsychosocialService } from '../psychosocial/psychosocial.service';
 import { DiagnosticsService } from '../diagnostics/diagnostics.service';
 import { CollaboratorsService } from '../collaborators/collaborators.service';
@@ -15,7 +14,7 @@ import {
   usesPsychosocialEngine,
 } from '../admin/methodology.service';
 import type { SubmitPsychosocialDto } from '../psychosocial/dto';
-import { DEFAULT_SCALE_LABELS, MIN_LEADERS_FOR_DISCLOSURE, buildCohort, cohortIsEmpty, type DominantPattern } from '@crivo/types';
+import { DEFAULT_SCALE_LABELS, buildCohort, cohortIsEmpty } from '@crivo/types';
 
 @Injectable()
 export class IcdService {
@@ -31,71 +30,6 @@ export class IcdService {
     // O QR/link da campanha resolve a pessoa pelo CPF do cadastro.
     private readonly collaborators: CollaboratorsService,
   ) {}
-
-  /** Submete uma avaliação ICD, calcula o score e persiste — tudo escopado ao tenant. */
-  async submit(tenantId: string, dto: SubmitIcdDto) {
-    let result;
-    try {
-      result = computeIcd(dto.answers);
-    } catch (e) {
-      throw new BadRequestException(e instanceof Error ? e.message : 'Respostas inválidas');
-    }
-
-    return this.prisma.forTenant(tenantId, async (tx) => {
-      const assessment = await tx.assessment.create({
-        data: { tenantId, leaderId: dto.leaderId, cycleId: dto.cycleId ?? null, type: 'ICD' },
-      });
-      await tx.response.create({
-        data: { tenantId, assessmentId: assessment.id, answers: dto.answers as unknown as object },
-      });
-      const score = await tx.icdScore.create({
-        data: {
-          tenantId,
-          assessmentId: assessment.id,
-          leaderId: dto.leaderId,
-          score: result.score,
-          dimensions: result.dimensions as unknown as object,
-          dominantPattern: result.dominantPattern,
-        },
-      });
-      return { assessmentId: assessment.id, ...result, scoreId: score.id, computedAt: score.computedAt };
-    });
-  }
-
-  /** Lista usuários do tenant (para escolher o líder avaliado). */
-  async leaders(tenantId: string) {
-    return this.prisma.forTenant(tenantId, (tx) =>
-      tx.user.findMany({
-        where: { active: true },
-        select: { id: true, name: true, role: true },
-        orderBy: { name: 'asc' },
-      }),
-    );
-  }
-
-  /**
-   * ICD pessoal do líder logado (último score).
-   *
-   * § PRIVACIDADE — Anexo Técnico ICD do Líder v1, §11: este endpoint NÃO expõe
-   * posição comparativa entre pares (rank, totalLideres, percentil). O líder vê
-   * apenas o próprio score, dimensões, tensão dominante e timestamp.
-   */
-  async myScore(tenantId: string, userId: string) {
-    return this.prisma.forTenant(tenantId, async (tx) => {
-      const mine = await tx.icdScore.findFirst({
-        where: { leaderId: userId },
-        orderBy: { computedAt: 'desc' },
-      });
-      if (!mine) return null;
-
-      return {
-        score: mine.score,
-        dimensions: mine.dimensions,
-        dominantPattern: mine.dominantPattern,
-        computedAt: mine.computedAt.toISOString(),
-      };
-    });
-  }
 
   /** Campanhas de diagnóstico (ciclos) com as estatísticas DO DIAGNÓSTICO:
    *  convidados, respondentes, adesão e índice médio. Filtro opcional por setor. */
@@ -555,75 +489,6 @@ export class IcdService {
           cycle.id,
           cohort,
         );
-  }
-
-  /**
-   * Dashboard executivo do ICD — leitura AGREGADA da liderança (confidencialidade,
-   * Portal §3/§4). NÃO expõe ranking nem dados individuais de líderes: só médias,
-   * distribuição de tensões e contagem. O líder vê o próprio resultado em /icd/me.
-   */
-  async dashboard(tenantId: string) {
-    return this.prisma.forTenant(tenantId, async (tx) => {
-      const scores = await tx.icdScore.findMany({
-        orderBy: { computedAt: 'desc' },
-      });
-
-      const empty = {
-        icdMedio: null,
-        totalAvaliacoes: 0,
-        totalLideres: 0,
-        distribuicaoPadrao: {},
-        dimensionAverages: { reatividade: 0, rigidez: 0, repercussao: 0, risco: 0 },
-      };
-      if (scores.length === 0) return empty;
-
-      // Último score por líder (já ordenado desc por computedAt) — sem nomes.
-      const latestByLeader = new Map<string, (typeof scores)[number]>();
-      for (const s of scores) if (!latestByLeader.has(s.leaderId)) latestByLeader.set(s.leaderId, s);
-      const latest = [...latestByLeader.values()];
-
-      // Confidencialidade §11: piso de respondentes. Com menos de
-      // MIN_LEADERS_FOR_DISCLOSURE líderes avaliados, NÃO devolve agregados
-      // (média/distribuição/dimensões) — senão expõe o resultado individual
-      // disfarçado de "agregado". Mantém só as contagens + flag suppressed.
-      if (latest.length < MIN_LEADERS_FOR_DISCLOSURE) {
-        return {
-          ...empty,
-          totalAvaliacoes: scores.length,
-          totalLideres: latest.length,
-          suppressed: true,
-          minLeaders: MIN_LEADERS_FOR_DISCLOSURE,
-        };
-      }
-
-      const icdMedio = Math.round(latest.reduce((sum, s) => sum + s.score, 0) / latest.length);
-
-      const distribuicaoPadrao: Record<string, number> = {};
-      for (const s of latest) {
-        const p = s.dominantPattern as DominantPattern;
-        distribuicaoPadrao[p] = (distribuicaoPadrao[p] ?? 0) + 1;
-      }
-
-      // Média por dimensão (4 Rs) — agregada, sem identificar ninguém.
-      const dims = ['reatividade', 'rigidez', 'repercussao', 'risco'] as const;
-      const dimensionAverages = {} as Record<(typeof dims)[number], number>;
-      for (const d of dims) {
-        const vals = latest
-          .map((s) => (s.dimensions as Record<string, number>)?.[d])
-          .filter((v): v is number => typeof v === 'number');
-        dimensionAverages[d] = vals.length
-          ? Math.round(vals.reduce((sum, v) => sum + v, 0) / vals.length)
-          : 0;
-      }
-
-      return {
-        icdMedio,
-        totalAvaliacoes: scores.length,
-        totalLideres: latest.length,
-        distribuicaoPadrao,
-        dimensionAverages,
-      };
-    });
   }
 }
 

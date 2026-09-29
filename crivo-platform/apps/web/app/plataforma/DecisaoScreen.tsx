@@ -24,12 +24,14 @@ import {
   ICD_AXIS_DESCRIPTION,
   ICD_AXIS_SCALE,
   ICD_AXIS_QUESTIONS,
+  MIN_LEADERS_FOR_DISCLOSURE,
   type DecisionData,
   type DecisionInput,
   type DecisionCategory,
   type AffectedAudience,
   type DecisionIcdData,
   type DecisionStatus,
+  formatIcdScore,
 } from "@crivo/types";
 import { IconCheck, IconClose } from "./Icons";
 
@@ -78,10 +80,12 @@ export function DecisaoScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Registro de Decisões</h1>
+          <h1 className="page-title">Registro de Decisão</h1>
           <p className="page-sub">
-            Registre as decisões reais que você toma. Cada decisão pode ser avaliada pelo ICD (4 Eixos) — é o que
-            alimenta o Índice de Coerência da liderança no Dashboard.
+            Registre as decisões reais que você toma e avalie cada uma pelo ICD (4 Eixos). O registro é privado:
+            nenhuma decisão sua (título, texto e respostas) aparece para a empresa. Ela recebe só números agregados
+            — o ICD da liderança e a contagem de decisões por categoria e fator de pressão —, sem nomes e apenas
+            quando há pelo menos {MIN_LEADERS_FOR_DISCLOSURE} líderes.
           </p>
         </div>
         <button className="btn btn--terra btn--sm" onClick={() => setCreating(true)}>
@@ -184,18 +188,18 @@ function IcdResultado({ icd }: { icd: DecisionIcdData }) {
     <div className="eixos-official" style={{ marginTop: 4 }}>
       <div className="eixos-official__head">
         <div className="eixos-official__score">
-          <strong className={`dash-score ${scoreClass(icd.score)}`}>{icd.score}</strong>
+          <strong className={`dash-score ${scoreClass(icd.score)}`}>{formatIcdScore(icd.score)}</strong>
           <span>ICD desta decisão</span>
         </div>
       </div>
       <div className="eixos-grid">
         {ICD_AXES.map((ax) => {
-          const v = Math.round(icd.axes[ax] ?? 0);
+          const v = icd.axes[ax] ?? 0;
           return (
             <div className="eixo" key={ax} title={ICD_AXIS_DESCRIPTION[ax]}>
               <div className="eixo__top">
                 <span className="eixo__label">{ICD_AXIS_LABEL[ax]}</span>
-                <strong className={`dash-score ${scoreClass(v)}`}>{v}</strong>
+                <strong className={`dash-score ${scoreClass(v)}`}>{formatIcdScore(v)}</strong>
               </div>
               <div className="eixo__bar">
                 <span className={`eixo__fill ${scoreClass(v)}`} style={{ width: `${v}%` }} />

@@ -2,14 +2,18 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } f
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { RequirePermission } from '../iam/require-permission.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
-/** Gestão do time da empresa. Autorização por permissão (users:*), dados sob RLS. */
+/** Gestão do time da empresa. Autorização por permissão (users:*), dados sob RLS.
+ *  Área da Organização (Spec V1 v1.2 §3): OrganizacaoGuard na classe — nem um
+ *  papel customizado com users:* abre a lista, o cadastro, a troca de papel ou
+ *  a redefinição de senha para o perfil Líder (nem por URL/API). */
 @Controller('users')
-@UseGuards(AuthGuard, PermissionGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard)
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
@@ -30,7 +34,7 @@ export class UsersController {
   @Post()
   @RequirePermission('users:create')
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateUserDto) {
-    return this.users.create(user.tenantId, dto, user.role);
+    return this.users.create(user.tenantId, dto, user.role, { id: user.id, email: user.email });
   }
 
   /**
@@ -40,7 +44,7 @@ export class UsersController {
   @Post(':id/reset-password')
   @RequirePermission('users:edit')
   resetPassword(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
-    return this.users.resetPassword(user.tenantId, id, user.role, user.id);
+    return this.users.resetPassword(user.tenantId, id, user.role, user.id, { id: user.id, email: user.email });
   }
 
   /** Atualiza papel / (des)ativa um usuário. */
@@ -51,6 +55,6 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.users.update(user.tenantId, id, dto, user.role);
+    return this.users.update(user.tenantId, id, dto, user.role, { id: user.id, email: user.email });
   }
 }

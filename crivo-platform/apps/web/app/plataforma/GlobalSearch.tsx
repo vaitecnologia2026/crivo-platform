@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import type { LibraryItemData, UserSummary } from "@crivo/types";
+import type { ClientContext, LibraryItemData, UserSummary } from "@crivo/types";
 import { listLibrary, listUsers } from "@/lib/api";
 import { buildSearchIndex, searchPortal, type SearchEntry, type SearchRoute } from "@/lib/portal-search";
 import { canSeeRoute, getPortalState, portalNavigate, refreshPortalData, usePortal } from "@/lib/portal-shell";
@@ -21,10 +21,18 @@ interface Extra {
   library: LibraryItemData[] | null;
 }
 
-/** Sem acesso carregado ainda: todas as telas do menu (a API segue gateando). */
-const ALL_ROUTES: SearchRoute[] = NAV.flatMap((g) =>
-  g.items.filter((i) => i.route && !i.hidden).map((i) => ({ route: i.route!, label: i.label, group: g.title })),
-);
+/** Sem acesso carregado ainda: todas as telas do menu DO CONTEXTO ativo (a API
+ *  segue gateando) — nunca as dos dois contextos juntas. */
+function routesOfContext(context: ClientContext): SearchRoute[] {
+  return NAV.filter((g) => g.context === context).flatMap((g) =>
+    g.items.filter((i) => i.route && !i.hidden).map((i) => ({ route: i.route!, label: i.label, group: g.title })),
+  );
+}
+
+/** Tela que abre um conteúdo da Academia: a leitura pessoal na Jornada. */
+function libraryRouteOf(context: ClientContext | undefined): string {
+  return context === "JORNADA" ? "jornada-academia" : "biblioteca";
+}
 
 /**
  * Tela bloqueante aberta (aceite dos termos LGPD, troca OBRIGATÓRIA de senha —
@@ -66,18 +74,22 @@ export function GlobalSearch() {
   const isOpen = openSeq !== null && openSeq === portal.sessionSeq && !!portal.session;
 
   const loadExtra = useCallback(() => {
-    const key = getPortalState().session?.userKey;
-    if (!key) return;
+    const s = getPortalState().session;
+    if (!s) return;
+    // Por pessoa E contexto: o que cada menu libera (Usuários, Academia) muda
+    // com o contexto, e o cache de um não pode responder pelo outro.
+    const key = `${s.userKey}|${s.context}`;
     const cur = extraRef.current;
     if (cur && cur.key === key && Date.now() - cur.at < EXTRA_MAX_AGE) return;
     setLoadingExtra(true);
     void Promise.all([
       canSeeRoute("usuarios") ? listUsers().catch(() => null) : Promise.resolve(null),
-      canSeeRoute("biblioteca") ? listLibrary().catch(() => null) : Promise.resolve(null),
+      canSeeRoute(libraryRouteOf(s.context)) ? listLibrary().catch(() => null) : Promise.resolve(null),
     ]).then(([users, library]) => {
       setLoadingExtra(false);
-      // Trocou de sessão enquanto carregava: descarta.
-      if (getPortalState().session?.userKey !== key) return;
+      // Trocou de sessão (ou de contexto) enquanto carregava: descarta.
+      const now = getPortalState().session;
+      if (!now || `${now.userKey}|${now.context}` !== key) return;
       const next = { key, at: Date.now(), users, library };
       extraRef.current = next;
       setExtra(next);
@@ -126,22 +138,28 @@ export function GlobalSearch() {
     };
   }, [isOpen]);
 
-  const userKey = portal.session?.userKey ?? null;
+  const context = portal.session?.context;
+  // Em Minha Jornada só entram as telas da Jornada e a Academia (nada de
+  // avisos, ações, evidências, relatórios, campanhas ou usuários) — os textos
+  // não podem prometer o que a busca nem consulta.
+  const jornada = context === "JORNADA";
+  const extraKey = portal.session ? `${portal.session.userKey}|${portal.session.context}` : null;
   const index = useMemo(() => {
-    const ext = extra && extra.key === userKey ? extra : null;
+    const ext = extra && extra.key === extraKey ? extra : null;
     const all = buildSearchIndex({
-      routes: portal.menu ?? ALL_ROUTES,
+      routes: portal.menu ?? (context ? routesOfContext(context) : []),
       plans: portal.plans,
       emissions: portal.emissions,
       campaigns: portal.campaigns,
       users: ext?.users ?? null,
       library: ext?.library ?? null,
       notifications: portal.notifications,
+      libraryRoute: libraryRouteOf(context),
     });
     // Resultado que leva a uma tela que este usuário não abre (checklist de
     // telas, papel) não aparece — escolher levaria ao painel, não ao item.
     return all.filter((e) => canSeeRoute(e.route, portal));
-  }, [extra, userKey, portal]);
+  }, [extra, extraKey, context, portal]);
 
   const groups = useMemo(() => searchPortal(index, query), [index, query]);
   const flat = useMemo(() => groups.flatMap((g) => g.entries), [groups]);
@@ -247,7 +265,11 @@ export function GlobalSearch() {
                   aria-autocomplete="list"
                   aria-activedescendant={flat.length ? `gs-opt-${current}` : undefined}
                   aria-label="Campo de busca global"
-                  placeholder="Buscar telas, ações, evidências, relatórios, campanhas…"
+                  placeholder={
+                    jornada
+                      ? "Buscar telas de Minha Jornada e conteúdos da Academia…"
+                      : "Buscar telas, ações, evidências, relatórios, campanhas…"
+                  }
                   autoComplete="off"
                   spellCheck={false}
                 />
@@ -265,7 +287,11 @@ export function GlobalSearch() {
                   ) : (
                     <>
                       <strong>Nenhum resultado{query ? ` para “${query}”` : ""}.</strong>
-                      <span>A busca cobre telas, avisos, ações, evidências, relatórios, campanhas, usuários e Academia.</span>
+                      <span>
+                        {jornada
+                          ? "A busca cobre as telas de Minha Jornada e a Academia."
+                          : "A busca cobre telas, avisos, ações, evidências, relatórios, campanhas, usuários e Academia."}
+                      </span>
                     </>
                   )}
                 </div>

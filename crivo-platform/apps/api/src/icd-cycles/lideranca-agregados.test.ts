@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { MIN_LEADERS_FOR_DISCLOSURE } from '@crivo/types';
-import { IcdCyclesService } from './icd-cycles.service';
+import { IcdCyclesService, countActiveLeaders } from './icd-cycles.service';
 
 /**
  * Tela Liderança (portal) e Módulos › Liderança (Super Admin) consomem duas
@@ -65,7 +65,7 @@ describe('IcdCyclesService.history — série "Evolução do ICD"', () => {
     expect(h.map((e) => e.cycle.name)).toEqual(['2026-Q1', '2026-Q2', '2026-Q3']);
     expect(h[0].company?.score).toBe(72);
     expect(h[0].company?.axesAverage).toEqual(AXES);
-    expect(h[0].company?.band?.key).toBe('FUNCIONAL');
+    expect(h[0].company?.band?.key).toBe('CONSISTENTE'); // 65–79 (Anexo v1.1 §6.3)
     expect(h[2].company).toBeNull(); // aberto: o parcial vem de /icd-cycles/current, não daqui
     // Leitura pura do congelado: a série não toca em DecisionIcdScore.
     expect(Object.keys(tx)).toEqual(['icdCycle']);
@@ -142,7 +142,7 @@ describe('IcdCyclesService.summary — KPIs do ciclo aberto', () => {
 
     expect(s.suppressed).toBe(false);
     expect(s.icdMedio).toBe(70);
-    expect(s.band?.key).toBe('FUNCIONAL');
+    expect(s.band?.key).toBe('CONSISTENTE'); // 70 → Coerência Consistente
     expect(s.lastClosed?.cycleName).toBe('2026-Q2');
     expect(s.delta).toBe(4); // 70 − 66
     expect(s.closedCycles).toBe(2);
@@ -171,5 +171,25 @@ describe('IcdCyclesService.summary — KPIs do ciclo aberto', () => {
     const texto = JSON.stringify(s);
     expect(texto).not.toContain('lider-0');
     expect(texto).not.toContain('leaderId');
+  });
+
+  it('líderes elegíveis = ativos com papel LIDER OU marcados como líder (Minha Jornada)', async () => {
+    const { svc, tx } = build({ open: true, scores: scoresDe(6), leaders: 7 });
+
+    const s = await svc.summary(TENANT);
+
+    expect(s.eligibleLeaders).toBe(7);
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: { active: true, OR: [{ role: 'LIDER' }, { isLeader: true }] },
+    });
+  });
+});
+
+describe('countActiveLeaders — definição única de "líder elegível"', () => {
+  it('conta só ativos e aceita o papel LIDER ou a marcação isLeader (GESTOR/ADMIN que também é líder)', async () => {
+    const count = vi.fn(async () => 3);
+
+    expect(await countActiveLeaders({ user: { count } } as never)).toBe(3);
+    expect(count).toHaveBeenCalledWith({ where: { active: true, OR: [{ role: 'LIDER' }, { isLeader: true }] } });
   });
 });

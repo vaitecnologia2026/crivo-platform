@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { PsychosocialService } from './psychosocial.service';
 import { SubmitPsychosocialDto } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { Roles } from '../iam/roles.decorator';
@@ -12,7 +13,9 @@ import { type SessionUser } from '@crivo/types';
 /**
  * Questionário Psicossocial Organizacional (Briefing §6). Submissão anônima
  * (qualquer usuário do tenant pode responder; nada o identifica) e agregação
- * com supressão §14 restrita a RH/gestão.
+ * com supressão §14 restrita a RH/gestão. Resultado, recortes e link são da
+ * Área da Organização (OrganizacaoGuard por rota); perguntas e envio ficam
+ * abertos a quem responde, como o link público /q.
  */
 @Controller('psychosocial')
 @UseGuards(AuthGuard, RolesGuard, ScreenAccessGuard)
@@ -37,6 +40,7 @@ export class PsychosocialController {
   // sem 'dashboard' aqui, um usuário com checklist só-dashboard tomava 403 e os
   // KPIs sumiam sem aviso (o front engolia o erro).
   @Get('results')
+  @UseGuards(OrganizacaoGuard)
   @RequireScreen('psicossocial', 'dashboard')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
   async results(@CurrentUser() user: SessionUser) {
@@ -51,6 +55,7 @@ export class PsychosocialController {
 
   /** Recortes gerenciais (GHE, unidade, área, cargo, turno…) com supressão. */
   @Get('recortes')
+  @UseGuards(OrganizacaoGuard)
   @RequireScreen('psicossocial', 'dashboard')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
   recortes(@CurrentUser() user: SessionUser) {
@@ -60,6 +65,7 @@ export class PsychosocialController {
   /** Link público atual da empresa (null se não gerado) — só gestão/RH. */
   // A tela Diagnósticos (essencial) também gera/lê o link psicossocial.
   @Get('link')
+  @UseGuards(OrganizacaoGuard)
   @RequireScreen('psicossocial', 'essencial')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   getLink(@CurrentUser() user: SessionUser) {
@@ -68,6 +74,7 @@ export class PsychosocialController {
 
   /** Gera (idempotente) o link público anônimo da empresa — só gestão/RH. */
   @Post('link')
+  @UseGuards(OrganizacaoGuard)
   @RequireScreen('psicossocial', 'essencial')
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
   ensureLink(@CurrentUser() user: SessionUser) {

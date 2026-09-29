@@ -9,6 +9,7 @@ import {
   MIN_LEADERS_FOR_DISCLOSURE,
   eixoMaisFraco,
   getIcdMaturityBand,
+  formatIcdScore,
 } from "@crivo/types";
 import {
   createParecer,
@@ -243,7 +244,7 @@ export function ParecerScreen() {
                   <div className="kpi-grid">
                     <div className="kpi">
                       <span className="kpi__label">ICD da liderança</span>
-                      <strong className="kpi__value">{icdScore}<small> /100</small></strong>
+                      <strong className="kpi__value">{formatIcdScore(icdScore)}<small> /100</small></strong>
                       <span className="kpi__delta">
                         ICD agregado da liderança{icdBand ? ` · ${icdBand.label}` : ""}
                       </span>
@@ -258,12 +259,12 @@ export function ParecerScreen() {
                   </div>
                   <div className="icd-dims" style={{ marginTop: "16px" }}>
                     {ICD_AXES.map((ax) => {
-                      const v = Math.round(company.axesAverage[ax] ?? 0);
+                      const v = company.axesAverage[ax] ?? 0;
                       return (
                         <div className="icd-dim" key={ax}>
                           <div className="icd-dim__top">
                             <span>{ICD_AXIS_LABEL[ax]}</span>
-                            <strong>{v}</strong>
+                            <strong>{formatIcdScore(v)}</strong>
                           </div>
                           <div className="icd-dim__bar">
                             <div className={`icd-dim__fill ${barClass(v)}`} style={{ width: `${v}%` }} />

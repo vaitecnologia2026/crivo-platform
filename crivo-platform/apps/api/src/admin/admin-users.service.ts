@@ -2,16 +2,18 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, type User } from '@crivo/db';
-import type {
-  CreateUserRequest,
-  CreateUserResult,
-  UpdateUserRequest,
-  UserSummary,
+import {
+  isLeaderUser,
+  type CreateUserRequest,
+  type CreateUserResult,
+  type UpdateUserRequest,
+  type UserSummary,
 } from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MeteringService } from '../metering/metering.service';
 import { AuditService, type AuditActor } from './audit.service';
 import { emailTakenMessage, findEmailOwner } from './unique-email';
+import { resolveIsLeader } from '../users/users.service';
 
 /** Senha temporária legível (sem caracteres ambíguos). */
 function generatePassword(): string {
@@ -25,6 +27,7 @@ function toSummary(u: User): UserSummary {
     email: u.email,
     name: u.name,
     role: u.role as UserSummary['role'],
+    isLeader: isLeaderUser(u),
     active: u.active,
     screenAccess: Array.isArray(u.screenAccess) ? (u.screenAccess as string[]) : null,
     createdAt: u.createdAt.toISOString(),
@@ -114,7 +117,12 @@ export class AdminUsersService {
         email,
         name: dto.name.trim(),
         role: dto.role,
-        screenAccess: normalizeScreens(dto.screenAccess) ?? undefined,
+        // Mesma regra do app da empresa: papel LIDER é sempre líder.
+        isLeader: resolveIsLeader(dto.role, dto.isLeader),
+        // Mesma regra do app da empresa: papel LIDER não usa a checklist de
+        // telas (ela é só da Área da Organização) — grava NULL e ignora a lista.
+        screenAccess:
+          dto.role === 'LIDER' ? Prisma.DbNull : (normalizeScreens(dto.screenAccess) ?? undefined),
         passwordHash: bcrypt.hashSync(password, 12),
         // Senha SORTEADA pela plataforma vira senha de primeiro acesso: o portal
         // exige a troca antes de liberar a navegação. Senha escolhida pelo
@@ -127,7 +135,7 @@ export class AdminUsersService {
       action: 'admin.user.create',
       actor,
       target: email,
-      meta: { tenantId, role: dto.role },
+      meta: { tenantId, role: dto.role, isLeader: user.isLeader },
     });
 
     return { user: toSummary(user), tempPassword: generated ? password : undefined };
@@ -149,14 +157,25 @@ export class AdminUsersService {
       await this.metering.assertUserQuotaAdmin(tenantId);
     }
 
+    const role = dto.role ?? existing.role;
+    const isLeader = resolveIsLeader(role, dto.isLeader, existing.isLeader);
     const updated = await this.prisma.admin.user.update({
       where: { id },
       data: {
         role: dto.role,
         active: dto.active,
-        ...(dto.screenAccess !== undefined
-          ? { screenAccess: normalizeScreens(dto.screenAccess) ?? Prisma.DbNull }
-          : {}),
+        ...(isLeader !== existing.isLeader ? { isLeader } : {}),
+        // Papel LIDER (novo ou mantido) não usa a checklist de telas — ela é só
+        // da Área da Organização e a UI não a mostra para ele: grava NULL e
+        // ignora a lista enviada, senão uma checklist antiga ficaria presa.
+        ...(role === 'LIDER'
+          ? { screenAccess: Prisma.DbNull }
+          : dto.screenAccess !== undefined
+            ? { screenAccess: normalizeScreens(dto.screenAccess) ?? Prisma.DbNull }
+            : {}),
+        // Papel congelado no JWT: trocar o papel derruba as sessões abertas
+        // (senão o papel antigo seguia valendo até 7 dias). isLeader é lido do banco.
+        ...(role !== existing.role ? { tokenVersion: { increment: 1 } } : {}),
       },
     });
 
@@ -164,7 +183,12 @@ export class AdminUsersService {
       action: 'admin.user.update',
       actor,
       target: id,
-      meta: { tenantId, role: dto.role, active: dto.active },
+      meta: {
+        tenantId,
+        role: dto.role,
+        active: dto.active,
+        isLeader: { before: existing.isLeader, after: updated.isLeader },
+      },
     });
 
     return toSummary(updated);

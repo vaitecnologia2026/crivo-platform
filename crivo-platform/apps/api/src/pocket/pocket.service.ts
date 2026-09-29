@@ -280,7 +280,8 @@ export class PocketService {
   /** AGREGADO do Pocket por dimensão (tela Liderança do portal e Módulos ›
    *  Liderança do Super Admin). Anexo Pocket §13: sessões e reflexões são do
    *  líder — aqui só CONTAGENS (sessões concluídas com ≥ 1 reflexão respondida
-   *  por dimensão) e adesão (% de líderes ativos com ≥ 1 sessão concluída).
+   *  por dimensão) e adesão (% de líderes ativos com ≥ 1 sessão concluída;
+   *  líder = papel LIDER ou marcado como líder, via countActiveLeaders).
    *  byDimension traz, por tema, tanto "sessions" (contagem de sessões que
    *  tocaram o tema) quanto "leaders"/"adhesionPct" (líderes DISTINTOS que
    *  tocaram o tema / eligibleLeaders) — são números diferentes: um líder

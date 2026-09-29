@@ -435,12 +435,16 @@ export class IcdCyclesService {
   }
 }
 
-/** Contagem de líderes ATIVOS (User.role LIDER) — o "total" dos KPIs de
- *  participação/adesão do programa Liderança. Não lista ninguém: só o número.
- *  Compartilhada com o PocketService.aggregate para as duas telas usarem a
- *  mesma definição de "líder elegível". */
+/** Contagem de líderes ATIVOS — o "total" dos KPIs de participação/adesão do
+ *  programa Liderança. Não lista ninguém: só o número. Líder é o papel LIDER OU
+ *  quem é marcado como líder (`isLeader`, Minha Jornada — mesma regra do
+ *  isLeaderUser de @crivo/types): um GESTOR/ADMIN que também é líder registra
+ *  decisões e Pocket, então precisa contar no denominador (senão a adesão
+ *  passava de 100%). Compartilhada com o PocketService.aggregate e o painel do
+ *  Super Admin (LiderancaAdminService) para todos usarem a mesma definição de
+ *  "líder elegível". */
 export async function countActiveLeaders(tx: Pick<PrismaClient, 'user'>): Promise<number> {
-  return tx.user.count({ where: { role: 'LIDER', active: true } });
+  return tx.user.count({ where: { active: true, OR: [{ role: 'LIDER' }, { isLeader: true }] } });
 }
 
 function toCycleData(row: any): IcdCycleData {

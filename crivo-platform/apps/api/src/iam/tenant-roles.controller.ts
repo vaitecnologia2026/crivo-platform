@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ArrayNotEmpty, IsArray, IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthGuard } from './guards/auth.guard';
+import { OrganizacaoGuard } from './guards/organizacao.guard';
 import { PermissionGuard } from './guards/permission.guard';
 import { RequirePermission } from './require-permission.decorator';
 import { CurrentUser } from './current-user.decorator';
@@ -33,10 +34,12 @@ class UpdateTenantRoleDto {
 
 /**
  * RBAC dinâmico (#68) — gestão de papéis customizados.
- * Read aberto a qualquer autenticado; gestão requer `users:edit`.
+ * Read aberto a qualquer autenticado da Área da Organização; gestão requer
+ * `users:edit`. O perfil Líder não lê: é configuração de acesso da empresa
+ * (Spec V1 v1.2 §3) — e um papel customizado não abre esta porta para ele.
  */
 @Controller('tenant-roles')
-@UseGuards(AuthGuard, PermissionGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, PermissionGuard)
 export class TenantRolesController {
   constructor(private readonly svc: TenantRolesService) {}
 

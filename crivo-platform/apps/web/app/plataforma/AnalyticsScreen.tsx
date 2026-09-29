@@ -19,6 +19,7 @@ import {
   type PeopleTrend,
   type PocketMomentOfUse,
   type PeoplePeriod,
+  formatIcdScore,
 } from "@crivo/types";
 import {
   getMyAnalytics,
@@ -170,7 +171,9 @@ export function AnalyticsScreen() {
                   <span className="card__sub">Distribuição agregada do registro de decisões</span>
                 </div>
               </div>
-              {!hasDecisions ? (
+              {data.decisionsSuppressed ? (
+                <p className="dash-state" style={{ margin: 0 }}>{supressaoLideres(data.minLeaders)}</p>
+              ) : !hasDecisions ? (
                 <p className="dash-state" style={{ margin: 0 }}>Nenhuma decisão registrada ainda.</p>
               ) : (
                 <BarList rows={data.decisionsByCategory.slice(0, 8).map((r) => ({ label: r.category, count: r.count }))} />
@@ -184,7 +187,9 @@ export function AnalyticsScreen() {
                   <span className="card__sub">O que mais pesa nas decisões</span>
                 </div>
               </div>
-              {data.decisionsByPressure.length === 0 ? (
+              {data.decisionsSuppressed ? (
+                <p className="dash-state" style={{ margin: 0 }}>{supressaoLideres(data.minLeaders)}</p>
+              ) : data.decisionsByPressure.length === 0 ? (
                 <p className="dash-state" style={{ margin: 0 }}>Sem dados — registre decisões para ver os padrões.</p>
               ) : (
                 <BarList
@@ -206,7 +211,9 @@ export function AnalyticsScreen() {
                   <span className="card__sub">Total de sessões e momento de uso (§13 — sem conteúdo individual)</span>
                 </div>
               </div>
-              {!hasPocket ? (
+              {data.pocketSuppressed ? (
+                <p className="dash-state" style={{ margin: 0 }}>{supressaoLideres(data.minLeaders)}</p>
+              ) : !hasPocket ? (
                 <p className="dash-state" style={{ margin: 0 }}>Nenhuma sessão Pocket registrada.</p>
               ) : (
                 <>
@@ -701,10 +708,15 @@ function IaList({ title, items, color }: { title: string; items: string[]; color
   );
 }
 
+/** Texto da supressão de confidencialidade (Anexo v1.1 §7). */
+function supressaoLideres(min: number | undefined): string {
+  return `Confidencial: aparece quando ao menos ${min ?? MIN_LEADERS_FOR_DISCLOSURE} líderes tiverem registros (evita expor dado individual).`;
+}
+
 function buildCrivoContext(c: AnalyticsData): string {
   const parts: string[] = [];
   const lastIcd = [...(c.icdEvolution ?? [])].reverse().find((x) => x.score != null);
-  if (lastIcd) parts.push(`ICD oficial mais recente: ${lastIcd.score}/100 (${lastIcd.cycleName}).`);
+  if (lastIcd) parts.push(`ICD oficial mais recente: ${formatIcdScore(lastIcd.score)}/100 (${lastIcd.cycleName}).`);
   if (c.planSummary?.total) {
     const st = Object.entries(c.planSummary.byStatus ?? {}).map(([k, v]) => `${k}:${v}`).join(", ");
     parts.push(`Plano de ação: ${c.planSummary.total} itens (${st}).`);
@@ -750,7 +762,7 @@ function IcdBars({ data }: { data: AnalyticsData["icdEvolution"] }) {
               <div
                 title={isSuppressed
                   ? `${d.cycleName}: suprimido (<${MIN_LEADERS_FOR_DISCLOSURE} líderes elegíveis)`
-                  : `${d.cycleName}: ICD ${d.score}/100 (${d.eligibleLeaders} líderes)`}
+                  : `${d.cycleName}: ICD ${formatIcdScore(d.score)}/100 (${d.eligibleLeaders} líderes)`}
                 style={{
                   width: "100%",
                   height: `${h}%`,

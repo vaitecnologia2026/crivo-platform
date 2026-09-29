@@ -3,7 +3,16 @@
 import { useEffect, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createLogger } from "@crivo/ui/logger";
-import { ROLE_LABELS, type LoginResponse, type Role } from "@crivo/types";
+import {
+  CLIENT_CONTEXTS,
+  CLIENT_CONTEXT_LABEL,
+  ROLE_LABELS,
+  contextsFor,
+  initialContext,
+  type ClientContext,
+  type LoginResponse,
+  type Role,
+} from "@crivo/types";
 import { apiFetch, getToken, getMyModules, getMyPermissions, getMyScreens, getMyBranding, getMyRole, getMyOrganization, getDiagnosticContext, setToken, clearToken, logout } from "@/lib/api";
 import { registerPushForCurrentUser } from "@/lib/push";
 import { Capacitor } from "@capacitor/core";
@@ -20,13 +29,27 @@ function clearCachedRole() {
   try { localStorage.removeItem(ROLE_STORAGE_KEY); } catch { /* noop */ }
 }
 
+/** Último contexto escolhido (Minha Jornada | Área da Organização), POR PESSOA
+ *  (tenant:usuário do token). Não é sensível e sobrevive ao logout: quem volta
+ *  entra onde estava — se ainda tiver direito a esse contexto. */
+const CONTEXT_STORAGE_PREFIX = "crivo_ctx:";
+function readRememberedContext(userKey: string): string | null {
+  if (userKey === "anon") return null;
+  try { return localStorage.getItem(CONTEXT_STORAGE_PREFIX + userKey); } catch { return null; }
+}
+function rememberContext(userKey: string, context: ClientContext) {
+  if (userKey === "anon") return; // sem pessoa identificada, não há de quem lembrar
+  try { localStorage.setItem(CONTEXT_STORAGE_PREFIX + userKey, context); } catch { /* private mode */ }
+}
+
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "—";
 }
 /** Atualiza o chip do usuário no header com o usuário REAL do tenant logado —
- *  corrige o placeholder "Rafael Moreira" que vinha fixo no markup (multi-empresa). */
-function applyUserChip(name: string, role: string, orgName?: string | null) {
+ *  corrige o placeholder "Rafael Moreira" que vinha fixo no markup (multi-empresa).
+ *  `role` é o papel exibido NO CONTEXTO (LIDER em Minha Jornada). */
+function applyUserChip(name: string, role: string, orgName?: string | null, contextLabel?: string | null) {
   const chip = document.querySelector(".user-chip");
   if (!chip) return;
   const nameEl = chip.querySelector("strong");
@@ -40,7 +63,10 @@ function applyUserChip(name: string, role: string, orgName?: string | null) {
   // lugar que nomeava a empresa era o card no rodapé da sidebar — abaixo da
   // dobra. O sintoma era o portal parecer que "trouxe dados antigos".
   if (roleEl) roleEl.textContent = orgName ? `${roleLabel} · ${orgName}` : roleLabel;
-  if (orgName) (chip as HTMLElement).title = `Empresa: ${orgName} · Papel: ${roleLabel}`;
+  if (orgName) {
+    (chip as HTMLElement).title =
+      `${contextLabel ? `Contexto: ${contextLabel} · ` : ""}Empresa: ${orgName} · Papel: ${roleLabel}`;
+  }
   if (avatar && name) avatar.textContent = initialsOf(name);
 }
 /** Card da empresa no rodapé da sidebar: o markup traz "Empresa Exemplo S.A."
@@ -110,19 +136,24 @@ import { ColaboradoresScreen } from "./ColaboradoresScreen";
 import { UsuariosScreen } from "./UsuariosScreen";
 import { OrganizacaoScreen } from "./OrganizacaoScreen";
 import { RolesScreen } from "./RolesScreen";
+import { JornadaHojeScreen } from "./JornadaHojeScreen";
+import { MentorScreen } from "./MentorScreen";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { createRoot as createRootForModal } from "react-dom/client";
 import { TermsGate } from "./TermsGate";
 import { PLATFORM_MARKUP } from "./markup";
-import { DEFAULT_ROUTE, NAV, homeForRole, routeAccess, routeMeta, routeMethods, routeOwnerMethods } from "./nav.config";
+import { NAV, homeFor, routeAccess, routeContext, routeMeta, routeMethods, routeOwnerMethods } from "./nav.config";
 import { GlobalSearch } from "./GlobalSearch";
 import { NotificationBell } from "./NotificationBell";
 import { TopbarContext } from "./TopbarContext";
 import { NotificacoesScreen } from "./NotificacoesScreen";
 import {
   endPortalSession,
+  getPortalState,
   refreshPortalData,
   sessionKeyFromToken,
+  setPortalContext,
+  setPortalContextSwitcher,
   setPortalNavigator,
   startPortalSession,
 } from "@/lib/portal-shell";
@@ -213,6 +244,9 @@ export function Plataforma() {
     // null = ainda não carregado → mostra tudo (a API ainda gateia o acesso).
     let enabledModules: Set<string> | null = null;
     let permissions: Set<string> | null = null;
+    // Papel do usuário logado — esconde itens cujo `roles` (nav.config) não o inclui.
+    // null = não carregado → não filtra por papel (a API continua gateando).
+    let currentRole: string | null = null;
     // Telas liberadas para ESTE usuário (checklist por usuário). null = sem restrição.
     let allowedScreens: Set<string> | null = null;
     // Método do diagnóstico CONTRATADO (/me/diagnostic-context). null = não
@@ -230,11 +264,33 @@ export function Plataforma() {
     // primeiro acesso. Declarado aqui porque o enterApp (acima) precisa chamá-lo.
     let exigirTrocaDeSenha: (() => void) | null = null;
     cleanups.push(() => removeBranding?.());
-    const routeVisible = (route: string) => {
+    // Acesso (módulos/permissões/papel/telas) confirmado pela API nesta sessão.
+    // false = menu vai ao store como null (nada escondido; a API gateia).
+    let accessLoaded = false;
+    // ---------- CONTEXTOS DO CLIENTE (Spec V1 v1.2 §3) ----------
+    // Um login, dois contextos que NUNCA dividem o menu: Minha Jornada (privada,
+    // do líder) e Área da Organização (corporativa). [] = sem sessão.
+    let availableContexts: ClientContext[] = [];
+    let currentContext: ClientContext | null = null;
+    // Quem está no chip do topo (nome e empresa) — reescrito a cada troca de
+    // contexto, porque o papel exibido muda com ele ("Líder" na Jornada).
+    let chipName: string | null = null;
+    let chipOrg: string | null = null;
+
+    /**
+     * A rota pode ser aberta por este usuário? Primeiro o CONTEXTO: a rota é de
+     * um contexto que ele tem (é aqui que o Admin puro perde a Jornada e o Líder
+     * puro perde a Organização). Depois os gates de sempre. Não olha o contexto
+     * ATIVO — rota permitida do outro contexto troca de contexto (setRoute).
+     */
+    const routeAllowed = (route: string) => {
+      const ctx = routeContext[route];
+      if (!ctx || !availableContexts.includes(ctx)) return false; // rota fora do menu, ou de contexto sem direito
       const access = routeAccess[route];
-      if (!access) return true; // rota sem mapeamento (ex.: links soltos)
+      if (!access) return true; // rota sem gate (ex.: Hoje, Suporte)
       if (access.module && enabledModules && !enabledModules.has(access.module)) return false; // módulo/plano
       if (access.perm && permissions && !permissions.has(access.perm)) return false; // papel/RBAC
+      if (access.roles && currentRole && !access.roles.includes(currentRole)) return false; // papel (espelha @Roles da API)
       // Diagnóstico NÃO contratado some do menu: o item declara para quais
       // métodos ele existe (nav.config) e o contrato diz qual é o da empresa.
       // Sem método resolvido, nada é escondido.
@@ -251,9 +307,11 @@ export function Plataforma() {
       // O grupo Administração (usuarios/papeis/historico) NÃO entra na checklist
       // (SCREEN_OPTIONS o exclui) — segue gateado só por permissão/módulo. Sem
       // 'historico' nesta isenção, todo usuário com checklist perdia o Histórico
-      // sem forma de liberar.
+      // sem forma de liberar. Minha Jornada também não entra: a checklist é da
+      // Área da Organização; a Jornada é liberada pelo contrato (módulo).
       if (
         allowedScreens &&
+        ctx !== "JORNADA" &&
         route !== "usuarios" &&
         route !== "papeis" &&
         route !== "historico" &&
@@ -263,31 +321,36 @@ export function Plataforma() {
         return false;
       return true;
     };
+    /** O MENU mostra a rota: permitida E do contexto ativo. */
+    const routeVisible = (route: string) => routeContext[route] === currentContext && routeAllowed(route);
 
     function hideEmptyGroups() {
-      const nav = document.querySelector(".sidebar__nav");
-      if (!nav) return;
-      const children = Array.from(nav.children) as HTMLElement[];
-      for (let i = 0; i < children.length; i++) {
-        if (!children[i].classList.contains("sidebar__group")) continue;
-        let anyVisible = false;
-        let hasRouteItem = false;
-        for (let j = i + 1; j < children.length; j++) {
-          const sib = children[j];
-          if (sib.classList.contains("sidebar__group")) break;
-          if (!sib.classList.contains("nav-item")) continue;
-          if (sib.dataset.route) {
-            hasRouteItem = true;
-            if (sib.style.display !== "none") anyVisible = true;
-          } else {
-            anyVisible = true; // item sem rota (ex.: Configurações) — sempre mantém o grupo
+      // Um <nav> por contexto (renderNavHtml): cada um esconde seus grupos vazios.
+      document.querySelectorAll(".sidebar__nav").forEach((nav) => {
+        const children = Array.from(nav.children) as HTMLElement[];
+        for (let i = 0; i < children.length; i++) {
+          if (!children[i].classList.contains("sidebar__group")) continue;
+          let anyVisible = false;
+          let hasRouteItem = false;
+          for (let j = i + 1; j < children.length; j++) {
+            const sib = children[j];
+            if (sib.classList.contains("sidebar__group")) break;
+            if (!sib.classList.contains("nav-item")) continue;
+            if (sib.dataset.route) {
+              hasRouteItem = true;
+              if (sib.style.display !== "none") anyVisible = true;
+            } else {
+              anyVisible = true; // item sem rota (ex.: Configurações) — sempre mantém o grupo
+            }
           }
+          children[i].style.display = hasRouteItem && !anyVisible ? "none" : "";
         }
-        children[i].style.display = hasRouteItem && !anyVisible ? "none" : "";
-      }
+      });
     }
 
     function applyModuleVisibility() {
+      // Itens do OUTRO contexto também saem (display:none), além do <nav> dele
+      // sumir pelo CSS: os dois menus não aparecem juntos nem sem o CSS.
       navItems.forEach((n) => {
         const r = n.dataset.route;
         if (r) n.style.display = routeVisible(r) ? "" : "none";
@@ -337,10 +400,77 @@ export function Plataforma() {
       });
     }
 
-    function setRoute(name: string) {
-      if (!routeVisible(name)) name = DEFAULT_ROUTE; // rota sem acesso → painel
+    /** Papel exibido no contexto: "Líder" na Jornada; o corporativo na Organização. */
+    function roleLabelFor(ctx: ClientContext): string | null {
+      if (ctx === "JORNADA") return ROLE_LABELS.LIDER;
+      return currentRole ? (ROLE_LABELS[currentRole as Role] ?? currentRole) : null;
+    }
+
+    /** Chip do topo com o papel DO CONTEXTO ativo e o contexto no title. */
+    function applyContextIdentity() {
+      if (!chipName || !currentContext) return;
+      const role = currentContext === "JORNADA" ? "LIDER" : (currentRole ?? "");
+      applyUserChip(chipName, role, chipOrg, CLIENT_CONTEXT_LABEL[currentContext]);
+    }
+
+    /**
+     * HOME do contexto: a do papel (homeFor); se ela não estiver liberada
+     * (módulo/perm/checklist), a primeira tela liberada do mesmo contexto —
+     * nunca uma tela do outro contexto.
+     */
+    function contextHome(ctx: ClientContext): string {
+      const home = homeFor(ctx, currentRole);
+      if (routeContext[home] === ctx && routeAllowed(home)) return home;
+      const first = NAV.filter((g) => g.context === ctx)
+        .flatMap((g) => g.items)
+        .find((i) => i.route && !i.hidden && routeAllowed(i.route));
+      return first?.route ?? home;
+    }
+
+    /**
+     * Entra num contexto: marca o #app (o CSS mostra só o <nav> dele), lembra a
+     * escolha, re-filtra o menu, reescreve a identificação do topo e troca o
+     * menu do store (busca, sino e canSeeRoute passam a ser os do contexto
+     * novo). Não navega — quem chama decide a tela.
+     */
+    function applyContext(ctx: ClientContext) {
+      currentContext = ctx;
+      app!.setAttribute("data-context", ctx);
+      rememberContext(sessionKeyFromToken(), ctx);
+      applyModuleVisibility();
+      applyContextIdentity();
+      if (getPortalState().session) setPortalContext(ctx, accessLoaded ? visibleMenu() : null, roleLabelFor(ctx));
+      routerLog.info(`contexto → ${CLIENT_CONTEXT_LABEL[ctx]}`);
+    }
+
+    /** Seletor "Minha Jornada | Área da Organização": troca e abre a home do contexto. */
+    function switchContext(ctx: ClientContext) {
+      if (!availableContexts.includes(ctx)) return; // sem direito a esse contexto: ignora
+      document.querySelector(".sidebar")?.classList.remove("is-open");
+      if (ctx !== currentContext) applyContext(ctx);
+      setRoute(contextHome(ctx));
+    }
+
+    function setRoute(requested: string) {
+      if (!availableContexts.length) return; // sem sessão: não há tela a abrir
+      let name = requested;
+      // Rota sem acesso → home do contexto ATUAL (antes caía sempre no painel
+      // corporativo, inclusive para o líder).
+      if (!routeAllowed(name)) name = contextHome(currentContext ?? availableContexts[0]);
+      // Rota permitida do OUTRO contexto (atalho, busca, link de uma tela):
+      // troca o contexto e abre a rota — o menu nunca mostra os dois juntos.
+      const ctx = routeContext[name];
+      if (ctx && ctx !== currentContext && availableContexts.includes(ctx)) applyContext(ctx);
       routes.forEach((r) => r.classList.toggle("is-active", r.dataset.route === name));
       navItems.forEach((n) => n.classList.toggle("is-active", n.dataset.route === name));
+      // A ilha do painel também monta aqui (antes só o enterApp a montava, e
+      // quem chegava ao painel pelo menu ou pelo fallback via a seção vazia).
+      if (name === "dashboard") mountIsland("dash-root", <DashboardScreen />);
+      // Minha Jornada — ilhas próprias, com o recorte PESSOAL.
+      if (name === "hoje") mountIsland("hoje-root", <JornadaHojeScreen />);
+      if (name === "mentor") mountIsland("mentor-root", <MentorScreen />);
+      if (name === "jornada-mentorias") mountIsland("jornada-mentorias-root", <MentoriasScreen escopo="minhas" />);
+      if (name === "jornada-academia") mountIsland("jornada-academia-root", <BibliotecaScreen somenteLeitura />);
       if (name === "icd") mountIsland("icd-root", <IcdScreen />); // mount lazy ao navegar
       if (name === "grupo") mountIsland("grupo-root", <GrupoScreen />); // F3 — consolidado do grupo
       // §16: CRM é interno da CRIVO (Super Admin), fora do portal do cliente.
@@ -408,12 +538,28 @@ export function Plataforma() {
         setTimeout(() => r.unmount(), 0); // unmount diferido (evita warning em StrictMode)
       }
     });
+    /** Ilhas da barra superior: leem o store (que o logout zera) e ficam montadas. */
+    const SHELL_ISLANDS = new Set(["search-root", "bell-root", "context-root"]);
+    /**
+     * Logout desmonta as ilhas das TELAS. Elas buscam o dado só ao montar: sem
+     * isto, quem entrasse depois na mesma aba abria a tela já montada com o
+     * dado de quem saiu — inaceitável em Minha Jornada, que é privada.
+     */
+    function unmountRouteIslands() {
+      for (const id of Object.keys(islands)) {
+        if (SHELL_ISLANDS.has(id)) continue;
+        const r = islands[id];
+        delete islands[id];
+        r.unmount();
+      }
+    }
 
     // ---------- BARRA SUPERIOR (protótipo Lovable › app-header) ----------
-    // Busca Ctrl/⌘K, sino e faixa Empresa · Perfil · Contratação. Leem o store
-    // compartilhado (lib/portal-shell), que o enterApp alimenta e o logout zera;
-    // pedem tela ao shell pelo navegador abaixo (setRoute já degrada para o
-    // painel se a rota não estiver liberada).
+    // Busca Ctrl/⌘K, sino e faixa Contexto · Empresa · Perfil · Contratação.
+    // Leem o store compartilhado (lib/portal-shell), que o enterApp alimenta e
+    // o logout zera; pedem tela ao shell pelo navegador abaixo (setRoute já
+    // degrada para a home do contexto se a rota não estiver liberada, e troca
+    // de contexto se a rota for do outro) e contexto pelo seletor.
     setPortalNavigator((route) => {
       // A paleta de busca vive fora do .main e da nav (portal no body): sem
       // isto, navegar por ela deixava a gaveta do menu aberta no celular.
@@ -421,6 +567,8 @@ export function Plataforma() {
       setRoute(route);
     });
     cleanups.push(() => setPortalNavigator(null));
+    setPortalContextSwitcher(switchContext);
+    cleanups.push(() => setPortalContextSwitcher(null));
     // Montagem adiada um tique: no StrictMode (dev) o efeito roda 2×, e o
     // cleanup só desmonta as ilhas num setTimeout — montar de forma síncrona
     // pegaria o container ainda preso à raiz anterior.
@@ -431,12 +579,12 @@ export function Plataforma() {
     }, 0);
     cleanups.push(() => clearTimeout(topbarTimer));
 
-    /** Telas que o menu mostra agora, com o rótulo exibido (o nome da solução
-     *  contratada no item do diagnóstico) — é o "Tela" da busca e o que decide
-     *  quais fontes o sino pode pedir. Vem da config + regra de acesso, não do
-     *  texto do DOM. */
+    /** Telas que o menu DO CONTEXTO ATIVO mostra agora, com o rótulo exibido (o
+     *  nome da solução contratada no item do diagnóstico) — é o "Tela" da busca
+     *  e o que decide quais fontes o sino pode pedir. Vem da config + regra de
+     *  acesso, não do texto do DOM. */
     function visibleMenu(): SearchRoute[] {
-      return NAV.flatMap((g) =>
+      return NAV.filter((g) => g.context === currentContext).flatMap((g) =>
         g.items
           .filter((i) => i.route && !i.hidden && routeVisible(i.route))
           .map((i) => ({ route: i.route!, label: contractedLabelFor(i.route!) ?? i.label, group: g.title })),
@@ -445,22 +593,29 @@ export function Plataforma() {
 
     // ---------- ENTRADA NA PLATAFORMA (login novo OU restauração de sessão) ----------
     // Reutilizado pelo submit do login e pela restauração no F5. Carrega o acesso
-    // (módulos/permissões/branding) ANTES de decidir a HOME — assim a home-por-papel
-    // não cai numa tela de módulo que a empresa não tem (sem isto, com acesso=null o
-    // routeVisible é fail-open). Sem acesso confirmado, entra no DEFAULT_ROUTE.
+    // (módulos/permissões/branding) e os CONTEXTOS ANTES de decidir a HOME — assim
+    // a home não cai numa tela de módulo que a empresa não tem (sem isto, com
+    // acesso=null o routeVisible é fail-open) nem no contexto errado. Sem acesso
+    // confirmado, os gates ficam abertos, mas o contexto continua valendo.
     const enterApp = async (role: string | null): Promise<void> => {
       // Sessao restaurada tambem comeca do zero: sem isso o shell mostra os
       // placeholders do markup ("Rafael Moreira" / "Empresa Exemplo S.A.") como
       // se fossem reais ate os fetches responderem.
       resetIdentityChrome();
       carregadoEm = Date.now();
-      let accessLoaded = false;
-      // Faixa de contexto da barra superior (Empresa · Perfil · Contratação).
+      accessLoaded = false;
+      chipName = null;
+      chipOrg = null;
+      // Papel do login/cache até /me/role responder (não o da sessão anterior).
+      currentRole = role;
+      // Faixa de contexto da barra superior (Contexto · Empresa · Perfil · Contratação).
       let ctxOrg: string | null = null;
-      let ctxRole: string | null = role;
       // null = não deu para saber (falha), [] = respondeu sem contrato ativo.
       let ctxContracted: string[] | null = null;
       let ctxGroup = false;
+      // Contextos calculados pela API (isLeader lido do banco). null = não veio.
+      let apiContexts: ClientContext[] | null = null;
+      let apiIsLeader: boolean | undefined;
       try {
         // Cada fetch protegido: a falha de UM (ex.: branding) não pode rejeitar
         // o Promise.all inteiro e pular o applyUserChip / a visibilidade.
@@ -488,21 +643,28 @@ export function Plataforma() {
             : diag?.method && diag?.productName
               ? [{ method: diag.method, productName: diag.productName }]
               : [];
-        // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo).
-        if (me) applyUserChip(me.name, me.role, org?.name ?? null);
+        // Mostra o usuário REAL do tenant no header (corrige "Rafael Moreira" fixo)
+        // — escrito depois de decidido o contexto (applyContextIdentity).
+        currentRole = me?.role ?? role;
+        if (me) {
+          chipName = me.name;
+          chipOrg = org?.name ?? null;
+        }
+        // Só valores conhecidos, na ordem do seletor. Vazio = API sem o campo.
+        const vindos = me?.contexts ? CLIENT_CONTEXTS.filter((c) => me.contexts.includes(c)) : [];
+        apiContexts = vindos.length ? vindos : null;
+        apiIsLeader = me?.isLeader;
         // Primeiro acesso: a senha veio sorteada pela plataforma (e-mail do CRM
         // ou criação do cliente). Exige a troca ANTES de liberar a navegação —
         // sem isso a senha que trafegou por e-mail valia indefinidamente.
         if (me?.mustChangePassword) exigirTrocaDeSenha?.();
         // Empresa real no card da sidebar (corrige "Empresa Exemplo S.A." fixo).
         applyOrgCard(org?.name ?? null, diag?.productName ?? null);
-        applyModuleVisibility();
         applyContractedDiagnosticLabel();
         removeBranding?.();
         removeBranding = applyBranding(branding);
         accessLoaded = true;
         ctxOrg = org?.name ?? null;
-        ctxRole = me?.role ?? role;
         ctxContracted = diag
           ? Array.from(
               new Set(contractedList.length ? contractedList.map((c) => c.productName) : diag.productName ? [diag.productName] : []),
@@ -514,15 +676,28 @@ export function Plataforma() {
         // 401 (sessão expirada) já é tratado pelo apiFetch (limpa token + volta ao login).
         routerLog.warn("não foi possível carregar acesso do tenant/papel", err);
       }
+      // Contextos: os da API; se /me/role não respondeu, os do papel do
+      // login/cache — sem a marcação de líder, que só o banco conhece (o
+      // corporativo marcado como líder entra só na Organização até a API voltar).
+      availableContexts = apiContexts ?? contextsFor({ role: currentRole ?? "", isLeader: apiIsLeader });
+      const userKey = sessionKeyFromToken();
+      // Entra no último contexto escolhido, se ainda tiver direito; senão no
+      // primeiro (Minha Jornada para quem é líder).
+      currentContext = initialContext(availableContexts, readRememberedContext(userKey));
+      app.setAttribute("data-context", currentContext);
+      applyModuleVisibility();
+      applyContextIdentity();
       // Alimenta a barra superior (sino, busca, faixa de contexto). Sem acesso
-      // carregado o menu vai null: a busca oferece todas as telas e a API gateia.
+      // carregado o menu vai null: a busca oferece as telas do contexto e a API gateia.
       startPortalSession(
         {
-          userKey: sessionKeyFromToken(),
+          userKey,
           orgName: ctxOrg,
-          roleLabel: ctxRole ? (ROLE_LABELS[ctxRole as Role] ?? ctxRole) : null,
+          roleLabel: roleLabelFor(currentContext),
           contracted: ctxContracted,
           hasGroup: ctxGroup,
+          contexts: [...availableContexts],
+          context: currentContext,
         },
         accessLoaded ? visibleMenu() : null,
       );
@@ -530,9 +705,9 @@ export function Plataforma() {
       app.classList.add("is-active");
       // Registra push (FCM) do dispositivo — no-op no navegador, só age no app nativo.
       void registerPushForCurrentUser();
-      const home = accessLoaded ? homeForRole(role) : DEFAULT_ROUTE;
-      if (home !== DEFAULT_ROUTE) setRoute(home);
-      else mountIsland("dash-root", <DashboardScreen />);
+      // HOME do contexto de entrada, sempre pelo setRoute (que monta a ilha,
+      // inclusive a do painel) e com o fallback para a 1ª tela liberada.
+      setRoute(contextHome(currentContext));
       animateBars();
     }
 
@@ -604,12 +779,22 @@ export function Plataforma() {
       clearCachedRole();
       resetIdentityChrome();
       endPortalSession(); // sino, busca e faixa de contexto não sobrevivem ao logout
+      // O contexto sai do DOM e do estado (o lembrado em localStorage fica: é
+      // por pessoa e não é sensível). Sem data-context, nenhum menu aparece.
+      availableContexts = [];
+      currentContext = null;
+      accessLoaded = false;
+      chipName = null;
+      chipOrg = null;
+      app.removeAttribute("data-context");
+      routes.forEach((r) => r.classList.remove("is-active"));
+      navItems.forEach((n) => n.classList.remove("is-active"));
+      unmountRouteIslands();
       app.classList.remove("is-active");
       login.classList.add("is-active");
       authLog.info("sessão encerrada");
       removeBranding?.(); // volta ao tema CRIVO padrão
       removeBranding = null;
-      setRoute(DEFAULT_ROUTE);
     });
 
     /**

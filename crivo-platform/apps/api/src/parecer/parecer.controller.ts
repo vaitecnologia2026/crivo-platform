@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
@@ -27,7 +28,7 @@ import { UpsertParecerDto } from './dto';
  * (papel Consultor CRIVO e gestão). Data plane (RLS por tenant).
  */
 @Controller('parecer')
-@UseGuards(AuthGuard, ModuleGuard, PermissionGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, PermissionGuard, ScreenAccessGuard)
 @RequireModule('parecer')
 @RequireScreen('parecer')
 @RequirePermission('parecer:view')

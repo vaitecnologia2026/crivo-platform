@@ -1,6 +1,6 @@
-import { ArrayMaxSize, IsArray, IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { ActionStatus } from '@crivo/db';
-import { RISK_LEVELS_3, INVENTORY_RISK_LEVELS } from '@crivo/types';
+import { ACTION_RESPONSIBLE_TYPES, RISK_LEVELS_3, INVENTORY_RISK_LEVELS, type ActionResponsibleType } from '@crivo/types';
 
 export class CreateActionPlanDto {
   @IsString() @MaxLength(200)
@@ -30,6 +30,18 @@ export class CreateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(160)
   responsible?: string;
+
+  /** H-008: USUARIO | CARGO | AREA | EXTERNO | EXCECAO. O serviço confere o
+   *  vínculo (usuário ativo da empresa; cargo/área do cadastro de colaboradores). */
+  @IsOptional() @IsIn(ACTION_RESPONSIBLE_TYPES as unknown as string[])
+  responsibleType?: ActionResponsibleType | null;
+
+  @IsOptional() @IsUUID()
+  responsibleUserId?: string | null;
+
+  /** Motivo da exceção (obrigatório quando responsibleType = EXCECAO). */
+  @IsOptional() @IsString() @MaxLength(300)
+  responsibleReason?: string | null;
 
   @IsOptional() @IsString()
   dueDate?: string | null;
@@ -84,6 +96,18 @@ export class UpdateActionItemDto {
 
   @IsOptional() @IsString() @MaxLength(160)
   responsible?: string;
+
+  /** H-008: USUARIO | CARGO | AREA | EXTERNO | EXCECAO. O serviço confere o
+   *  vínculo (usuário ativo da empresa; cargo/área do cadastro de colaboradores). */
+  @IsOptional() @IsIn(ACTION_RESPONSIBLE_TYPES as unknown as string[])
+  responsibleType?: ActionResponsibleType | null;
+
+  @IsOptional() @IsUUID()
+  responsibleUserId?: string | null;
+
+  /** Motivo da exceção (obrigatório quando responsibleType = EXCECAO). */
+  @IsOptional() @IsString() @MaxLength(300)
+  responsibleReason?: string | null;
 
   @IsOptional() @IsString()
   dueDate?: string | null;

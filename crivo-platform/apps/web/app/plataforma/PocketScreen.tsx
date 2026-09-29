@@ -321,9 +321,12 @@ function PocketSession({ sessionId, onBack }: { sessionId: string; onBack: () =>
               )}
             </div>
           ) : (
+            // Sem síntese: a IA pode não estar liberada para a empresa ou ter
+            // falhado nesta sessão. O texto não manda o líder "configurar" nada —
+            // isso é tarefa do administrador, não dele.
             <p className="card__sub" style={{ marginBottom: 18, fontStyle: "italic" }}>
-              Mentoria IA indisponível neste ciclo — configure a IA no Super Admin para receber síntese,
-              cuidado sugerido e próximo passo a cada sessão.
+              A síntese automática (síntese, cuidado sugerido e próximo passo) não está disponível para esta
+              sessão. Suas reflexões ficaram salvas normalmente no seu histórico.
             </p>
           )}
 

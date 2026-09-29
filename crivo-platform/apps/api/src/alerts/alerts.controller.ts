@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { type SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
@@ -12,7 +13,7 @@ import { AlertsService } from './alerts.service';
  * pelo ScreenAccessGuard: é um overlay do Dashboard.
  */
 @Controller('alerts')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, RolesGuard)
 @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR')
 export class AlertsController {
   constructor(private readonly alerts: AlertsService) {}

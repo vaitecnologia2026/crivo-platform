@@ -138,7 +138,8 @@ function ResultadosBody({
     <>
       <div className="kpi-grid">
         <div className="kpi" style={{ gridColumn: "span 2" }}>
-          <span className="kpi__label">Proteção psicossocial geral</span>
+          {/* H-001: mesmo nome do Dossiê e do Plano (Matriz v3.3). */}
+          <span className="kpi__label">Resultado Geral da Organização</span>
           {data.overall.suppressed ? (
             <>
               <strong className="kpi__value" style={{ fontSize: 24 }}>—</strong>

@@ -67,6 +67,9 @@ export interface SearchSources {
   users: UserSummary[] | null;
   library: LibraryItemData[] | null;
   notifications: PortalNotification[] | null;
+  /** Tela da Academia no contexto ativo: em Minha Jornada é a leitura pessoal
+   *  ('jornada-academia'); na Organização, a de gestão. Padrão 'biblioteca'. */
+  libraryRoute?: string;
 }
 
 export interface SearchGroup {
@@ -212,7 +215,7 @@ export function buildSearchIndex(src: SearchSources): SearchEntry[] {
         'Academia',
         l.title,
         LIBRARY_KIND_LABEL[l.kind] ?? l.kind,
-        'biblioteca',
+        src.libraryRoute ?? 'biblioteca',
         [l.description],
       ),
     );

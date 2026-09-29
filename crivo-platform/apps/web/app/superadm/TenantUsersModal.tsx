@@ -2,13 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@crivo/ui";
-import { ROLES, ROLE_LABELS, type Role, type TenantSummary, type UserSummary } from "@crivo/types";
+import {
+  ROLES,
+  ROLE_LABELS,
+  type Role,
+  type TenantSummary,
+  type UpdateUserRequest,
+  type UserSummary,
+} from "@crivo/types";
 import {
   createTenantUser,
   getTenantUserSeats,
   listTenantUsers,
   updateTenantUser,
 } from "@/lib/admin-api";
+import {
+  ALSO_LEADER_LABEL,
+  LIDER_ONLY_HINT,
+  alsoLeaderHint,
+  contextLabelsFor,
+  leaderFlagFor,
+} from "@/lib/usuario-acesso";
 
 type Load = "loading" | "error" | "ok";
 
@@ -23,10 +37,12 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
   const [busyId, setBusyId] = useState<string | null>(null);
   const [seats, setSeats] = useState<{ active: number; max: number | null } | null>(null);
 
-  const [form, setForm] = useState<{ name: string; email: string; role: Role }>({
+  // isLeader = "Também é líder" (Minha Jornada) — só conta para papel ≠ LIDER.
+  const [form, setForm] = useState<{ name: string; email: string; role: Role; isLeader: boolean }>({
     name: "",
     email: "",
     role: "COLABORADOR",
+    isLeader: false,
   });
   const [creating, setCreating] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -63,10 +79,12 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
         name: form.name.trim(),
         email: form.email.trim(),
         role: form.role,
+        // LIDER não leva isLeader (a API o trata como sempre líder).
+        isLeader: leaderFlagFor(form.role, form.isLeader),
       });
       setUsers((prev) => [...prev, res.user]);
       getTenantUserSeats(tenant.id).then(setSeats).catch(() => {});
-      setForm({ name: "", email: "", role: "COLABORADOR" });
+      setForm({ name: "", email: "", role: "COLABORADOR", isLeader: false });
       if (res.tempPassword) setTempPassword(res.tempPassword);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao criar usuário");
@@ -75,7 +93,7 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
     }
   }
 
-  async function patch(u: UserSummary, body: { role?: Role; active?: boolean }) {
+  async function patch(u: UserSummary, body: Pick<UpdateUserRequest, "role" | "active" | "isLeader">) {
     setBusyId(u.id);
     setError(null);
     try {
@@ -166,6 +184,26 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
                   {creating ? "Criando…" : "Criar"}
                 </Button>
               </div>
+              {/* Contextos (Spec V1 v1.2 §3): LIDER → só Minha Jornada; outro papel
+                  → Área da Organização, + Minha Jornada se marcado como líder. */}
+              <div className="mt-2 text-[12px] text-text-sec">
+                {form.role === "LIDER" ? (
+                  <p className="font-medium text-text">{LIDER_ONLY_HINT}</p>
+                ) : (
+                  <>
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-text">
+                      <input
+                        type="checkbox"
+                        checked={form.isLeader}
+                        onChange={(e) => setForm((f) => ({ ...f, isLeader: e.target.checked }))}
+                        className="accent-terra"
+                      />
+                      {ALSO_LEADER_LABEL}
+                    </label>
+                    <p className="mt-0.5">{alsoLeaderHint(ROLE_LABELS[form.role])}</p>
+                  </>
+                )}
+              </div>
               {tempPassword && (
                 <div className="mt-2 rounded-[3px] border border-line bg-[#fafaf7] p-2 text-[12px] text-text-sec">
                   Senha temporária (mostrada uma única vez):{" "}
@@ -196,8 +234,36 @@ export function TenantUsersModal({ tenant, onClose }: { tenant: TenantSummary; o
                         )}
                       </div>
                       <div className="truncate text-[12px] text-text-sec">{u.email}</div>
+                      <div className="mt-1 flex flex-wrap gap-1" aria-label={`Contextos de ${u.name}`}>
+                        {contextLabelsFor(u).map((c) => (
+                          <span
+                            key={c}
+                            className="rounded-full border border-line px-2 py-0.5 text-[11px] text-text-sec"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* LIDER já é líder (só Minha Jornada); nos demais papéis a
+                          marcação acrescenta Minha Jornada à Área da Organização. */}
+                      {u.role !== "LIDER" && (
+                        <label
+                          className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-text"
+                          title={alsoLeaderHint(ROLE_LABELS[u.role] ?? u.role)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={u.isLeader === true}
+                            disabled={busyId === u.id}
+                            onChange={(e) => patch(u, { isLeader: e.target.checked })}
+                            className="accent-terra disabled:opacity-40"
+                            aria-label={`${u.name} também é líder (acessa Minha Jornada)`}
+                          />
+                          Também é líder
+                        </label>
+                      )}
                       <select
                         value={u.role}
                         disabled={busyId === u.id}

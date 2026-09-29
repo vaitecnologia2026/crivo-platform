@@ -55,26 +55,34 @@ function iconForKind(kind: string) {
 type LoadStatus = "loading" | "error" | "ok";
 type Editing = LibraryItemData | "new" | null;
 
-/** Academia CRIVO — acervo de conteúdo do tenant + CMS (gestão por library:manage). */
-export function BibliotecaScreen() {
+/** Academia CRIVO — acervo de conteúdo do tenant + CMS (gestão por library:manage).
+ *  `somenteLeitura` = Minha Jornada › Evoluir › Academia: só consumo. Sem gestão
+ *  (criar/editar/excluir/importar do catálogo CRIVO) e sem exportação, e nem
+ *  pergunta as permissões — a gestão é da Área da Organização, mesmo para quem
+ *  tem `library:manage`. */
+export function BibliotecaScreen({ somenteLeitura = false }: { somenteLeitura?: boolean }) {
   const [data, setData] = useState<LibraryItemData[] | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [canManage, setCanManage] = useState(false);
   const [editing, setEditing] = useState<Editing>(null);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
-  const exportCtx = useExportContext();
 
   async function load() {
     setStatus("loading");
     try {
-      const [items, perms] = await Promise.all([listLibrary(), getMyPermissions().catch(() => [] as string[])]);
+      const [items, perms] = await Promise.all([
+        listLibrary(),
+        somenteLeitura ? Promise.resolve([] as string[]) : getMyPermissions().catch(() => [] as string[]),
+      ]);
       setData(items);
-      setCanManage(perms.includes("library:manage"));
+      setCanManage(!somenteLeitura && perms.includes("library:manage"));
       setStatus("ok");
     } catch {
       setStatus("error");
     }
   }
+  // `somenteLeitura` é fixo por montagem (cada rota monta a sua ilha): carrega uma vez.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, []);
 
   async function del(item: LibraryItemData) {
@@ -87,42 +95,14 @@ export function BibliotecaScreen() {
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Academia e Recursos</h1>
+          <h1 className="page-title">{somenteLeitura ? "Academia" : "Academia e Recursos"}</h1>
           <p className="page-sub">Cursos, trilhas, vídeos, mentorias, guias e materiais de liderança e cultura.</p>
         </div>
         <div className="route__actions">
           {canManage && (
             <button className="btn btn--terra btn--sm" onClick={() => setEditing("new")}>Adicionar conteúdo</button>
           )}
-          <button
-            className="btn btn--outline-dark btn--sm"
-            disabled={!exportCtx || !data?.length}
-            onClick={() => exportCtx && exportXLSX("crivo-academia", [{
-              name: "Acervo",
-              rows: (data ?? []).map((d) => ({
-                Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
-                Duração: formatDurationMin(d.durationMin) ?? "—",
-                Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
-                Link: d.url ?? "—",
-              })),
-            }], exportCtx)}
-          >
-            <IconDownload size={14} /> XLSX
-          </button>
-          <button
-            className="btn btn--outline-dark btn--sm"
-            disabled={!exportCtx || !data?.length}
-            onClick={() => exportCtx && exportPDF("crivo-academia", "Academia e Recursos · Acervo", [{
-              heading: "Acervo",
-              rows: (data ?? []).map((d) => ({
-                Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
-                Duração: formatDurationMin(d.durationMin) ?? "—",
-                Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
-              })),
-            }], exportCtx)}
-          >
-            <IconFileText size={14} /> PDF
-          </button>
+          {!somenteLeitura && <ExportarAcervo data={data} />}
           <button className="btn btn--outline-dark btn--sm" onClick={load} disabled={status === "loading"}>
             {status === "loading" ? "Atualizando…" : "Atualizar"}
           </button>
@@ -304,6 +284,46 @@ function LibraryForm({ initial, onClose, onSaved }: { initial: LibraryItemData |
         </form>
       </div>
     </div>
+  );
+}
+
+/** XLSX/PDF do acervo. Componente à parte para o cabeçalho da exportação
+ *  (/me/organization, ciclos, contratação) só ser pedido onde há exportação —
+ *  a Academia de Minha Jornada não chama nada da empresa. */
+function ExportarAcervo({ data }: { data: LibraryItemData[] | null }) {
+  const exportCtx = useExportContext();
+  return (
+    <>
+      <button
+        className="btn btn--outline-dark btn--sm"
+        disabled={!exportCtx || !data?.length}
+        onClick={() => exportCtx && exportXLSX("crivo-academia", [{
+          name: "Acervo",
+          rows: (data ?? []).map((d) => ({
+            Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
+            Duração: formatDurationMin(d.durationMin) ?? "—",
+            Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
+            Link: d.url ?? "—",
+          })),
+        }], exportCtx)}
+      >
+        <IconDownload size={14} /> XLSX
+      </button>
+      <button
+        className="btn btn--outline-dark btn--sm"
+        disabled={!exportCtx || !data?.length}
+        onClick={() => exportCtx && exportPDF("crivo-academia", "Academia e Recursos · Acervo", [{
+          heading: "Acervo",
+          rows: (data ?? []).map((d) => ({
+            Título: d.title, Tipo: LIBRARY_KIND_LABEL[d.kind] ?? d.kind,
+            Duração: formatDurationMin(d.durationMin) ?? "—",
+            Nível: d.level ? LIBRARY_LEVEL_LABEL[d.level] : "—",
+          })),
+        }], exportCtx)}
+      >
+        <IconFileText size={14} /> PDF
+      </button>
+    </>
   );
 }
 

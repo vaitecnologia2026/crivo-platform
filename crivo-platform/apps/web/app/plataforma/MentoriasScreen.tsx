@@ -16,8 +16,13 @@ function statusPillClass(s: MentoriaStatus): string {
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-/** Mentorias do tenant (#59). Líder vê as suas; RH/CEO veem todas. */
-export function MentoriasScreen() {
+/** Mentorias do tenant (#59). Líder vê as suas; RH/CEO veem todas.
+ *  `escopo="minhas"` = Minha Jornada › Evoluir › Minhas mentorias: só as
+ *  mentorias de que a pessoa participa (qualquer papel — /me/mentorias?escopo=minhas),
+ *  sem os indicadores de contrato/horas/mentores nem a exportação, que são visão
+ *  de gestão da Área da Organização. */
+export function MentoriasScreen({ escopo }: { escopo?: "minhas" }) {
+  const minhas = escopo === "minhas";
   const [rows, setRows] = useState<MentoriaTenantEntry[] | null>(null);
   // "Horas contratadas" vem do CONTRATO vigente da empresa (Contract.contractedHours,
   // gravado pelo Super Admin). null = campo não preenchido no contrato — mostra
@@ -25,12 +30,11 @@ export function MentoriasScreen() {
   const [contractedHours, setContractedHours] = useState<number | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [detail, setDetail] = useState<MentoriaTenantEntry | null>(null);
-  const exportCtx = useExportContext();
 
   async function refresh() {
     setStatus("loading");
     try {
-      const r = await getMyMentorias();
+      const r = await getMyMentorias(escopo);
       setRows(r.rows);
       setContractedHours(r.contractedHours);
       setStatus("ok");
@@ -41,11 +45,11 @@ export function MentoriasScreen() {
 
   useEffect(() => {
     let alive = true;
-    getMyMentorias()
+    getMyMentorias(escopo)
       .then((r) => { if (alive) { setRows(r.rows); setContractedHours(r.contractedHours); setStatus("ok"); } })
       .catch(() => { if (alive) setStatus("error"); });
     return () => { alive = false; };
-  }, []);
+  }, [escopo]);
 
   const upcoming = rows?.filter((m) => m.status === "AGENDADA" && new Date(m.scheduledAt) >= new Date()) ?? [];
   const past = rows?.filter((m) => !upcoming.includes(m)) ?? [];
@@ -58,38 +62,24 @@ export function MentoriasScreen() {
     .filter((m) => m.status === "REALIZADA")
     .reduce((acc, m) => acc + (m.durationMin ?? 0), 0) / 60;
 
-  function exportRows() {
-    return (rows ?? []).map((m) => ({
-      Tema: m.title, Mentor: m.mentorName, Participante: m.attendee,
-      Quando: new Date(m.scheduledAt).toLocaleString("pt-BR"),
-      "Duração (min)": m.durationMin,
-      Formato: MENTORIA_FORMAT_LABEL[m.format as MentoriaFormat] ?? m.format,
-      Status: MENTORIA_STATUS_LABEL[m.status as MentoriaStatus] ?? m.status,
-    }));
-  }
-
   return (
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Mentorias e Agenda</h1>
-          <p className="page-sub">Encontros com mentores CRIVO, sessões de devolutiva e comitês executivos.</p>
+          {minhas ? (
+            <>
+              <h1 className="page-title">Minhas mentorias</h1>
+              <p className="page-sub">Seus encontros com mentores CRIVO: agenda, notas e gravações.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="page-title">Mentorias e Agenda</h1>
+              <p className="page-sub">Encontros com mentores CRIVO, sessões de devolutiva e comitês executivos.</p>
+            </>
+          )}
         </div>
         <div className="route__actions">
-          <button
-            className="btn btn--outline-dark btn--sm"
-            disabled={!exportCtx || !rows?.length}
-            onClick={() => exportCtx && exportXLSX("crivo-mentorias", [{ name: "Mentorias", rows: exportRows() }], exportCtx)}
-          >
-            <IconDownload size={14} /> XLSX
-          </button>
-          <button
-            className="btn btn--outline-dark btn--sm"
-            disabled={!exportCtx || !rows?.length}
-            onClick={() => exportCtx && exportPDF("crivo-mentorias", "Mentorias e Agenda", [{ heading: "Mentorias", rows: exportRows() }], exportCtx)}
-          >
-            <IconFileText size={14} /> PDF
-          </button>
+          {!minhas && <ExportarMentorias rows={rows} />}
           <button className="btn btn--outline-dark btn--sm" onClick={refresh} disabled={status === "loading"}>
             {status === "loading" ? "Atualizando…" : "Atualizar"}
           </button>
@@ -105,14 +95,16 @@ export function MentoriasScreen() {
             <div>
               <h3>Nenhuma mentoria agendada ainda</h3>
               <span className="card__sub">
-                Quando uma mentoria for contratada e agendada pelo time CRIVO, ela aparece aqui.
+                {minhas
+                  ? "Quando uma mentoria for agendada para você pelo time CRIVO, ela aparece aqui."
+                  : "Quando uma mentoria for contratada e agendada pelo time CRIVO, ela aparece aqui."}
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {status === "ok" && rows && rows.length > 0 && (
+      {status === "ok" && rows && rows.length > 0 && !minhas && (
         <div className="kpi-grid">
           <div className="kpi">
             <span className="kpi__label">Próximos 30 dias</span>
@@ -221,6 +213,42 @@ export function MentoriasScreen() {
       )}
 
       {detail && <MentoriaDetailModal m={detail} onClose={() => setDetail(null)} />}
+    </>
+  );
+}
+
+/** XLSX/PDF da agenda (visão de gestão). Componente à parte para o cabeçalho da
+ *  exportação (/me/organization, ciclos, contratação) só ser pedido onde há
+ *  exportação — "Minhas mentorias" não chama nada da empresa. */
+function ExportarMentorias({ rows }: { rows: MentoriaTenantEntry[] | null }) {
+  const exportCtx = useExportContext();
+
+  function exportRows() {
+    return (rows ?? []).map((m) => ({
+      Tema: m.title, Mentor: m.mentorName, Participante: m.attendee,
+      Quando: new Date(m.scheduledAt).toLocaleString("pt-BR"),
+      "Duração (min)": m.durationMin,
+      Formato: MENTORIA_FORMAT_LABEL[m.format as MentoriaFormat] ?? m.format,
+      Status: MENTORIA_STATUS_LABEL[m.status as MentoriaStatus] ?? m.status,
+    }));
+  }
+
+  return (
+    <>
+      <button
+        className="btn btn--outline-dark btn--sm"
+        disabled={!exportCtx || !rows?.length}
+        onClick={() => exportCtx && exportXLSX("crivo-mentorias", [{ name: "Mentorias", rows: exportRows() }], exportCtx)}
+      >
+        <IconDownload size={14} /> XLSX
+      </button>
+      <button
+        className="btn btn--outline-dark btn--sm"
+        disabled={!exportCtx || !rows?.length}
+        onClick={() => exportCtx && exportPDF("crivo-mentorias", "Mentorias e Agenda", [{ heading: "Mentorias", rows: exportRows() }], exportCtx)}
+      >
+        <IconFileText size={14} /> PDF
+      </button>
     </>
   );
 }

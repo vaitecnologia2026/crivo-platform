@@ -14,6 +14,8 @@ import {
   computeLeaderQuarterlyIcd,
   computeCompanyQuarterlyIcd,
   getIcdMaturityBand,
+  formatIcdScore,
+  ICD_MATURITY_BANDS,
   applyIcdSuppression,
   MIN_LEADERS_FOR_DISCLOSURE,
   // Pocket (Anexo Pocket §6)
@@ -113,12 +115,12 @@ describe("icdAxisValueToScore (Anexo §8)", () => {
 });
 
 describe("computeDecisionIcd (Anexo §9.1-§9.2)", () => {
-  it("calcula ICD = média dos 4 eixos com média das 2 perguntas cada", () => {
+  it("calcula ICD = média dos 4 eixos com média das 2 perguntas cada (precisão total)", () => {
     // P1=4, P2=4 → CLAREZA = (75+75)/2 = 75
-    // P3=3, P4=4 → CRITERIO = (50+75)/2 = 62.5 → 63 (round)
+    // P3=3, P4=4 → CRITERIO = (50+75)/2 = 62.5 (sem arredondar — decisão CRIVO 28/09/2026)
     // P5=3, P6=3 → ALINHAMENTO = (50+50)/2 = 50
     // P7=4, P8=4 → SUSTENTACAO = (75+75)/2 = 75
-    // ICD = (75 + 63 + 50 + 75) / 4 = 263/4 = 65.75 → 66
+    // ICD = (75 + 62.5 + 50 + 75) / 4 = 262.5/4 = 65.625
     const answers = [
       { id: "P1", value: 4 }, { id: "P2", value: 4 },
       { id: "P3", value: 3 }, { id: "P4", value: 4 },
@@ -126,9 +128,10 @@ describe("computeDecisionIcd (Anexo §9.1-§9.2)", () => {
       { id: "P7", value: 4 }, { id: "P8", value: 4 },
     ];
     const r = computeDecisionIcd(answers, "MEDIO");
-    expect(r.score).toBe(66);
+    expect(r.score).toBe(65.625);
+    expect(formatIcdScore(r.score)).toBe("65,6");
     expect(r.axes.CLAREZA).toBe(75);
-    expect(r.axes.CRITERIO).toBe(63);
+    expect(r.axes.CRITERIO).toBe(62.5);
     expect(r.axes.ALINHAMENTO).toBe(50);
     expect(r.axes.SUSTENTACAO).toBe(75);
     expect(r.weight).toBe(1); // MEDIO → peso 1 (§9.3)
@@ -171,37 +174,51 @@ describe("computeDecisionIcd (Anexo §9.1-§9.2)", () => {
 });
 
 // ============================================================
-// Faixas de Maturidade — Anexo §10
+// Faixas oficiais — Anexo v1.1 §6.3 (4 faixas; valor bruto)
 // ============================================================
 
-describe("getIcdMaturityBand (Anexo §10)", () => {
-  it("0-49 → Crítica", () => {
+describe("getIcdMaturityBand (Anexo v1.1 §6.3)", () => {
+  it("0-49 → Coerência Crítica", () => {
     expect(getIcdMaturityBand(0).key).toBe("CRITICA");
     expect(getIcdMaturityBand(49).key).toBe("CRITICA");
+    expect(getIcdMaturityBand(0).label).toBe("Coerência Crítica");
   });
-  it("50-64 → Desenvolvimento", () => {
-    expect(getIcdMaturityBand(50).key).toBe("DESENVOLVIMENTO");
-    expect(getIcdMaturityBand(64).key).toBe("DESENVOLVIMENTO");
+  it("50-64 → Coerência Vulnerável", () => {
+    expect(getIcdMaturityBand(50).key).toBe("VULNERAVEL");
+    expect(getIcdMaturityBand(64).key).toBe("VULNERAVEL");
   });
-  it("65-74 → Funcional", () => {
-    expect(getIcdMaturityBand(65).key).toBe("FUNCIONAL");
-    expect(getIcdMaturityBand(74).key).toBe("FUNCIONAL");
+  it("65-79 → Coerência Consistente", () => {
+    expect(getIcdMaturityBand(65).key).toBe("CONSISTENTE");
+    expect(getIcdMaturityBand(79).key).toBe("CONSISTENTE");
   });
-  it("75-84 → Consistente", () => {
-    expect(getIcdMaturityBand(75).key).toBe("CONSISTENTE");
-    expect(getIcdMaturityBand(84).key).toBe("CONSISTENTE");
+  it("80-100 → Coerência Forte", () => {
+    expect(getIcdMaturityBand(80).key).toBe("FORTE");
+    expect(getIcdMaturityBand(100).key).toBe("FORTE");
   });
-  it("85-94 → Avançada", () => {
-    expect(getIcdMaturityBand(85).key).toBe("AVANCADA");
-    expect(getIcdMaturityBand(94).key).toBe("AVANCADA");
+  it("classifica pelo valor BRUTO, não pelo exibido", () => {
+    // 79,96 aparece "80,0" com 1 casa, mas continua Consistente.
+    expect(getIcdMaturityBand(79.96).key).toBe("CONSISTENTE");
+    expect(formatIcdScore(79.96)).toBe("80,0");
+    expect(getIcdMaturityBand(49.9).key).toBe("CRITICA");
+    expect(getIcdMaturityBand(64.99).key).toBe("VULNERAVEL");
   });
-  it("95-100 → Elevada (validar consistência)", () => {
-    expect(getIcdMaturityBand(95).key).toBe("ELEVADA");
-    expect(getIcdMaturityBand(100).key).toBe("ELEVADA");
-  });
-  it("clampa valores fora de 0-100", () => {
+  it("valores fora de 0-100 caem nas pontas", () => {
     expect(getIcdMaturityBand(-10).key).toBe("CRITICA");
-    expect(getIcdMaturityBand(110).key).toBe("ELEVADA");
+    expect(getIcdMaturityBand(110).key).toBe("FORTE");
+  });
+  it("são exatamente as 4 faixas oficiais (sem as 6 de 'Maturidade Decisória')", () => {
+    expect(ICD_MATURITY_BANDS.map((b) => b.key)).toEqual(["CRITICA", "VULNERAVEL", "CONSISTENTE", "FORTE"]);
+  });
+});
+
+describe("formatIcdScore", () => {
+  it("1 casa decimal com vírgula", () => {
+    expect(formatIcdScore(72)).toBe("72,0");
+    expect(formatIcdScore(65.625)).toBe("65,6");
+  });
+  it("vazio vira travessão", () => {
+    expect(formatIcdScore(null)).toBe("—");
+    expect(formatIcdScore(undefined)).toBe("—");
   });
 });
 
@@ -297,21 +314,16 @@ describe("computeCompanyQuarterlyIcd (Anexo §9.5)", () => {
     expect(r.eligibleLeaders).toBe(5);
   });
 
-  it("popula distribuição por faixa de maturidade (§10)", () => {
+  it("popula distribuição pelas 4 faixas oficiais (§6.3)", () => {
     const r = computeCompanyQuarterlyIcd([
       { score: 30, axesAverage: baseAxes }, // CRITICA
-      { score: 55, axesAverage: baseAxes }, // DESENVOLVIMENTO
-      { score: 70, axesAverage: baseAxes }, // FUNCIONAL
-      { score: 80, axesAverage: baseAxes }, // CONSISTENTE
-      { score: 90, axesAverage: baseAxes }, // AVANCADA
-      { score: 98, axesAverage: baseAxes }, // ELEVADA
+      { score: 55, axesAverage: baseAxes }, // VULNERAVEL
+      { score: 70, axesAverage: baseAxes }, // CONSISTENTE
+      { score: 79.9, axesAverage: baseAxes }, // CONSISTENTE (valor bruto)
+      { score: 90, axesAverage: baseAxes }, // FORTE
     ]);
-    expect(r.distribution.CRITICA).toBe(1);
-    expect(r.distribution.DESENVOLVIMENTO).toBe(1);
-    expect(r.distribution.FUNCIONAL).toBe(1);
-    expect(r.distribution.CONSISTENTE).toBe(1);
-    expect(r.distribution.AVANCADA).toBe(1);
-    expect(r.distribution.ELEVADA).toBe(1);
+    expect(r.distribution).toEqual({ CRITICA: 1, VULNERAVEL: 1, CONSISTENTE: 2, FORTE: 1 });
+    expect(r.score).toBeCloseTo(64.98, 10);
   });
 });
 

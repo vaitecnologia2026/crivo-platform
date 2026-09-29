@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
@@ -44,7 +45,7 @@ const ROLES = ['RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR'] as const;
  * Super Admin). A validação CRIVO NÃO existe aqui: é rota do admin.
  */
 @Controller('workforce')
-@UseGuards(AuthGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
 @RequireModule('workforce')
 @RequireScreen('workforce')
 @Roles(...ROLES)

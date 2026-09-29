@@ -13,59 +13,31 @@ import { IcdService } from './icd.service';
 import {
   CreateCampaignDto,
   ListCampaignsQueryDto,
-  SubmitIcdDto,
   UpdateCampaignDto,
 } from './dto';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
-import { ICD_QUESTIONS, type SessionUser } from '@crivo/types';
+import type { SessionUser } from '@crivo/types';
 
 // Gate de módulo (F4): o menu já escondia o ICD sem o módulo, mas a API
 // respondia — a liberação por contrato era só visual. Rotas de CAMPANHA vivem
 // aqui por herança, mas pertencem ao módulo "campanhas" (nav.config) — o
 // @RequireModule no handler sobrescreve o da classe.
 @Controller('icd')
-@UseGuards(AuthGuard, ModuleGuard, RolesGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, RolesGuard)
 @RequireModule('icd')
 export class IcdController {
   constructor(private readonly icd: IcdService) {}
 
-  /** Catálogo de perguntas (para renderizar o questionário no front). */
-  @Get('questions')
-  questions() {
-    return ICD_QUESTIONS;
-  }
-
-  /** Lista os usuários do tenant para escolher o líder a avaliar. */
-  @Get('leaders')
-  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
-  leaders(@CurrentUser() user: SessionUser) {
-    return this.icd.leaders(user.tenantId);
-  }
-
-  /** Submete uma avaliação ICD de um líder. */
-  @Post('assessments')
-  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN')
-  submit(@CurrentUser() user: SessionUser, @Body() dto: SubmitIcdDto) {
-    return this.icd.submit(user.tenantId, dto);
-  }
-
-  /** Dashboard executivo do ICD do tenant. */
-  @Get('dashboard')
-  @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'JURIDICO', 'CONSULTOR')
-  dashboard(@CurrentUser() user: SessionUser) {
-    return this.icd.dashboard(user.tenantId);
-  }
-
-  /** ICD pessoal do líder logado (sem @Roles: cada um vê o próprio). */
-  @Get('me')
-  myScore(@CurrentUser() user: SessionUser) {
-    return this.icd.myScore(user.tenantId, user.id);
-  }
+  // As rotas do ICD LEGADO ("4 Rs": /icd/questions, /icd/leaders,
+  // /icd/assessments, /icd/dashboard, /icd/me) foram removidas em 28/09/2026 —
+  // o Anexo v1.1 §6 proíbe a terminologia e o ICD oficial é o de 4 eixos
+  // (/decisions + /icd-cycles). As tabelas antigas continuam no banco.
 
   /** Campanhas de diagnóstico (ciclos) do tenant com estatísticas.
    *  Filtra por setor (?sector=) quando informado (Portal §7). */

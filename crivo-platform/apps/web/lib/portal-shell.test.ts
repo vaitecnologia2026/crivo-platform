@@ -15,8 +15,11 @@ import {
   getPortalState,
   markAllNotificationsRead,
   markNotificationRead,
+  portalSwitchContext,
   refreshPortalData,
   sessionKeyFromToken,
+  setPortalContext,
+  setPortalContextSwitcher,
   startPortalSession,
   type PortalSession,
 } from './portal-shell';
@@ -28,13 +31,27 @@ vi.stubGlobal('localStorage', {
   removeItem: (k: string) => void store.delete(k),
 });
 
-const sessao = (userKey: string): PortalSession => ({
+const sessao = (userKey: string, extra: Partial<PortalSession> = {}): PortalSession => ({
   userKey,
   orgName: 'O2 LEGACY',
   roleLabel: 'Administrador',
   contracted: ['CRIVO Diagnóstico Organizacional'],
   hasGroup: false,
+  contexts: ['ORGANIZACAO'],
+  context: 'ORGANIZACAO',
+  ...extra,
 });
+// Menus de cada contexto como o shell os monta (visibleMenu).
+const menuOrg = [
+  { route: 'dashboard', label: 'Visão Geral', group: 'Portal' },
+  { route: 'relatorios', label: 'Plano de Evolução', group: 'Portal' },
+  { route: 'documentos', label: 'Relatórios e Dossiês', group: 'Portal' },
+];
+const menuJornada = [
+  { route: 'hoje', label: 'Hoje', group: 'Hoje' },
+  { route: 'pocket', label: 'Pocket CRIVO', group: 'Decidir' },
+  { route: 'lider', label: 'Meu ICD', group: 'Evoluir' },
+];
 const duasTravas = { alerts: [], locks: [{ kind: 'a', message: '1' }, { kind: 'b', message: '2' }] };
 const flush = () => new Promise((r) => setTimeout(r, 0));
 const erro = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
@@ -147,6 +164,78 @@ describe('estado compartilhado do shell (sino, central, busca)', () => {
     expect(api.getOperationalAlerts).toHaveBeenCalledOnce();
     await refreshPortalData();
     expect(api.getOperationalAlerts).toHaveBeenCalledTimes(2);
+  });
+
+  it('troca de contexto troca o menu, o canSeeRoute e o papel exibido — mesma sessão', async () => {
+    startPortalSession(sessao('t1:u1', { contexts: ['JORNADA', 'ORGANIZACAO'] }), menuOrg);
+    await flush();
+    const seq = getPortalState().sessionSeq;
+    expect(canSeeRoute('dashboard')).toBe(true);
+    expect(canSeeRoute('pocket')).toBe(false);
+    expect(getPortalState().notifications).toHaveLength(2);
+
+    setPortalContext('JORNADA', menuJornada, 'Líder');
+    await flush();
+    const s = getPortalState();
+    expect(s.session).toMatchObject({ userKey: 't1:u1', context: 'JORNADA', roleLabel: 'Líder' });
+    expect(s.session?.contexts).toEqual(['JORNADA', 'ORGANIZACAO']);
+    expect(s.sessionSeq).toBe(seq); // não é outra sessão: a busca aberta não fecha
+    expect(canSeeRoute('pocket')).toBe(true);
+    expect(canSeeRoute('dashboard')).toBe(false);
+    expect(canSeeRoute('relatorios')).toBe(false);
+    // Os avisos eram da Organização: não atravessam para a Jornada.
+    expect(s.notifications).toEqual([]);
+
+    setPortalContext('ORGANIZACAO', menuOrg, 'Administrador');
+    await flush();
+    expect(getPortalState().session?.roleLabel).toBe('Administrador');
+    expect(canSeeRoute('dashboard')).toBe(true);
+    expect(getPortalState().notifications).toHaveLength(2);
+  });
+
+  it('na Jornada as fontes do sino (todas da empresa) não são pedidas', async () => {
+    startPortalSession(sessao('t1:u1', { contexts: ['JORNADA'], context: 'JORNADA', roleLabel: 'Líder' }), menuJornada);
+    await flush();
+    expect(api.getOperationalAlerts).not.toHaveBeenCalled();
+    expect(api.listActionPlansReadOnly).not.toHaveBeenCalled();
+    expect(api.listReportEmissions).not.toHaveBeenCalled();
+    expect(api.listCampaigns).not.toHaveBeenCalled();
+    expect(getPortalState().notifications).toEqual([]);
+    // Nem com o menu ainda não carregado (null), que em tese libera tudo.
+    startPortalSession(sessao('t1:u1', { contexts: ['JORNADA'], context: 'JORNADA' }), null);
+    await flush();
+    expect(api.getOperationalAlerts).not.toHaveBeenCalled();
+    expect(api.listCampaigns).not.toHaveBeenCalled();
+  });
+
+  it('carga do contexto anterior que chega depois da troca é descartada', async () => {
+    let solta: (v: unknown) => void = () => {};
+    api.getOperationalAlerts.mockReturnValueOnce(new Promise((r) => (solta = r)));
+    startPortalSession(sessao('t1:u1', { contexts: ['JORNADA', 'ORGANIZACAO'] }), menuOrg);
+    setPortalContext('JORNADA', menuJornada, 'Líder');
+    solta(duasTravas);
+    await flush();
+    const s = getPortalState();
+    expect(s.session?.context).toBe('JORNADA');
+    expect(s.alerts).toBeNull();
+    expect(s.notifications).toEqual([]);
+    expect(s.loading).toBe(false);
+  });
+
+  it('sem sessão, a troca de contexto não faz nada', () => {
+    setPortalContext('JORNADA', menuJornada, 'Líder');
+    expect(getPortalState().session).toBeNull();
+    expect(getPortalState().menu).toBeNull();
+  });
+
+  it('o seletor pede a troca ao shell registrado (e a nenhum depois de desregistrado)', () => {
+    const shell = vi.fn();
+    setPortalContextSwitcher(shell);
+    portalSwitchContext('JORNADA');
+    expect(shell).toHaveBeenCalledWith('JORNADA');
+    setPortalContextSwitcher(null);
+    portalSwitchContext('ORGANIZACAO');
+    expect(shell).toHaveBeenCalledOnce();
   });
 
   it('chave da pessoa sai do token; token ruim vira "anon"', () => {

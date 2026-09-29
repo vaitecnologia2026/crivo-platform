@@ -27,10 +27,12 @@ export class AuthGuard implements CanActivate {
       // versão (tv) bate com a atual. Busca por PK global ANTES do contexto RLS
       // (sessão é control-plane); lê só active/tokenVersion. Incrementar a versão
       // (logout / troca de senha) ou desativar a conta invalida os tokens emitidos.
+      // `isLeader` vem junto (Minha Jornada — contextos.ts): não vai no JWT, então
+      // marcar/desmarcar o líder vale no request seguinte, sem novo login.
       // rls-allow: validação de sessão por PK global, pré-RLS; não lê dados de tenant
       const u = await this.prisma.admin.user.findUnique({
         where: { id: payload.sub },
-        select: { active: true, tokenVersion: true },
+        select: { active: true, tokenVersion: true, isLeader: true },
       });
       if (!u || !u.active) throw new Error('conta inativa ou inexistente');
       if ((payload.tv ?? 0) !== u.tokenVersion) throw new Error('sessão revogada');
@@ -41,6 +43,7 @@ export class AuthGuard implements CanActivate {
         email: payload.email,
         name: payload.name,
         role: payload.role,
+        isLeader: u.isLeader,
       };
       return true;
     } catch {

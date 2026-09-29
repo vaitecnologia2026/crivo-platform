@@ -4,6 +4,7 @@
 // ainda é injetado, mas a nav é GERADA daqui (renderNavHtml). A próxima fatia
 // renderiza a sidebar em React a partir desta mesma estrutura.
 
+import { CLIENT_CONTEXTS, CLIENT_CONTEXT_LABEL, type ClientContext } from '@crivo/types';
 // Relativo (não '@/lib'): a nav.config é importada pelo teste do vitest, que
 // não resolve o alias do Next.
 import { navIconSvg, type NavIconName } from '../../lib/nav-icons';
@@ -18,6 +19,12 @@ export interface NavItem {
   module?: string;
   /** Permissão de "ver" (F3) — esconde se o papel não pode. */
   perm?: string;
+  /**
+   * Papéis que enxergam o item — espelha o @Roles das rotas que a tela consome
+   * (a API é quem bloqueia; aqui só não se oferece uma tela que daria 403).
+   * Ausente = qualquer papel.
+   */
+  roles?: readonly string[];
   /**
    * Métodos de diagnóstico (do CONTRATO) para os quais este item faz sentido —
    * esconde no menu o diagnóstico que a empresa NÃO contratou. Ausente = o item
@@ -47,22 +54,39 @@ export interface NavItem {
 
 export interface NavGroup {
   title: string;
+  /**
+   * Contexto do cliente a que o grupo pertence (Spec V1 v1.2 §3): Minha
+   * Jornada (privada, do líder) ou Área da Organização (corporativa). Cada
+   * rota vive em UM contexto só, e os dois menus nunca aparecem juntos.
+   */
+  context: ClientContext;
   items: NavItem[];
 }
 
-/** Rota ativa por padrão ao abrir a plataforma. */
+/** HOME da Área da Organização quando o papel não tem uma própria. */
 export const DEFAULT_ROUTE = 'dashboard';
 
+/** HOME de Minha Jornada — a mesma para todo líder, qualquer que seja o papel. */
+export const JORNADA_HOME = 'hoje';
+
+// Mesmos grupos de apps/api/src/iam/role-groups.ts (a API é a fonte da regra).
+const GESTAO_EMPRESA = ['RH', 'GESTOR', 'CEO', 'ADMIN'] as const;
+const GESTAO_E_CONSULTORIA = [...GESTAO_EMPRESA, 'CONSULTOR'] as const;
+const LEITURA_GESTAO = [...GESTAO_E_CONSULTORIA, 'JURIDICO'] as const;
+
 /**
- * HOME inicial por papel (#51 — áreas por papel). Cada Role abre numa tela
- * que faz sentido para sua função na empresa. Se a rota não estiver visível
- * (módulo/perm), a Plataforma cai no DEFAULT_ROUTE.
+ * HOME da Área da Organização por papel (#51 — áreas por papel). Cada Role
+ * abre numa tela que faz sentido para sua função na empresa. Se a rota não
+ * estiver visível (módulo/perm), a Plataforma cai na primeira tela visível do
+ * contexto.
  *
  * - Executivos / gestores → Dashboard (Visão Executiva)
- * - Liderança operacional → Área do Líder
  * - Jurídico → Parecer Consultivo CRIVO
  * - Colaborador / Academia → Biblioteca / Academia CRIVO
- * - Consultor / Mentor → Dashboard (acompanha o cliente)
+ * - Consultor → Dashboard (acompanha o cliente)
+ * - Mentor → Mentorias e Agenda
+ *
+ * O LIDER não está aqui: ele só tem Minha Jornada, cuja home é JORNADA_HOME.
  */
 export const DEFAULT_ROUTE_BY_ROLE: Record<string, string> = {
   ADMIN: 'dashboard',
@@ -70,22 +94,101 @@ export const DEFAULT_ROUTE_BY_ROLE: Record<string, string> = {
   GESTOR: 'dashboard',
   RH: 'dashboard',
   CONSULTOR: 'dashboard',
-  MENTOR: 'lider',
-  LIDER: 'lider',
+  MENTOR: 'mentorias',
   JURIDICO: 'parecer',
   COLABORADOR: 'biblioteca',
   ACADEMIA: 'biblioteca',
 };
 
-export function homeForRole(role: string | null | undefined): string {
-  if (!role) return DEFAULT_ROUTE;
-  return DEFAULT_ROUTE_BY_ROLE[role] ?? DEFAULT_ROUTE;
+/** HOME de um contexto: Minha Jornada abre sempre em Hoje; a Organização, pelo papel. */
+export function homeFor(context: ClientContext, role: string | null | undefined): string {
+  if (context === 'JORNADA') return JORNADA_HOME;
+  return (role && DEFAULT_ROUTE_BY_ROLE[role]) || DEFAULT_ROUTE;
 }
 
 // §16 do Briefing: o CRM é ferramenta INTERNA da CRIVO (funil/leads/propostas)
 // e NÃO deve aparecer como produto/entrega no portal do cliente. Ele vive só no
 // Super Admin (control plane, CrmSection). Por isso não há grupo "Comercial" aqui.
 export const NAV: NavGroup[] = [
+  // ── Minha Jornada (Spec V1 v1.2 §3/§5) ──────────────────────────────────────
+  // A experiência individual e PRIVADA do líder: Hoje · Decidir · Evoluir. Não
+  // passa pela checklist de telas por usuário (SCREEN_OPTIONS só lista a
+  // Organização) — o que libera cada item é o módulo do contrato. As rotas
+  // 'lider', 'decisoes' e 'pocket' mantêm o id histórico (antes no grupo "Área
+  // do Líder"); Mentorias e Academia ganham rotas próprias da Jornada, com o
+  // recorte pessoal, porque as de Programas são as da gestão.
+  {
+    title: 'Hoje',
+    context: 'JORNADA',
+    items: [
+      {
+        route: 'hoje',
+        label: 'Hoje',
+        icon: 'sun',
+        breadcrumb: { path: 'Minha Jornada', current: 'Hoje' },
+      },
+    ],
+  },
+  {
+    title: 'Decidir',
+    context: 'JORNADA',
+    items: [
+      {
+        route: 'pocket',
+        label: 'Pocket CRIVO',
+        icon: 'smartphone',
+        module: 'pocket',
+        breadcrumb: { path: 'Minha Jornada', current: 'Pocket CRIVO' },
+      },
+      {
+        // "Aplicação do ICD (líderes)" saiu em 25/09/2026 (tela removida):
+        // aplicava as 8 perguntas do modelo LEGADO (4 Rs). O ICD oficial é
+        // medido por decisão aqui (4 eixos). Os dados antigos seguem no banco.
+        route: 'decisoes',
+        label: 'Registro de Decisão',
+        icon: 'notebook-pen',
+        module: 'icd',
+        breadcrumb: { path: 'Minha Jornada', current: 'Registro de Decisão' },
+      },
+      {
+        route: 'mentor',
+        label: 'Mentor CRIVO',
+        icon: 'sparkles',
+        module: 'lider',
+        breadcrumb: { path: 'Minha Jornada', current: 'Mentor CRIVO' },
+      },
+    ],
+  },
+  {
+    title: 'Evoluir',
+    context: 'JORNADA',
+    items: [
+      {
+        // Módulo 'icd' (e não mais 'lider'): é o que a API de /icd-cycles/me exige.
+        route: 'lider',
+        label: 'Meu ICD',
+        icon: 'user-star',
+        module: 'icd',
+        breadcrumb: { path: 'Minha Jornada', current: 'Meu ICD' },
+      },
+      {
+        route: 'jornada-mentorias',
+        label: 'Minhas mentorias',
+        icon: 'calendar-clock',
+        module: 'mentorias',
+        breadcrumb: { path: 'Minha Jornada', current: 'Minhas mentorias' },
+      },
+      {
+        route: 'jornada-academia',
+        label: 'Academia',
+        icon: 'graduation-cap',
+        module: 'biblioteca',
+        breadcrumb: { path: 'Minha Jornada', current: 'Academia' },
+      },
+    ],
+  },
+
+  // ── Área da Organização ─────────────────────────────────────────────────────
   // Reorganização do mockup do cliente (Portal do Cliente, 22/07): três grupos —
   // Portal (operação da jornada) · Programas (frentes contratáveis) ·
   // Administração (gestão do próprio portal). Rotas existentes preservam o id
@@ -93,6 +196,7 @@ export const NAV: NavGroup[] = [
   // listas de acesso por usuário (screenAccess) já gravadas.
   {
     title: 'Portal',
+    context: 'ORGANIZACAO',
     items: [
       {
         route: 'dashboard',
@@ -116,6 +220,7 @@ export const NAV: NavGroup[] = [
         label: 'Diagnósticos',
         icon: 'clipboard-list',
         module: 'campanhas',
+        roles: GESTAO_E_CONSULTORIA,
         methods: ['INICIAL', 'ESSENCIAL'],
         ownerMethods: ['INICIAL', 'ESSENCIAL'],
         breadcrumb: { path: 'Portal', current: 'Diagnósticos' },
@@ -129,6 +234,7 @@ export const NAV: NavGroup[] = [
         label: 'NR-1 · Riscos Psicossociais',
         icon: 'heart-pulse',
         module: 'campanhas',
+        roles: GESTAO_E_CONSULTORIA,
         // Só ORGANIZACIONAL. O item ficou visível para o ESSENCIAL enquanto ele
         // não tinha tela de resultado própria — mas esta lê a tabela do
         // psicossocial, que para o Essencial está SEMPRE vazia (as respostas dele
@@ -147,6 +253,7 @@ export const NAV: NavGroup[] = [
         label: 'Colaboradores',
         icon: 'users',
         module: 'campanhas',
+        roles: GESTAO_E_CONSULTORIA,
         breadcrumb: { path: 'Portal', current: 'Colaboradores' },
       },
       {
@@ -154,6 +261,7 @@ export const NAV: NavGroup[] = [
         label: 'Campanhas de Diagnóstico',
         icon: 'megaphone',
         module: 'campanhas',
+        roles: GESTAO_EMPRESA,
         breadcrumb: { path: 'Portal', current: 'Campanhas de Diagnóstico' },
       },
       {
@@ -169,6 +277,7 @@ export const NAV: NavGroup[] = [
         label: 'Plano de Evolução',
         icon: 'trending-up',
         module: 'relatorios',
+        roles: LEITURA_GESTAO,
         breadcrumb: { path: 'Portal', current: 'Plano de Evolução' },
       },
       {
@@ -176,6 +285,7 @@ export const NAV: NavGroup[] = [
         label: 'Evidências',
         icon: 'file-check-corner',
         module: 'relatorios',
+        roles: LEITURA_GESTAO,
         breadcrumb: { path: 'Portal', current: 'Evidências' },
       },
       {
@@ -183,6 +293,7 @@ export const NAV: NavGroup[] = [
         label: 'Relatórios e Dossiês',
         icon: 'file-text',
         module: 'relatorios',
+        roles: LEITURA_GESTAO,
         breadcrumb: { path: 'Portal', current: 'Relatórios e Dossiês' },
       },
       {
@@ -198,9 +309,10 @@ export const NAV: NavGroup[] = [
     // Grupo "Programas" EXATAMENTE como o protótipo Lovable do Portal do Cliente
     // (app-sidebar.tsx): 8 itens, nesta ordem e com estes rótulos. Cada item é
     // liberado pelo módulo do tenant (tenant_modules ← contrato/solução/adicional
-    // no Super Admin). A parte individual do líder (Área do Líder, aplicação do
-    // ICD, decisões, Pocket) não é "programa": fica no grupo seguinte.
+    // no Super Admin). A parte individual do líder (ICD próprio, decisões,
+    // Pocket) não é "programa": vive em Minha Jornada, no outro contexto.
     title: 'Programas',
+    context: 'ORGANIZACAO',
     items: [
       {
         route: 'icd',
@@ -229,6 +341,7 @@ export const NAV: NavGroup[] = [
         label: 'People Analytics',
         icon: 'chart-line',
         module: 'analytics',
+        roles: LEITURA_GESTAO,
         breadcrumb: { path: 'Programas', current: 'People Analytics' },
       },
       {
@@ -262,39 +375,8 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    // O que é do LÍDER (individual, privado — §11): no protótipo vive no
-    // "App/Área do Líder", fora de Programas. Mesmas rotas/módulos de antes.
-    title: 'Área do Líder',
-    items: [
-      {
-        route: 'lider',
-        label: 'Área do Líder',
-        icon: 'user-star',
-        module: 'lider',
-        breadcrumb: { path: 'Área do Líder', current: 'Área do Líder' },
-      },
-      // "Aplicação do ICD (líderes)" saiu em 25/09/2026 (tela removida): aplicava
-      // as 8 perguntas do modelo LEGADO (4 Rs). O ICD oficial é medido por
-      // decisão em "Registro de Decisões" (4 eixos). Os dados antigos continuam
-      // no banco.
-      {
-        route: 'decisoes',
-        label: 'Registro de Decisões',
-        icon: 'notebook-pen',
-        module: 'icd',
-        breadcrumb: { path: 'Área do Líder', current: 'Registro de Decisões' },
-      },
-      {
-        route: 'pocket',
-        label: 'Pocket CRIVO',
-        icon: 'smartphone',
-        module: 'pocket',
-        breadcrumb: { path: 'Área do Líder', current: 'Pocket CRIVO' },
-      },
-    ],
-  },
-  {
     title: 'Administração',
+    context: 'ORGANIZACAO',
     items: [
       {
         route: 'usuarios',
@@ -330,6 +412,7 @@ export const NAV: NavGroup[] = [
         label: 'Histórico & Auditoria',
         icon: 'history',
         module: 'historico',
+        roles: GESTAO_E_CONSULTORIA,
         breadcrumb: { path: 'Administração', current: 'Histórico & Auditoria' },
       },
       {
@@ -344,12 +427,14 @@ export const NAV: NavGroup[] = [
 
 /**
  * Catálogo de TELAS atribuíveis a um usuário (checklist de acesso por usuário).
- * São os itens de nav com rota — exceto Configurações (gestão), que fica restrita
- * a quem tem permissão de admin. Agrupado para a UI.
+ * São os itens de nav com rota da Área da Organização — exceto Administração
+ * (gestão), que fica restrita a quem tem permissão de admin. Minha Jornada não
+ * entra: é a experiência privada do líder, liberada pelo contrato, e a
+ * checklist corporativa não a governa. Agrupado para a UI.
  */
 export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] = NAV.flatMap(
   (g) =>
-    g.title === 'Administração'
+    g.context !== 'ORGANIZACAO' || g.title === 'Administração'
       ? []
       : g.items
           // 'grupo' (F3) é liberado por autorização de grupo, não pela checklist por usuário.
@@ -363,10 +448,10 @@ export const SCREEN_OPTIONS: { route: string; label: string; group: string }[] =
  * exigia module, e a perm declarada em itens sem módulo (organizacao, usuarios,
  * papeis) nunca era avaliada — o menu aparecia para qualquer papel.
  */
-export const routeAccess: Record<string, { module?: string; perm?: string }> = Object.fromEntries(
+export const routeAccess: Record<string, { module?: string; perm?: string; roles?: readonly string[] }> = Object.fromEntries(
   NAV.flatMap((g) => g.items)
-    .filter((i) => i.route && (i.module || i.perm))
-    .map((i) => [i.route!, { module: i.module, perm: i.perm }]),
+    .filter((i) => i.route && (i.module || i.perm || i.roles))
+    .map((i) => [i.route!, { module: i.module, perm: i.perm, roles: i.roles }]),
 );
 
 /**
@@ -397,21 +482,38 @@ export const routeMeta: Record<string, { path: string; current: string }> = Obje
     .map((i) => [i.route!, i.breadcrumb!]),
 );
 
-/** HTML da sidebar gerado da config (injetado no shell legado por enquanto). */
+/** Contexto de cada rota — cada uma pertence a UM contexto só. */
+export const routeContext: Record<string, ClientContext> = Object.fromEntries(
+  NAV.flatMap((g) => g.items.filter((i) => i.route).map((i) => [i.route!, g.context] as const)),
+);
+
+/**
+ * HTML da sidebar gerado da config (injetado no shell legado por enquanto).
+ * Sai UM <nav> por contexto, os dois no markup: os handlers do shell prendem
+ * os itens uma vez só, e o CSS (pelo data-context do #app) mostra apenas o do
+ * contexto ativo. Nenhum item nasce ativo — a home é decidida na entrada.
+ */
 export function renderNavHtml(): string {
-  const groups = NAV.map((group) => {
-    const items = group.items
-      .filter((item) => !item.hidden)
-      .map((item) => {
-        const ic = `<span class="ni__ic ni__ic--svg">${navIconSvg(item.icon)}</span>`;
-        if (!item.route) {
-          return `        <a href="#" class="nav-item nav-item--muted">\n          ${ic}${item.label}\n        </a>`;
-        }
-        const active = item.route === DEFAULT_ROUTE ? ' is-active' : '';
-        return `        <a href="#" class="nav-item${active}" data-route="${item.route}">\n          ${ic}${item.label}\n        </a>`;
+  return CLIENT_CONTEXTS.map((context) => {
+    const groups = NAV.filter((group) => group.context === context)
+      .map((group) => {
+        const items = group.items
+          .filter((item) => !item.hidden)
+          .map((item) => {
+            const ic = `<span class="ni__ic ni__ic--svg">${navIconSvg(item.icon)}</span>`;
+            if (!item.route) {
+              return `        <a href="#" class="nav-item nav-item--muted">\n          ${ic}${item.label}\n        </a>`;
+            }
+            return `        <a href="#" class="nav-item" data-route="${item.route}">\n          ${ic}${item.label}\n        </a>`;
+          })
+          .join('\n');
+        return `        <span class="sidebar__group">${group.title}</span>\n${items}`;
       })
-      .join('\n');
-    return `        <span class="sidebar__group">${group.title}</span>\n${items}`;
-  }).join('\n\n');
-  return `<nav class="sidebar__nav">\n${groups}\n      </nav>`;
+      .join('\n\n');
+    const label = CLIENT_CONTEXT_LABEL[context];
+    return (
+      `<nav class="sidebar__nav" data-context="${context}" aria-label="${label}">\n` +
+      `        <span class="sidebar__ctx">${label}</span>\n${groups}\n      </nav>`
+    );
+  }).join('\n      ');
 }

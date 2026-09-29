@@ -503,6 +503,31 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: rgba(255, 255, 255, 0.35);
   padding: 16px 12px 8px;
 }
+/* Um <nav> por contexto (Minha Jornada | Área da Organização — Spec §3): só o
+   do contexto ativo aparece; os dois menus nunca dividem a barra lateral. Sem
+   contexto (antes da entrada e depois do logout), nenhum menu. */
+#app:not([data-context]) .sidebar__nav,
+#app[data-context="JORNADA"] .sidebar__nav[data-context="ORGANIZACAO"],
+#app[data-context="ORGANIZACAO"] .sidebar__nav[data-context="JORNADA"] { display: none; }
+/* Cabeçalho discreto do menu: o nome do contexto em que a pessoa está. */
+.sidebar__ctx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.sidebar__ctx::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
 .nav-item {
   display: flex;
   align-items: center;
@@ -786,6 +811,47 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   cursor: pointer;
 }
 .ctx-link:hover { text-decoration: underline; }
+/* Campo Contexto: com um contexto só, o nome dele (valor fixo, em destaque);
+   com os dois, o seletor segmentado "Minha Jornada | Área da Organização". */
+.ctx-value--context { color: var(--gold-deep); font-weight: 600; }
+.ctx-switch {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 30px;
+  padding: 2px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--line-soft);
+}
+.ctx-switch__opt {
+  display: block;
+  min-width: 0;
+  padding: 0 12px;
+  border-radius: 4px;
+  color: var(--text-sec);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ctx-switch__opt:hover { color: var(--text); }
+.ctx-switch__opt.is-active {
+  background: #fff;
+  color: var(--gold-deep);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(13, 31, 60, 0.08);
+  cursor: default;
+}
+.ctx-switch__opt:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 1px; }
+/* Minha Jornada não tem sino: os avisos de hoje são todos da empresa (a ilha
+   também não renderiza; isto cobre o intervalo até o store responder). */
+#app[data-context="JORNADA"] .bell-host { display: none; }
 
 /* ==================== BUSCA GLOBAL (paleta Ctrl/⌘K) ==================== */
 .gs-overlay {
@@ -2366,7 +2432,8 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
   .user-chip { display: none; }
   .search-btn { width: 36px; height: 36px; }
 
-  /* Faixa de contexto: no celular fica só a Empresa (o chip do usuário some). */
+  /* Faixa de contexto: no celular ficam o Contexto e a Empresa (o chip do
+     usuário some) — o Contexto é o que identifica onde a pessoa está. */
   .topbar-context { padding: 6px 14px; }
   .ctx-field--optional { display: none; }
   .ctx-field--wide .ctx-value { max-width: 200px; }
@@ -2416,6 +2483,12 @@ tr.is-editing { background: rgba(168,105,61,0.03); }
 
 @media (max-width: 480px) {
   .topbar { padding: 8px 10px; }
+  /* Seletor de contexto ocupa a linha inteira da faixa (sem o rótulo, que o
+     próprio seletor já diz) e as duas opções dividem a largura por igual. */
+  .ctx-field--switch { flex: 1 1 100%; }
+  .ctx-field--switch .ctx-label { display: none; }
+  .ctx-switch { display: flex; flex: 1 1 auto; }
+  .ctx-switch__opt { flex: 1 1 0; padding: 0 8px; text-align: center; }
   .route { padding: 14px 10px; }
   .page-title { font-size: 18px; }
   .kpi__value { font-size: 22px; }

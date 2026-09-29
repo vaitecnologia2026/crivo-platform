@@ -9,6 +9,7 @@ import { AuthGuard } from '../iam/guards/auth.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
+import { LeaderGuard } from '../iam/guards/leader.guard';
 import { MODULE_KEY } from '../iam/require-module.decorator';
 import { SCREEN_KEY } from '../iam/require-screen.decorator';
 import { ROLES_KEY } from '../iam/roles.decorator';
@@ -71,14 +72,24 @@ describe('Portal — GET /icd-cycles/history e /icd-cycles/current/summary', () 
     expect(meta<string[]>(SCREEN_KEY, proto, 'myPartial')).toBeUndefined();
     expect(meta<string[]>(ROLES_KEY, proto, 'myPartial')).toBeUndefined();
   });
+
+  it('me e current/me (ICD próprio, Minha Jornada) exigem ser líder; as rotas da gestão não', () => {
+    for (const m of ['myPartial', 'meuIcd']) {
+      expect(guardsOf(proto[m])).toContain(LeaderGuard);
+      expect(meta<string[]>(SCREEN_KEY, proto, m)).toBeUndefined();
+    }
+    for (const m of ['history', 'summary', 'current', 'list']) {
+      expect(guardsOf(proto[m])).not.toContain(LeaderGuard);
+    }
+  });
 });
 
 describe('Portal — GET /pocket/aggregate', () => {
   const proto = PocketController.prototype as unknown as Record<string, object>;
 
-  it('o agregado é da GESTÃO (tela icd + papéis), sobrepondo o gate de líder da classe (tela pocket)', () => {
-    expect(meta<string[]>(SCREEN_KEY, PocketController)).toEqual(['pocket']);
+  it('o agregado é da GESTÃO (tela icd + papéis) — nunca o gate de líder das sessões', () => {
     expect(meta<string[]>(SCREEN_KEY, proto, 'aggregate')).toEqual(['icd']);
+    expect(guardsOf(proto.aggregate)).not.toContain(LeaderGuard);
     expect(guardsOf(proto.aggregate)).toContain(RolesGuard);
     const roles = meta<string[]>(ROLES_KEY, proto, 'aggregate') ?? [];
     expect(roles).toEqual(expect.arrayContaining(['RH', 'GESTOR', 'CEO', 'ADMIN']));
@@ -89,5 +100,15 @@ describe('Portal — GET /pocket/aggregate', () => {
     expect(meta<string[]>(ROLES_KEY, proto, 'listMine')).toBeUndefined();
     expect(guardsOf(PocketController)).toEqual(expect.arrayContaining([AuthGuard, ModuleGuard, ScreenAccessGuard]));
     expect(meta<string>(MODULE_KEY, PocketController)).toBe('pocket');
+  });
+
+  it('sessões são de Minha Jornada: exigem ser líder e não passam pela checklist de telas (Spec V1 v1.2 §3)', () => {
+    // A checklist de telas por usuário é só da Área da Organização; a Jornada
+    // é governada pelo contrato (módulo "pocket", na classe).
+    expect(meta<string[]>(SCREEN_KEY, PocketController)).toBeUndefined();
+    for (const m of ['listMine', 'create', 'get', 'upsertReflection', 'complete', 'remove']) {
+      expect(guardsOf(proto[m])).toContain(LeaderGuard);
+      expect(meta<string[]>(SCREEN_KEY, proto, m)).toBeUndefined();
+    }
   });
 });

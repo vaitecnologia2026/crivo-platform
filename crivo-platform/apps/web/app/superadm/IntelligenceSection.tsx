@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { MODULES } from "@crivo/types";
+import { MODULES,
+  formatIcdScore,
+} from "@crivo/types";
 import {
   getIntelligenceCompanies,
   getIntelligenceOverview,
@@ -187,7 +189,7 @@ function Cards({ data }: { data: IntelligenceOverview }) {
       </Card>
       <Card title="ICD agregado" hint={k.icd ? `${k.icd.cyclesClosed} ciclo(s) · ${k.icd.eligibleLeaders} líderes` : "sem fechamento"}>
         {k.icd == null ? <Empty /> : k.icd.suppressed || k.icd.score == null ? <span className="cnae-muted">confidencial (&lt; 5)</span> : (
-          <span className={`cnae-badge ${bandOf(k.icd.score)}`}>{k.icd.score}/100</span>
+          <span className={`cnae-badge ${bandOf(k.icd.score)}`}>{formatIcdScore(k.icd.score)}/100</span>
         )}
       </Card>
       <Card title="Plano executado" hint={`${k.plano.concluidas}/${k.plano.total} ações concluídas`}>
@@ -292,7 +294,7 @@ function LiderancaTab({ data }: { data: IntelligenceOverview }) {
             {l.icdCycles.map((c, idx) => (
               <tr key={idx}>
                 <td>{c.cycleName}</td>
-                <td>{c.suppressed || c.score == null ? <span className="cnae-muted">confidencial (&lt; 5)</span> : <span className={`cnae-badge ${bandOf(c.score)}`}>{c.score}</span>}</td>
+                <td>{c.suppressed || c.score == null ? <span className="cnae-muted">confidencial (&lt; 5)</span> : <span className={`cnae-badge ${bandOf(c.score)}`}>{formatIcdScore(c.score)}</span>}</td>
                 <td>{c.eligibleLeaders}</td>
                 <td>{fmtDate(c.computedAt)}</td>
               </tr>
@@ -352,7 +354,7 @@ function EvolucaoTab({ data }: { data: IntelligenceOverview }) {
       <div style={{ display: "flex", gap: 12, alignItems: "flex-end", height: 160, padding: "10px 0", overflowX: "auto" }}>
         {s.map((c, idx) => (
           <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 56 }}>
-            <div style={{ fontSize: 12, fontWeight: 600 }}>{c.score}</div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>{formatIcdScore(c.score)}</div>
             <div style={{ width: 30, height: `${((c.score ?? 0) / max) * 120}px`, background: "var(--azul-cobalto)", borderRadius: "3px 3px 0 0" }} />
             <div className="cnae-muted" style={{ fontSize: 10, textAlign: "center" }}>{c.cycleName}</div>
           </div>

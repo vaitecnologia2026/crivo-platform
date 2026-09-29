@@ -123,8 +123,25 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
            TopbarContext; vazia até a sessão carregar (e aí some pelo :empty). -->
       <div id="context-root" class="topbar-context-host"></div>
 
+      <!-- Nenhuma seção nasce ativa: a home depende do contexto (Minha Jornada ou
+           Área da Organização), decidido pelo shell na entrada (enterApp). -->
+
+      <!-- ============ MINHA JORNADA (líder — privada) ============ -->
+      <section class="route" data-route="hoje">
+        <div id="hoje-root"></div>
+      </section>
+      <section class="route" data-route="mentor">
+        <div id="mentor-root"></div>
+      </section>
+      <section class="route" data-route="jornada-mentorias">
+        <div id="jornada-mentorias-root"></div>
+      </section>
+      <section class="route" data-route="jornada-academia">
+        <div id="jornada-academia-root"></div>
+      </section>
+
       <!-- ============ DASHBOARD ============ -->
-      <section class="route is-active" data-route="dashboard">
+      <section class="route" data-route="dashboard">
         <div id="dash-root"></div>
       </section>
 
@@ -138,7 +155,7 @@ export const PLATFORM_MARKUP = `<!-- ==================== LOGIN ================
         <div id="grupo-root"></div>
       </section>
 
-      <!-- ============ ÁREA DO LÍDER ============ -->
+      <!-- ============ MINHA JORNADA › MEU ICD E REGISTRO DE DECISÃO ============ -->
       <section class="route" data-route="lider">
         <div id="lider-root"></div>
       </section>

@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { PortalDashboardService } from './portal-dashboard.service';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { Roles } from '../iam/roles.decorator';
@@ -10,7 +11,7 @@ import { type SessionUser } from '@crivo/types';
 
 /** Dados que a Visão Geral do portal precisa e nenhum outro endpoint entrega. */
 @Controller('dashboard')
-@UseGuards(AuthGuard, RolesGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, RolesGuard, ScreenAccessGuard)
 export class DashboardController {
   constructor(private readonly dashboard: PortalDashboardService) {}
 

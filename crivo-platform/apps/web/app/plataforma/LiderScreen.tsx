@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, askCopiloto, listLibrary } from "@/lib/api";
+import { apiFetch, listLibrary } from "@/lib/api";
+import { canSeeRoute, portalNavigate, usePortal } from "@/lib/portal-shell";
+import { EIXO_CURTO } from "@/lib/jornada-hoje";
 import type { LibraryItemData, MeuIcdData } from "@crivo/types";
 import {
   ICD_AXES,
@@ -9,23 +11,14 @@ import {
   ICD_AXIS_TRACKS,
   LIBRARY_KIND_LABEL,
   eixoMaisFraco,
+  formatIcdScore,
 } from "@crivo/types";
 import { IconGrid } from "./Icons";
 
 type LoadStatus = "loading" | "error" | "ok";
 
-/** Rótulo curto dos 4 eixos do ICD oficial (o mesmo da tela Liderança). */
-const EIXO_CURTO: Record<(typeof ICD_AXES)[number], string> = {
-  CLAREZA: "Clareza",
-  CRITERIO: "Critério",
-  ALINHAMENTO: "Alinhamento",
-  SUSTENTACAO: "Sustentação",
-};
-
 /** Conteúdos de desenvolvimento do líder (mentorias, cursos, trilhas, vídeos). */
 const DEV_KINDS = ["mentoria", "curso", "trilha", "video", "youtube", "linkedin", "podcast"];
-
-type Turn = { role: "user" | "copiloto"; text: string };
 
 function barClass(v: number): string {
   if (v >= 80) return "bar__fill--low"; // low risk = good (verde) — segue o app.css
@@ -33,37 +26,17 @@ function barClass(v: number): string {
   return "bar__fill--high";
 }
 
-/** Área do Líder: o ICD pessoal do usuário logado no modelo OFICIAL — os 4
- *  eixos (Clareza, Critério, Alinhamento, Sustentação), calculados pelas
- *  decisões registradas no ciclo. A trilha foca o eixo com a menor média. */
+/** Minha Jornada › Evoluir › Meu ICD (rota `lider`): o ICD pessoal do usuário
+ *  logado no modelo OFICIAL — os 4 eixos (Clareza, Critério, Alinhamento,
+ *  Sustentação), calculados pelas decisões registradas no ciclo. A trilha foca
+ *  o eixo com a menor média. A conversa com a IA (Copiloto) saiu daqui para a
+ *  tela própria do Mentor CRIVO (rota `mentor`); aqui fica só o atalho. */
 export function LiderScreen() {
   const [data, setData] = useState<MeuIcdData | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [content, setContent] = useState<LibraryItemData[]>([]);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [question, setQuestion] = useState("");
-  const [asking, setAsking] = useState(false);
-
-  async function ask(q: string) {
-    const text = q.trim();
-    if (!text || asking) return;
-    setAsking(true);
-    setQuestion("");
-    setTurns((t) => [...t, { role: "user", text }]);
-    try {
-      const res = await askCopiloto({
-        question: text,
-        context: data
-          ? { score: data.icd.score, band: data.icd.band.label, axes: data.icd.axesAverage }
-          : undefined,
-      });
-      setTurns((t) => [...t, { role: "copiloto", text: res.ok ? res.answer ?? "" : res.reason ?? "Indisponível." }]);
-    } catch (e) {
-      setTurns((t) => [...t, { role: "copiloto", text: e instanceof Error ? e.message : "Falha ao consultar o copiloto." }]);
-    } finally {
-      setAsking(false);
-    }
-  }
+  // Re-renderiza quando o menu do contexto muda (canSeeRoute lê o store).
+  const portal = usePortal();
 
   async function load() {
     setStatus("loading");
@@ -103,17 +76,16 @@ export function LiderScreen() {
   // Foco de desenvolvimento = eixo com a MENOR média do líder no ciclo.
   const foco = data ? eixoMaisFraco(data.icd.axesAverage) : null;
   const track = foco ? ICD_AXIS_TRACKS[foco] : null;
-  const suggestions = foco
-    ? [`Como fortalecer o eixo ${EIXO_CURTO[foco]} nas minhas decisões?`,
-       "Me dê um exercício prático para a próxima decisão difícil."]
-    : ["Como o método CRIVO me ajuda a decidir melhor sob pressão?"];
 
   return (
     <>
       <div className="route__head">
         <div>
-          <h1 className="page-title">Área do Líder</h1>
-          <p className="page-sub">Seu Índice de Coerência Decisória nos 4 eixos: Clareza, Critério, Alinhamento e Sustentação.</p>
+          <h1 className="page-title">Meu ICD</h1>
+          <p className="page-sub">
+            Seu Índice de Coerência Decisória nos 4 eixos — Clareza, Critério, Alinhamento e Sustentação — e a trilha
+            para evoluir no eixo em foco.
+          </p>
         </div>
         <div className="route__actions">
           <button className="btn btn--outline-dark btn--sm" onClick={load} disabled={status === "loading"}>
@@ -139,7 +111,7 @@ export function LiderScreen() {
             <div>
               <h3>Você ainda não tem ICD no ciclo</h3>
               <span className="card__sub">
-                O ICD é calculado pelas decisões que você registra e avalia em "Registro de Decisões" (impacto médio ou alto).
+                O ICD é calculado pelas decisões que você registra e avalia em "Registro de Decisão" (impacto médio ou alto).
                 Assim que houver uma decisão avaliada, seu índice aparece aqui.
               </span>
             </div>
@@ -161,7 +133,7 @@ export function LiderScreen() {
               </div>
             </div>
             <h2 style={{ fontSize: "48px", margin: "8px 0", color: "var(--crivo-azul-profundo)" }}>
-              {data.icd.score}
+              {formatIcdScore(data.icd.score)}
               <small style={{ fontSize: "20px", color: "var(--crivo-text-sec)" }}> /100</small>
             </h2>
           </div>
@@ -175,14 +147,14 @@ export function LiderScreen() {
             </div>
             <ul className="camp-sectors">
               {ICD_AXES.map((eixo) => {
-                const v = Math.round(data.icd.axesAverage[eixo] ?? 0);
+                const v = data.icd.axesAverage[eixo] ?? 0;
                 return (
                   <li key={eixo} title={ICD_AXIS_DESCRIPTION[eixo]}>
                     <span>{EIXO_CURTO[eixo]}</span>
                     <div className="bar">
                       <div className={`bar__fill ${barClass(v)}`} style={{ width: `${v}%` }} />
                     </div>
-                    <em>{v}</em>
+                    <em>{formatIcdScore(v)}</em>
                   </li>
                 );
               })}
@@ -216,64 +188,23 @@ export function LiderScreen() {
         </div>
       )}
 
-      {/* Copiloto CRIVO — apoio reflexivo por IA */}
-      <div className="card" style={{ marginTop: "16px" }}>
-        <div className="card__head">
-          <div>
-            <h3>Copiloto CRIVO</h3>
-            <span className="card__sub">Apoio reflexivo de coerência decisória — não é diagnóstico clínico.</span>
+      {/* Atalho para o Mentor CRIVO — a conversa com a IA mora na tela própria. */}
+      {canSeeRoute("mentor", portal) && (
+        <div className="card" style={{ marginTop: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ margin: 0 }}>Mentor CRIVO</h3>
+            <span className="card__sub">
+              {foco
+                ? `Leve o eixo ${EIXO_CURTO[foco]} para uma conversa de apoio reflexivo sobre as suas decisões.`
+                : "Uma conversa de apoio reflexivo sobre as suas decisões difíceis."}{" "}
+              A conversa não é gravada e não aparece para a empresa.
+            </span>
           </div>
-        </div>
-
-        {turns.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
-            {turns.map((t, i) => (
-              <div
-                key={i}
-                className={t.role === "user" ? "copiloto-turn copiloto-turn--user" : "copiloto-turn"}
-                style={{
-                  alignSelf: t.role === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "85%",
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  background: t.role === "user" ? "var(--ink-900)" : "var(--line-soft)",
-                  color: t.role === "user" ? "#fff" : "var(--text)",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {t.text}
-              </div>
-            ))}
-            {asking && <div className="card__sub">Copiloto pensando…</div>}
-          </div>
-        )}
-
-        {turns.length === 0 && (
-          <div className="hero__ctas" style={{ marginBottom: "12px", flexWrap: "wrap" }}>
-            {suggestions.map((s) => (
-              <button key={s} className="btn btn--ghost-dark btn--sm" onClick={() => ask(s)} disabled={asking}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => { e.preventDefault(); ask(question); }}
-          style={{ display: "flex", gap: "8px" }}
-        >
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Pergunte ao Copiloto sobre uma decisão difícil…"
-            style={{ flex: 1 }}
-            disabled={asking}
-          />
-          <button type="submit" className="btn btn--gold btn--sm" disabled={asking || !question.trim()}>
-            {asking ? "…" : "Enviar"}
+          <button className="btn btn--gold btn--sm" onClick={() => portalNavigate("mentor")}>
+            Explorar com o Mentor CRIVO
           </button>
-        </form>
-      </div>
+        </div>
+      )}
 
       {/* Mentorias & conteúdos — biblioteca de desenvolvimento (Academia CRIVO) */}
       {content.length > 0 && (

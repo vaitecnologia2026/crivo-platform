@@ -4,16 +4,25 @@ import { useEffect, useState } from "react";
 import { listUsers, getUserSeats, createUser, updateUser, resetUserPassword } from "@/lib/api";
 import { ROLE_LABELS, type Role, type UserSummary, type UserSeats } from "@crivo/types";
 import { SCREEN_OPTIONS } from "./nav.config";
+import {
+  ALSO_LEADER_LABEL,
+  LIDER_ONLY_HINT,
+  acessoBody,
+  alsoLeaderHint,
+  contextLabelsFor,
+} from "@/lib/usuario-acesso";
 
 /**
  * Usuários & Equipe (gestão do time da empresa). Admin adiciona usuários,
- * define o papel e, via checklist, EXATAMENTE quais telas cada um acessa
- * (User.screenAccess → filtra a nav). O limite de usuários vem do Produto da
- * empresa (Super Admin) — exibido como "X de Y".
+ * define o papel, marca quem TAMBÉM é líder (Minha Jornada — Spec V1 v1.2 §3)
+ * e, via checklist, EXATAMENTE quais telas da Área da Organização cada um
+ * acessa (User.screenAccess → filtra a nav). O papel LIDER entra só em Minha
+ * Jornada: a checklist não se aplica a ele. O limite de usuários vem do
+ * Produto da empresa (Super Admin) — exibido como "X de Y".
  */
 const ROLE_OPTIONS = Object.keys(ROLE_LABELS) as Role[];
 
-// Telas agrupadas (para a checklist), na ordem do menu.
+// Telas da Área da Organização agrupadas (para a checklist), na ordem do menu.
 const GROUPS = SCREEN_OPTIONS.reduce<Record<string, { route: string; label: string }[]>>(
   (acc, s) => {
     (acc[s.group] ??= []).push({ route: s.route, label: s.label });
@@ -21,6 +30,7 @@ const GROUPS = SCREEN_OPTIONS.reduce<Record<string, { route: string; label: stri
   },
   {},
 );
+const CHECKLIST_ROUTES = SCREEN_OPTIONS.map((s) => s.route);
 
 export function UsuariosScreen() {
   const [users, setUsers] = useState<UserSummary[] | null>(null);
@@ -57,7 +67,8 @@ export function UsuariosScreen() {
         <div>
           <h1 className="page-title">Usuários & Equipe</h1>
           <p className="page-sub">
-            Adicione pessoas, defina o papel e escolha as telas que cada uma acessa.{" "}
+            Adicione pessoas, defina o papel, quem também é líder (Minha Jornada) e as telas da
+            Área da Organização que cada uma acessa.{" "}
             {seats && (
               <strong style={{ color: full ? "var(--danger,#c0392b)" : "var(--gold-deep)" }}>
                 {seats.active} de {seats.max == null ? "∞" : seats.max} usuários
@@ -141,7 +152,8 @@ export function UsuariosScreen() {
               <th>Nome</th>
               <th>E-mail</th>
               <th>Papel</th>
-              <th>Telas</th>
+              <th>Contextos</th>
+              <th>Telas da Organização</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -153,9 +165,19 @@ export function UsuariosScreen() {
                 <td>{u.email}</td>
                 <td>{ROLE_LABELS[u.role] ?? u.role}</td>
                 <td>
-                  {u.screenAccess == null
-                    ? "Todas"
-                    : `${u.screenAccess.length} tela${u.screenAccess.length === 1 ? "" : "s"}`}
+                  <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+                    {contextLabelsFor(u).map((c) => (
+                      <span key={c} className="pill pill--sm pill--outline">{c}</span>
+                    ))}
+                  </span>
+                </td>
+                <td>
+                  {/* LIDER não acessa a Área da Organização: a checklist não se aplica. */}
+                  {u.role === "LIDER"
+                    ? <span title="Não se aplica: o líder entra só em Minha Jornada">—</span>
+                    : u.screenAccess == null
+                      ? "Todas"
+                      : `${u.screenAccess.length} tela${u.screenAccess.length === 1 ? "" : "s"}`}
                 </td>
                 <td>
                   <span
@@ -212,7 +234,7 @@ export function UsuariosScreen() {
             ))}
             {users?.length === 0 && (
               <tr>
-                <td colSpan={6} className="card__sub" style={{ padding: 18 }}>
+                <td colSpan={7} className="card__sub" style={{ padding: 18 }}>
                   Nenhum usuário ainda. Clique em “Adicionar usuário”.
                 </td>
               </tr>
@@ -238,6 +260,9 @@ function UserForm({
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [role, setRole] = useState<Role>(user?.role ?? ("COLABORADOR" as Role));
+  // "Também é líder": só vale para papel ≠ LIDER. Na edição parte do que está
+  // gravado (um LIDER promovido a outro papel continua líder até desmarcar).
+  const [alsoLeader, setAlsoLeader] = useState(user?.isLeader ?? false);
   const [password, setPassword] = useState("");
   const [allScreens, setAllScreens] = useState(user ? user.screenAccess == null : true);
   const [screens, setScreens] = useState<Set<string>>(new Set(user?.screenAccess ?? []));
@@ -258,9 +283,10 @@ function UserForm({
       setErr("Informe nome e e-mail.");
       return;
     }
-    const screenAccess = allScreens ? null : Array.from(screens);
-    if (!allScreens && screenAccess!.length === 0) {
-      setErr("Selecione ao menos uma tela ou marque “Acesso a todas”.");
+    // LIDER: sem isLeader (a API força true) e sem screenAccess (não se aplica).
+    const acesso = acessoBody({ role, alsoLeader, allScreens, screens, checklist: CHECKLIST_ROUTES });
+    if ("error" in acesso) {
+      setErr(acesso.error);
       return;
     }
     setSaving(true);
@@ -271,11 +297,11 @@ function UserForm({
           email: email.trim(),
           role,
           password: password.trim() || undefined,
-          screenAccess,
+          ...acesso.body,
         });
         onSaved(res.tempPassword ? { email: res.user.email, pwd: res.tempPassword } : null);
       } else {
-        await updateUser(user!.id, { role, screenAccess });
+        await updateUser(user!.id, { role, ...acesso.body });
         onSaved(null);
       }
     } catch (e) {
@@ -289,7 +315,10 @@ function UserForm({
       <div className="card__head">
         <div>
           <h3>{isNew ? "Novo usuário" : `Editar ${user!.name}`}</h3>
-          <span className="card__sub">Papel define a capacidade; as telas definem o que ele vê.</span>
+          <span className="card__sub">
+            Papel define a capacidade; ser líder abre Minha Jornada; as telas definem o que vê na
+            Área da Organização.
+          </span>
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onClose}>Fechar</button>
       </div>
@@ -324,13 +353,37 @@ function UserForm({
         )}
       </div>
 
-      <div className="card__sub" style={{ marginBottom: 8, fontWeight: 600 }}>Telas que pode acessar</div>
-      <label className="check" style={{ display: "inline-flex", gap: 8, marginBottom: 10 }}>
-        <input type="checkbox" checked={allScreens} onChange={(e) => setAllScreens(e.target.checked)} />
-        Acesso a <strong>todas</strong> as telas (sem restrição)
-      </label>
+      {/* Contextos (Spec V1 v1.2 §3): LIDER → só Minha Jornada; outro papel →
+          Área da Organização, + Minha Jornada se marcado como líder. */}
+      <div style={{ marginBottom: 14 }}>
+        {role === "LIDER" ? (
+          <p className="card__sub" style={{ fontWeight: 600 }}>{LIDER_ONLY_HINT}</p>
+        ) : (
+          <>
+            <label className="check" style={{ display: "inline-flex", gap: 8, color: "var(--text)" }}>
+              <input type="checkbox" checked={alsoLeader} onChange={(e) => setAlsoLeader(e.target.checked)} />
+              {ALSO_LEADER_LABEL}
+            </label>
+            <div className="card__sub" style={{ marginTop: 4 }}>
+              {alsoLeaderHint(ROLE_LABELS[role] ?? role)}
+            </div>
+          </>
+        )}
+      </div>
 
-      {!allScreens && (
+      {role !== "LIDER" && (
+        <>
+          <div className="card__sub" style={{ marginBottom: 8, fontWeight: 600 }}>
+            Telas da Área da Organização que pode acessar
+          </div>
+          <label className="check" style={{ display: "inline-flex", gap: 8, marginBottom: 10, color: "var(--text)" }}>
+            <input type="checkbox" checked={allScreens} onChange={(e) => setAllScreens(e.target.checked)} />
+            Acesso a <strong>todas</strong> as telas da Área da Organização (sem restrição)
+          </label>
+        </>
+      )}
+
+      {role !== "LIDER" && !allScreens && (
         <div className="grid grid--2" style={{ gap: 8 }}>
           {Object.entries(GROUPS).map(([group, items]) => (
             <div key={group} className="card" style={{ padding: 12 }}>
@@ -339,7 +392,7 @@ function UserForm({
                 <label
                   key={it.route}
                   className="check"
-                  style={{ display: "flex", gap: 8, padding: "3px 0", fontSize: 13 }}
+                  style={{ display: "flex", gap: 8, padding: "3px 0", fontSize: 13, color: "var(--text)" }}
                 >
                   <input type="checkbox" checked={screens.has(it.route)} onChange={() => toggle(it.route)} />
                   {it.label}

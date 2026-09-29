@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { ActionPlanData, CampaignSummary, OperationalAlertsResult } from '@crivo/types';
+import type { ActionPlanData, CampaignSummary, ClientContext, OperationalAlertsResult } from '@crivo/types';
 import {
   getOperationalAlerts,
   getToken,
@@ -26,12 +26,18 @@ export interface PortalSession {
   /** tenant + usuário (do token) — separa o "lida" de quem divide o aparelho. */
   userKey: string;
   orgName: string | null;
+  /** Papel exibido NO CONTEXTO ativo ("Líder" em Minha Jornada). */
   roleLabel: string | null;
   /** Nomes das soluções contratadas. [] = respondeu sem contrato ativo;
    *  null = não foi possível saber (a chamada falhou). */
   contracted: string[] | null;
   /** Tem o Consolidado do Grupo liberado (módulo 'grupo'). */
   hasGroup: boolean;
+  /** Contextos a que a pessoa tem direito, na ordem do seletor
+   *  ("Minha Jornada | Área da Organização"). */
+  contexts: ClientContext[];
+  /** Contexto ativo — é dele o menu (e, com o menu, a busca e o sino). */
+  context: ClientContext;
 }
 
 /** Fontes do sino/central/busca. */
@@ -48,8 +54,9 @@ export interface PortalState {
   session: PortalSession | null;
   /** Sobe a cada login/logout — quem abriu algo "nesta sessão" compara com ele. */
   sessionSeq: number;
-  /** Itens que o MENU mostra a este usuário, com o rótulo exibido. null = acesso
-   *  não carregado (aí nada é escondido — a API continua gateando). */
+  /** Itens que o MENU do contexto ativo mostra a este usuário, com o rótulo
+   *  exibido. null = acesso não carregado (aí nada é escondido — a API
+   *  continua gateando). */
   menu: SearchRoute[] | null;
   plans: ActionPlanData[] | null;
   emissions: ReportEmissionMeta[] | null;
@@ -80,7 +87,8 @@ const EMPTY: PortalState = {
 };
 
 let state: PortalState = EMPTY;
-/** Sobe a cada início/fim de sessão: resposta de uma sessão anterior é descartada. */
+/** Sobe a cada início/fim de sessão e a cada troca de contexto: resposta de uma
+ *  sessão (ou de um contexto) anterior é descartada. */
 let generation = 0;
 /** Fontes que responderam 403 nesta sessão: o papel não lê — não pede de novo
  *  a cada foco (cada 403 vira uma linha de warn no log da API). */
@@ -112,7 +120,18 @@ export function portalNavigate(route: string) {
   navigator?.(route);
 }
 
-/** O menu mostra esta tela? Sem acesso carregado, não esconde nada. */
+// ── Contexto: o seletor "Minha Jornada | Área da Organização" pede a troca ────
+// Quem troca é o shell (menu, home, identificação); o store só repassa o
+// pedido, no mesmo molde do navegador acima.
+let contextSwitcher: ((context: ClientContext) => void) | null = null;
+export function setPortalContextSwitcher(fn: ((context: ClientContext) => void) | null) {
+  contextSwitcher = fn;
+}
+export function portalSwitchContext(context: ClientContext) {
+  contextSwitcher?.(context);
+}
+
+/** O menu (do contexto ativo) mostra esta tela? Sem acesso carregado, não esconde nada. */
 export function canSeeRoute(route: string, s: PortalState = state): boolean {
   return !s.menu || s.menu.some((m) => m.route === route);
 }
@@ -194,6 +213,32 @@ export function endPortalSession() {
   setState({ ...EMPTY, sessionSeq: generation });
 }
 
+/**
+ * Troca de contexto na MESMA sessão (mesma pessoa, mesma empresa): entram o
+ * menu do contexto novo e o papel exibido nele. As fontes do sino/busca do
+ * menu anterior saem e são pedidas de novo conforme o menu novo — uma carga
+ * ainda em voo, do contexto anterior, é descartada ao chegar. Os 403 já
+ * memorizados continuam valendo: é a mesma pessoa.
+ */
+export function setPortalContext(context: ClientContext, menu: SearchRoute[] | null, roleLabel?: string | null) {
+  const s = state.session;
+  if (!s) return;
+  generation++;
+  setState({
+    session: { ...s, context, ...(roleLabel !== undefined ? { roleLabel } : {}) },
+    menu,
+    plans: null,
+    emissions: null,
+    campaigns: null,
+    alerts: null,
+    notifications: null,
+    failed: [],
+    loading: false,
+    loadedAt: 0,
+  });
+  void refreshPortalData();
+}
+
 type Loaded<T> = { data: T | null; status: 'ok' | 'forbidden' | 'error' | 'skipped' };
 
 /**
@@ -219,13 +264,16 @@ export async function refreshPortalData(maxAgeMs = 0): Promise<void> {
       }),
     );
   };
-  const plano = canSeeRoute('relatorios') || canSeeRoute('evidencias');
+  // Todas as fontes são da empresa: em Minha Jornada nenhuma é pedida, nem
+  // com o menu ainda não carregado (null), que aqui liberaria todas.
+  const org = state.session.context !== 'JORNADA';
+  const plano = org && (canSeeRoute('relatorios') || canSeeRoute('evidencias'));
   const [alerts, plans, emissions, campaigns] = await Promise.all([
-    load('alerts', plano || canSeeRoute('dashboard'), getOperationalAlerts),
+    load('alerts', plano || (org && canSeeRoute('dashboard')), getOperationalAlerts),
     // Só leitura: a listagem normal dispara a geração automática do plano.
     load('plans', plano, listActionPlansReadOnly),
-    load('emissions', canSeeRoute('documentos'), listReportEmissions),
-    load('campaigns', canSeeRoute('campanhas'), () => listCampaigns()),
+    load('emissions', org && canSeeRoute('documentos'), listReportEmissions),
+    load('campaigns', org && canSeeRoute('campanhas'), () => listCampaigns()),
   ]);
   if (gen !== generation) return; // logout ou troca de sessão no meio do caminho
 

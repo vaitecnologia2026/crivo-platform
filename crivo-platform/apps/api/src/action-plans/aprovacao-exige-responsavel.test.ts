@@ -19,6 +19,18 @@ function build(existing: Record<string, unknown>, evidencias: { kind: string; st
       }),
     },
     actionItemHistory: { create: vi.fn(async () => ({})) },
+    // H-008: vínculo do responsável — usuários ativos e cadastro de colaboradores.
+    user: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string } }) =>
+        where.id === 'u-ana' ? { id: 'u-ana', name: 'Ana Souza' } : null,
+      ),
+    },
+    collaborator: {
+      findMany: vi.fn(async () => [
+        { role: 'Gerente de Operações', area: 'Operações', sector: null },
+        { role: 'Analista de RH', area: null, sector: 'Recursos Humanos' },
+      ]),
+    },
   };
   const prisma = {
     forTenant: vi.fn(async (_t: string, fn: (t: unknown) => Promise<unknown>) => fn(tx)),
@@ -68,17 +80,75 @@ describe('aprovar uma ação exige responsável (83fd176; evidência esperada op
     expect(updates).toHaveLength(0);
   });
 
-  it('aprova com responsável e SEM evidência esperada (não é mais gate)', async () => {
+  it('aprova com responsável vinculado a CARGO e SEM evidência esperada (não é mais gate)', async () => {
     const { svc, updates } = build(sugerida);
-    await svc.updateItem('t1', 'i1', { status: 'APROVADA', responsible: 'Gerente de Operações' }, 'RH');
+    await svc.updateItem(
+      't1', 'i1',
+      { status: 'APROVADA', responsibleType: 'CARGO', responsible: 'gerente de operações' },
+      'RH',
+    );
     expect(updates).toHaveLength(1);
-    expect(updates[0]).toMatchObject({ status: 'APROVADA', responsible: 'Gerente de Operações' });
+    // Grava a grafia do cadastro, não a digitada.
+    expect(updates[0]).toMatchObject({ status: 'APROVADA', responsible: 'Gerente de Operações', responsibleType: 'CARGO' });
   });
 
-  it('aprova quando o responsável já estava gravado na ação', async () => {
+  // H-008 (decisão CRIVO 28/09/2026): texto livre sem vínculo não aprova.
+  it('recusa aprovar com responsável só em texto livre (sem vínculo)', async () => {
     const { svc, updates } = build({ ...sugerida, responsible: 'RH + Gestores' });
-    await svc.updateItem('t1', 'i1', { status: 'APROVADA' }, 'RH');
+    await expect(svc.updateItem('t1', 'i1', { status: 'APROVADA' }, 'RH')).rejects.toThrow(/vincule o responsável/);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('USUARIO grava o id e o nome do usuário ativo', async () => {
+    const { svc, updates } = build(sugerida);
+    await svc.updateItem('t1', 'i1', { status: 'APROVADA', responsibleType: 'USUARIO', responsibleUserId: 'u-ana' }, 'RH');
+    expect(updates[0]).toMatchObject({ responsibleType: 'USUARIO', responsibleUserId: 'u-ana', responsible: 'Ana Souza' });
+  });
+
+  it('USUARIO inexistente/inativo é recusado', async () => {
+    const { svc } = build(sugerida);
+    await expect(
+      svc.updateItem('t1', 'i1', { responsibleType: 'USUARIO', responsibleUserId: 'u-x' }, 'RH'),
+    ).rejects.toThrow(/não encontrado ou inativo/);
+  });
+
+  it('ÁREA precisa existir no cadastro (área ou setor)', async () => {
+    const ok = build(sugerida);
+    await ok.svc.updateItem('t1', 'i1', { responsibleType: 'AREA', responsible: 'Recursos Humanos' }, 'RH');
+    expect(ok.updates[0]).toMatchObject({ responsibleType: 'AREA', responsible: 'Recursos Humanos' });
+    const nao = build(sugerida);
+    await expect(
+      nao.svc.updateItem('t1', 'i1', { responsibleType: 'AREA', responsible: 'Financeiro' }, 'RH'),
+    ).rejects.toThrow(/não está no cadastro/);
+  });
+
+  it('EXTERNO aceita texto livre; EXCEÇÃO exige motivo', async () => {
+    const ext = build(sugerida);
+    await ext.svc.updateItem('t1', 'i1', { status: 'APROVADA', responsibleType: 'EXTERNO', responsible: 'Consultoria X' }, 'RH');
+    expect(ext.updates[0]).toMatchObject({ responsibleType: 'EXTERNO', responsible: 'Consultoria X' });
+    const exc = build(sugerida);
+    await expect(
+      exc.svc.updateItem('t1', 'i1', { responsibleType: 'EXCECAO', responsible: 'Comitê ad hoc' }, 'RH'),
+    ).rejects.toThrow(/motivo da exceção/);
+    const excOk = build(sugerida);
+    await excOk.svc.updateItem(
+      't1', 'i1',
+      { status: 'APROVADA', responsibleType: 'EXCECAO', responsible: 'Comitê ad hoc', responsibleReason: 'Sem cargo fixo' },
+      'RH',
+    );
+    expect(excOk.updates[0]).toMatchObject({ responsibleType: 'EXCECAO', responsibleReason: 'Sem cargo fixo' });
+  });
+
+  it('ação aprovada ANTES da regra (texto legado) continua editável', async () => {
+    const { svc, updates } = build({ ...sugerida, status: 'APROVADA', responsible: 'RH + Gestores' });
+    await svc.updateItem('t1', 'i1', { indicator: 'Horas extras' }, 'RH');
     expect(updates).toHaveLength(1);
+  });
+
+  it('trocar só o texto de um item vinculado a cargo desfaz o vínculo', async () => {
+    const { svc, updates } = build({ ...sugerida, responsible: 'Gerente de Operações', responsibleType: 'CARGO' });
+    await svc.updateItem('t1', 'i1', { responsible: 'Outra pessoa' }, 'RH');
+    expect(updates[0]).toMatchObject({ responsible: 'Outra pessoa', responsibleType: null });
   });
 
   it('outros status (ex.: descartar) não exigem os campos', async () => {

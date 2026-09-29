@@ -108,4 +108,15 @@ describe('busca global do portal', () => {
     expect(rota('trilha', 'Academia')).toBe('biblioteca');
     expect(rota('validado', 'Aviso')).toBe('notificacoes');
   });
+
+  it('em Minha Jornada o conteúdo da Academia abre a leitura pessoal', () => {
+    const idx = buildSearchIndex({
+      ...base,
+      routes: [{ route: 'jornada-academia', label: 'Academia', group: 'Evoluir' }],
+      library: [{ id: 'l1', title: 'Trilha NR-1', kind: 'VIDEO', description: null }] as unknown as LibraryItemData[],
+      libraryRoute: 'jornada-academia',
+    });
+    const hit = searchPortal(idx, 'trilha').find((x) => x.category === 'Academia')!.entries[0];
+    expect(hit.route).toBe('jornada-academia');
+  });
 });

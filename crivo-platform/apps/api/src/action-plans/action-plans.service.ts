@@ -1,4 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@crivo/db';
+import type { SessionUser } from '@crivo/types';
+import { GESTAO_E_CONSULTORIA, LEITURA_GESTAO } from '../iam/role-groups';
 import {
   EVIDENCE_KIND_JUSTIFICATIVA,
   MSG_CONCLUSAO_SEM_COMPROVACAO,
@@ -8,6 +11,8 @@ import {
   ICD_AXIS_LABEL,
   ICD_AXIS_TO_TEMPLATE_CATEGORIES,
   eixoMaisFraco,
+  responsavelVinculado,
+  type ActionResponsibleOptions,
   type IcdAxesScores,
   type ActionItemData,
   type ActionPlanData,
@@ -25,6 +30,24 @@ import { IcdCyclesService } from '../icd-cycles/icd-cycles.service';
 import { resolveTenantInstrument } from '../admin/methodology.service';
 
 type ActorName = string;
+
+/** Campos do responsável como chegam do cliente (create/update). */
+type ResponsavelInput = {
+  responsible?: string | null;
+  responsibleType?: string | null;
+  responsibleUserId?: string | null;
+  responsibleReason?: string | null;
+};
+
+/** Campos do responsável como vão para o banco. */
+type ResponsavelGravado = {
+  responsible: string | null;
+  responsibleType: string | null;
+  responsibleUserId: string | null;
+  responsibleReason: string | null;
+};
+
+const iguais = (a: string, b: string) => a.trim().localeCompare(b.trim(), 'pt-BR', { sensitivity: 'base' }) === 0;
 
 /**
  * Plano de Ação + Evidências do tenant (Briefing §8/§9). CORE de todo
@@ -161,6 +184,7 @@ export class ActionPlansService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException('Plano não encontrado');
+      const resp = await resolverResponsavel(tx, dto, null);
       const item = await tx.actionItem.create({
         data: {
           tenantId,
@@ -169,7 +193,7 @@ export class ActionPlansService {
           action: dto.action.trim(),
           origin: dto.origin ?? null,
           sourceInstrumentSlug: itemSlug,
-          responsible: dto.responsible ?? null,
+          ...resp,
           dueDate: parseDate(dto.dueDate),
           expectedEvidence: dto.expectedEvidence ?? null,
           exposedGroup: dto.exposedGroup ?? null,
@@ -339,10 +363,18 @@ export class ActionPlansService {
       // evidência esperada deixou de ser obrigatória (modelo final 25/09): a
       // evidência é acompanhada no Plano, depois da aprovação.
       const newStatus = (dto.status ?? existing.status) as ActionStatus;
+      const resp = await resolverResponsavel(tx, dto, existing);
       if (newStatus === 'APROVADA') {
-        const responsible = dto.responsible !== undefined ? dto.responsible : existing.responsible;
-        if (!responsible?.trim()) {
+        if (!resp.responsible?.trim()) {
           throw new BadRequestException('Responsável é obrigatório para aprovar a ação.');
+        }
+        // H-008 (decisão CRIVO 28/09/2026): na APROVAÇÃO o responsável precisa
+        // estar vinculado (usuário, cargo ou área; texto só externo/exceção).
+        // Só na transição: ação aprovada antes da regra continua editável.
+        if (existing.status !== 'APROVADA' && !responsavelVinculado(resp)) {
+          throw new BadRequestException(
+            'Para aprovar, vincule o responsável a um usuário, cargo ou área (ou marque como externo ou exceção com motivo).',
+          );
         }
       }
       // Concluir exige evidência anexada ou justificativa validada. Só na
@@ -364,7 +396,7 @@ export class ActionPlansService {
           action: dto.action ?? existing.action,
           origin: dto.origin === undefined ? existing.origin : dto.origin,
           sourceInstrumentSlug: updSlug === undefined ? existing.sourceInstrumentSlug : updSlug,
-          responsible: dto.responsible === undefined ? existing.responsible : dto.responsible,
+          ...resp,
           dueDate: dto.dueDate === undefined ? existing.dueDate : parseDate(dto.dueDate),
           status: (dto.status ?? existing.status) as ActionStatus,
           expectedEvidence:
@@ -408,7 +440,8 @@ export class ActionPlansService {
       // então null também NÃO é mudança para a trilha (dto.x ?? undefined).
       track('ponto', existing.point, dto.point ?? undefined);
       track('ação', existing.action, dto.action ?? undefined);
-      track('responsável', existing.responsible, dto.responsible);
+      track('responsável', existing.responsible, resp.responsible);
+      track('vínculo do responsável', existing.responsibleType, resp.responsibleType);
       // Prazo: comparar DATA normalizada com DATA normalizada — o cliente manda
       // 'AAAA-MM-DD' e o banco guarda ISO completo; comparar cru gerava
       // "Alterado: prazo" falso na trilha oficial.
@@ -511,7 +544,14 @@ export class ActionPlansService {
   }
 
   /** Validação humana — sem ela o plano é minuta; com ela vira documento final. */
-  async validatePlan(tenantId: string, planId: string, by: ActorName): Promise<ActionPlanData> {
+  /** H-009: grava quem validou (nome, id, papel), quando e a versão da
+   *  validação; a trilha de auditoria (plan.validate) é gravada pelo controller. */
+  async validatePlan(
+    tenantId: string,
+    planId: string,
+    by: ActorName,
+    user?: Pick<SessionUser, 'id' | 'role'>,
+  ): Promise<ActionPlanData> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const plan = await tx.actionPlan.findUnique({ where: { id: planId } });
       if (!plan) throw new NotFoundException('Plano não encontrado');
@@ -531,7 +571,13 @@ export class ActionPlansService {
       }
       await tx.actionPlan.update({
         where: { id: planId },
-        data: { validatedAt: new Date(), validatedBy: by },
+        data: {
+          validatedAt: new Date(),
+          validatedBy: by,
+          validatedByUserId: user?.id ?? null,
+          validatedByRole: user?.role ?? null,
+          validationVersion: { increment: 1 },
+        },
       });
       const full = await tx.actionPlan.findUnique({
         where: { id: planId },
@@ -545,6 +591,7 @@ export class ActionPlansService {
     tenantId: string,
     itemId: string,
     dto: CreateEvidenceRequest,
+    user?: SessionUser,
   ): Promise<EvidenceData> {
     // Justificativa é o próprio texto: sem ele não há o que validar.
     if (dto.kind.trim() === EVIDENCE_KIND_JUSTIFICATIVA && !dto.note?.trim()) {
@@ -553,6 +600,7 @@ export class ActionPlansService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const item = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!item) throw new NotFoundException('Ação não encontrada');
+      exigirAcessoEvidencia(user, item, GESTAO_E_CONSULTORIA);
       const ev = await tx.evidence.create({
         data: {
           tenantId,
@@ -573,6 +621,7 @@ export class ActionPlansService {
     itemId: string,
     meta: { kind: string; title: string; note?: string },
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+    user?: SessionUser,
   ): Promise<EvidenceData> {
     // Justificativa é só texto (vale para concluir depois de validada): por
     // upload ela chegaria sem o texto que o revisor precisa auditar.
@@ -582,6 +631,7 @@ export class ActionPlansService {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const item = await tx.actionItem.findUnique({ where: { id: itemId } });
       if (!item) throw new NotFoundException('Ação não encontrada');
+      exigirAcessoEvidencia(user, item, GESTAO_E_CONSULTORIA);
       const ev = await tx.evidence.create({
         data: {
           tenantId,
@@ -605,17 +655,39 @@ export class ActionPlansService {
   async getEvidenceFile(
     tenantId: string,
     evidenceId: string,
+    user?: SessionUser,
   ): Promise<{ fileName: string; fileMime: string; data: Buffer }> {
     return this.prisma.forTenant(tenantId, async (tx) => {
       const ev = await tx.evidence.findUnique({
         where: { id: evidenceId },
-        include: { file: true },
+        include: { file: true, item: { select: { responsibleUserId: true } } },
       });
       if (!ev || !ev.file) throw new NotFoundException('Arquivo não encontrado');
+      exigirAcessoEvidencia(user, ev.item, LEITURA_GESTAO);
       return {
         fileName: ev.fileName ?? 'evidencia',
         fileMime: ev.fileMime ?? 'application/octet-stream',
         data: Buffer.from(ev.file.data),
+      };
+    });
+  }
+
+  /** H-008 — de onde o responsável da ação é escolhido: usuários ativos da
+   *  empresa e os cargos/áreas do cadastro de colaboradores (valores distintos). */
+  async responsibleOptions(tenantId: string): Promise<ActionResponsibleOptions> {
+    return this.prisma.forTenant(tenantId, async (tx) => {
+      const [users, colabs] = await Promise.all([
+        tx.user.findMany({
+          where: { active: true },
+          select: { id: true, name: true, role: true },
+          orderBy: { name: 'asc' },
+        }),
+        tx.collaborator.findMany({ select: { role: true, area: true, sector: true } }),
+      ]);
+      return {
+        users: users.map((u) => ({ id: u.id, name: u.name, role: u.role })),
+        cargos: distintos(colabs.map((c) => c.role)),
+        areas: distintos(colabs.flatMap((c) => [c.area, c.sector])),
       };
     });
   }
@@ -676,7 +748,8 @@ export class ActionPlansService {
   // ── mappers ──
   private toPlan(p: {
     id: string; title: string; source: string | null; validatedAt: Date | null;
-    validatedBy: string | null; createdAt: Date; items: Parameters<ActionPlansService['toItem']>[0][];
+    validatedBy: string | null; validatedByRole?: string | null; validationVersion?: number;
+    createdAt: Date; items: Parameters<ActionPlansService['toItem']>[0][];
     sourceInstrumentSlug?: string | null; sourceInstrument?: { name: string } | null;
   }): ActionPlanData {
     return {
@@ -687,6 +760,8 @@ export class ActionPlansService {
       sourceInstrumentName: p.sourceInstrument?.name ?? null,
       validatedAt: p.validatedAt?.toISOString() ?? null,
       validatedBy: p.validatedBy,
+      validatedByRole: p.validatedByRole ?? null,
+      validationVersion: p.validationVersion ?? 0,
       createdAt: p.createdAt.toISOString(),
       items: (p.items ?? []).map((i) => this.toItem(i)),
     };
@@ -695,6 +770,7 @@ export class ActionPlansService {
   private toItem(i: {
     id: string; planId: string; point: string; origin: string | null; action: string;
     responsible: string | null; dueDate: Date | null; status: string; expectedEvidence: string | null;
+    responsibleType?: string | null; responsibleUserId?: string | null; responsibleReason?: string | null;
     reviewDate: Date | null; exposedGroup?: string | null;
     severity?: string | null; probability?: string | null; riskLevel?: string | null;
     areaProcess?: string | null; existingMeasure?: string | null; indicator?: string | null;
@@ -713,6 +789,9 @@ export class ActionPlansService {
       sourceInstrumentName: i.sourceInstrument?.name ?? null,
       action: i.action,
       responsible: i.responsible,
+      responsibleType: (i.responsibleType ?? null) as ActionItemData['responsibleType'],
+      responsibleUserId: i.responsibleUserId ?? null,
+      responsibleReason: i.responsibleReason ?? null,
       dueDate: i.dueDate?.toISOString() ?? null,
       status: i.status as ActionStatus,
       expectedEvidence: i.expectedEvidence,
@@ -789,6 +868,106 @@ export class ActionPlansService {
       reviewedAt: e.reviewedAt ? e.reviewedAt.toISOString() : null,
     };
   }
+}
+
+/**
+ * H-008 — resolve e confere o responsável da ação (decisão CRIVO 28/09/2026).
+ * `existing` = linha atual (update) ou null (create); campo ausente no input
+ * preserva o atual. USUARIO grava o nome do usuário; CARGO/AREA precisam
+ * existir no cadastro de colaboradores (grava a grafia do cadastro); EXTERNO é
+ * texto livre; EXCECAO exige motivo. Sem tipo = texto sem vínculo (sugestão ou
+ * legado): pode ser gravado, mas não aprova.
+ */
+async function resolverResponsavel(
+  tx: Prisma.TransactionClient,
+  input: ResponsavelInput,
+  existing: ResponsavelGravado | null,
+): Promise<ResponsavelGravado> {
+  const tocouVinculo =
+    input.responsibleType !== undefined ||
+    input.responsibleUserId !== undefined ||
+    input.responsibleReason !== undefined;
+  const base: ResponsavelGravado = existing ?? {
+    responsible: null,
+    responsibleType: null,
+    responsibleUserId: null,
+    responsibleReason: null,
+  };
+  if (!tocouVinculo) {
+    // Só o texto (ou nada) veio: mantém o vínculo. Texto novo num item ligado a
+    // usuário/cargo/área desfaz o vínculo — o nome deixou de ser o do cadastro.
+    if (input.responsible === undefined) return base;
+    const texto = input.responsible?.trim() || null;
+    const ligadoAoCadastro = base.responsibleType === 'USUARIO' || base.responsibleType === 'CARGO' || base.responsibleType === 'AREA';
+    if (ligadoAoCadastro && texto !== base.responsible) {
+      return { responsible: texto, responsibleType: null, responsibleUserId: null, responsibleReason: null };
+    }
+    return { ...base, responsible: texto };
+  }
+
+  const tipo = input.responsibleType === undefined ? base.responsibleType : input.responsibleType || null;
+  const texto = (input.responsible === undefined ? base.responsible : input.responsible)?.trim() || null;
+  switch (tipo) {
+    case null:
+      return { responsible: texto, responsibleType: null, responsibleUserId: null, responsibleReason: null };
+    case 'USUARIO': {
+      const userId = input.responsibleUserId === undefined ? base.responsibleUserId : input.responsibleUserId;
+      if (!userId) throw new BadRequestException('Escolha o usuário responsável.');
+      const u = await tx.user.findFirst({ where: { id: userId, active: true }, select: { id: true, name: true } });
+      if (!u) throw new BadRequestException('Usuário responsável não encontrado ou inativo nesta empresa.');
+      return { responsible: u.name, responsibleType: 'USUARIO', responsibleUserId: u.id, responsibleReason: null };
+    }
+    case 'CARGO':
+    case 'AREA': {
+      const rotulo = tipo === 'CARGO' ? 'Cargo' : 'Área';
+      if (!texto) throw new BadRequestException(`Escolha o(a) ${rotulo.toLowerCase()} responsável.`);
+      const colabs = await tx.collaborator.findMany({ select: { role: true, area: true, sector: true } });
+      const valores =
+        tipo === 'CARGO' ? distintos(colabs.map((c) => c.role)) : distintos(colabs.flatMap((c) => [c.area, c.sector]));
+      const achado = valores.find((v) => iguais(v, texto));
+      if (!achado) {
+        throw new BadRequestException(
+          `${rotulo} "${texto}" não está no cadastro de colaboradores. Cadastre-o ou use responsável externo ou exceção.`,
+        );
+      }
+      return { responsible: achado, responsibleType: tipo, responsibleUserId: null, responsibleReason: null };
+    }
+    case 'EXTERNO':
+      if (!texto) throw new BadRequestException('Informe o nome do responsável externo.');
+      return { responsible: texto, responsibleType: 'EXTERNO', responsibleUserId: null, responsibleReason: null };
+    case 'EXCECAO': {
+      const motivo =
+        (input.responsibleReason === undefined ? base.responsibleReason : input.responsibleReason)?.trim() || null;
+      if (!texto) throw new BadRequestException('Informe o responsável da exceção.');
+      if (!motivo) throw new BadRequestException('Explique o motivo da exceção.');
+      return { responsible: texto, responsibleType: 'EXCECAO', responsibleUserId: null, responsibleReason: motivo };
+    }
+    default:
+      throw new BadRequestException('Tipo de responsável inválido.');
+  }
+}
+
+/** Valores distintos, sem vazios, em ordem alfabética (pt-BR, sem caixa). */
+function distintos(vals: Array<string | null | undefined>): string[] {
+  const out: string[] = [];
+  for (const v of vals) {
+    const t = v?.trim();
+    if (t && !out.some((o) => iguais(o, t))) out.push(t);
+  }
+  return out.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+}
+
+/** Evidência: papéis de gestão (lista `papeis`) ou o USUÁRIO responsável pela
+ *  ação (H-008). Sem `user` (chamada interna/teste) não restringe. */
+function exigirAcessoEvidencia(
+  user: SessionUser | undefined,
+  item: { responsibleUserId: string | null } | null,
+  papeis: readonly string[],
+): void {
+  if (!user) return;
+  if (papeis.includes(user.role)) return;
+  if (item?.responsibleUserId && item.responsibleUserId === user.id) return;
+  throw new ForbiddenException('Permissão insuficiente');
 }
 
 function parseDate(v: string | null | undefined): Date | null {

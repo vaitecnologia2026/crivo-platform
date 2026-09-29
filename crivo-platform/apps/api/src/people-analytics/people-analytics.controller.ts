@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { type SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
@@ -16,7 +17,7 @@ const ROLES = ['RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR'] as const;
 /** People Analytics (Fase 4) — indicadores de RH + IA Analítica. Só gestão/RH.
  *  Gate de módulo "analytics" (F4): a liberação por contrato passa a valer na API. */
 @Controller('people-analytics')
-@UseGuards(AuthGuard, ModuleGuard, RolesGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, RolesGuard, ScreenAccessGuard)
 @RequireModule('analytics')
 @RequireScreen('analytics')
 export class PeopleAnalyticsController {

@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
@@ -52,7 +53,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024;
  * Consultor CRIVO só lê — quem aprova o contexto da empresa é a empresa).
  */
 @Controller('context')
-@UseGuards(AuthGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
 @RequireModule('contexto')
 @RequireScreen('contexto')
 @Roles(...ROLES)

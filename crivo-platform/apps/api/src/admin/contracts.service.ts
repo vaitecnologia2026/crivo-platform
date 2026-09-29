@@ -120,7 +120,13 @@ export class ContractsService {
       action: existing ? 'contract.update' : 'contract.create',
       actor,
       target: organizationId,
-      meta: { model: saved.model, status: saved.status, output: saved.technicalOutput },
+      meta: {
+        model: saved.model,
+        status: saved.status,
+        output: saved.technicalOutput,
+        // S12-09 (Arquitetura v3.1 §4): alteração de contrato com antes → depois.
+        changes: diffContrato(existing, saved),
+      },
     });
 
     // Tela 05 · contrato vinculante: quando ATIVO, liga os módulos comprados na
@@ -167,7 +173,7 @@ export class ContractsService {
       action: existing ? 'contract.update' : 'contract.create',
       actor,
       target: groupId,
-      meta: { scope: 'group', model: saved.model, status: saved.status },
+      meta: { scope: 'group', model: saved.model, status: saved.status, changes: diffContrato(existing, saved) },
     });
 
     // Contrato de grupo vinculante: ao ATIVO, liga os módulos em CADA CNPJ do grupo.
@@ -360,6 +366,33 @@ export class ContractsService {
 }
 
 /** Aceita 'YYYY-MM-DD' (input date) ou ISO; null/'' → null. */
+/** Campos de texto livre do contrato que não vão por inteiro para o audit_log. */
+const TEXTO_LIVRE_CONTRATO = new Set(['notes']);
+
+/**
+ * Campos que mudaram entre o contrato anterior e o gravado ({ campo: { before,
+ * after } }). Contrato novo (sem anterior) → null. Datas vão em ISO; metadados
+ * de controle (id, createdAt, updatedAt) ficam de fora.
+ */
+function diffContrato(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+): Record<string, { before: unknown; after: unknown }> | null {
+  if (!before) return null;
+  const norm = (v: unknown) => (v instanceof Date ? v.toISOString() : v ?? null);
+  const out: Record<string, { before: unknown; after: unknown }> = {};
+  for (const k of Object.keys(after)) {
+    if (k === 'id' || k === 'createdAt' || k === 'updatedAt') continue;
+    const b = norm(before[k]);
+    const a = norm(after[k]);
+    if (JSON.stringify(b) === JSON.stringify(a)) continue;
+    // Texto livre (observações) não é copiado para a trilha — só o registro de
+    // que mudou; o conteúdo continua só no contrato.
+    out[k] = TEXTO_LIVRE_CONTRATO.has(k) ? { before: '[alterado]', after: '[alterado]' } : { before: b, after: a };
+  }
+  return out;
+}
+
 function parseDate(v: string | null | undefined): Date | null {
   if (!v) return null;
   const d = new Date(v);

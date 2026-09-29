@@ -23,6 +23,7 @@ import {
   type IcdCycleHistoryEntry,
   type LiderancaAdminSummary,
   type PocketAggregate,
+  formatIcdScore,
 } from "@crivo/types";
 import {
   closeTenantIcdCycle,
@@ -236,7 +237,7 @@ function Kpis({ data }: { data: LiderancaAdminSummary }) {
         <span className="card__hint">{cyc ? `no ciclo aberto ${cycleLabel(cyc)}` : "nenhum ciclo aberto"}</span>
       </div>
       <div className="kpi">
-        <span className="kpi__label" title="Líderes ativos da empresa (User.role LIDER, ativos) — elegíveis ao ICD">Líderes ativos</span>
+        <span className="kpi__label" title="Líderes ativos da empresa (papel Líder ou marcados como líder, ativos) — elegíveis ao ICD">Líderes ativos</span>
         <strong className="kpi__value">{icd.eligibleLeaders}</strong>
         <span className="card__hint" title="Líderes distintos com ≥ 1 decisão avaliada pelo ICD no ciclo aberto">
           {cyc ? `${icd.participatingLeaders} participante(s) no ciclo aberto` : "nenhum ciclo aberto"}
@@ -281,8 +282,8 @@ function VisaoTab({ data, icdOn }: { data: LiderancaAdminSummary; icdOn: boolean
         <table className="data-table">
           <tbody>
             <tr><td>Ciclo aberto</td><td>{icd.cycle ? `${cycleLabel(icd.cycle)} · ${fmtDate(icd.cycle.startsAt)} → ${fmtDate(icd.cycle.endsAt)}` : "Nenhum ciclo aberto"}</td></tr>
-            <tr><td>ICD parcial (ciclo aberto)</td><td>{icd.icdMedio != null ? `${icd.icdMedio}/100 · ${icd.band?.label ?? ""}` : icd.suppressed ? `Suprimido (${icd.participatingLeaders} líder(es) — mínimo ${MIN_LEADERS_FOR_DISCLOSURE})` : "Sem avaliações no ciclo"}</td></tr>
-            <tr><td>Último ciclo fechado</td><td>{icd.lastClosed ? `${icd.lastClosed.cycleName} · ${icd.lastClosed.score != null ? `${icd.lastClosed.score}/100` : "suprimido"} · ${icd.lastClosed.eligibleLeaders} líderes` : "Nenhum ciclo fechado ainda"}</td></tr>
+            <tr><td>ICD parcial (ciclo aberto)</td><td>{icd.icdMedio != null ? `${formatIcdScore(icd.icdMedio)}/100 · ${icd.band?.label ?? ""}` : icd.suppressed ? `Suprimido (${icd.participatingLeaders} líder(es) — mínimo ${MIN_LEADERS_FOR_DISCLOSURE})` : "Sem avaliações no ciclo"}</td></tr>
+            <tr><td>Último ciclo fechado</td><td>{icd.lastClosed ? `${icd.lastClosed.cycleName} · ${icd.lastClosed.score != null ? `${formatIcdScore(icd.lastClosed.score)}/100` : "suprimido"} · ${icd.lastClosed.eligibleLeaders} líderes` : "Nenhum ciclo fechado ainda"}</td></tr>
             <tr><td>Pocket</td><td>{p.suppressed ? (p.participatingLeaders === 0 ? "Sem sessões concluídas no período" : `Suprimido (${p.participatingLeaders} líder(es) — mínimo ${p.minLeadersForDisclosure})`) : `${p.completedSessions} sessões · ${p.adhesionPct == null ? "adesão —" : `adesão ${p.adhesionPct}%`}`}{p.period ? ` · ${p.period.cycleName}` : " · todo o histórico"}</td></tr>
           </tbody>
         </table>
@@ -524,7 +525,7 @@ function EscalasTab() {
           </table>
         </div>
         <div className="card">
-          <div className="card__head"><div><h3>Faixas de Maturidade Decisória</h3><span className="card__sub">Anexo §10 — aplicadas ao ICD 0–100.</span></div></div>
+          <div className="card__head"><div><h3>Faixas oficiais do ICD</h3><span className="card__sub">Anexo Liderança/IA v1.1 §6.3 — classificação pelo valor bruto; exibição com 1 casa decimal.</span></div></div>
           <table className="data-table">
             <thead><tr><th>Faixa</th><th>Intervalo</th></tr></thead>
             <tbody>{ICD_MATURITY_BANDS.map((b) => <tr key={b.key}><td>{b.label}</td><td>{b.min}–{b.max}</td></tr>)}</tbody>
@@ -776,9 +777,9 @@ function ResultadosTab({ tenantId, data }: { tenantId: string; data: LiderancaAd
                         <td><strong>{cycleLabel(e.cycle)}</strong></td>
                         <td>{fmtDateTime(e.cycle.closedAt)}</td>
                         <td>{r?.eligibleLeaders ?? "—"}</td>
-                        <td>{!r ? "—" : r.suppressed || r.score == null ? <Chip>Suprimido (&lt; {MIN_LEADERS_FOR_DISCLOSURE})</Chip> : <strong>{r.score}/100</strong>}</td>
+                        <td>{!r ? "—" : r.suppressed || r.score == null ? <Chip>Suprimido (&lt; {MIN_LEADERS_FOR_DISCLOSURE})</Chip> : <strong>{formatIcdScore(r.score)}/100</strong>}</td>
                         <td>{r?.band?.label ?? "—"}</td>
-                        <td>{r?.axesAverage ? ICD_AXES.map((ax) => Math.round(r.axesAverage![ax] ?? 0)).join(" · ") : "—"}</td>
+                        <td>{r?.axesAverage ? ICD_AXES.map((ax) => formatIcdScore(r.axesAverage![ax])).join(" · ") : "—"}</td>
                       </tr>
                     );
                   })}
@@ -828,7 +829,7 @@ function IcdRadarCard({ entry }: { entry: IcdCycleHistoryEntry }) {
       {r && !r.suppressed && !axes && <p className="dash-state">Sem médias por eixo congeladas neste ciclo.</p>}
       {axes && <IcdRadar axes={axes} />}
       {axes && r?.score != null && (
-        <span className="card__hint" style={{ display: "block", marginTop: 6 }}>ICD {r.score}/100 · {r.band?.label ?? "—"} · {r.eligibleLeaders} líder(es) avaliado(s)</span>
+        <span className="card__hint" style={{ display: "block", marginTop: 6 }}>ICD {formatIcdScore(r.score)}/100 · {r.band?.label ?? "—"} · {r.eligibleLeaders} líder(es) avaliado(s)</span>
       )}
     </div>
   );
@@ -856,7 +857,7 @@ function IcdRadar({ axes }: { axes: IcdAxesScores }) {
     return [i === 1 ? x + 8 : x - 8, y] as const;
   };
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={`Radar ICD: ${ICD_AXES.map((ax) => `${AXIS_SHORT[ax]} ${Math.round(axes[ax] ?? 0)}`).join(", ")}`} style={{ display: "block", maxWidth: 300 }}>
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={`Radar ICD: ${ICD_AXES.map((ax) => `${AXIS_SHORT[ax]} ${formatIcdScore(axes[ax])}`).join(", ")}`} style={{ display: "block", maxWidth: 300 }}>
       {[25, 50, 75, 100].map((lvl) => (
         <polygon key={lvl} points={ICD_AXES.map((_, i) => point(i, lvl).join(",")).join(" ")} fill="none" stroke="var(--line)" strokeWidth={lvl === 100 ? 1.2 : 0.8} strokeDasharray={lvl === 100 ? undefined : "3 3"} />
       ))}
@@ -875,7 +876,7 @@ function IcdRadar({ axes }: { axes: IcdAxesScores }) {
         return (
           <text key={ax} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontSize={11} fill="var(--text-sec)">
             <tspan fontWeight={600} fill="var(--text)">{AXIS_SHORT[ax]}</tspan>
-            <tspan> {Math.round(axes[ax] ?? 0)}</tspan>
+            <tspan> {formatIcdScore(axes[ax])}</tspan>
           </text>
         );
       })}
@@ -909,7 +910,7 @@ function VersoesTab({ data, onNavigate }: { data: LiderancaAdminSummary; onNavig
         <table className="data-table">
           <thead><tr><th>Capacidade</th><th>Versão vigente</th><th>Onde vive</th><th>Como muda</th></tr></thead>
           <tbody>
-            <tr><td>ICD CRIVO™ (4 eixos, P1–P8, escala, faixas)</td><td>Anexo Técnico ICD do Líder v1</td><td>@crivo/types (ICD_AXES, ICD_AXIS_QUESTIONS, ICD_MATURITY_BANDS)</td><td>Nova versão de metodologia por deploy</td></tr>
+            <tr><td>ICD CRIVO™ (4 eixos, P1–P8, escala, faixas)</td><td>Anexo Liderança/IA v1.1</td><td>@crivo/types (ICD_AXES, ICD_AXIS_QUESTIONS, ICD_MATURITY_BANDS)</td><td>Nova versão de metodologia por deploy</td></tr>
             <tr><td>CRIVO Pocket™ (banco C1–O2)</td><td>{data.pocketQuestionsVersion}</td><td>@crivo/types (POCKET_QUESTIONS, POCKET_QUESTIONS_VERSION)</td><td>Bump da versão por deploy; sessões antigas guardam a versão usada</td></tr>
             <tr><td>Mapa Executivo CRIVO™</td><td>{mapaVersao}</td><td>Motor de Diagnósticos › Diagnóstico Executivo</td><td>{onNavigate ? <a href="#" onClick={(e) => { e.preventDefault(); onNavigate("metodologia"); }}>versionado no Motor</a> : "versionado no Motor"}</td></tr>
           </tbody>

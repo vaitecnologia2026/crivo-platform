@@ -1,12 +1,14 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { Roles } from '../iam/roles.decorator';
+import { GESTAO_E_CONSULTORIA } from '../iam/role-groups';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { CollaboratorsService } from './collaborators.service';
 import {
@@ -20,13 +22,16 @@ import {
 /** Cadastro de colaboradores do tenant (link único p/ o diagnóstico contratado).
  *  Gate pelo módulo "campanhas" (mesmo dos diagnósticos) + tela "colaboradores". */
 @Controller('collaborators')
-@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard, RolesGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, ScreenAccessGuard, RolesGuard)
 @RequireModule('campanhas')
 @RequireScreen('colaboradores')
 export class CollaboratorsController {
   constructor(private readonly svc: CollaboratorsService) {}
 
+  // Cadastro com CPF, contato e vínculo — dado pessoal: só gestão e consultoria
+  // (antes qualquer papel com a tela liberada, inclusive LÍDER, listava todos).
   @Get()
+  @Roles(...GESTAO_E_CONSULTORIA)
   list(@CurrentUser() user: SessionUser) {
     return this.svc.list(user.tenantId);
   }
@@ -61,6 +66,7 @@ export class CollaboratorsController {
 
   /** Participantes de uma campanha (todo o cadastro + status DAQUELE ciclo). */
   @Get('campaign/:cycleId')
+  @Roles(...GESTAO_E_CONSULTORIA)
   participants(@CurrentUser() user: SessionUser, @Param('cycleId', new ParseUUIDPipe()) cycleId: string) {
     return this.svc.participants(user.tenantId, cycleId);
   }

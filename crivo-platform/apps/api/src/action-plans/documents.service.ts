@@ -3540,7 +3540,13 @@ export class DocumentsService {
     });
   }
 
-  async emit(tenantId: string, type: string, actorEmail?: string) {
+  async emit(
+    tenantId: string,
+    type: string,
+    actorEmail?: string,
+    // H-009: id e papel de quem emitiu (a versão é emissionNumber).
+    actor?: { id: string; role: string },
+  ) {
     // Snapshot do contexto no momento da emissão — método EFETIVO (solução
     // contratada primeiro), o mesmo que aparece no documento e no portal.
     const ctxEmissao = await this.context(tenantId);
@@ -3684,6 +3690,8 @@ export class DocumentsService {
           content: emittedDoc as unknown as object,
           contentHash,
           generatedBy: actorEmail ?? null,
+          generatedByUserId: actor?.id ?? null,
+          generatedByRole: actor?.role ?? null,
         },
       });
       return { emission, reused: false as const };

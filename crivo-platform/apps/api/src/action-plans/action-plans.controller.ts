@@ -25,6 +25,8 @@ import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { Roles } from '../iam/roles.decorator';
+import { GESTAO_E_CONSULTORIA, GESTAO_EMPRESA, LEITURA_GESTAO } from '../iam/role-groups';
+import { AuditService } from '../admin/audit.service';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { ActionPlansService } from './action-plans.service';
 import { CyclesService } from './cycles.service';
@@ -66,6 +68,7 @@ export class ActionPlansController {
     private readonly documents: DocumentsService,
     private readonly cycles: CyclesService,
     private readonly riskSvc: RiskSuggestionsService,
+    private readonly audit: AuditService,
   ) {}
 
   // ── Documentos gerados (Briefing §15) ──
@@ -92,8 +95,25 @@ export class ActionPlansController {
 
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
   @Post('documents/:type/emit')
-  emitDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
-    return this.documents.emit(user.tenantId, type, user.email);
+  async emitDocument(@CurrentUser() user: SessionUser, @Param('type') type: string) {
+    const r = await this.documents.emit(user.tenantId, type, user.email, { id: user.id, role: user.role });
+    // H-009: trilha da emissão oficial (usuário, papel, data/hora, versão).
+    // Reemissão idêntica devolve a existente e não gera nova entrada.
+    if (!r.reused) {
+      await this.audit.record({
+        action: 'report.emit',
+        actor: { id: user.id, email: user.email },
+        tenantId: user.tenantId,
+        target: r.emission.id,
+        meta: {
+          role: user.role,
+          type,
+          version: r.emission.emissionNumber,
+          contentHash: r.emission.contentHash,
+        },
+      });
+    }
+    return r;
   }
 
   @Roles('RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR', 'JURIDICO')
@@ -133,7 +153,15 @@ export class ActionPlansController {
     return { ghes: await this.riskSvc.ghesElegiveis(user.tenantId) };
   }
 
+  /** H-008 — usuários ativos e cargos/áreas do cadastro para vincular o responsável. */
+  @Roles(...GESTAO_E_CONSULTORIA)
+  @Get('responsible-options')
+  responsibleOptions(@CurrentUser() user: SessionUser) {
+    return this.plans.responsibleOptions(user.tenantId);
+  }
+
   @Post()
+  @Roles(...GESTAO_E_CONSULTORIA)
   createPlan(@CurrentUser() user: SessionUser, @Body() dto: CreateActionPlanDto) {
     return this.plans.createPlan(user.tenantId, dto);
   }
@@ -163,16 +191,19 @@ export class ActionPlansController {
 
   /** F2 — Registro de comunicação e devolutiva (TPL-002 §10). */
   @Get('devolutivas')
+  @Roles(...LEITURA_GESTAO)
   listDevolutivas(@CurrentUser() user: SessionUser) {
     return this.plans.listDevolutivas(user.tenantId);
   }
 
   @Post('devolutivas')
+  @Roles(...GESTAO_E_CONSULTORIA)
   createDevolutiva(@CurrentUser() user: SessionUser, @Body() dto: CreateDevolutivaDto) {
     return this.plans.createDevolutiva(user.tenantId, dto, user.name ?? user.email);
   }
 
   @Post(':planId/items')
+  @Roles(...GESTAO_E_CONSULTORIA)
   addItem(
     @CurrentUser() user: SessionUser,
     @Param('planId', ParseUUIDPipe) planId: string,
@@ -183,6 +214,7 @@ export class ActionPlansController {
 
   /** #61 — Importa um ActionTemplate (Biblioteca de Ações global) como item. */
   @Post(':planId/items-from-template/:templateId')
+  @Roles(...GESTAO_E_CONSULTORIA)
   addItemFromTemplate(
     @CurrentUser() user: SessionUser,
     @Param('planId', ParseUUIDPipe) planId: string,
@@ -193,6 +225,7 @@ export class ActionPlansController {
 
   /** Aceite da organização: as sugestões escolhidas viram ações do plano. */
   @Post(':planId/items-from-risk')
+  @Roles(...GESTAO_E_CONSULTORIA)
   acceptRiskSuggestions(
     @CurrentUser() user: SessionUser,
     @Param('planId', ParseUUIDPipe) planId: string,
@@ -201,12 +234,27 @@ export class ActionPlansController {
     return this.plans.acceptRiskSuggestions(user.tenantId, planId, dto.keys, user.name ?? user.email);
   }
 
+  /** Validação do plano é ato FORMAL da empresa (H-009): só a gestão. */
   @Post(':planId/validate')
-  validate(@CurrentUser() user: SessionUser, @Param('planId', ParseUUIDPipe) planId: string) {
-    return this.plans.validatePlan(user.tenantId, planId, user.name ?? user.email);
+  @Roles(...GESTAO_EMPRESA)
+  async validate(@CurrentUser() user: SessionUser, @Param('planId', ParseUUIDPipe) planId: string) {
+    const plan = await this.plans.validatePlan(user.tenantId, planId, user.name ?? user.email, user);
+    await this.audit.record({
+      action: 'plan.validate',
+      actor: { id: user.id, email: user.email },
+      tenantId: user.tenantId,
+      target: planId,
+      meta: {
+        role: user.role,
+        version: plan.validationVersion,
+        approvedItems: plan.items.filter((i) => i.status !== 'SUGERIDA' && i.status !== 'EM_REVISAO' && i.status !== 'NAO_ADOTADA').length,
+      },
+    });
+    return plan;
   }
 
   @Patch('items/:itemId')
+  @Roles(...GESTAO_E_CONSULTORIA)
   updateItem(
     @CurrentUser() user: SessionUser,
     @Param('itemId', ParseUUIDPipe) itemId: string,
@@ -216,22 +264,27 @@ export class ActionPlansController {
   }
 
   @Delete('items/:itemId')
+  @Roles(...GESTAO_E_CONSULTORIA)
   removeItem(@CurrentUser() user: SessionUser, @Param('itemId', ParseUUIDPipe) itemId: string) {
     return this.plans.removeItem(user.tenantId, itemId);
   }
 
+  // Evidência SEM OrganizacaoGuard e sem @Roles, de propósito: o responsável
+  // vinculado à ação (H-008) pode ser até um Líder, e o serviço só o deixa
+  // anexar/baixar na ação dele. As demais rotas do Plano barram o Líder por @Roles.
   @Post('items/:itemId/evidences')
   addEvidence(
     @CurrentUser() user: SessionUser,
     @Param('itemId', ParseUUIDPipe) itemId: string,
     @Body() dto: CreateEvidenceDto,
   ) {
-    return this.plans.addEvidence(user.tenantId, itemId, dto);
+    return this.plans.addEvidence(user.tenantId, itemId, dto, user);
   }
 
   /** Justificativa de conclusão validada pela EMPRESA (mesmo nível de
    *  permissão de validar o plano), não pela CRIVO. */
   @Post('evidences/:id/validate')
+  @Roles(...GESTAO_EMPRESA)
   validarJustificativa(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.plans.validarJustificativa(user.tenantId, id, user.name ?? user.email);
   }
@@ -253,6 +306,7 @@ export class ActionPlansController {
       itemId,
       { kind: body.kind || 'documento', title: body.title || file.originalname, note: body.note },
       file,
+      user,
     );
   }
 
@@ -263,7 +317,7 @@ export class ActionPlansController {
     @Param('id', ParseUUIDPipe) id: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    const f = await this.plans.getEvidenceFile(user.tenantId, id);
+    const f = await this.plans.getEvidenceFile(user.tenantId, id, user);
     res.set({
       'Content-Type': f.fileMime,
       'Content-Disposition': `attachment; filename="${encodeURIComponent(f.fileName)}"`,

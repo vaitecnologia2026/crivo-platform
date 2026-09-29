@@ -113,6 +113,7 @@ import type {
   TenantAiUseCaseContextData,
   UpdateTenantAiUseCaseContextRequest,
   TenantContextAuditEntry,
+  MyRoleData,
 } from '@crivo/types';
 import { mensagemDeErroApi } from '@crivo/types';
 
@@ -201,7 +202,11 @@ export async function apiFetch<T>(
       res.headers.get('x-request-id') ?? reqId,
     );
   }
-  return res.json() as Promise<T>;
+  // Rota que devolve `null` (ex.: /icd-cycles/me de quem ainda não tem ICD) sai
+  // do Nest com corpo VAZIO; `res.json()` quebrava ali e a tela mostrava "não
+  // foi possível carregar" no lugar de "você ainda não tem ICD".
+  const corpo = await res.text();
+  return (corpo ? JSON.parse(corpo) : null) as T;
 }
 
 /** Códigos dos módulos ativos da empresa do usuário logado (nav data-driven). */
@@ -214,9 +219,10 @@ export function getMyPermissions(): Promise<string[]> {
   return apiFetch<string[]>('/me/permissions');
 }
 
-/** Papel + nome do usuário logado (#51 — usado para HOME por papel). */
-export function getMyRole(): Promise<{ role: string; name: string; mustChangePassword?: boolean }> {
-  return apiFetch<{ role: string; name: string; mustChangePassword?: boolean }>('/me/role');
+/** Papel + nome do usuário logado (#51) e os contextos a que tem direito
+ *  (Minha Jornada / Área da Organização — @crivo/types contextos). */
+export function getMyRole(): Promise<MyRoleData> {
+  return apiFetch<MyRoleData>('/me/role');
 }
 
 /** #68 — RBAC dinâmico: tenant-roles + usuários. */
@@ -271,11 +277,12 @@ export function unassignTenantRole(roleId: string, userId: string): Promise<{ ok
   return apiFetch<{ ok: true }>(`/tenant-roles/${roleId}/users/${userId}`, { method: 'DELETE' });
 }
 
-/** #65 — Onboarding checklist (5 marcos do primeiro uso). */
+/**
+ * #65 — Onboarding checklist: marcos do primeiro uso DA ORGANIZAÇÃO (Dashboard
+ * da Área da Organização). Decisão e Pocket são pessoais do líder e ficam fora.
+ */
 export interface OnboardingStatus {
   termsAccepted: boolean;
-  firstDecisionRegistered: boolean;
-  firstPocketCompleted: boolean;
   firstCampaignCreated: boolean;
   firstPlanValidated: boolean;
   allDone: boolean;
@@ -314,6 +321,15 @@ export interface AnalyticsData {
   decisionsByPressure: Array<{ pressureFactor: string; count: number }>;
   pocketUsage: { totalSessions: number; concluded: number; byMoment: Record<string, number> };
   planSummary: { total: number; byStatus: Record<string, number>; byOrigin: Record<string, number> };
+  /** Menos de `minLeaders` líderes com decisão: categorias/pressão vêm vazias (supressão). */
+  decisionsSuppressed?: boolean;
+  /** Menos de `minLeaders` líderes com sessão Pocket: uso vem zerado (supressão). */
+  pocketSuppressed?: boolean;
+  minLeaders?: number;
+}
+/** H-008 — usuários ativos e cargos/áreas do cadastro para vincular o responsável da ação. */
+export function getActionResponsibleOptions(): Promise<import("@crivo/types").ActionResponsibleOptions> {
+  return apiFetch("/action-plans/responsible-options");
 }
 export function getMyAnalytics(): Promise<AnalyticsData> {
   return apiFetch<AnalyticsData>('/me/analytics');
@@ -428,8 +444,11 @@ export interface MentoriasResponse {
   rows: MentoriaTenantEntry[];
   contractedHours: number | null;
 }
-export function getMyMentorias(): Promise<MentoriasResponse> {
-  return apiFetch<MentoriasResponse>('/me/mentorias');
+/** `escopo: "minhas"` = só as mentorias de que a pessoa participa, qualquer que
+ *  seja o papel — é a visão de Minha Jornada (a Área da Organização usa a da
+ *  empresa, conforme o papel). */
+export function getMyMentorias(escopo?: 'minhas'): Promise<MentoriasResponse> {
+  return apiFetch<MentoriasResponse>(escopo ? `/me/mentorias?escopo=${escopo}` : '/me/mentorias');
 }
 
 /** F3 — Consolidado do Grupo Empresarial do usuário logado (403 se sem acesso). */

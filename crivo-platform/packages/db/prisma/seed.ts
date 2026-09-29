@@ -182,11 +182,13 @@ async function main() {
   });
 
   // 4) Líderes + avaliação + resposta + score ICD
+  // Todos têm Minha Jornada (isLeader): os LIDER por definição e os GESTOR (Ana,
+  // Marina) porque também são avaliados no ICD — são o "Líder + gestão" da demo.
   for (const l of LEADERS) {
     const leader = await prisma.user.create({
       data: {
         tenantId: org.id, email: l.email, name: l.name,
-        role: l.role, passwordHash: hash('crivo123'),
+        role: l.role, isLeader: true, passwordHash: hash('crivo123'),
       },
     });
     const assessment = await prisma.assessment.create({

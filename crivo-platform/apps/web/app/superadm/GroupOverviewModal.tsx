@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { BusinessGroupSummary, GroupAccessEntry, GroupOverview } from "@crivo/types";
-import { PLAN_LABELS } from "@crivo/types";
+import { PLAN_LABELS, formatIcdScore } from "@crivo/types";
 import {
   addGroupAccess,
   getGroupOverview,
@@ -133,7 +133,7 @@ export function GroupOverviewModal({
                 </div>
                 <div className="kpi">
                   <span className="kpi__label">ICD do grupo</span>
-                  <strong className="kpi__value">{c.icdAverage ?? "—"}</strong>
+                  <strong className="kpi__value">{formatIcdScore(c.icdAverage)}</strong>
                   <span className="kpi__delta">
                     {c.icdCovered > 0
                       ? `média de ${c.icdCovered} CNPJ${c.icdCovered === 1 ? "" : "s"} com ciclo fechado`
@@ -185,7 +185,7 @@ export function GroupOverviewModal({
                       <td className="cell-mute">{PLAN_LABELS[t.plan]}</td>
                       <td>
                         {t.icdScore != null ? (
-                          <span className={scorePill(t.icdScore)}>{t.icdScore}</span>
+                          <span className={scorePill(t.icdScore)}>{formatIcdScore(t.icdScore)}</span>
                         ) : t.icdSuppressed ? (
                           <span className="cell-mute" title="Suprimido pela regra de privacidade (menos de 5 líderes elegíveis)">
                             suprimido

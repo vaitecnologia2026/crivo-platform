@@ -14,9 +14,11 @@ import {
   type PocketAggregate,
   type CompanyQuarterlyIcdData,
   type IcdCycleData,
+  formatIcdScore,
 } from "@crivo/types";
 import { ApiError, getIcdCurrent, getIcdCurrentSummary, getIcdHistory, getPocketAggregate } from "@/lib/api";
 import { exportPDF, exportXLSX, useExportContext, type ExportSection, type ExportSheet } from "@/lib/exports";
+import { portalNavigate, usePortal } from "@/lib/portal-shell";
 
 /**
  * Programas › Liderança (rota `icd`) — painel EXCLUSIVAMENTE AGREGADO do
@@ -29,7 +31,7 @@ import { exportPDF, exportXLSX, useExportContext, type ExportSection, type Expor
  *   - Pocket       ← GET /pocket/aggregate (contagens por dimensão + adesão)
  * Tudo com supressão n < MIN_LEADERS_FOR_DISCLOSURE aplicada no servidor —
  * nada aqui recalcula nem individualiza. O que o líder faz (Pocket, Registro
- * de Decisão, ICD individual) fica na Área do Líder, não neste portal.
+ * de Decisão, ICD individual) fica em Minha Jornada, não na Área da Organização.
  *
  * Escala: o ICD oficial é 0–100 (Anexo §8: resposta 1–5 → (valor − 1) × 25).
  * O protótipo desenhava 0–5; aqui o eixo é o real, para não inventar escala.
@@ -42,30 +44,39 @@ import { exportPDF, exportXLSX, useExportContext, type ExportSection, type Expor
 type LoadStatus = "loading" | "error" | "ok";
 
 // 403 do ModuleGuard = módulo não contratado (icd ou pocket). Não é falha: a
-// tela explica de onde o dado viria quando o módulo for liberado.
-const moduloDesligado = (err: unknown) => err instanceof ApiError && err.status === 403;
+// tela explica de onde o dado viria quando o módulo for liberado. A mensagem do
+// ModuleGuard sempre cita o "Módulo" — é o que separa esse caso do 403 de
+// papel/perfil ("Permissão insuficiente", Área da Organização, telas liberadas),
+// em que o programa PODE estar ativo e a tela não pode afirmar o contrário.
+const moduloDesligado = (err: unknown) => err instanceof ApiError && err.status === 403 && /m[óo]dulo/i.test(err.message);
+const semPermissao = (err: unknown) => err instanceof ApiError && err.status === 403 && !moduloDesligado(err);
 
-/** Carrega um recurso agregado; `data` null + status ok = módulo desligado. */
-function useAgregado<T>(loader: () => Promise<T>): { data: T | null; status: LoadStatus; refresh: () => void } {
+/** Texto único para o 403 de perfil: não diz nada sobre o contrato. */
+const SEM_PERMISSAO = "Seu perfil não tem acesso a estes indicadores agregados.";
+
+/** Carrega um recurso agregado; `data` null + status ok = módulo desligado ou,
+ *  com `negado`, 403 de perfil (o programa pode estar ativo). */
+function useAgregado<T>(loader: () => Promise<T>): { data: T | null; status: LoadStatus; negado: boolean; refresh: () => void } {
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
+  const [negado, setNegado] = useState(false);
   const [tick, setTick] = useState(0);
   // Estado só muda APÓS o await (sem setState síncrono no effect) — o
   // "loading" do refetch é marcado no próprio handler `refresh`.
   useEffect(() => {
     let alive = true;
     loader()
-      .then((d) => { if (alive) { setData(d); setStatus("ok"); } })
+      .then((d) => { if (alive) { setData(d); setNegado(false); setStatus("ok"); } })
       .catch((err) => {
         if (!alive) return;
-        if (moduloDesligado(err)) { setData(null); setStatus("ok"); return; }
+        if (moduloDesligado(err) || semPermissao(err)) { setData(null); setNegado(semPermissao(err)); setStatus("ok"); return; }
         setStatus("error");
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
   const refresh = useCallback(() => { setStatus("loading"); setTick((t) => t + 1); }, []);
-  return { data, status, refresh };
+  return { data, status, negado, refresh };
 }
 
 // ── Ícones SVG de traço (regra do cliente: nunca emoji) ──
@@ -95,9 +106,8 @@ const AXIS_SHORT: Record<IcdAxis, string> = {
   SUSTENTACAO: "Sustentação",
 };
 
-const fmtDelta = (d: number) => `${d > 0 ? "+" : ""}${d}`;
+const fmtDelta = (d: number) => `${d > 0 ? "+" : ""}${formatIcdScore(d)}`;
 const cycleLabel = (c: IcdCycleData) => c.name || `${c.quarter}º tri/${c.year}`;
-const goToRoute = (route: string) => document.querySelector<HTMLElement>(`[data-route="${route}"]`)?.click();
 
 export function IcdScreen() {
   const summary = useAgregado<IcdCurrentSummary>(getIcdCurrentSummary);
@@ -106,6 +116,10 @@ export function IcdScreen() {
   const pocket = useAgregado<PocketAggregate>(() => getPocketAggregate());
   const exportCtx = useExportContext();
   const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
+  // "Ir para Minha Jornada" só para quem também é líder (tem o contexto JORNADA);
+  // o shell troca o contexto ao abrir a rota do outro lado.
+  const { session } = usePortal();
+  const temJornada = (session?.contexts ?? []).includes("JORNADA");
 
   const loading = [summary, current, history, pocket].some((r) => r.status === "loading");
   const refreshAll = () => { summary.refresh(); current.refresh(); history.refresh(); pocket.refresh(); };
@@ -116,16 +130,16 @@ export function IcdScreen() {
     const company = current.data?.company;
     const radar = ICD_AXES.map((ax) => ({
       Eixo: ICD_AXIS_LABEL[ax],
-      "Média (0–100)": company && !company.suppressed && company.score != null ? Math.round(company.axesAverage[ax] ?? 0) : "suprimido / sem dado",
+      "Média (0–100)": company && !company.suppressed && company.score != null ? formatIcdScore(company.axesAverage[ax]) : "suprimido / sem dado",
     }));
     const evolucao = (history.data ?? []).map((e) => ({
       Ciclo: cycleLabel(e.cycle),
       Status: e.cycle.status === "CLOSED" ? "Fechado" : "Aberto",
-      "ICD (0–100)": e.company?.score ?? (e.company?.suppressed ? "suprimido" : ""),
-      Clareza: e.company?.axesAverage?.CLAREZA ?? "",
-      Critério: e.company?.axesAverage?.CRITERIO ?? "",
-      Alinhamento: e.company?.axesAverage?.ALINHAMENTO ?? "",
-      Sustentação: e.company?.axesAverage?.SUSTENTACAO ?? "",
+      "ICD (0–100)": e.company?.score != null ? formatIcdScore(e.company.score) : e.company?.suppressed ? "suprimido" : "",
+      Clareza: e.company?.axesAverage ? formatIcdScore(e.company.axesAverage.CLAREZA) : "",
+      Critério: e.company?.axesAverage ? formatIcdScore(e.company.axesAverage.CRITERIO) : "",
+      Alinhamento: e.company?.axesAverage ? formatIcdScore(e.company.axesAverage.ALINHAMENTO) : "",
+      Sustentação: e.company?.axesAverage ? formatIcdScore(e.company.axesAverage.SUSTENTACAO) : "",
       "Líderes elegíveis": e.company?.eligibleLeaders ?? "",
     }));
     const p = pocket.data;
@@ -198,18 +212,20 @@ export function IcdScreen() {
           <IconPhone />
         </div>
         <div style={{ flex: 1, minWidth: 240 }}>
-          <h3 style={{ margin: 0 }}>Continuar na Área do Líder</h3>
+          <h3 style={{ margin: 0 }}>O individual fica em Minha Jornada</h3>
           <p className="card__sub" style={{ marginTop: 4 }}>
-            Pocket, Registro de Decisão, respostas, ICD individual, histórico pessoal e Mentor contextual ficam na Área do Líder.
-            O Portal apresenta apenas agregados autorizados (n ≥ {MIN_LEADERS_FOR_DISCLOSURE}) — sem individualização.
+            Pocket, Registro de Decisão, respostas, ICD individual, histórico pessoal e Mentor ficam em Minha Jornada, a área
+            privada de cada líder. A Área da Organização apresenta apenas agregados autorizados (n ≥ {MIN_LEADERS_FOR_DISCLOSURE}) — sem individualização.
           </p>
         </div>
-        <button className="btn btn--gold btn--sm" onClick={() => goToRoute("lider")} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-          Continuar na Área do Líder <IconArrow />
-        </button>
+        {temJornada && (
+          <button className="btn btn--gold btn--sm" onClick={() => portalNavigate("lider")} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            Ir para Minha Jornada <IconArrow />
+          </button>
+        )}
       </div>
       <p style={{ margin: "0 0 28px", fontSize: 12 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); goToRoute("relatorios"); }} style={{ color: "var(--gold-deep)" }}>
+        <a href="#" onClick={(e) => { e.preventDefault(); portalNavigate("relatorios"); }} style={{ color: "var(--gold-deep)" }}>
           Ver ações vinculadas no Plano de Evolução →
         </a>
       </p>
@@ -236,7 +252,9 @@ function Kpis({ summary, pocket }: { summary: ReturnType<typeof useAgregado<IcdC
   if (semModulo) {
     return (
       <div className="dash-state">
-        O programa Liderança (ICD) não está ativo para a sua empresa. Os indicadores aparecem aqui quando o módulo for liberado no contrato.
+        {summary.negado
+          ? SEM_PERMISSAO
+          : "O programa Liderança (ICD) não está ativo para a sua empresa. Os indicadores aparecem aqui quando o módulo for liberado no contrato."}
       </div>
     );
   }
@@ -250,7 +268,7 @@ function Kpis({ summary, pocket }: { summary: ReturnType<typeof useAgregado<IcdC
       <div className="kpi">
         <span className="kpi__label" title="Média dos ICDs trimestrais dos líderes elegíveis no ciclo aberto (Anexo §9.5). Suprimido abaixo de 5 líderes.">ICD médio (agregado)</span>
         <strong className="kpi__value">
-          {s.icdMedio != null ? s.icdMedio : "—"}
+          {s.icdMedio != null ? formatIcdScore(s.icdMedio) : "—"}
           {s.icdMedio != null && <small>/100</small>}
         </strong>
         {s.delta != null && s.lastClosed ? (
@@ -296,7 +314,7 @@ function Kpis({ summary, pocket }: { summary: ReturnType<typeof useAgregado<IcdC
             : pocket.status === "error"
               ? "Não foi possível carregar o Pocket."
               : !p
-                ? "Módulo Pocket não liberado para a empresa."
+                ? (pocket.negado ? SEM_PERMISSAO : "Módulo Pocket não liberado para a empresa.")
                 : p.suppressed
                   ? `Suprimido: ${p.participatingLeaders} líder(es) com sessão concluída (mínimo ${p.minLeadersForDisclosure}).`
                   : `${p.completedSessions} sessões concluídas · ${p.participatingLeaders} de ${p.eligibleLeaders} líderes${p.period ? ` · ${p.period.cycleName}` : " · todo o histórico"}`}
@@ -324,7 +342,7 @@ function RadarCard({ current }: { current: ReturnType<typeof useAgregado<{ cycle
 
       {current.status === "loading" && <p className="dash-state">Carregando os 4 Eixos…</p>}
       {current.status === "error" && <p className="dash-state dash-state--error">Não foi possível carregar os 4 Eixos.</p>}
-      {current.status === "ok" && !d && <p className="dash-state">Módulo ICD não liberado para a empresa.</p>}
+      {current.status === "ok" && !d && <p className="dash-state">{current.negado ? SEM_PERMISSAO : "Módulo ICD não liberado para a empresa."}</p>}
       {current.status === "ok" && d && !d.cycle && (
         <p className="dash-state">Nenhum ciclo trimestral aberto. O radar aparece quando um ciclo estiver aberto e houver decisões avaliadas pelo ICD.</p>
       )}
@@ -404,7 +422,7 @@ function EvolucaoCard({ history }: { history: ReturnType<typeof useAgregado<IcdC
 
       {history.status === "loading" && <p className="dash-state">Carregando ciclos…</p>}
       {history.status === "error" && <p className="dash-state dash-state--error">Não foi possível carregar a evolução.</p>}
-      {history.status === "ok" && !h && <p className="dash-state">Módulo ICD não liberado para a empresa.</p>}
+      {history.status === "ok" && !h && <p className="dash-state">{history.negado ? SEM_PERMISSAO : "Módulo ICD não liberado para a empresa."}</p>}
       {history.status === "ok" && h && fechados.length === 0 && (
         <p className="dash-state">Nenhum ciclo trimestral fechado ainda. A evolução é registrada no fechamento de cada ciclo.</p>
       )}
@@ -459,7 +477,7 @@ function Linhas({ entries }: { entries: IcdCycleHistoryEntry[] }) {
             />
             {entries.map((e, i) => (
               <circle key={e.cycle.id} cx={x(i)} cy={y(e.company!.axesAverage![ax] ?? 0)} r={3} fill={AXIS_COLOR[ax]}>
-                <title>{cycleLabel(e.cycle)} · {ICD_AXIS_LABEL[ax]}: {Math.round(e.company!.axesAverage![ax] ?? 0)}</title>
+                <title>{cycleLabel(e.cycle)} · {ICD_AXIS_LABEL[ax]}: {formatIcdScore(e.company!.axesAverage![ax])}</title>
               </circle>
             ))}
           </g>
@@ -494,7 +512,9 @@ function PocketCard({ pocket }: { pocket: ReturnType<typeof useAgregado<PocketAg
       {pocket.status === "loading" && <p className="dash-state">Carregando Pocket…</p>}
       {pocket.status === "error" && <p className="dash-state dash-state--error">Não foi possível carregar o agregado do Pocket.</p>}
       {pocket.status === "ok" && !p && (
-        <p className="dash-state">Módulo Pocket não liberado para a empresa. O gráfico aparece quando o CRIVO Pocket™ for contratado.</p>
+        <p className="dash-state">
+          {pocket.negado ? SEM_PERMISSAO : "Módulo Pocket não liberado para a empresa. O gráfico aparece quando o CRIVO Pocket™ for contratado."}
+        </p>
       )}
       {pocket.status === "ok" && p && p.suppressed && (
         <p className="dash-state">
@@ -522,7 +542,7 @@ function PocketCard({ pocket }: { pocket: ReturnType<typeof useAgregado<PocketAg
             ))}
           </div>
           <span className="card__eyebrow" style={{ display: "block", marginTop: 12 }}>
-            Fonte: Pocket CRIVO · sessões concluídas na Área do Líder · {p.period ? `ciclo ${p.period.cycleName}` : "todo o histórico"} · {p.completedSessions} sessões · sem individualização
+            Fonte: Pocket CRIVO · sessões concluídas em Minha Jornada · {p.period ? `ciclo ${p.period.cycleName}` : "todo o histórico"} · {p.completedSessions} sessões · sem individualização
           </span>
         </>
       )}

@@ -34,6 +34,11 @@ export class CreateUserDto {
   @IsArray()
   @IsString({ each: true })
   screenAccess?: string[] | null;
+
+  // Também é líder (Minha Jornada). O papel LIDER é sempre líder (o service força).
+  @IsOptional()
+  @IsBoolean()
+  isLeader?: boolean;
 }
 
 export class UpdateUserDto {
@@ -49,4 +54,9 @@ export class UpdateUserDto {
   @IsArray()
   @IsString({ each: true })
   screenAccess?: string[] | null;
+
+  // Também é líder (Minha Jornada). Ausente = mantém o atual; trocar para LIDER força true.
+  @IsOptional()
+  @IsBoolean()
+  isLeader?: boolean;
 }

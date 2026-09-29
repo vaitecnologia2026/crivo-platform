@@ -22,10 +22,15 @@ import {
 import { ICD_AXIS_QUESTIONS } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
+import { LeaderGuard } from '../iam/guards/leader.guard';
 import { Roles } from '../iam/roles.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import type { SessionUser } from '@crivo/types';
 
+// Catálogos (categorias, públicos, P1–P8) valem para qualquer papel; as rotas
+// da decisão em si são conteúdo PRIVADO de Minha Jornada (LeaderGuard, depois
+// do AuthGuard da classe) — "Somente Administrador" não registra decisão nem
+// entra no ICD da empresa (Spec V1 v1.2 §3).
 @Controller('decisions')
 @UseGuards(AuthGuard, RolesGuard)
 export class DecisionsController {
@@ -66,12 +71,14 @@ export class DecisionsController {
    *    feito no endpoint /icd/dashboard. Aqui mantemos sempre o escopo do líder
    *    para garantir a privacidade individual. */
   @Get()
+  @UseGuards(LeaderGuard)
   list(@CurrentUser() user: SessionUser, @Query() query: ListDecisionsQueryDto) {
     return this.decisions.list(user.tenantId, user.id, query, true);
   }
 
   /** Detalhe de uma decisão (apenas a própria). */
   @Get(':id')
+  @UseGuards(LeaderGuard)
   get(
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -81,11 +88,13 @@ export class DecisionsController {
 
   /** Cria uma decisão como REGISTRADA. */
   @Post()
+  @UseGuards(LeaderGuard)
   create(@CurrentUser() user: SessionUser, @Body() dto: CreateDecisionDto) {
     return this.decisions.create(user.tenantId, user.id, dto);
   }
 
   @Put(':id')
+  @UseGuards(LeaderGuard)
   update(
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -95,6 +104,7 @@ export class DecisionsController {
   }
 
   @Delete(':id')
+  @UseGuards(LeaderGuard)
   remove(
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -114,6 +124,7 @@ export class DecisionsController {
   /** Submete as 8 respostas P1-P8 da decisão. Calcula e persiste o ICD,
    *  promove a decisão para AVALIADA_PELO_ICD. Apenas o líder dono. */
   @Post(':id/icd')
+  @UseGuards(LeaderGuard)
   submitIcd(
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -124,6 +135,7 @@ export class DecisionsController {
 
   /** ICD persistido da decisão (apenas a própria). */
   @Get(':id/icd')
+  @UseGuards(LeaderGuard)
   getIcd(
     @CurrentUser() user: SessionUser,
     @Param('id', new ParseUUIDPipe()) id: string,

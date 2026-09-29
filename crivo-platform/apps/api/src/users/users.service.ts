@@ -2,8 +2,15 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcryptjs';
 import { Prisma, type User } from '@crivo/db';
-import type { CreateUserRequest, CreateUserResult, UpdateUserRequest, UserSummary } from '@crivo/types';
+import {
+  isLeaderUser,
+  type CreateUserRequest,
+  type CreateUserResult,
+  type UpdateUserRequest,
+  type UserSummary,
+} from '@crivo/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService, type AuditActor } from '../admin/audit.service';
 import { MeteringService } from '../metering/metering.service';
 
 /** Senha temporária legível (sem caracteres ambíguos). */
@@ -19,6 +26,7 @@ function toSummary(u: User): UserSummary {
     email: u.email,
     name: u.name,
     role: u.role as UserSummary['role'],
+    isLeader: isLeaderUser(u),
     active: u.active,
     screenAccess: Array.isArray(u.screenAccess) ? (u.screenAccess as string[]) : null,
     createdAt: u.createdAt.toISOString(),
@@ -30,6 +38,17 @@ function normalizeScreens(v: unknown): string[] | null {
   if (!Array.isArray(v)) return null;
   const list = v.filter((x): x is string => typeof x === 'string' && x.length > 0);
   return list.length ? Array.from(new Set(list)) : null;
+}
+
+/**
+ * Marcação de líder (Minha Jornada — Spec V1 v1.2 §3) que vai para o banco.
+ * O papel LIDER é SEMPRE líder; para os demais papéis vale o que veio, e sem
+ * valor informado fica o atual (`current`; na criação, false). Exportada para
+ * o cadastro do Super Admin usar a mesma regra.
+ */
+export function resolveIsLeader(role: string, informed: boolean | undefined, current = false): boolean {
+  if (role === 'LIDER') return true;
+  return informed ?? current;
 }
 
 /** Cargos administrativos elevados — só quem já os tem pode concedê-los. */
@@ -55,6 +74,9 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metering: MeteringService,
+    // S12-09 (Arquitetura v3.1 §4/§16): mudança de usuário, papel e acesso é
+    // crítica e vai para a trilha de auditoria. Opcional só para os testes.
+    private readonly audit?: AuditService,
   ) {}
 
   list(tenantId: string): Promise<UserSummary[]> {
@@ -68,6 +90,7 @@ export class UsersService {
     tenantId: string,
     dto: CreateUserRequest,
     actorRole: string,
+    actor?: AuditActor,
   ): Promise<CreateUserResult> {
     assertCanAssignRole(actorRole, dto.role);
     const email = dto.email.toLowerCase().trim();
@@ -93,12 +116,23 @@ export class UsersService {
           email,
           name: dto.name.trim(),
           role: dto.role,
-          screenAccess: normalizeScreens(dto.screenAccess) ?? undefined,
+          isLeader: resolveIsLeader(dto.role, dto.isLeader),
+          // Papel LIDER não usa a checklist de telas (ela é só da Área da
+          // Organização e a UI não a mostra para ele): grava NULL e ignora a lista.
+          screenAccess:
+            dto.role === 'LIDER' ? Prisma.DbNull : (normalizeScreens(dto.screenAccess) ?? undefined),
           passwordHash: bcrypt.hashSync(password, 12),
         },
       });
     });
 
+    await this.audit?.record({
+      action: 'user.create',
+      actor,
+      tenantId,
+      target: user.id,
+      meta: { email, role: user.role, isLeader: user.isLeader, screenAccess: user.screenAccess ?? null },
+    });
     return { user: toSummary(user), tempPassword: generated ? password : undefined };
   }
 
@@ -111,14 +145,15 @@ export class UsersService {
     return { active, max };
   }
 
-  update(
+  async update(
     tenantId: string,
     id: string,
     dto: UpdateUserRequest,
     actorRole: string,
+    actor?: AuditActor,
   ): Promise<UserSummary> {
     assertCanAssignRole(actorRole, dto.role);
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    const result = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.user.findFirst({ where: { id } });
       if (!existing) throw new NotFoundException('Usuário não encontrado');
       // Não permitir que um não-elevado rebaixe/mexa num ADMIN/CEO existente.
@@ -131,19 +166,48 @@ export class UsersService {
       if (dto.active === true && !existing.active) {
         await this.metering.assertUserQuota(tx, tenantId);
       }
+      const role = dto.role ?? existing.role;
+      const isLeader = resolveIsLeader(role, dto.isLeader, existing.isLeader);
       const updated = await tx.user.update({
         where: { id },
         data: {
           role: dto.role,
           active: dto.active,
+          ...(isLeader !== existing.isLeader ? { isLeader } : {}),
           // screenAccess: undefined = não mexe; [] ou null = limpa (sem restrição).
-          ...(dto.screenAccess !== undefined
-            ? { screenAccess: normalizeScreens(dto.screenAccess) ?? Prisma.DbNull }
-            : {}),
+          // Papel LIDER (novo ou mantido) não usa a checklist — ela é só da Área
+          // da Organização e a UI não a mostra para ele: grava NULL e ignora a
+          // lista enviada, senão uma checklist antiga ficaria presa sem correção.
+          ...(role === 'LIDER'
+            ? { screenAccess: Prisma.DbNull }
+            : dto.screenAccess !== undefined
+              ? { screenAccess: normalizeScreens(dto.screenAccess) ?? Prisma.DbNull }
+              : {}),
+          // O papel vai CONGELADO no JWT (o @Roles lê o token): sem derrubar as
+          // sessões, um rebaixamento só valeria no próximo login (até 7 dias).
+          // `isLeader` não precisa — o AuthGuard lê do banco a cada request.
+          ...(role !== existing.role ? { tokenVersion: { increment: 1 } } : {}),
         },
       });
-      return toSummary(updated);
+      return { before: existing, after: updated };
     });
+    // Antes → depois só dos campos que mudaram (papel, líder, ativo, telas).
+    const changes: Record<string, { before: unknown; after: unknown }> = {};
+    for (const k of ['role', 'isLeader', 'active', 'screenAccess'] as const) {
+      const b = result.before[k] ?? null;
+      const a = result.after[k] ?? null;
+      if (JSON.stringify(b) !== JSON.stringify(a)) changes[k] = { before: b, after: a };
+    }
+    if (Object.keys(changes).length) {
+      await this.audit?.record({
+        action: 'user.update',
+        actor,
+        tenantId,
+        target: id,
+        meta: { email: result.after.email, changes },
+      });
+    }
+    return toSummary(result.after);
   }
 
   /**
@@ -152,13 +216,14 @@ export class UsersService {
    * abre WhatsApp, então sem isto toda senha perdida virava chamado para a
    * equipe CRIVO — que precisava entrar no Super Admin para desbloquear.
    */
-  resetPassword(
+  async resetPassword(
     tenantId: string,
     id: string,
     actorRole: string,
     actorId: string,
+    actor?: AuditActor,
   ): Promise<{ user: UserSummary; tempPassword: string }> {
-    return this.prisma.forTenant(tenantId, async (tx) => {
+    const r = await this.prisma.forTenant(tenantId, async (tx) => {
       const existing = await tx.user.findFirst({ where: { id } });
       if (!existing) throw new NotFoundException('Usuário não encontrado');
       // A própria senha se troca em "Trocar senha" (topo da tela), que exige a
@@ -188,5 +253,14 @@ export class UsersService {
       });
       return { user: toSummary(updated), tempPassword: password };
     });
+    // Sem a senha, claro: só quem redefiniu e de quem.
+    await this.audit?.record({
+      action: 'user.reset-password',
+      actor: actor ?? { id: actorId },
+      tenantId,
+      target: id,
+      meta: { email: r.user.email },
+    });
+    return r;
   }
 }

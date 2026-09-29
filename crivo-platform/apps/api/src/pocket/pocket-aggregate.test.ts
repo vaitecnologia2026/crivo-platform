@@ -97,6 +97,22 @@ describe('PocketService.aggregate — agregado por dimensão com supressão', ()
     expect(a.questionsVersion).toBe(POCKET_QUESTIONS_VERSION);
   });
 
+  it('o denominador da adesão conta líderes ativos com papel LIDER OU marcados como líder', async () => {
+    const { svc, tx } = build({
+      leaders: 5,
+      sessions: ['l1', 'l2', 'l3', 'l4', 'l5'].map((l) => sessao(l, [['C1', 'texto']])),
+    });
+
+    const a = await svc.aggregate(TENANT);
+
+    // Um GESTOR/ADMIN marcado como líder que faz Pocket também está no total:
+    // a adesão não passa mais de 100%.
+    expect(a.adhesionPct).toBe(100);
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: { active: true, OR: [{ role: 'LIDER' }, { isLeader: true }] },
+    });
+  });
+
   it('eligibleLeaders = 0: adhesionPct por tema vem null (mesmo padrão do adhesionPct agregado)', async () => {
     const { svc } = build({
       leaders: 0,

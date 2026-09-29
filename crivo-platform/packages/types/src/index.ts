@@ -23,6 +23,9 @@ export interface SessionUser {
   email: string;
   name: string;
   role: Role;
+  /** Marcado como líder (Minha Jornada) além do papel — lido do BANCO a cada
+   *  request pelo AuthGuard (não vai no JWT). Ver contextos.ts. */
+  isLeader?: boolean;
 }
 
 // ── RBAC dinâmico (F3) — catálogo de permissões módulo:ação ──
@@ -98,6 +101,8 @@ export interface UserSummary {
   email: string;
   name: string;
   role: Role;
+  /** Também é líder: tem Minha Jornada além da Área da Organização (papel LIDER é sempre líder). */
+  isLeader: boolean;
   active: boolean;
   /** Telas (rotas) que o usuário pode acessar; null = sem restrição (papel/módulo decidem). */
   screenAccess: string[] | null;
@@ -110,12 +115,15 @@ export interface CreateUserRequest {
   role: Role;
   password?: string; // gerado quando ausente (retornado uma única vez)
   screenAccess?: string[] | null;
+  /** Também é líder (Minha Jornada). Ignorado para o papel LIDER, que é sempre líder. */
+  isLeader?: boolean;
 }
 
 export interface UpdateUserRequest {
   role?: Role;
   active?: boolean;
   screenAccess?: string[] | null;
+  isLeader?: boolean;
 }
 
 /** Uso de assentos (limite de usuários ativos) — limite vem do Produto da empresa. */
@@ -2163,13 +2171,62 @@ export const INVENTORY_RISK_LABEL: Record<InventoryRiskLevel, string> = {
   CRITICO: 'Crítico',
 };
 
+/** H-008 (decisão CRIVO 28/09/2026) — como o responsável da ação formal está
+ *  vinculado. Texto livre só para EXTERNO ou EXCECAO (esta com motivo). */
+export const ACTION_RESPONSIBLE_TYPES = ['USUARIO', 'CARGO', 'AREA', 'EXTERNO', 'EXCECAO'] as const;
+export type ActionResponsibleType = (typeof ACTION_RESPONSIBLE_TYPES)[number];
+export const ACTION_RESPONSIBLE_TYPE_LABEL: Record<ActionResponsibleType, string> = {
+  USUARIO: 'Usuário da empresa',
+  CARGO: 'Cargo',
+  AREA: 'Área',
+  EXTERNO: 'Externo',
+  EXCECAO: 'Exceção (com motivo)',
+};
+
+/** O responsável está vinculado como a regra exige para APROVAR a ação?
+ *  USUARIO precisa do id; CARGO/AREA/EXTERNO do nome; EXCECAO de nome e motivo.
+ *  Sem tipo (texto legado ou sugestão) = não vinculado. */
+export function responsavelVinculado(i: {
+  responsibleType?: string | null;
+  responsibleUserId?: string | null;
+  responsible?: string | null;
+  responsibleReason?: string | null;
+}): boolean {
+  const nome = !!i.responsible?.trim();
+  switch (i.responsibleType) {
+    case 'USUARIO':
+      return !!i.responsibleUserId && nome;
+    case 'CARGO':
+    case 'AREA':
+    case 'EXTERNO':
+      return nome;
+    case 'EXCECAO':
+      return nome && !!i.responsibleReason?.trim();
+    default:
+      return false;
+  }
+}
+
+/** Opções do cadastro para vincular o responsável (GET /action-plans/responsible-options). */
+export interface ActionResponsibleOptions {
+  users: Array<{ id: string; name: string; role: string }>;
+  /** Cargos distintos do cadastro de colaboradores. */
+  cargos: string[];
+  /** Áreas/setores distintos do cadastro de colaboradores. */
+  areas: string[];
+}
+
 export interface ActionItemData {
   id: string;
   planId: string;
   point: string;
   origin: string | null;
   action: string;
+  /** Nome exibido do responsável (usuário, cargo, área ou texto externo/exceção). */
   responsible: string | null;
+  responsibleType: ActionResponsibleType | null;
+  responsibleUserId: string | null;
+  responsibleReason: string | null;
   dueDate: string | null;
   status: ActionStatus;
   expectedEvidence: string | null;
@@ -2213,6 +2270,9 @@ export interface ActionPlanData {
   sourceInstrumentName: string | null;
   validatedAt: string | null;
   validatedBy: string | null;
+  /** H-009: papel de quem validou e quantas validações o plano teve (0 = nunca). */
+  validatedByRole: string | null;
+  validationVersion: number;
   createdAt: string;
   items: ActionItemData[];
 }
@@ -2228,6 +2288,12 @@ export interface CreateActionItemRequest {
   sourceInstrumentSlug?: string;
   action: string;
   responsible?: string;
+  /** H-008: tipo do vínculo. Ausente = texto sem vínculo (não pode aprovar). */
+  responsibleType?: ActionResponsibleType | null;
+  /** Obrigatório quando responsibleType = USUARIO. */
+  responsibleUserId?: string | null;
+  /** Obrigatório quando responsibleType = EXCECAO. */
+  responsibleReason?: string | null;
   dueDate?: string | null;
   expectedEvidence?: string;
   exposedGroup?: string;
@@ -2247,6 +2313,9 @@ export interface UpdateActionItemRequest {
   sourceInstrumentSlug?: string | null;
   action?: string;
   responsible?: string;
+  responsibleType?: ActionResponsibleType | null;
+  responsibleUserId?: string | null;
+  responsibleReason?: string | null;
   dueDate?: string | null;
   status?: ActionStatus;
   expectedEvidence?: string;
@@ -3219,7 +3288,8 @@ export function computeDecisionIcd(
     scoresById.set(a.id, icdAxisValueToScore(a.value));
   }
 
-  // Média por eixo (§9.1): cada eixo tem 2 afirmações.
+  // Média por eixo (§9.1): cada eixo tem 2 afirmações. Precisão total —
+  // decisão CRIVO 28/09/2026: arredondar só na exibição (formatIcdScore).
   const axes: IcdAxesScores = {
     CLAREZA: 0,
     CRITERIO: 0,
@@ -3229,13 +3299,11 @@ export function computeDecisionIcd(
   for (const axis of ICD_AXES) {
     const qs = ICD_AXIS_QUESTIONS.filter((q) => q.axis === axis);
     const sum = qs.reduce((acc, q) => acc + (scoresById.get(q.id) ?? 0), 0);
-    axes[axis] = Math.round(sum / qs.length);
+    axes[axis] = sum / qs.length;
   }
 
   // ICD da decisão (§9.2): média dos 4 eixos.
-  const score = Math.round(
-    (axes.CLAREZA + axes.CRITERIO + axes.ALINHAMENTO + axes.SUSTENTACAO) / 4,
-  );
+  const score = (axes.CLAREZA + axes.CRITERIO + axes.ALINHAMENTO + axes.SUSTENTACAO) / 4;
 
   return { score, axes, answers, weight: DECISION_IMPACT_WEIGHT[impact] };
 }
@@ -3258,28 +3326,38 @@ export interface DecisionIcdData {
 }
 
 // =====================================================================
-// CICLO TRIMESTRAL DO ICD — Anexo Técnico ICD do Líder v1, §9.4–§9.6,
-// §10 (faixas de maturidade), §11 (privacidade/supressão).
+// CICLO DO ICD — Anexo Técnico Liderança/IA v1.1, §6.2 (fórmulas), §6.3
+// (faixas oficiais), §7 (privacidade/supressão).
 // =====================================================================
 
-/** Faixas de Maturidade Decisória (Anexo §10). Ordem: pior → melhor. */
+/** Faixas oficiais do ICD (Anexo v1.1 §6.3). Ordem: pior → melhor.
+ *  `min`/`max` são os limites publicados (inteiros); a classificação usa o
+ *  valor BRUTO pelo limite inferior (decisão CRIVO 28/09/2026): 79,6 é
+ *  Consistente, 80 é Forte. Substitui as 6 faixas de "Maturidade Decisória"
+ *  do anexo v1 (arquivado). */
 export const ICD_MATURITY_BANDS = [
-  { key: 'CRITICA', min: 0, max: 49, label: 'Maturidade Decisória Crítica' },
-  { key: 'DESENVOLVIMENTO', min: 50, max: 64, label: 'Maturidade Decisória em Desenvolvimento' },
-  { key: 'FUNCIONAL', min: 65, max: 74, label: 'Maturidade Decisória Funcional' },
-  { key: 'CONSISTENTE', min: 75, max: 84, label: 'Maturidade Decisória Consistente' },
-  { key: 'AVANCADA', min: 85, max: 94, label: 'Maturidade Decisória Avançada' },
-  { key: 'ELEVADA', min: 95, max: 100, label: 'Maturidade Decisória Elevada — validar consistência' },
+  { key: 'CRITICA', min: 0, max: 49, label: 'Coerência Crítica' },
+  { key: 'VULNERAVEL', min: 50, max: 64, label: 'Coerência Vulnerável' },
+  { key: 'CONSISTENTE', min: 65, max: 79, label: 'Coerência Consistente' },
+  { key: 'FORTE', min: 80, max: 100, label: 'Coerência Forte' },
 ] as const;
 
 export type IcdMaturityBand = (typeof ICD_MATURITY_BANDS)[number]['key'];
 
-/** Mapeia um score 0–100 na faixa de maturidade correspondente (Anexo §10). */
+/** Mapeia um score 0–100 (valor bruto, sem arredondar) na faixa oficial. */
 export function getIcdMaturityBand(score: number): typeof ICD_MATURITY_BANDS[number] {
-  const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  const band = ICD_MATURITY_BANDS.find((b) => clamped >= b.min && clamped <= b.max);
-  // Garantido pela cobertura 0..100 do array; defensivamente devolve a primeira.
-  return band ?? ICD_MATURITY_BANDS[0];
+  let band: typeof ICD_MATURITY_BANDS[number] = ICD_MATURITY_BANDS[0];
+  for (const b of ICD_MATURITY_BANDS) {
+    if (score >= b.min) band = b;
+  }
+  return band;
+}
+
+/** Exibição oficial do ICD: 1 casa decimal com vírgula ("72,5"). O valor
+ *  guardado tem precisão total; só a tela arredonda (decisão CRIVO 28/09/2026). */
+export function formatIcdScore(score: number | null | undefined): string {
+  if (typeof score !== 'number' || !Number.isFinite(score)) return '—';
+  return score.toFixed(1).replace('.', ',');
 }
 
 /** Anexo §11 — recortes (área/cargo/unidade) só são exibidos com volume mínimo.
@@ -3298,7 +3376,7 @@ export function applyIcdSuppression(leaderScores: number[]): {
   if (count < MIN_LEADERS_FOR_DISCLOSURE) {
     return { suppressed: true, score: null, count };
   }
-  const score = Math.round(leaderScores.reduce((sum, s) => sum + s, 0) / count);
+  const score = leaderScores.reduce((sum, s) => sum + s, 0) / count;
   return { suppressed: false, score, count };
 }
 
@@ -3315,9 +3393,7 @@ export function computeLeaderQuarterlyIcd(scores: Array<{ score: number; weight:
   if (eligible.length === 0) return null;
 
   const totalWeight = eligible.reduce((sum, s) => sum + s.weight, 0);
-  const score = Math.round(
-    eligible.reduce((sum, s) => sum + s.score * s.weight, 0) / totalWeight,
-  );
+  const score = eligible.reduce((sum, s) => sum + s.score * s.weight, 0) / totalWeight;
 
   // Média ponderada por eixo (mesma fórmula §9.1+§9.4 aplicada por dimensão).
   const axes: IcdAxesScores = { CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 };
@@ -3326,7 +3402,7 @@ export function computeLeaderQuarterlyIcd(scores: Array<{ score: number; weight:
       (sum, s) => sum + ((s.axes?.[axis] ?? 0) * s.weight),
       0,
     );
-    axes[axis] = Math.round(weighted / totalWeight);
+    axes[axis] = weighted / totalWeight;
   }
 
   return {
@@ -3356,11 +3432,9 @@ export function computeCompanyQuarterlyIcd(
   // dado individual. Tudo zerado; só `eligibleLeaders` (contagem) e `suppressed`.
   const distribution: Record<IcdMaturityBand, number> = {
     CRITICA: 0,
-    DESENVOLVIMENTO: 0,
-    FUNCIONAL: 0,
+    VULNERAVEL: 0,
     CONSISTENTE: 0,
-    AVANCADA: 0,
-    ELEVADA: 0,
+    FORTE: 0,
   };
   const axesAverage: IcdAxesScores = { CLAREZA: 0, CRITERIO: 0, ALINHAMENTO: 0, SUSTENTACAO: 0 };
   if (!suppression.suppressed && leaderScores.length > 0) {
@@ -3369,7 +3443,7 @@ export function computeCompanyQuarterlyIcd(
     }
     for (const axis of ICD_AXES) {
       const sum = leaderScores.reduce((acc, l) => acc + (l.axesAverage[axis] ?? 0), 0);
-      axesAverage[axis] = Math.round(sum / leaderScores.length);
+      axesAverage[axis] = sum / leaderScores.length;
     }
   }
 
@@ -3709,73 +3783,10 @@ export interface LiderancaAdminSummary {
   pocketQuestionsVersion: string;
 }
 
-// ── Área do Líder — Trilha de desenvolvimento + Copiloto CRIVO (Briefing §6/§7) ──
-// A trilha é DERIVADA do ICD do líder: a tensão dominante (4 Rs) define o foco e
-// as práticas. Não é personalidade nem saúde mental — é coerência decisória sob
-// pressão. O Copiloto é um apoio reflexivo (IA), não um diagnóstico.
-
-export interface LeaderTrack {
-  /** Tensão dominante a que a trilha responde. */
-  tension: DominantPattern;
-  title: string;
-  focus: string;
-  /** Práticas concretas para desenvolver a coerência naquela tensão. */
-  practices: string[];
-}
-
-/** Mapa tensão dominante (4 Rs) → trilha de desenvolvimento do líder. */
-export const LEADER_TRACKS: Record<DominantPattern, LeaderTrack> = {
-  REATIVIDADE: {
-    tension: 'REATIVIDADE',
-    title: 'Decidir sob pressão sem reagir no impulso',
-    focus: 'Criar um intervalo entre o estímulo e a decisão para reduzir reações automáticas.',
-    practices: [
-      'Antes de decisões quentes, nomeie a emoção e respire 3 vezes antes de responder.',
-      'Adote a regra das “24h” para decisões reversíveis de alto impacto emocional.',
-      'Registre 1 decisão por semana: o que pressionava, o que decidi, o que faria diferente.',
-    ],
-  },
-  RIGIDEZ: {
-    tension: 'RIGIDEZ',
-    title: 'Rever decisões diante de novos dados',
-    focus: 'Sustentar firmeza sem fechar para evidências e leituras divergentes da equipe.',
-    practices: [
-      'Em cada decisão, pergunte: “qual dado me faria mudar de ideia?”.',
-      'Convide ativamente uma visão contrária antes de fechar a posição.',
-      'Revise mensalmente uma decisão mantida e avalie se ainda se sustenta.',
-    ],
-  },
-  REPERCUSSAO: {
-    tension: 'REPERCUSSAO',
-    title: 'Decidir pelo mérito, não pela imagem',
-    focus: 'Separar a decisão necessária do receio de como ela será percebida.',
-    practices: [
-      'Explicite o critério técnico/de negócio antes de pensar na repercussão.',
-      'Identifique a decisão que você adia por medo de reação e dê o primeiro passo.',
-      'Comunique o “porquê” da decisão — clareza reduz ruído de percepção.',
-    ],
-  },
-  RISCO: {
-    tension: 'RISCO',
-    title: 'Equilibrar proteção e oportunidade',
-    focus: 'Decidir buscando ganho legítimo, não apenas evitando ameaças.',
-    practices: [
-      'Para cada decisão defensiva, descreva também o ganho que ela pode destravar.',
-      'Dimensione o risco real (probabilidade × impacto) antes de recuar.',
-      'Defina o “custo de não agir” — muitas vezes maior que o risco temido.',
-    ],
-  },
-  EQUILIBRADO: {
-    tension: 'EQUILIBRADO',
-    title: 'Sustentar a coerência e desenvolver o time',
-    focus: 'Sua leitura está equilibrada nos 4 Rs — consolide o padrão e apoie pares.',
-    practices: [
-      'Documente como você decide bem sob pressão e compartilhe com a equipe.',
-      'Atue como referência em decisões difíceis de outros líderes.',
-      'Mantenha o ritual de revisão para não perder a coerência sob estresse.',
-    ],
-  },
-};
+// ── Área do Líder — Copiloto CRIVO (Briefing §6/§7) ──
+// O Copiloto é um apoio reflexivo (IA), não um diagnóstico. A trilha de
+// desenvolvimento vem do eixo mais fraco do ICD (ICD_AXIS_TRACKS, abaixo); a
+// trilha antiga pela tensão dominante dos "4 Rs" foi removida (Anexo v1.1 §6).
 
 /** Pergunta ao Copiloto CRIVO (apoio reflexivo do líder). O contexto do ICD é
  *  enviado pelo cliente (dados do próprio usuário) para personalizar a resposta. */
@@ -5492,3 +5503,4 @@ export interface TenantContextAuditEntry {
 
 export * from './lead-email';
 export * from './cohort';
+export * from './contextos';

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { AiReviewDue, SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { PermissionGuard } from '../iam/guards/permission.guard';
 import { RolesGuard } from '../iam/guards/roles.guard';
@@ -44,7 +45,7 @@ const ROLES = ['RH', 'GESTOR', 'CEO', 'ADMIN', 'CONSULTOR'] as const;
  * permissão govia:manage (RH/GESTOR/CEO/ADMIN por padrão; Consultor CRIVO só lê).
  */
 @Controller('ai-governance')
-@UseGuards(AuthGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, RolesGuard, PermissionGuard, ScreenAccessGuard)
 @RequireModule('govia')
 @RequireScreen('govia')
 @Roles(...ROLES)

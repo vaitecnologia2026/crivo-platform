@@ -1,17 +1,25 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import type { SessionUser } from '@crivo/types';
 import { AuthGuard } from '../iam/guards/auth.guard';
+import { OrganizacaoGuard } from '../iam/guards/organizacao.guard';
 import { ModuleGuard } from '../iam/guards/module.guard';
 import { ScreenAccessGuard } from '../iam/guards/screen-access.guard';
+import { RolesGuard } from '../iam/guards/roles.guard';
+import { Roles } from '../iam/roles.decorator';
+import { GESTAO_E_CONSULTORIA } from '../iam/role-groups';
 import { RequireModule } from '../iam/require-module.decorator';
 import { RequireScreen } from '../iam/require-screen.decorator';
 import { CurrentUser } from '../iam/current-user.decorator';
 import { EssencialService } from './essencial.service';
 import { CreateEssentialRecordDto, SubmitSelfAssessmentDto } from './dto';
 
-/** Diagnóstico Essencial do tenant (Briefing §5). Gate pelo módulo "campanhas". */
+/** Diagnóstico Essencial do tenant (Briefing §5). Gate pelo módulo "campanhas".
+ *  Autoavaliação, registros e resultado são da EMPRESA: só gestão e consultoria
+ *  (mesmo critério de /psychosocial/results). Antes não havia @Roles e o LÍDER
+ *  lia e gravava tudo. */
 @Controller('essencial')
-@UseGuards(AuthGuard, ModuleGuard, ScreenAccessGuard)
+@UseGuards(AuthGuard, OrganizacaoGuard, ModuleGuard, ScreenAccessGuard, RolesGuard)
+@Roles(...GESTAO_E_CONSULTORIA)
 @RequireModule('campanhas')
 @RequireScreen('essencial')
 export class EssencialController {

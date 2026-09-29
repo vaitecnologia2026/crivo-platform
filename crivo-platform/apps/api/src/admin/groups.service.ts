@@ -233,7 +233,7 @@ export class GroupsService {
     const icdScores = rows.map((r) => r.icdScore).filter((s): s is number => s != null);
     const icdAverage =
       icdScores.length > 0
-        ? Math.round(icdScores.reduce((a, b) => a + b, 0) / icdScores.length)
+        ? icdScores.reduce((a, b) => a + b, 0) / icdScores.length // precisão total; a tela exibe 1 casa
         : null;
 
     return {
